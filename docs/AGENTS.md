@@ -100,10 +100,11 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 > 保证"任意账号任意提交，第一时间知道该更新哪些文档，并同提交更新"。机制：入库 git hook（`scripts/hooks/`）+ 映射脚本（`scripts/doc-sync-map.js`，改动文件 → 必同步文档清单）。
 
 1. **新账号 clone 后安装一次**：`sh scripts/install-hooks.sh`（等价 `git config core.hooksPath scripts/hooks`）；
-2. **prepare-commit-msg**：每次 `git commit` 自动打印「📋 本次改动触发的必同步文档清单」——照单在同提交内更新文档（含跨仓库 action 提示，如音源能力变更 → 音源仓库侧同步）；
+2. **prepare-commit-msg**：每次 `git commit` 自动打印「📋 必同步文档清单」+ 文档巡检红/黄项摘要——照单在同提交内更新文档（含跨仓库 action 提示，如音源能力变更 → 音源仓库侧同步）；
 3. **commit-msg 强制校验**：改动含代码（`src/`）但提交不含任何文档更新 → 拒绝提交（确认无需文档时 `git commit --no-verify` 绕过）；
-4. 清单中的「action」提示同样要处理：三语言同步、SYNC_POINTS 核对、MERGE_GUIDE 冲突点回填等；
-5. 规则表维护：新增映射在 `scripts/doc-sync-map.js` 的 `RULES` 加一行即可（活文档原则）。
+4. **pre-push 闸门**：推送前自动跑 `node scripts/docs-audit.js --dry-run`，存在 🔴（机器修不了的不一致）→ 拒绝推送（`git push --no-verify` 可绕）；
+5. 清单中的「action」提示同样要处理：三语言同步、SYNC_POINTS 核对、MERGE_GUIDE 冲突点回填等；
+6. 规则表维护：新增映射在 `scripts/doc-sync-map.js` 的 `RULES` 加一行即可（活文档原则）。
 
 ## 文档同步规范（强制，无需提醒）
 
