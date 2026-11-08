@@ -54,9 +54,9 @@ musicSdk（内置官方源）  ──┐
 
 App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`android/app/src/main/java/cn/toside/music/mobile/userApi/`。
 
-## 四、聚合源内部结构（豆包定制 v8.10.3）
+## 四、聚合源内部结构（豆包定制 v8.10.4）
 
-> 每次构建自动拉取音源仓库 master 最新版，以下为当前（v8.10.3）结构；随音源迭代会更新。
+> 每次构建自动拉取音源仓库 master 最新版，以下为当前（v8.10.4）结构；随音源迭代会更新。
 
 当前内置聚合源含多个后端，按需路由与降级：
 
