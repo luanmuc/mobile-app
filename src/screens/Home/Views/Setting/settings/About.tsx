@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { memo } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 
 import Section from '../components/Section'
@@ -11,14 +11,6 @@ import { useI18n } from '@/lang'
 import Text from '@/components/common/Text'
 import { showPactModal } from '@/core/common'
 import { checkUpdate } from '@/core/version'
-import { getPlayCount } from '@/core/player/playCount'
-
-const formatPlayTime = (seconds: number) => {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h} 小时 ${m} 分钟`
-  return `${m} 分钟`
-}
 
 // const qqGroupUrl = 'mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3Du1zyxek8roQAwic44nOkBXtG9CfbAxFw'
 // const qqGroupUrl2 = 'mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3D-l4kNZ2bPQAuvfCQFFhl1UoibvF5wcrQ'
@@ -28,14 +20,6 @@ const formatPlayTime = (seconds: number) => {
 export default memo(() => {
   const theme = useTheme()
   const t = useI18n()
-  const [playCount, setPlayCount] = useState(getPlayCount())
-  useEffect(() => {
-    // 组件可见期间定时刷新统计（与 core 结算周期 playCount.ts 的 10 秒对齐）
-    const timer = setInterval(() => {
-      setPlayCount(getPlayCount())
-    }, 10000)
-    return () => clearInterval(timer)
-  }, [])
   const openHomePage = () => {
     void openUrl('https://github.com/luanmuc/mobile-app#readme')
   }
@@ -121,9 +105,6 @@ export default memo(() => {
       </View>
       <View style={styles.part}>
         <Text style={styles.text}><Text style={styles.boldText}>本项目没有微信公众号之类的所谓「官方账号」，也未在小米、华为、vivo 等应用商店发布同名应用，谨防被骗！</Text></Text>
-      </View>
-      <View style={styles.part}>
-        <Text style={styles.text}>听歌统计（借鉴 MusicFree）：累计播放 <Text style={styles.boldText}>{playCount.playedCount}</Text> 次 · 今日 <Text style={styles.boldText}>{playCount.dayCount}</Text> 次 · 累计播放时长约 <Text style={styles.boldText}>{formatPlayTime(playCount.playTime)}</Text></Text>
       </View>
       <View style={styles.part}>
         <Text style={styles.text}>若你使用过程中遇到<Text style={styles.boldText}>广告</Text>或者<Text style={styles.boldText}>引流</Text>（如需要加群、关注公众号之类才能使用或者升级）的信息，则表明你当前运行的软件是「第三方修改版」。</Text>

@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useEffect } from 'react'
 import { TouchableOpacity, View, ScrollView } from 'react-native'
 
 import { createStyle } from '@/utils/tools'
@@ -17,6 +17,32 @@ import GroupCleanCache from '../settings/CleanCache'
 import GroupLog from '../settings/Log'
 import GroupAbout from '../settings/About'
 import Version from '../settings/Version'
+import { getPlayCount } from '@/core/player/playCount'
+
+const formatPlayTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h} 小时 ${m} 分钟`
+  return `${m} 分钟`
+}
+
+const PlayCountBlock = memo(() => {
+  const [playCount, setPlayCount] = useState(getPlayCount())
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlayCount(getPlayCount())
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <View style={styles.playCountBlock}>
+      <Text size={13} color={'#999'}>
+        听歌统计：累计播放 {playCount.playedCount} 次 · 今日 {playCount.dayCount} 次 · 累计播放时长约 {formatPlayTime(playCount.playTime)}
+      </Text>
+    </View>
+  )
+})
 
 // 竖屏（手机）设置页：二级结构 + 首页直接展开区
 // 第一层：分组列表（点击进入二级页），自定义音源 / 软件更新直接在首页展开
@@ -55,6 +81,7 @@ export default memo(() => {
         ))}
         <View style={styles.expandBlock}>
           <Version />
+          <PlayCountBlock />
         </View>
       </ScrollView>
     )
@@ -110,6 +137,12 @@ const styles = createStyle({
     marginBottom: 15,
     paddingLeft: 15,
     paddingRight: 15,
+  },
+  playCountBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: '#eee',
   },
   backBar: {
     flexDirection: 'row',
