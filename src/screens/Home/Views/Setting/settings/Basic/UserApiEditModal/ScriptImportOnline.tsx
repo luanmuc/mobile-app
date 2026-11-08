@@ -97,7 +97,7 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
       setBtn({ disabled: false, text: t('user_api_btn_import_online_input_confirm') })
     }
     if (script.length > 9_000_000) {
-      toast(t('user_api_import_failed_tip', { message: 'Too large script' }), 'long')
+      toast(t('user_api_import_failed_tip', { message: t('source_update_too_large') }), 'long')
       return
     }
     void handleImportScript(script)

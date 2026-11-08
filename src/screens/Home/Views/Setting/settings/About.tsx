@@ -30,10 +30,10 @@ export default memo(() => {
   const t = useI18n()
   const [playCount, setPlayCount] = useState(getPlayCount())
   useEffect(() => {
-    // 组件可见期间定时刷新统计（同步 core 定时器的变化）
+    // 组件可见期间定时刷新统计（与 core 结算周期 playCount.ts 的 10 秒对齐）
     const timer = setInterval(() => {
       setPlayCount(getPlayCount())
-    }, 30000)
+    }, 10000)
     return () => clearInterval(timer)
   }, [])
   const openHomePage = () => {

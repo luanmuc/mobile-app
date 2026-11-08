@@ -80,8 +80,8 @@ const Header = () => {
   const statusBarHeight = useStatusbarHeight()
   const [playCount, setPlayCount] = useState(getPlayCount())
   useEffect(() => {
-    // 每 30 秒刷新一次听歌统计
-    const timer = setInterval(() => setPlayCount(getPlayCount()), 30000)
+    // 每 10 秒刷新一次听歌统计（与 core 结算周期 playCount.ts 对齐，避免界面滞后结算一头）
+    const timer = setInterval(() => setPlayCount(getPlayCount()), 10000)
     return () => clearInterval(timer)
   }, [])
   return (
