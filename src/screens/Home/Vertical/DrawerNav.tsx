@@ -91,7 +91,7 @@ const Header = () => {
           {t('drawer_stats_total', { num: playCount.playedCount })}
         </Text>
         <Text style={styles.statsSub} size={12} color={theme['c-primary-dark-100-alpha-300']}>
-          {t('drawer_stats_today', { today: playCount.dayCount, time: formatPlayTime(playCount.playTime) })}
+          {t('drawer_stats_today', { today: playCount.dayCount, time: formatPlayTime(playCount.dayTime) })}
         </Text>
       </View>
     </View>

@@ -31,7 +31,6 @@ import BackgroundTimer from 'react-native-background-timer'
 import { checkIgnoringBatteryOptimization, checkNotificationPermission, debounceBackgroundTimer } from '@/utils/tools'
 import { LIST_IDS } from '@/config/constant'
 import { addListMusics, removeListMusics } from '@/core/list'
-import { addPlayCount } from '@/core/player/playCount'
 import { addDislikeInfo } from '@/core/dislikeList'
 import { formatPlayError } from '@/core/music/utils'
 
@@ -652,7 +651,6 @@ export const play = () => {
     if (createGettingUrlId(playerState.playMusicInfo.musicInfo) != global.lx.gettingUrlId) setMusicUrl(playerState.playMusicInfo.musicInfo)
     return
   }
-  addPlayCount() // 听歌统计：每次开始播放计一次
   void setPlay()
 }
 
