@@ -16,7 +16,7 @@
 
 ## 二、机器已覆盖的项（不必人肉重查）
 
-见 `scripts/docs-audit.js` 18 条规则：TS 计数（全文档）、downloadManager 行数、ABI 清单、compileSdk/targetSdk/minSdk、音频卸载默认值、i18n 总键与 `dl_` 键、底座 bN、track-player commit、跨仓音源版本。
+见 `scripts/docs-audit.js` 19 条规则：TS 计数（全文档）、downloadManager 行数、ABI 清单、compileSdk/targetSdk/minSdk、音频卸载默认值、i18n 总键与 `dl_` 键、底座 bN、track-player commit、跨仓音源版本、跨仓音源 action 数（SYNC_POINTS）。
 
 ## 三、图文/表格类
 

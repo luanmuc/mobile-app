@@ -222,6 +222,23 @@ function ruleI18nKeys() {
   } catch (e) { report.push(`⚠️ 规则12 异常：${e.message}`); }
 }
 
+// ── 规则 13：SYNC_POINTS「音源 action（N 个）」↔ 音源 actions 并集（跨仓）──
+function ruleSyncPointsActions() {
+  const sib = path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js');
+  if (!fs.existsSync(sib)) { report.push('⚪ 规则13 跳过：本地无 ../lx-music-source'); return; }
+  const src = fs.readFileSync(sib, 'utf8');
+  const init = (src.match(/const actions = \[([^\]]*)\]/) || [])[1] || '';
+  const pushed = (src.match(/actions\.push\([^)]*\)/g) || []).join(';');
+  const names = ((init + ';' + pushed).match(/"[a-zA-Z]+"/g) || []).map(x => x.replace(/"/g, ''));
+  const uniq = Array.from(new Set(names));
+  const n = uniq.length;
+  const m = read('docs/SYNC_POINTS.md').match(/音源 action（(\d+) 个）/);
+  if (!m) { report.push('⚠️ 规则13：SYNC_POINTS 未找到「音源 action（N 个）」'); return; }
+  const dn = Number(m[1]);
+  if (dn === n) report.push(`🟢 [docs/SYNC_POINTS.md] 音源 action（${n} 个）一致：${uniq.join('/')}`);
+  else report.push(`🟡 [docs/SYNC_POINTS.md] 音源 action 文档 ${dn} 个 ≠ 实际 ${n} 个（${uniq.join('/')}）——请同步`);
+}
+
 // ── 执行 ────────────────────────────────────────────────────────────────
 ruleTsCount();
 ruleLangKeys();
@@ -235,6 +252,7 @@ ruleBuiltinSourceVersion();
 ruleTsCountWide();
 ruleCustomCommits();
 ruleI18nKeys();
+ruleSyncPointsActions();
 
 console.log(`\n[L4 文档巡检·mobile] ${DRY ? 'DRY-RUN（不修改）' : '自动修复'} — ${new Date().toISOString().slice(0, 10)}\n`);
 for (const r of report) console.log(r);
