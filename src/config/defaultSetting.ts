@@ -19,8 +19,8 @@ const defaultSetting: LX.AppSetting = {
   'player.startupAutoPlay': false,
   'player.startupPushPlayDetailScreen': false,
   'player.togglePlayMethod': 'listLoop',
-  'player.playQuality': 'flac24bit', // 用户要求默认优先 flac24bit（截图设置；App 按源实际能力降级）
-  'player.isSavePlayTime': false,
+  'player.playQuality': 'flac', // v1.9.3：默认由 flac24bit 改为 flac——实测 20 个源无任何 flac24bit 能力，请求该档会得到空链，且降档链最多 3 档会把 128k 兜底挤掉
+  'player.isSavePlayTime': true, // v1.9.3：默认记住播放进度
   'player.volume': 1,
   'player.playbackRate': 1,
   'player.cacheSize': '1024',
