@@ -483,7 +483,8 @@ export default memo(() => {
                   } else if (item.playDead) {
                     // v7.0：播放连续失败被摘除
                     stateText = '已摘除'; stateColor = '#ff4d4f'
-                  } else if (item.rateLimitActive || item.rateLimited) {
+                  } else if (item.state !== 'open' && (item.rateLimitActive || item.rateLimited)) {
+                    // 熔断(open)优先于限流标签：熔断更严重，不能被「限流中」降级显示
                     // v4.0：被限流（连续 429）；第五轮：退避期内 rateLimitActive 立即可亮，
                     // 不再等"连续 3 次"这个串行下几乎不可达的条件
                     stateText = item.rateLimitActive ? '限流中' : '被限流'; stateColor = '#faad14'
