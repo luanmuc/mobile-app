@@ -1,3 +1,16 @@
+## [v1.9.2-b86] - 2026-11-09
+
+> 背景：推送前做跨仓契约检查时发现，音源抛的 12 个错误码里，App 只给 6 个配了中文，而且其中两个**码名对不上**——音源抛 `NETWORK_TIMEOUT` / `RATE_LIMIT`，App 表里写的是 `TIMEOUT` / `TOO_MANY_REQUESTS`。`FAIL_CODE_ZH[code] || code` 会兜底显示英文码，用户看到的是「LINK_EXPIRED：签名URL已过期」这种。
+
+### 播放失败错误码中文化补全（`src/core/music/utils.ts`）
+- 补齐音源 12 个码：`NETWORK_TIMEOUT` / `CONFIG_ERROR` / `RATE_LIMIT` / `SERVER_ERROR` / `MISMATCH` / `LINK_EXPIRED` / `PREVIEW_FRAGMENT` / `NOT_AUDIO` / `STREAM_PLAYLIST`
+- 修正两个码名错位：`TIMEOUT` → 同时认 `NETWORK_TIMEOUT`；`TOO_MANY_REQUESTS` → 同时认 `RATE_LIMIT`（旧码名保留，兼容其他源与历史路径）
+- 文案对齐音源 `CODE_HINT`：如 `PREVIEW_FRAGMENT` = 「仅提供试听片段」
+
+### 验证
+- 逐码核对：音源 12 个 `ERROR_CODES` **全部有中文映射，缺失 0**
+- `tsc --noEmit`：仅 `playCount.ts(85,40)` 1 条既存错误
+
 ## [v1.9.2-b85] - 2026-11-09
 
 > 版本号 bump（`chore: 更新版本信息`，远端已先行推送），本轮**无独立功能变更**。

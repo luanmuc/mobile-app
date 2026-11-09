@@ -631,12 +631,25 @@ export const getPlayQualityLabel = (quality: string): string => {
 // 音源聚合失败 message 格式（v3.0+）：`CODE: 所有源均失败 [[q] 源: 原因 | ...]`
 // 或 `CODE: 单源原因`；内置源错误为 requestMsg 中文文案（原样截断返回）
 // ============================================================
+// 音源侧 ERROR_CODES 共 12 个（v8.11.1）。此前这里只映射了 6 个，且其中两个码名
+// 与音源对不上：音源抛 NETWORK_TIMEOUT / RATE_LIMIT，这里写的是 TIMEOUT / TOO_MANY_REQUESTS，
+// 于是 `FAIL_CODE_ZH[code] || code` 直接兜底显示英文码给用户。
+// 两个旧码名保留（其他源/历史路径在用），音源 12 个码全部补齐。
 const FAIL_CODE_ZH: Record<string, string> = {
   NOT_FOUND: '歌曲不可用',
   NETWORK_ERROR: '网络错误',
-  TIMEOUT: '请求超时',
+  NETWORK_TIMEOUT: '请求超时',
+  TIMEOUT: '请求超时', // 历史码名，保留兼容
   PARAM_ERROR: '请求参数错误',
-  TOO_MANY_REQUESTS: '请求过于频繁，请稍后再试',
+  CONFIG_ERROR: '音源配置错误',
+  RATE_LIMIT: '请求过于频繁，请稍后再试',
+  TOO_MANY_REQUESTS: '请求过于频繁，请稍后再试', // 历史码名，保留兼容
+  SERVER_ERROR: '音源服务异常',
+  MISMATCH: '歌曲信息不匹配',
+  LINK_EXPIRED: '音源链接已失效',
+  PREVIEW_FRAGMENT: '仅提供试听片段',
+  NOT_AUDIO: '返回的不是有效音频',
+  STREAM_PLAYLIST: '返回的是播放列表，播放器不支持',
   UNKNOWN: '未知错误',
 }
 
