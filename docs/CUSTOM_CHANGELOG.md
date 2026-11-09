@@ -1,3 +1,21 @@
+## [v1.9.2-b84] - 2026-11-09
+
+> 背景：音源仓第六轮缺口审计发现，App 的「一键更新内置音源」在失败路径上会把自己逼死——旧源已经删完，新源却没加载起来，回退无处可去。
+
+### 一键更新顺序整改（`Source.tsx` + `apiSource.ts`）
+- 旧顺序：导入新源 → **删旧源** → 切到新源。问题：新源加载失败且没别的备用源时，`setApiSource` 内部的兜底 `find(api => !api.disabled)` 找到的就是新源自己（id 相同 → 不递归 → 停住），**此时旧源已在上一行删掉，静音且回退不了**。
+- 新顺序：导入新源（失败则什么都没动）→ 切到新源并等 init 结果（`Promise.race` 8s 上限）→ **切换成功后才删旧源**。
+- 取舍：宁可留一个重复的内置源，也不删光。失败时抛 `新音源未能加载，已保留旧音源`。
+
+### `setApiSource` 返回真实结果（D-25）
+- 签名由 `(apiId: string): void` 改为 `(apiId: string): Promise<boolean>`，尾部 `return global.lx.apiInitPromise[0]`。
+- 类型声明 `src/types/app.d.ts:39` 本来就有 `apiInitPromise: [Promise<boolean>, boolean, (success: boolean) => void]`，属**既有声明一直没用**。
+- 旧代码 `await setApiSource(newApiInfo.id)` 里的 `await` 是装饰——函数同步返回 void，读起来像「等切源完成」，实际没等。
+
+### 验证
+- `tsc --noEmit`：仅 `playCount.ts(85,40)` 1 条**既存**错误（与本次改动无关）
+- 未推送
+
 ## [v1.9.2-b83] - 2026-11-09
 
 > 背景：音源仓第五轮审计（审断言）收尾时发现，健康面板会把"正在 429 退避、完全不参与竞速"的源显示成**正常**。
