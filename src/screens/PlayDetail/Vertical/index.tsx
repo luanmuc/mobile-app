@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useMemo, useEffect } from 'react'
-import { View, AppState, StyleSheet } from 'react-native'
+import { View, AppState } from 'react-native'
 
 import Header from './components/Header'
 // import Aside from './components/Aside'
@@ -11,8 +11,6 @@ import Lyric from './Lyric'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
-import { usePlayerMusicInfo } from '@/store/player/hook'
-import Image from '@/components/common/Image'
 // import { useTheme } from '@/store/theme/hook'
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
@@ -34,7 +32,6 @@ export default memo(({ componentId }: { componentId: string }) => {
   // const theme = useTheme()
   const [pageIndex, setPageIndex] = useState(0)
   const showLyricRef = useRef(false)
-  const musicInfo = usePlayerMusicInfo()
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
     setPageIndex(nativeEvent.position)
@@ -74,59 +71,32 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, [])
 
   return (
-    <View style={styles.root}>
-      {/* 模糊背景层：专辑图放大 + 高斯模糊 + 半透明遮罩 */}
-      <View style={styles.bgContainer}>
-        <Image
-          url={musicInfo.pic}
-          style={styles.bgImage}
-          blurRadius={50}
-          resizeMode="cover"
-        />
-        <View style={styles.bgOverlay} />
+    <>
+      <Header />
+      <View style={styles.container}>
+        <PagerView
+          onPageSelected={onPageSelected}
+          // onPageScrollStateChanged={onPageScrollStateChanged}
+          style={styles.pagerView}
+        >
+          <View collapsable={false}>
+            <Pic componentId={componentId} />
+          </View>
+          <View collapsable={false}>
+            <LyricPage activeIndex={pageIndex} />
+          </View>
+        </PagerView>
+        {/* <View style={styles.pageIndicator} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pageIndicator}>
+          <View style={{ ...styles.pageIndicatorItem, backgroundColor: pageIndex == 0 ? theme['c-primary-light-100-alpha-700'] : theme['c-primary-alpha-900'] }}></View>
+          <View style={{ ...styles.pageIndicatorItem, backgroundColor: pageIndex == 1 ? theme['c-primary-light-100-alpha-700'] : theme['c-primary-alpha-900'] }}></View>
+        </View> */}
+        <Player />
       </View>
-
-      {/* 前景内容 */}
-      <View style={styles.fgContainer}>
-        <Header />
-        <View style={styles.container}>
-          <PagerView
-            onPageSelected={onPageSelected}
-            // onPageScrollStateChanged={onPageScrollStateChanged}
-            style={styles.pagerView}
-          >
-            <View collapsable={false}>
-              <Pic componentId={componentId} />
-            </View>
-            <View collapsable={false}>
-              <LyricPage activeIndex={pageIndex} />
-            </View>
-          </PagerView>
-          <Player />
-        </View>
-      </View>
-    </View>
+    </>
   )
 })
 
 const styles = createStyle({
-  root: {
-    flex: 1,
-  },
-  bgContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  bgImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  fgContainer: {
-    flex: 1,
-  },
   container: {
     flex: 1,
     flexDirection: 'column',
