@@ -46,6 +46,7 @@
 - **后果**：`importUserApi` 已经把新音源写进去了，随后读 `undefined.id` 抛 TypeError → `catch` 里 toast「更新失败：Cannot read property 'id' of undefined」→ **旧音源不删、不自动切换**。用户看到"失败"，但实际已经装入了新音源，状态变成半完成
 - **等级**：L0 + L2
 - **修法**：`importUserApi` 补 `return info`（类型随之变 `Promise<UserApiInfo>`）
+- **后续（2026-11-09，D-24）**：R4 只修了「拿到 id」，没修「顺序」。当时流程仍是「导新 → **删旧** → 切新」，新源加载失败且无备用时旧源已被删、回退不了。已改为「导新 → 切新并等 init（8s 上限）→ 成功才删旧」，见 `CUSTOM_CHANGELOG.md` v1.9.2-b84。**R4 的「流程闭环」结论不等于流程安全，两件事。**
 
 ---
 
