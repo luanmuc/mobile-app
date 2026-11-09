@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b85",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 46b27183 feat(config): 默认音质 flac24bit→flac、默认记住播放进度",
+  "version": "1.9.2-b86",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 67092e83 docs(changelog): 补 b85 条目（版本 bump，无功能变更）\n- 34b1b79a docs(audit): R4 结论加注 D-24\n- 0e294b78 docs(changelog): 补记 b84 一键更新顺序整改（D-24/D-25）\n- f8f02540 fix(source): 一键更新改为「切源成功后再删旧源」，setApiSource 返回真实加载结果\n- 4222d93a docs(userApi): 修正 trend 上限注释（60 → 由音源 HEALTH_HISTORY_MAX 决定，现 144）\n- fd33ca77 fix(health): 熔断(open)优先于限流标签显示\n- c1de8b62 fix(health): 面板显示「限流中」而非正常（跟随音源快照 rateLimitActive）\n- 6c39a60f chore(docs): L4 文档巡检自动修复（docs-audit） [自动]",
   "history": [
+    {
+      "version": "1.9.2-b85",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 46b27183 feat(config): 默认音质 flac24bit→flac、默认记住播放进度"
+    },
     {
       "version": "1.9.2-b84",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 本次无代码变更（仅发布/文档调整）"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b80",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 14eab214 fix(stats): 今日时长改用 dayTime + 跨天自动归零 + 余数接续"
-    },
-    {
-      "version": "1.9.2-b79",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 8be83992 chore(docs): 巡检 18→19 条（新增跨仓音源 action 数校验）\n- 88a9ca9e chore(docs): 新增 pre-push 文档闸门 + AGENTS 闸门清单补第 4 条\n- df7df298 chore(docs): 文档同步机制升级——巡检 18 条规则 + 跨仓构建闸门 + 提交时摘要 + 语义清单\n- f62ea328 docs: DEV_SETUP 启动命令 npm run android 不存在，改为 npx react-native run-android [skip ci]\n- d2f55465 docs: 逐份通读后修正 16 处过期描述性断言 [skip ci]\n- 355e9511 docs(agents): 同步表补「内置音源升级」触发项（治本）[skip ci]\n- c7bf6d4a docs: 澄清审计当轮的基线口径（避免把 b74 与 fork sha 读成同一对象） [skip ci]\n- e037e9da docs: 清理过期状态字样 + 修 16 处死链 + 音源版本口径跟上 v8.10.3 [skip ci]\n- cfb88ed0 docs: b78 落地记录 + 底座镜像同步到 b78 / fork a0b2a87 [skip ci]"
     }
   ]
 }
