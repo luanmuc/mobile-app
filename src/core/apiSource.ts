@@ -7,7 +7,14 @@ import { destroyUserApi, setUserApi } from './userApi'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
 
 
-export const setApiSource = (apiId: string) => {
+/**
+ * 切换音源。
+ * 返回本次切换的加载结果（Promise<boolean>）。
+ * 说明：函数体本身同步地把 setting/apiInitPromise 摆好，真正的脚本加载在
+ * apiInitPromise[0] 上 resolve——成功走 userApi/index.ts 的 init 事件，
+ * 失败走 setUserApi 的 catch。调用方若要"等切好再做事"，必须 await 返回值。
+ */
+export const setApiSource = (apiId: string): Promise<boolean> => {
   if (global.lx.apiInitPromise[1]) {
     global.lx.apiInitPromise[0] = new Promise(resolve => {
       global.lx.apiInitPromise[1] = false
@@ -40,5 +47,7 @@ export const setApiSource = (apiId: string) => {
       global.state_event.apiSourceUpdated(apiId)
     })
   }
+
+  return global.lx.apiInitPromise[0]
 }
 

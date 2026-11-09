@@ -151,19 +151,25 @@ export default memo(() => {
             text: t('source_update_confirm'),
             onPress: async() => {
               try {
-                // 先导新的，成功了再删旧的（避免导失败全没了）
+                // 1) 先导新的（失败则什么都没动）
                 const newApiInfo = await importUserApi(remoteScript)
 
-                // 删掉所有"豆包定制"开头的旧音源（不删刚导入的那个）
+                // 2) 切到新源并等它真的加载出来，再考虑删旧的。
+                //    旧音源的清理必须放在切源之后：切源失败时旧源还在，能回退。
+                //    8s 是 init 事件的上限等待——超时按失败处理（宁可留重复源，也不删光）
+                const switched = await Promise.race([
+                  setApiSource(newApiInfo.id),
+                  new Promise<boolean>(resolve => { setTimeout(() => { resolve(false) }, 8000) }),
+                ])
+                if (!switched) throw new Error('新音源未能加载，已保留旧音源')
+
+                // 3) 切源成功后再删"豆包定制"旧音源（不删刚导入的那个）
                 const oldIds = userApiListRaw
                   .filter(api => api.name.includes('豆包定制') && api.id !== newApiInfo.id)
                   .map(api => api.id)
                 if (oldIds.length) {
                   await removeUserApi(oldIds)
                 }
-
-                // 自动切换到新导入的音源
-                await setApiSource(newApiInfo.id)
 
                 toast(t('source_update_ok', { version: remoteVersion }), 'long')
               } catch (err: any) {

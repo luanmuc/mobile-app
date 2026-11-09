@@ -1,7 +1,8 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：v1.9.2-b74（代码提交 20ac0519，文档提交 c4cb35df）
-> 最近更新：2026-11-07（b74 审计轮）
+> 最近更新：2026-11-09（跨仓契约复审 + 一键更新流程整改）
+> 前次：2026-11-07（b74 审计轮）
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
 ---
@@ -338,3 +339,49 @@ python3 -c "import json;print(json.load(open('src/lang/zh-cn.json'))['drawer_sta
 # 设置项三处一致
 grep -c "':" src/config/defaultSetting.ts; grep -c "':" src/types/app_setting.d.ts
 ```
+
+---
+
+## M 组：与音源仓契约（2026-11-09 新增，跨仓复审）
+
+前五轮审计都在音源仓内部做，App 侧只在 `AUDIT_REPORT-2026-11-07.md` 里审过一次，且那次之后音源仓改了三轮（v8.11.0 验真闸门、v8.11.1 D-20/D-21、面板 rateLimitActive）。**音源侧改了，App 侧有没有跟上，之前没人查过。**
+
+### 审计范围（三处，不是全仓 514 文件）
+
+| 面 | 入口 | 判据 |
+|---|---|---|
+| 健康快照字段 | `Health.tsx` 的 `HealthItem` | App 读的每个字段音源必须提供；无幻读 |
+| action 契约 | `core/init/userApi/index.ts` 的 `case health/toggle/probe/config/trend` | 与音源 `actions` 声明一致，参数名一致 |
+| 一键更新流程 | `Basic/Source.tsx` L152–175 | 顺序、失败回退、异常吞并 |
+
+### 结果
+
+| 项 | 结论 | 证据级别 |
+|---|---|---|
+| 字段对照 | 音源给 18 字段，App 声明 13，**差集为空** | L1 结构 + L2 运行 |
+| `playDead` 幻读（R6） | 已消除，音源现提供该字段 | L1 |
+| `healthScore < 0` 判据 | **实测 -4.5 可成立**，非死判据 | L2 实测 |
+| `trend` 上限注释 | 写「60 条」，音源已改 144 → **D-23** | L1 |
+| 一键更新顺序 | 「导入新 → 删旧 → 切新」，切源失败时旧源已删 → **D-24** | L2 走查 |
+| `await setApiSource(...)` | `setApiSource` 是同步函数，await 无效 → **D-25** | L0 类型 |
+| R1/R4/R5/R6 | 回代码核实，四条都真修 | L0/L1 |
+
+### 一条硬判据（跨仓场景通用）
+
+**字段名对得上 ≠ 语义对得上。** 本轮 `healthScore` 从 0~1 改 0~10 分制，App 用 `< 0` 判异常——如果只核对"字段存在"，会认为没问题；如果只按"0~10 分制"推断，会认为判据恒假。**两个推断都错**，必须实测取值范围。
+
+### 复核命令
+
+```bash
+# 字段对照
+grep -n "interface HealthItem" -A 20 src/screens/Home/Views/Setting/settings/Health.tsx
+grep -n "rateLimitActive:" -B 30 ../lx-music-source/lx-source.js | grep -oE "^\s+[a-zA-Z_]+:" | tr -d ' :'
+# action 契约
+grep -n "case 'health'\|case 'toggle'\|case 'probe'\|case 'config'\|case 'trend'" src/core/init/userApi/index.ts
+# 限流优先级
+grep -n "rateLimitActive" src/screens/Home/Views/Setting/settings/Health.tsx
+```
+
+### 已知限制
+
+App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L2 代码走查 + 局部实测**，没有 APK 产物级（L3）和设备级（L4）证据。不因为"审过了"而升级证据级别。
