@@ -1,3 +1,18 @@
+## [v1.9.2-b83] - 2026-11-09
+
+> 背景：音源仓第五轮审计（审断言）收尾时发现，健康面板会把"正在 429 退避、完全不参与竞速"的源显示成**正常**。
+
+### 健康面板「限流中」状态（`Health.tsx`）
+- 判断从 `item.rateLimited` 改为 `item.rateLimitActive || item.rateLimited`：正在退避显示「限流中」，历史上被连续拒绝多次显示「被限流」
+- 原因：`rateLimited` 需要连续 3 次被上游真实拒绝才置位，但第一次 429 就把该源退避 30 秒，后续请求被本地 `canExecute` 拦下、不构成新证据——串行使用中这个标记几乎永远为 false，面板于是长期显示正常
+- 音源快照新增 `rateLimitUntil`（退避截止时间戳）与 `rateLimitActive`（`now < rateLimitUntil`），是派生只读字段，不改任何控制流
+- 语义不合并：`rateLimitActive` = "现在这个源不参与竞速"（一次 429 就有），`rateLimited` = "已被风控盯上"（多次被拒）。合并后「被限流」就再也不能表示后者
+
+### 验证
+- 音源侧 `FAULT8c` 实测：`rateLimitActive=true` / 剩余 30s / `rateLimited=false`（正是面板该亮的场景）
+- 两版注入均能红：`rateLimitActive` 恒 false、改回 `!!rateLimited`
+- App 侧 `tsc --noEmit`：仅 `playCount.ts` 1 条**既存**错误（与本次改动无关）
+
 ## [v1.9.2-b82] - 2026-11-08
 
 > 背景：三仓第二轮全覆盖审查收尾时补做的遗留项，以及审查结论里的 1 个 🟡 + 2 个 ⚪。

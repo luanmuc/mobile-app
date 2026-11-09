@@ -27,6 +27,12 @@ interface HealthItem {
   // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
   playDead?: boolean
   rateLimited?: boolean
+  // 第五轮审计：429 退避期的"当前不可用"状态。
+  // rateLimited 需要连续 3 次被上游真拒才置位，而第一次 429 就把该源退避 30s、
+  // 后续请求被本地拦下不构成新证据——串行使用中它几乎永远为 false，
+  // 旧界面于是把"正在退避、完全不参与竞速"的源显示成正常。这两个字段分开用。
+  rateLimitUntil?: number
+  rateLimitActive?: boolean
 }
 type HealthSnapshot = Record<string, HealthItem>
 
@@ -477,9 +483,10 @@ export default memo(() => {
                   } else if (item.playDead) {
                     // v7.0：播放连续失败被摘除
                     stateText = '已摘除'; stateColor = '#ff4d4f'
-                  } else if (item.rateLimited) {
-                    // v4.0：被限流（连续 429）
-                    stateText = '被限流'; stateColor = '#faad14'
+                  } else if (item.rateLimitActive || item.rateLimited) {
+                    // v4.0：被限流（连续 429）；第五轮：退避期内 rateLimitActive 立即可亮，
+                    // 不再等"连续 3 次"这个串行下几乎不可达的条件
+                    stateText = item.rateLimitActive ? '限流中' : '被限流'; stateColor = '#faad14'
                   } else {
                     stateText = t(`health_state_${item.state}`); stateColor = STATE_COLOR[item.state]
                   }
