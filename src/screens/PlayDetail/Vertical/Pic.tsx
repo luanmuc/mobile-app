@@ -29,17 +29,17 @@ export default ({ componentId }: { componentId: string }) => {
   // console.log('render pic')
 
   const style = useMemo(() => {
-    const imgWidth = Math.min(winWidth * 0.8, (winHeight - statusBarHeight - HEADER_HEIGHT) * 0.5)
+    const imgWidth = Math.min(winWidth * 0.7, (winHeight - statusBarHeight - HEADER_HEIGHT) * 0.45)
     return {
       width: imgWidth,
       height: imgWidth,
-      borderRadius: 2,
+      borderRadius: 20,
     }
   }, [statusBarHeight, winHeight, winWidth])
 
   return (
     <View style={styles.container}>
-      <View style={{ ...styles.content, elevation: animated ? 3 : 0 }}>
+      <View style={{ ...styles.content, elevation: animated ? 10 : 0 }}>
         <Image url={pic} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic} style={style} />
       </View>
     </View>
