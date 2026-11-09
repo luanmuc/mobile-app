@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b87",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 727401b3 fix(source-guide): 音源版本号 8.11.1→8.10.12（对齐音源仓最新，修复CI下载闸门）\n- 2e346fbf chore(deps): 播放器依赖更新到 88b062b（通知栏专辑图圆角8dp）\n- b8110ff3 feat(player): 竖屏播放页模糊背景 + 封面圆角加大\n- ed4a8bd7 docs(source-guide): 聚合源版本 v8.10.12 → v8.11.1（跨仓巡检红项）",
+  "version": "1.9.2-b88",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b3ddea45 fix(player): 保留封面圆角20px，仅去掉模糊背景\n- a0a4d354 revert(player): 恢复竖屏播放页原版（去掉模糊背景，封面恢复原样）",
   "history": [
+    {
+      "version": "1.9.2-b87",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 727401b3 fix(source-guide): 音源版本号 8.11.1→8.10.12（对齐音源仓最新，修复CI下载闸门）\n- 2e346fbf chore(deps): 播放器依赖更新到 88b062b（通知栏专辑图圆角8dp）\n- b8110ff3 feat(player): 竖屏播放页模糊背景 + 封面圆角加大\n- ed4a8bd7 docs(source-guide): 聚合源版本 v8.10.12 → v8.11.1（跨仓巡检红项）"
+    },
     {
       "version": "1.9.2-b86",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 67092e83 docs(changelog): 补 b85 条目（版本 bump，无功能变更）\n- 34b1b79a docs(audit): R4 结论加注 D-24\n- 0e294b78 docs(changelog): 补记 b84 一键更新顺序整改（D-24/D-25）\n- f8f02540 fix(source): 一键更新改为「切源成功后再删旧源」，setApiSource 返回真实加载结果\n- 4222d93a docs(userApi): 修正 trend 上限注释（60 → 由音源 HEALTH_HISTORY_MAX 决定，现 144）\n- fd33ca77 fix(health): 熔断(open)优先于限流标签显示\n- c1de8b62 fix(health): 面板显示「限流中」而非正常（跟随音源快照 rateLimitActive）\n- 6c39a60f chore(docs): L4 文档巡检自动修复（docs-audit） [自动]"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b82",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 2d25a96e docs: 音源版本口径更正（本体 v8.10.4 / 巡检脚本 v8.10.11）+ gdWy 已默认关闭"
-    },
-    {
-      "version": "1.9.2-b81",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- ed9d5383 docs: 同步音源 v8.10.4 版本引用（跨仓联动）[skip ci]\n- f3932d3d fix(stats): 展示刷新周期对齐 core 结算 + 两处展示层小修\n- 3b5a5c6e docs(audit): 合并第二轮语义契约审查维度与判据\n- 8902ae35 docs: 听歌统计 b80 口径同步（README 底座 + CUSTOM_CHANGELOG 补记）"
     }
   ]
 }
