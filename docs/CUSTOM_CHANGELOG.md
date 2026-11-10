@@ -1,3 +1,27 @@
+## [音源健康 2.4 方案] - 2026-11-11
+
+> 不标版本号、不改 `package.json`/`buildNumber`；只做端内本地诊断闭环，不做匿名上传。
+
+### 纯诊断模块（`src/core/healthDiagnostics.ts`）
+- `aggregateHealthEvents`：1h/24h/7d 成功率、P95、Top 错误码
+- `detectHealthAnomalies`：本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码、近期失败按码聚合
+- `buildHealthReport` / `buildEvidencePackage`：人话结论 + 证据 + 建议 + traceId；证据包含 `report/events/snapshot/trend/logTail`
+- `redactDiagnosticText`：导出前脱敏 URL、歌名、搜索词
+
+### 本地日志（`src/core/healthLog.ts`、`src/utils/log.ts`）
+- `source_health_YYYYMMDD.jsonl` 按天滚动；失败 100% 记、成功 1/20 采样
+- 单文件 2MB 封顶保留完整行尾部；保留 7 天，写入/启动时清理
+- 失败时通过 `healthEvents` 抓同 `traceId` 源事件落盘；导出 JSON 并调用现有原生分享
+- `log.ts` 导出 `getActiveLogsDir()`，复用当前生效的公共/私有日志目录
+
+### traceId 透传（`online.ts`、`music/utils.ts`、`init/userApi/index.ts`、5 个 `musicSdk/*/index.js`）
+- 一次播放一个 `traceId`，换源候选复用；`musicUrl.info.traceId` 透传到音源
+- 成功 1/20 采样、失败 100% 落盘；`user_api.d.ts` action 联合类型补 `healthEvents`
+
+### 健康页（`Health.tsx`、三语言 JSON）
+- 新增「最近异常（本地诊断）」区块与「导出诊断包」按钮；报告只给建议，不自动关源
+- 三语言新增导出/异常/建议文案；新增 `scripts/check_health_diagnostics.js` 21 条契约断言
+
 ## [未发布] - 2026-11-10
 
 > 背景：上一轮 App 仓实查发现，音源配置与健康状态存在“面板一套键表、启动注入另一套白名单”的漂移：启动注入只认 14 个旧键且要求 `>0`，`verifyDurRatio` / `verifyDurGapSec` 的 0 值会被丢掉；`playDeadReviveMs` 默认写成 30 分钟（音源实际 5 分钟）、`allFailShortTtlMs` 默认写成 5 分钟（音源实际 30 秒），两个预设还存不进音源；摘要只统计 7 类，已摘除/限流源会被算进正常；配置弹窗、趋势图、状态与源名大量中文硬编码，非法输入静默跳过。

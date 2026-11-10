@@ -15,8 +15,8 @@ const kg = {
   musicSearch,
   hotSearch,
   comment,
-  getMusicUrl(songInfo, type) {
-    return apis('kg').getMusicUrl(songInfo, type)
+  getMusicUrl(songInfo, type, traceId) {
+    return apis('kg').getMusicUrl(songInfo, type, traceId)
   },
   getLyric(songInfo) {
     return lyric.getLyric(songInfo)

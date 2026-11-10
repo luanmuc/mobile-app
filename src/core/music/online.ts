@@ -17,6 +17,7 @@ import {
   getCachedLyricInfo,
 } from './utils'
 import { log } from '@/utils/log'
+import { createHealthTraceId, recordPlayResult } from '@/core/healthLog'
 
 /* export const setMusicUrl = ({ musicInfo, type, url }: {
   musicInfo: LX.Music.MusicInfo
@@ -73,9 +74,11 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
 
   // b70 诊断：获取链接全链路打点（写运行诊断日志，fire-and-forget 不阻塞）
   const startTs = Date.now()
-  log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh}`)
+  // 2.4：一次播放一个 traceId；换源候选复用同一个，串起源侧多次取链事件
+  const traceId = createHealthTraceId()
+  log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh} trace=${traceId}`)
   // b70 诊断：兜底超时——防止任何链路异常导致 promise 永不 settle（无限 00:00），25s 强制失败并打点
-  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName }) => {
+  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName }) => {
     const source = subSource ? { id: subSource, name: subSourceName || subSource } : null
     if (targetMusicInfo.id != musicInfo.id && !isFromCache) {
       void saveMusicUrl(targetMusicInfo, targetQuality, url)
@@ -85,14 +88,31 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     if (source) void saveMusicSource(musicInfo, targetQuality, source)
     onQuality(targetQuality)
     onSource(source)
-    log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 子源=${subSourceName || subSource || '无'}`)
+    void recordPlayResult({
+      traceId,
+      platform: targetMusicInfo.source || musicInfo.source,
+      quality: targetQuality,
+      ok: true,
+      latencyMs: Date.now() - startTs,
+      sourceId: subSource,
+    })
+    log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 子源=${subSourceName || subSource || '无'} trace=${traceId}`)
     return url
   })
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`)), 25_000)
   })
   return Promise.race([urlPromise, timeoutPromise]).catch(err => {
-    log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message}`)
+    const codeMatch = String(err?.message || '').match(/^([A-Z_]+):/)
+    void recordPlayResult({
+      traceId,
+      platform: musicInfo.source,
+      quality: targetQuality,
+      ok: false,
+      code: codeMatch ? codeMatch[1] : 'PLAY_FAIL',
+      latencyMs: Date.now() - startTs,
+    })
+    log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message} trace=${traceId}`)
     throw err
   })
 }

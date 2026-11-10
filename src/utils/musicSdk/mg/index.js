@@ -15,8 +15,8 @@ const mg = {
   leaderboard,
   hotSearch,
   comment,
-  getMusicUrl(songInfo, type) {
-    return apis('mg').getMusicUrl(songInfo, type)
+  getMusicUrl(songInfo, type, traceId) {
+    return apis('mg').getMusicUrl(songInfo, type, traceId)
   },
   getLyric(songInfo) {
     return lyric.getLyric(songInfo)

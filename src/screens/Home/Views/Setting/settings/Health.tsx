@@ -19,6 +19,8 @@ import {
   msToDisplay,
 } from '@/core/sourceConfig'
 import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
+import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
+import { exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
@@ -84,7 +86,33 @@ export default memo(() => {
   const [showTrendModal, setShowTrendModal] = useState(false)
   // 提前预警——健康分连续下降的源列表
   const [decliningSources, setDecliningSources] = useState<string[]>([])
+  // 2.4：本地诊断报告（最近异常 + 一键导出）
+  const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const refreshDiagnostics = useCallback(async(snap: HealthSnapshot | null, history: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>) => {
+    try {
+      const events = await readRecentHealthEvents(500)
+      const report = buildHealthReport({ events, snapshot: (snap || {}) as any, now: Date.now() })
+      setDiagnostics(report)
+    } catch (e) {
+      console.log('health diagnostics failed:', e)
+    }
+  }, [])
+
+  const exportDiagnosticsPackage = useCallback(async() => {
+    try {
+      const events = await readRecentHealthEvents(800)
+      const logTail = await readDiagnoseLogTail()
+      const report = buildHealthReport({ events, snapshot: (snapshot || {}) as any, now: Date.now() })
+      const pkg = buildEvidencePackage({ report, events, snapshot: (snapshot || {}) as any, trend: trendData, logTail })
+      const path = await exportAndShareDiagnostics(pkg)
+      if (path) setProbeInfo(`${t('health_export_done')} ${path}`)
+      else setError(t('health_export_failed'))
+    } catch (e: any) {
+      setError(String(e?.message || t('health_export_failed')))
+    }
+  }, [snapshot, trendData, t])
 
   const loadHealth = useCallback(async(silent = false) => {
     if (!silent) setLoading(true)
@@ -113,6 +141,7 @@ export default memo(() => {
           // 历史快照结构固定为 { timestamp, sources }，显式声明类型，避免下游 entry/s 变成隐式 any
           const history = ((trendResult as any)?.history || []) as Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>
           setTrendData(history)
+          void refreshDiagnostics(data as HealthSnapshot, history)
 
           // 判断逻辑：最近 3 次探测，健康分连续下降 ≥5 分
           if (history.length >= 3) {
@@ -145,6 +174,7 @@ export default memo(() => {
       } catch (e) {
         // trend 获取失败不影响主流程，静默忽略
         console.log('trend auto load failed:', e)
+        void refreshDiagnostics(data as HealthSnapshot, [])
       }
     } catch (e: any) {
       console.log(e)
@@ -152,7 +182,7 @@ export default memo(() => {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [t])
+  }, [t, refreshDiagnostics])
 
   // v4.0：面板停留自动刷新（30s 静默轮询），卸载清理
   useEffect(() => {
@@ -346,6 +376,11 @@ export default memo(() => {
           <View style={styles.btnGap} />
           <Button onPress={() => void showTrend()}>{t('health_trend_btn')}</Button>
         </View>
+        <View style={styles.btnRow}>
+          <Button onPress={() => void exportDiagnosticsPackage()}>{t('health_export_diag')}</Button>
+          <View style={styles.btnGap} />
+          <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
+        </View>
         {
           probeInfo ? (
             <View style={styles.desc}>
@@ -375,6 +410,23 @@ export default memo(() => {
             <View style={[styles.summary, { backgroundColor: '#fff2e8' }]}>
               <Text size={12} color="#fa541c">{t('health_declining', { sources: decliningSources.map(id => sourceLabel(id, (snapshot as any)?.[id]?.name)).join(t('health_list_separator')) })}</Text>
               <Text size={11} color={theme['c-font-label']}>{t('health_decline_hint')}</Text>
+            </View>
+          ) : null
+        }
+        {
+          diagnostics && diagnostics.findings.length ? (
+            <View style={[styles.diagnosticsBox, { borderColor: theme['c-border-background'] }]}>
+              <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text>
+              <Text size={12} color={theme['c-font-label']} style={{ marginTop: 4 }}>{diagnostics.summary}</Text>
+              {
+                diagnostics.findings.slice(0, 5).map((f, idx) => (
+                  <View key={`${f.id}-${idx}`} style={{ marginTop: 6 }}>
+                    <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>{f.title}</Text>
+                    <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
+                    <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
+                  </View>
+                ))
+              }
             </View>
           ) : null
         }
@@ -665,6 +717,12 @@ export default memo(() => {
 const styles = StyleSheet.create({
   desc: {
     marginTop: 10,
+    marginBottom: 8,
+  },
+  diagnosticsBox: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 6,
+    padding: 10,
     marginBottom: 8,
   },
   btnRow: {

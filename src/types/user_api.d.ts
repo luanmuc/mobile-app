@@ -2,7 +2,7 @@ declare namespace LX {
   namespace UserApi {
     type UserApiSourceInfoType = 'music'
     // App 侧额外实现的治理动作（音源脚本 v8.0 起声明）：health 快照、toggle 开关、probe 手动探测、config 参数、trend 趋势
-    type UserApiSourceInfoActions = 'musicUrl' | 'lyric' | 'pic' | 'health' | 'toggle' | 'probe' | 'config' | 'trend'
+    type UserApiSourceInfoActions = 'musicUrl' | 'lyric' | 'pic' | 'health' | 'toggle' | 'probe' | 'config' | 'trend' | 'healthEvents'
 
     interface UserApiSourceInfo {
       name: string

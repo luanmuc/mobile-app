@@ -91,7 +91,7 @@ export default async(setting: LX.AppSetting) => {
           for (const action of actions) {
             switch (action) {
               case 'musicUrl':
-                apis[source].getMusicUrl = (songInfo: LX.Music.MusicInfo, type: LX.Quality) => {
+                apis[source].getMusicUrl = (songInfo: LX.Music.MusicInfo, type: LX.Quality, traceId?: string) => {
                   const requestKey = `request__${Math.random().toString().substring(2)}`
                   return {
                     canceleFn() {
@@ -105,6 +105,7 @@ export default async(setting: LX.AppSetting) => {
                         info: {
                           type,
                           musicInfo: songInfo,
+                          traceId,
                         },
                       },
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
@@ -287,6 +288,28 @@ export default async(setting: LX.AppSetting) => {
                         source,
                         action: 'trend',
                         info: {},
+                      },
+                    }).then(res => res.data).catch(async err => {
+                      console.log(err.message)
+                      return Promise.reject(err)
+                    }),
+                  }
+                }
+                break
+              case 'healthEvents':
+                // 2.4：只读事件环形缓冲（本地诊断；不提供写能力；不记歌名/URL/账号/设备）
+                apis[source].healthEvents = (query?: { traceId?: string, limit?: number }) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() {
+                      // userApiRequestCancel(requestKey)
+                    },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: {
+                        source,
+                        action: 'healthEvents',
+                        info: query ?? {},
                       },
                     }).then(res => res.data).catch(async err => {
                       console.log(err.message)

@@ -20,6 +20,9 @@ const PRIVATE_LOGS_DIR = PRIVATE_LOG_ROOT + '/logs'
 // 当前生效目录（checkLogPermission 后确定；null=未初始化）
 let activeLogsDir: string | null = null
 
+// 2.4：诊断模块需要拿到“当前真正生效”的日志目录（公共或私有降级），只读复用，不新建目录
+export const getActiveLogsDir = (): string => activeLogsDir || PRIVATE_LOGS_DIR
+
 // 日志文件定义：分类 → 文件名 / 上限
 const LOG_FILES = {
   error:    { name: 'error.log',        max: 1024 * 1024 }, // 全局错误 1MB

@@ -34,7 +34,7 @@ musicSdk（内置官方源）  ──┐
 |---|---|
 | `name` | 音源名称（含「豆包定制」会被内置导入逻辑识别/清理） |
 | `version` | 版本号（`vX.Y` 格式，用于启动时版本比对） |
-| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/手动探测，v4.0 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起） |
+| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/手动探测，v4.0 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起）、`healthEvents`（只读事件环形缓冲，2.4 方案） |
 | `qualitys` | 该源支持的音质列表（映射到 App 的 `FULL_QUALITYS_LIST`） |
 | `onScriptAction` | 处理 App 请求，返回 Promise 结果 |
 
@@ -68,6 +68,13 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 ## 四b、音源健康面板与健康分（App 侧语义）
 
 **数据流**：音源脚本（backend-api v4.0 起）注册 `health` action → 返回 `getHealthSnapshot()` 全源快照 → App 设置页「音源健康」子页（`src/screens/Home/Views/Setting/settings/Health.tsx`）消费展示，可刷新/单源开关/手动探测。
+
+**本地诊断闭环（2.4 方案，只本地不上传）**：
+
+- 音源侧新增只读 `healthEvents` action：容量 500 的环形缓冲，返回 `{schema, capacity, dropped, events}`；事件只含 `traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason`，不记歌名、URL、搜索词、账号、设备 ID、位置。
+- App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
+- 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/20 采样；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。
+- 健康页「最近异常」展示本地 1h/24h/7d 成功率、P95、Top 错误码与异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码）；「导出诊断包」生成 `report + events + snapshot + trend + logTail`，日志尾部会脱敏 URL/歌名，手动分享，不自动关源。
 
 **健康分语义（v1.9.2-b5 起，配套音源 v7.0）**：
 
