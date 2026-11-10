@@ -1,3 +1,46 @@
+## [未发布] - 2026-11-10
+
+> 背景：上一轮 App 仓实查发现，音源配置与健康状态存在“面板一套键表、启动注入另一套白名单”的漂移：启动注入只认 14 个旧键且要求 `>0`，`verifyDurRatio` / `verifyDurGapSec` 的 0 值会被丢掉；`playDeadReviveMs` 默认写成 30 分钟（音源实际 5 分钟）、`allFailShortTtlMs` 默认写成 5 分钟（音源实际 30 秒），两个预设还存不进音源；摘要只统计 7 类，已摘除/限流源会被算进正常；配置弹窗、趋势图、状态与源名大量中文硬编码，非法输入静默跳过。
+
+### 音源配置契约单一化（`src/core/sourceConfig.ts`、`src/core/init/index.ts`）
+- 新增 `src/core/sourceConfig.ts`：28 个数字键 + 8 个布尔键、单位/预设/默认值/上下限、`filterConfigForInjection`、`buildConfigUpdates`、`msToDisplay` / `displayToMs`，App 侧只保留这一份契约
+- 启动注入改用 `filterConfigForInjection`：接受完整 36 键，数字允许 0 仅限两个验真键，拒绝死键 `raceOverallTimeoutMs`、非布尔、非数字、负数、超限值；删除旧 14 键 `ALLOWED_KEYS` 与 `typeof v === 'number' && v > 0` 过滤
+- 新增 `scripts/check_source_config_contract.js`：TS 现转现跑，覆盖 `contract` / `defaults` / `status` / `validation` / `init` / `i18n` 六个 section，支持 `--only=`，失败退出码 1
+
+### 默认值与预设对齐音源 v8.11.7（`src/core/sourceConfig.ts`、`Health.tsx`）
+- `playDeadReviveMs` 默认 30 分钟 → **5 分钟**（300000ms）
+- `allFailShortTtlMs` 默认 5 分钟 → **0.5 分钟 / 30 秒**（30000ms）
+- 删除 `raceBatchStaggerMs` 的 `0` 预设（音源侧 0 不允许）
+- 删除 `allFailShortTtlMs` 的 `15 分钟`预设（超过 10 分钟上限）
+- `Health.tsx` 删除本地四份重复表（布尔键/默认值/单位/上下限）与两个换算函数，统一从共享契约读
+
+### 健康状态与摘要统一（`src/core/healthStatus.ts`、`Health.tsx`）
+- 新增纯函数 `classifyHealthState` / `summarizeHealthItems`，优先级：已关/休眠 → 待采样 → 异常 → 已摘除 → 限流 → 熔断/半开/正常
+- 摘要从 7 桶扩为 9 桶：`ok/bad/open/half/idle/sleep/off/removed/rate`，表格胶囊与底部摘要共用同一分类函数；已摘除不再落入正常，9 桶合计等于源数
+- 修复“熔断 open 被限流标签降级显示”的旧分支：熔断优先于限流
+
+### 配置面板全量 i18n（`src/lang/zh-cn.json`、`zh-tw.json`、`en-us.json`、`Health.tsx`）
+- 三语言新增 36 个 `health_cfg_label_*`、36 个 `health_cfg_desc_*`、8 个单位 key、3 个状态 key（已摘除/限流中/被限流）、2 个摘要桶 key（已摘除/限流）
+- 新增弹窗/趋势/告警/按钮/平台名/13 个英文或混排源名 key；`Health.tsx` 删除 `CONFIG_LABELS` / `CONFIG_DESCS` / `SOURCE_NAME_ZH` / `PLATFORM_NAMES` 全部中文本地表，统一走 `t()`
+- 底部状态说明补全 11 态与 9 桶口径，去掉源码常量名 `playDeadReviveMs`，改成“摘除后约 5 分钟（默认值，可在配置面板调整）”
+
+### 非法输入逐项反馈（`Health.tsx`、`src/core/sourceConfig.ts`）
+- `saveConfig` 改用 `buildConfigUpdates`：空/非数字/负数/非法 0/低于下限/高于上限/源侧没该键/布尔非布尔均产出错误码
+- 存在任一错误时整次不提交、不显示“配置已保存”，错误逐项显示在对应输入框/开关下方；修改该项后即时清除该行错误
+
+### 文档（`docs/MUSIC_SOURCE_GUIDE.md`、`docs/CUSTOM_CHANGELOG.md`）
+- 音源指南新增「四c、音源配置面板」：36 键清单、单位、默认、上下限、持久化链路、11 态与 9 桶
+- 四b 快照字段补 `rateLimitActive`，说明与 `rateLimited` 不合并
+- 本轮为单次提交，**未推送、未触发构建、未升版本号**
+
+### 验证
+- `node scripts/check_source_config_contract.js`：六个 section 全部通过（24 通过 / 0 失败）
+- `node scripts/check_ts_syntax.js`：516 个 TS/TSX 文件 0 错误
+- `node scripts/check_docs_consistency.js`：16 个文档无过时引用
+- `node scripts/docs-audit.js --dry-run`：待处理 0 项
+- `tsc --noEmit`：仅既存 `playCount.ts(85,40)` 1 条错误
+- `git diff --check`：无空白错误；未推送
+
 ## [v1.9.2-b86] - 2026-11-09
 
 > 背景：推送前做跨仓契约检查时发现，音源抛的 12 个错误码里，App 只给 6 个配了中文，而且其中两个**码名对不上**——音源抛 `NETWORK_TIMEOUT` / `RATE_LIMIT`，App 表里写的是 `TIMEOUT` / `TOO_MANY_REQUESTS`。`FAIL_CODE_ZH[code] || code` 会兜底显示英文码，用户看到的是「LINK_EXPIRED：签名URL已过期」这种。

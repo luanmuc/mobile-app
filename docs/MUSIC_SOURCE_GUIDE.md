@@ -57,7 +57,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 ## 四、聚合源内部结构（豆包定制 v8.11.7）
 
 > 每次构建自动拉取音源仓库 master 最新版，以下为当前结构；随音源迭代会更新。
-> **注**：`v8.11.7` 为音源本体当前版本（2026-11-10 健康面板配置可管：布尔开关 8 个可写读回、数字参数白名单补齐 verifyTimeoutMs、非布尔值写入布尔开关被拒；K4c~K4e 先红后绿）。此前的 `v8.11.6`（L4 收尾加固：链过滤分层 + 源开关对称清账 + fallback 代表码 codeRank + HEAD 补证）、`v8.11.5`（L4 裁决层收口：admit 单一入口 + 策略表 + 三调用点）、`v8.11.4`（错歌兜底修复：缺 songmid 直接 PARAM_ERROR 不猜歌）等迭代均已并入本版基线。
+> **注**：`v8.11.7` 为音源本体当前版本（2026-11-10 健康面板配置可管：`config` 写模式开放 8 个布尔开关并严格校验类型，数字白名单补齐高音质缓存/验真/竞速批/冷启动/档位短路共 13 键，`verifyDurRatio`/`verifyDurGapSec` 允许 0；`e-extra` 94 条）。此前的 `v8.11.6`（2026-11-10 收尾加固：`buildSourceChain` 过滤改用无副作用 `structuralSkipReason`、`toggleSource` 开/关都清账、`fallbackRace` 改 `attempts+admit`（交付类码优先）、`probeByHeaders` HEAD 补证；`r-admission` 23 条）。此前的 `v8.11.5`（2026-11-10 **L4 裁决层落地**：把散在六处的「判定 + 记账」收成 `admit()` 单一入口 + `ADMISSION_POLICY` 策略表 + 三个调用点；新增 L0 归一层 `toBytes`/`kindOf`/`headerEvidence`，修 App 桥 `JSON.stringify(Buffer)` 导致的全源 `NOT_AUDIO`；代表码改为交付类优先，`NOT_AUDIO` 不再被 `NOT_FOUND` 吞成 1h 歌级锁；`clearSourceLedger` 统一清账治「关源/重开无效」；弱证据 TTL 一律 ≤60s；`r-admission` 18 条先红后绿）。此前的 `v8.11.4` 为 2026-11-10 云端真测 F-01 **错歌兜底修复**：`xinghaiBackend` 缺 `songmid` 时旧实现兜底成 1 号歌（该源只按 mid 出链、歌名不参与校验）→ 必交付别人的音频；片段兜底（B 方案）又只判「是不是 5 秒音频」不判「是不是这首歌」，不存在的歌会被标成「试听版」交付。现改为缺 id 直接 `PARAM_ERROR`，且 B 方案以「有 hash/mid 锚点」为前提，无锚点报错不猜歌；`q-dfix` Q5 先红后绿）。此前的 `v8.11.3`（源开关失败缓存失效：`toggle` 开启某源时按该源 `platforms` 前缀清 `fail_<平台>` 失败缓存，旧实现只重置熔断/探测状态、开启后仍命中「歌不存在 1h」；`v8.11.2` 通读缺陷修复：Juhe `code` 字符串/数字归一、303 重定向校验宽松比、`flac24bit` 起跑补齐 320k 档、`CONFIG_ERROR` 失败缓存按 5 分钟过期；`v8.11.1` **交付真实性闸门**：交付前 1KB 字节验真、标签按实交付音质回填、128k 保底、片段标「试听版」不缓存；`v8.11.1` 另修非法协议误报 `LINK_EXPIRED`、同歌同档并发合并、星海备按映射表过滤平台、审计脚本接入 CI）。此前巡检脚本侧迭代（`v8.10.5`~`v8.10.11`）已并入本版基线；`gdWy` 已于音源仓 `39a0fa8` 默认关闭。
 
 当前内置聚合源含多个后端，按需路由与降级：
 
@@ -78,11 +78,90 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 | 负分 | 保留（严重异常源可为负）——配合 `closed 且成功率 0% 且健康分<0` → 状态显示「异常」红（v-b45 语义） |
 | 无样本 | 显示 `-`（音源侧 successRate/avgTime 返回 null，v4.0 语义） |
 
-**快照附加字段（v26.1 / v17.2 起）**：源条目除 `score`/`successRate`/`closed` 外还提供 `playDead`（播放死链标记）与 `rateLimited`（限流中标记）；App 的 `HealthItem` 已补这两个可选字段并在状态列展示，缺字段时按正常处理。
+**快照附加字段（v26.1 / v17.2 起）**：源条目除 `score`/`successRate`/`closed` 外还提供 `playDead`（播放死链标记）、`rateLimited`（连续多次 429 标记）与 `rateLimitActive`（当前仍在 429 退避期内）；App 的 `HealthItem` 已补这三个可选字段并在状态列展示，缺字段时按正常处理。`rateLimitActive` 一次 429 即可为真，`rateLimited` 需要连续多次被拒，两者不合并。
 
 **面板分区排序（音源 v6.0 起）**：使用中 → 正常 → 待采样 → 休眠 → 已关（按 `lastUsedAt` 真实播放记录分组）。
 
 > 评分公式与口径（成功率置信度收缩 / 均时惩罚 / 连败惩罚 / 版权失败不惩罚）见 [backend-api DEV_GUIDE §3.4b](https://github.com/luanmuc/backend-api/blob/master/docs/DEV_GUIDE.md)。
+
+## 四c、音源配置面板（运行参数）
+
+**入口**：设置 → 音源健康 → 「配置」按钮。面板只渲染音源 `config` 读模式实际返回的键；卡密（`ikunApiKey` / `lingchuanApiKey` / `xinghaiDeviceId`）和对象键 `raceBudgetPerQuality` 不渲染。
+
+**持久化链路（v8.11.7）**：
+
+1. 面板读取 `config` action 返回的当前值，按 `CONFIG_UNIT_CONFIG` 把 ms 自动换算成小时/分钟/秒/毫秒等直观单位。
+2. 点「保存」先用 `buildConfigUpdates` 对 28 个数字键 + 8 个布尔键**全量校验**；任一项非法则整次不提交，弹窗内逐项红字提示，不会出现“填错了却提示已保存”。
+3. 校验通过后调用 `config` 写模式，再 `saveData('lx_source_config')` 写入本地存储。
+4. App 下次启动时 `filterConfigForInjection` 只注入音源契约内的合法键（布尔必须真布尔、数字必须非负且在上限内、0 只允许 `verifyDurRatio` / `verifyDurGapSec`），再写入 `__lxSourceConfig`；旧死键、错误类型、超限值一律丢弃。
+
+**唯一契约源**：`src/core/sourceConfig.ts`。健康面板、启动注入、保存校验都从这里读键表/默认值/上下限，不再各自维护白名单；新增音源配置键只改这一处。
+
+### 数字参数（28 项）
+
+| 键 | 名称 | 单位 | 默认 | 允许范围 |
+|---|---|---|---|---|
+| `cacheTtlMs` | 成功缓存有效期 | 小时 | 6小时 | — ~ 168小时 |
+| `cacheTtlHighQualityMs` | 高音质缓存有效期 | 分钟 | 30分钟 | — ~ 10080分钟 |
+| `failCacheNotFoundMs` | 404 失败缓存 | 分钟 | 60分钟 | — ~ 1440分钟 |
+| `failCacheExpiredMs` | 过期/死链失败缓存 | 秒 | 60秒 | — ~ 3600秒 |
+| `breakerThreshold` | 熔断阈值 | 次 | 3次 | — ~ 20次 |
+| `breakerCooldownMs` | 熔断冷却时间 | 分钟 | 3分钟 | — ~ 30分钟 |
+| `rateLimitBackoffMs` | 限速退避时间 | 秒 | 30秒 | — ~ 300秒 |
+| `maxConcurrency` | 单源最大并发 | 个 | 2个 | — ~ 5个 |
+| `rateWindowMs` | 限速窗口 | 秒 | 3秒 | — ~ 10秒 |
+| `rateWindowMax` | 限速窗口最大请求数 | 次 | 5次 | — ~ 20次 |
+| `healthCheckIntervalMs` | 健康探测间隔 | 分钟 | 10分钟 | 1分钟 ~ — |
+| `raceBudgetMs` | 竞速总预算 | 秒 | 12秒 | — ~ 15秒 |
+| `raceBudgetFloorMs` | 末档保底预算 | 秒 | 3秒 | — ~ 15秒 |
+| `raceBatchSize` | 每批并发源数 | 个 | 3个 | — ~ 10个 |
+| `raceBatchStaggerMs` | 批间错峰间隔 | 毫秒 | 300毫秒 | — ~ 2000毫秒 |
+| `raceMatchWaitMs` | 竞速匹配等待 | 秒 | 0.6秒 | — ~ 5秒 |
+| `coldStartTimeoutMs` | 冷启动源单源超时 | 秒 | 8秒 | — ~ 30秒 |
+| `coldStartProbeTimeoutMs` | 冷启动源探测超时 | 秒 | 30秒 | — ~ 60秒 |
+| `coldStartWarmTtlMs` | 冷启动预热间隔 | 分钟 | 5分钟 | — ~ 60分钟 |
+| `qualityShortCircuitSamples` | 档位短路样本门槛 | 次 | 3次 | — ~ 20次 |
+| `qualityShortCircuitProbeMs` | 档位短路放行探路间隔 | 分钟 | 60分钟 | — ~ 1440分钟 |
+| `verifyTimeoutMs` | 交付验真超时 | 毫秒 | 3000毫秒 | 500毫秒 ~ 10000毫秒 |
+| `verifyMinOriginalSec` | 验真最短原曲时长 | 秒 | 90秒 | — ~ 3600秒 |
+| `verifyDurRatio` | 验真时长比例阈值 | 倍 | 0.6倍 | — ~ 1倍（0 合法，表示关闭比例判定） |
+| `verifyDurGapSec` | 验真时长差阈值 | 秒 | 15秒 | — ~ 300秒（0 合法，表示关闭差值判定） |
+| `allFailShortTtlMs` | 全失败短缓存 | 分钟 | 0.5分钟 | — ~ 10分钟 |
+| `playDeadReviveMs` | 已摘除源复活试探 | 分钟 | 5分钟 | — ~ 120分钟 |
+| `memoryMapMax` | 记忆表条目上限 | 条 | 2000条 | 1条 ~ 20000条 |
+
+> 预设值也受同一张上下限表约束：`raceBatchStaggerMs` 的旧 `0` 预设和 `allFailShortTtlMs` 的旧 `15 分钟`预设已删除，因为它们在音源侧存不进去。
+
+### 布尔开关（8 项）
+
+| 键 | 名称 | 默认 |
+|---|---|---|
+| `verifyDelivery` | 交付前验真 | true |
+| `truthfulQuality` | 音质标签回填真话 | true |
+| `qualityFloor` | 128K 保底 | true |
+| `verifyOnCacheHit` | 缓存命中再验真 | true |
+| `previewUrlPreFilter` | 试听 URL 预筛 | false |
+| `fragmentFallback` | 全档片段兜底 | true |
+| `qualityShortCircuit` | 档位短路 | true |
+| `coldStartWarmEnabled` | 冷启动预热 | true |
+
+### 11 态与 9 桶（表格与摘要同口径）
+
+状态判定优先级：已关/休眠 → 待采样 → 异常 → 已摘除 → 限流 → 熔断/半开/正常。摘要固定 9 桶，每个源只落一桶，合计等于音源数。
+
+| 状态 | 含义 | 摘要桶 |
+|---|---|---|
+| 已关闭 | 手动关闭或探测失败自动关闭；不竞速也不探测 | `off` |
+| 休眠中 | 健康探测连续失败 3 轮，暂停探测、每 10 轮复活试探 | `sleep` |
+| 待采样 | 已启用但没有任何成功/失败/探测样本；不知道好坏，不是坏源 | `idle` |
+| 异常 | 断路器闭合但成功率 0% 且健康分 <0，看着正常实际上游不可用 | `bad` |
+| 已摘除 | 真实播放连续失败 3 次，从竞速链摘出；默认约 5 分钟后半开试探复活 | `removed` |
+| 限流中 | 正在 429 退避期，当前不参与竞速，退避结束自恢复 | `rate` |
+| 被限流 | 连续多次 429，上游明显在限，比“限流中”更重 | `rate` |
+| 熔断 | 某源某音质档连续失败达阈值，冷却期不接请求 | `open` |
+| 半开 | 冷却后的试水态，只放一个请求；成功转正常，失败回熔断 | `half` |
+| 正常 | 已启用且有样本，断路器闭合，可参与竞速 | `ok` |
+| 使用中 | 最近 10 分钟有真实播放请求，排序置顶；仍归入其健康状态对应的桶 | 随状态 |
 
 ## 五、如何测试音源
 

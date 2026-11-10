@@ -35,7 +35,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 
-1. **语法**：`node scripts/check_ts_syntax.js` 0 错误（514 个 TS/TSX）
+1. **语法**：`node scripts/check_ts_syntax.js` 0 错误（516 个 TS/TSX）
 2. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
 3. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮
 4. **下载**：并发任务、暂停/恢复、失败自动重试、仅 WiFi 开关、音质降级链、标签写入、下载目录权限
