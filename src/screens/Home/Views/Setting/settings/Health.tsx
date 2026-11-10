@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useCallback, useRef } from 'react'
-import { StyleSheet, View, ScrollView, TextInput, Modal } from 'react-native'
+import { StyleSheet, View, ScrollView, TextInput, Modal, Switch } from 'react-native'
 
 import Section from '../components/Section'
 import SubTitle from '../components/SubTitle'
@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
+  id?: string
   name: string
   maxQuality: string
   enabled: boolean
@@ -43,27 +44,103 @@ const STATE_COLOR: Record<HealthItem['state'], string> = {
   open: '#ff4d4f',
 }
 
-// v8.0：配置参数中文映射
+// v8.11.7：配置参数中文映射（覆盖音源 config 读模式返回的全部可编辑键）
 const CONFIG_LABELS: Record<string, string> = {
   cacheTtlMs: '成功缓存有效期',
-  failCacheNotFoundMs: '404失败缓存',
-  failCacheExpiredMs: '过期失败缓存',
+  cacheTtlHighQualityMs: '高音质缓存有效期',
+  failCacheNotFoundMs: '404 失败缓存',
+  failCacheExpiredMs: '过期/死链失败缓存',
   breakerThreshold: '熔断阈值',
   breakerCooldownMs: '熔断冷却时间',
   rateLimitBackoffMs: '限速退避时间',
-  maxConcurrency: '最大并发请求数',
+  maxConcurrency: '单源最大并发',
   rateWindowMs: '限速窗口',
   rateWindowMax: '限速窗口最大请求数',
   healthCheckIntervalMs: '健康探测间隔',
-  raceOverallTimeoutMs: '竞速总超时',
+  raceBudgetMs: '竞速总预算',
+  raceBudgetFloorMs: '末档保底预算',
+  raceBatchSize: '每批并发源数',
+  raceBatchStaggerMs: '批间错峰间隔',
   raceMatchWaitMs: '竞速匹配等待',
+  coldStartTimeoutMs: '冷启动源单源超时',
+  coldStartProbeTimeoutMs: '冷启动源探测超时',
+  coldStartWarmTtlMs: '冷启动预热间隔',
+  qualityShortCircuitSamples: '档位短路样本门槛',
+  qualityShortCircuitProbeMs: '档位短路放行探路间隔',
+  verifyTimeoutMs: '交付验真超时',
+  verifyMinOriginalSec: '验真最短原曲时长',
+  verifyDurRatio: '验真时长比例阈值',
+  verifyDurGapSec: '验真时长差阈值',
   allFailShortTtlMs: '全失败短缓存',
   playDeadReviveMs: '已摘除源复活试探',
+  memoryMapMax: '记忆表条目上限',
+  verifyDelivery: '交付前验真',
+  truthfulQuality: '音质标签回填真话',
+  qualityFloor: '128K 保底',
+  verifyOnCacheHit: '缓存命中再验真',
+  previewUrlPreFilter: '试听 URL 预筛',
+  fragmentFallback: '全档片段兜底',
+  qualityShortCircuit: '档位短路',
+  coldStartWarmEnabled: '冷启动预热',
 }
 
-// 参数单位与预设配置（ms类自动转换为更直观的单位）
+// v8.11.7：每个配置项一句人话说明（弹窗里显示在名称下方）
+const CONFIG_DESCS: Record<string, string> = {
+  cacheTtlMs: '低音质成功取链缓存时长，命中后不再请求上游。',
+  cacheTtlHighQualityMs: 'flac/320k 成功取链缓存时长；签名链寿命短，不宜过长。',
+  failCacheNotFoundMs: '确认“歌不存在/无版权”后，多久内不再重复请求。',
+  failCacheExpiredMs: '签名过期、410 死链的短期失败缓存。',
+  breakerThreshold: '同一源连续失败多少次进入熔断。',
+  breakerCooldownMs: '熔断后冷却多久，再放一个半开试探。',
+  rateLimitBackoffMs: '被上游 429 后至少退避多久。',
+  maxConcurrency: '同一源允许同时发出的请求数，太大容易触发风控。',
+  rateWindowMs: '滑动限速窗口长度。',
+  rateWindowMax: '一个限速窗口内最多请求次数。',
+  healthCheckIntervalMs: '自动健康探测的运行间隔。',
+  raceBudgetMs: '一次点歌跨音质档共享的总取链预算。',
+  raceBudgetFloorMs: '最后一档至少保留的预算，防高音质吃满导致无声。',
+  raceBatchSize: '竞速链每批并发探测的源数量。',
+  raceBatchStaggerMs: '批次之间的错峰等待，降低瞬时并发。',
+  raceMatchWaitMs: '已验证源在飞时，等待其结果的窗口。',
+  coldStartTimeoutMs: '冷启动源单次取链的超时。',
+  coldStartProbeTimeoutMs: '冷启动源健康探测的超时，冷态唤醒需要更久。',
+  coldStartWarmTtlMs: '两次冷启动预热之间的间隔。',
+  qualityShortCircuitSamples: '某源某档连续失败多少样本后跳过该档。',
+  qualityShortCircuitProbeMs: '被短路后多久放行一次探路，防止永久跳过。',
+  verifyTimeoutMs: '交付前取 1KB 字节验真的网络超时。',
+  verifyMinOriginalSec: '原曲短于此值时不按比例判片段，避免误杀短歌。',
+  verifyDurRatio: '真实时长不足原曲该比例时判为试听片段；0 表示关闭比例判定。',
+  verifyDurGapSec: '且真实时长与原曲差值超过该秒数才判片段；0 表示关闭差值判定。',
+  allFailShortTtlMs: '全链网络类失败后的短缓存，防连续无效重试。',
+  playDeadReviveMs: '播放连续失败被摘除后，多久允许半开试探复活。',
+  memoryMapMax: '按歌曲累积的记忆表最多保留多少条，防长跑内存膨胀。',
+  verifyDelivery: '交付前取 1KB 字节判音频形态与时长；关闭后不验真直接交付。',
+  truthfulQuality: '按实际交付音质回填标签，避免请求 flac 显示 FLAC 实际却是 128K。',
+  qualityFloor: '高音质失败时是否保底降到 128K，避免点歌无声。',
+  verifyOnCacheHit: '缓存命中的链接是否也重新验真，防缓存里的死链/片段绕过判据。',
+  previewUrlPreFilter: '取链前先按 URL 关键词剔除明显的试听/预览链。',
+  fragmentFallback: '所有源都只有片段时，是否交付片段并标注“试听版”。',
+  qualityShortCircuit: '某源某档长期零成功时是否跳过该档，节省预算。',
+  coldStartWarmEnabled: '是否在启动时预热冷启动源，降低首次取链失败率。',
+}
+
+// 布尔开关（音源 v8.11.7 起 config 通道可写）
+const BOOL_CONFIG_KEYS = ['verifyDelivery', 'truthfulQuality', 'qualityFloor', 'verifyOnCacheHit', 'previewUrlPreFilter', 'fragmentFallback', 'qualityShortCircuit', 'coldStartWarmEnabled']
+const BOOL_CONFIG_DEFAULT: Record<string, boolean> = {
+  verifyDelivery: true,
+  truthfulQuality: true,
+  qualityFloor: true,
+  verifyOnCacheHit: true,
+  previewUrlPreFilter: false,
+  fragmentFallback: true,
+  qualityShortCircuit: true,
+  coldStartWarmEnabled: true,
+}
+
+// 参数单位与预设配置（ms 类自动转换为更直观的单位）
 const CONFIG_UNIT_CONFIG: Record<string, { unit: string, msPerUnit?: number, presets: number[], default: number }> = {
   cacheTtlMs: { unit: '小时', msPerUnit: 3600000, presets: [1, 6, 12, 24, 168], default: 6 },
+  cacheTtlHighQualityMs: { unit: '分钟', msPerUnit: 60000, presets: [10, 30, 60, 120], default: 30 },
   failCacheNotFoundMs: { unit: '分钟', msPerUnit: 60000, presets: [1, 5, 60, 360], default: 60 },
   failCacheExpiredMs: { unit: '秒', msPerUnit: 1000, presets: [30, 60, 300], default: 60 },
   breakerThreshold: { unit: '次', presets: [2, 3, 5, 10], default: 3 },
@@ -73,15 +150,29 @@ const CONFIG_UNIT_CONFIG: Record<string, { unit: string, msPerUnit?: number, pre
   rateWindowMs: { unit: '秒', msPerUnit: 1000, presets: [1, 3, 5], default: 3 },
   rateWindowMax: { unit: '次', presets: [3, 5, 10, 20], default: 5 },
   healthCheckIntervalMs: { unit: '分钟', msPerUnit: 60000, presets: [1, 5, 10, 30], default: 10 },
-  raceOverallTimeoutMs: { unit: '秒', msPerUnit: 1000, presets: [3, 5, 6, 10], default: 6 },
-  raceMatchWaitMs: { unit: '秒', msPerUnit: 1000, presets: [1, 2, 3, 5], default: 3 },
+  raceBudgetMs: { unit: '秒', msPerUnit: 1000, presets: [5, 8, 12, 15], default: 12 },
+  raceBudgetFloorMs: { unit: '秒', msPerUnit: 1000, presets: [1, 2, 3, 5], default: 3 },
+  raceBatchSize: { unit: '个', presets: [1, 2, 3, 5], default: 3 },
+  raceBatchStaggerMs: { unit: '毫秒', presets: [0, 100, 300, 500], default: 300 },
+  raceMatchWaitMs: { unit: '秒', msPerUnit: 1000, presets: [0.3, 0.6, 1, 2], default: 0.6 },
+  coldStartTimeoutMs: { unit: '秒', msPerUnit: 1000, presets: [5, 8, 15, 30], default: 8 },
+  coldStartProbeTimeoutMs: { unit: '秒', msPerUnit: 1000, presets: [10, 20, 30, 60], default: 30 },
+  coldStartWarmTtlMs: { unit: '分钟', msPerUnit: 60000, presets: [1, 5, 10, 30], default: 5 },
+  qualityShortCircuitSamples: { unit: '次', presets: [2, 3, 5, 10], default: 3 },
+  qualityShortCircuitProbeMs: { unit: '分钟', msPerUnit: 60000, presets: [30, 60, 180, 360], default: 60 },
+  verifyTimeoutMs: { unit: '毫秒', presets: [1000, 2000, 3000, 5000], default: 3000 },
+  verifyMinOriginalSec: { unit: '秒', presets: [30, 60, 90, 120], default: 90 },
+  verifyDurRatio: { unit: '倍', presets: [0.4, 0.5, 0.6, 0.8], default: 0.6 },
+  verifyDurGapSec: { unit: '秒', presets: [5, 10, 15, 30], default: 15 },
   allFailShortTtlMs: { unit: '分钟', msPerUnit: 60000, presets: [1, 5, 15], default: 5 },
   playDeadReviveMs: { unit: '分钟', msPerUnit: 60000, presets: [5, 10, 30, 60], default: 30 },
+  memoryMapMax: { unit: '条', presets: [500, 1000, 2000, 5000], default: 2000 },
 }
 
 // 参数上下限校验（和音源侧 PARAM_LIMITS 一致）
 const PARAM_LIMITS: Record<string, { min?: number, max?: number }> = {
   cacheTtlMs: { max: 7 * 24 * 3600 * 1000 },
+  cacheTtlHighQualityMs: { max: 7 * 24 * 3600 * 1000 },
   failCacheNotFoundMs: { max: 24 * 3600 * 1000 },
   failCacheExpiredMs: { max: 3600 * 1000 },
   breakerThreshold: { max: 20 },
@@ -91,10 +182,40 @@ const PARAM_LIMITS: Record<string, { min?: number, max?: number }> = {
   rateWindowMs: { max: 10 * 1000 },
   rateWindowMax: { max: 20 },
   healthCheckIntervalMs: { min: 60 * 1000 },
-  raceOverallTimeoutMs: { max: 15 * 1000 },
+  raceBudgetMs: { max: 15 * 1000 },
+  raceBudgetFloorMs: { max: 15 * 1000 },
+  raceBatchSize: { max: 10 },
+  raceBatchStaggerMs: { max: 2000 },
   raceMatchWaitMs: { max: 5 * 1000 },
+  coldStartTimeoutMs: { max: 30 * 1000 },
+  coldStartProbeTimeoutMs: { max: 60 * 1000 },
+  coldStartWarmTtlMs: { max: 60 * 60 * 1000 },
+  qualityShortCircuitSamples: { max: 20 },
+  qualityShortCircuitProbeMs: { max: 24 * 3600 * 1000 },
+  verifyTimeoutMs: { min: 500, max: 10 * 1000 },
+  verifyMinOriginalSec: { max: 3600 },
+  verifyDurRatio: { max: 1 },
+  verifyDurGapSec: { max: 300 },
   allFailShortTtlMs: { max: 10 * 60 * 1000 },
   playDeadReviveMs: { max: 2 * 3600 * 1000 },
+  memoryMapMax: { min: 1, max: 20000 },
+}
+
+// 音源 id → 展示名（只映射英文/混排名，中文名保持原样）
+const SOURCE_NAME_ZH: Record<string, string> = {
+  gdWy: 'GD Studio（网易）',
+  helloworldKw: 'helloworld（酷我）',
+  ikun: 'ikun（公益）',
+  huibq: 'Huibq（酷我/网易）',
+  juheKw: 'Juhe 聚合（酷我）',
+  juheTx: 'Juhe 聚合（QQ）',
+  juheWy: 'Juhe 聚合（网易）',
+  juheKg: 'Juhe 聚合（酷狗）',
+  juheMg: 'Juhe 聚合（咪咕）',
+  changqingVip: '长青（酷我）',
+  nianxinVip: '念心（酷我）',
+  xinghaiBackup: '星海备',
+  xinghaiBackend: '星海后端',
 }
 
 // ms 值 → 直观单位值
@@ -134,6 +255,8 @@ export default memo(() => {
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configData, setConfigData] = useState<Record<string, any> | null>(null)
   const [configInputs, setConfigInputs] = useState<Record<string, string>>({})
+  // v8.11.7：布尔开关状态（音源 config 通道已开放写入）
+  const [configBools, setConfigBools] = useState<Record<string, boolean>>({})
   // v8.0：趋势图相关 state
   const [trendData, setTrendData] = useState<Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>>([])
   const [showTrendModal, setShowTrendModal] = useState(false)
@@ -262,8 +385,14 @@ export default memo(() => {
       const res = await promise
       setConfigData(res)
       // v8.0：ms值自动转成直观单位值显示（比如 21600000ms → 6小时）
+      // v8.11.7：只把有单位配置的数字键放进输入框；布尔键进开关，卡密/对象键不渲染
       setConfigInputs(Object.fromEntries(
-        Object.entries(res).map(([k, v]) => [k, String(msToDisplay(k, Number(v)))])
+        Object.entries(res)
+          .filter(([k]) => !!CONFIG_UNIT_CONFIG[k])
+          .map(([k, v]) => [k, String(msToDisplay(k, Number(v)))])
+      ))
+      setConfigBools(Object.fromEntries(
+        BOOL_CONFIG_KEYS.map(k => [k, typeof (res as any)?.[k] === 'boolean' ? (res as any)[k] : BOOL_CONFIG_DEFAULT[k]])
       ))
       setShowConfigModal(true)
     } catch (e: any) {
@@ -275,19 +404,24 @@ export default memo(() => {
   const saveConfig = useCallback(async() => {
     setError('')
     const querier = getQuerier('config')
-    const updates: Record<string, number> = {}
+    const updates: Record<string, number | boolean> = {}
     for (const [k, v] of Object.entries(configInputs)) {
+      if (!CONFIG_UNIT_CONFIG[k]) continue
       const num = Number(v)
       // v8.0：直观单位值转回 ms 再保存
       const msValue = displayToMs(k, num)
-      // 校验——有效数字 / 正数 / 白名单内 / 上下限
-      if (isNaN(num) || num <= 0 || msValue <= 0 || !(k in (configData || {}))) continue
+      // 校验——有效数字 / 非负（验真比例与差值 0 合法）/ 白名单内 / 上下限
+      const zeroAllowed = k === 'verifyDurRatio' || k === 'verifyDurGapSec'
+      if (isNaN(num) || num < 0 || msValue < 0 || (!zeroAllowed && msValue === 0) || !(k in (configData || {}))) continue
       const limits = PARAM_LIMITS[k]
       if (limits) {
         if (limits.min !== undefined && msValue < limits.min) continue
         if (limits.max !== undefined && msValue > limits.max) continue
       }
       updates[k] = msValue
+    }
+    for (const k of BOOL_CONFIG_KEYS) {
+      if (k in configBools) updates[k] = configBools[k]
     }
     try {
       if (Object.keys(updates).length === 0) {
@@ -305,7 +439,7 @@ export default memo(() => {
     } catch (e: any) {
       setError(String(e?.message || '保存失败'))
     }
-  }, [t, configInputs, configData])
+  }, [t, configInputs, configBools, configData])
 
   // v8.0：查看健康趋势（调用 trend action 读历史数据）
   const showTrend = useCallback(async() => {
@@ -362,15 +496,16 @@ export default memo(() => {
 
   const items = snapshot ? Object.entries(snapshot)
     .filter(([id]) => !id.startsWith('_'))  // 过滤平台聚合等特殊字段
+    .map(([id, it]) => ({ id, ...it }))
     .sort((a, b) => {
-      const g = groupRank(a[1]) - groupRank(b[1])
-      return g !== 0 ? g : b[1].healthScore - a[1].healthScore
+      const g = groupRank(a) - groupRank(b)
+      return g !== 0 ? g : b.healthScore - a.healthScore
     }) : []
 
   // 聚合摘要：正常/熔断/半开/待采样/休眠/已关
   let summary: Record<'ok' | 'bad' | 'open' | 'half' | 'idle' | 'sleep' | 'off', number> = { ok: 0, bad: 0, open: 0, half: 0, idle: 0, sleep: 0, off: 0 }
   if (items.length) {
-    summary = items.reduce((acc, [, it]) => {
+    summary = items.reduce((acc, it) => {
       const sampled = hasSample(it)
       if (!it.enabled) {
         if (it.sleeping) acc.sleep++
@@ -466,7 +601,8 @@ export default memo(() => {
               {
                 // v4.0：全部行直接渲染，表格随音源数量自动撑高（整页滚动，不再 maxHeight 截断）
                 // v4.0：状态胶囊可点按开关源
-                items.map(([id, item]) => {
+                items.map((item) => {
+                  const id = item.id || item.name
                   const sampled = hasSample(item)
                   const rateText = item.successRate == null ? '-' : `${(item.successRate * 100).toFixed(0)}%`
                   const timeText = item.avgTime == null ? '-' : `${Math.round(item.avgTime)}ms`
@@ -499,7 +635,7 @@ export default memo(() => {
                     : item.successRate >= 0.6 ? theme['c-font'] : '#ff4d4f'
                   return (
                     <View key={id} style={[styles.row, { borderBottomColor: theme['c-border-background'] }]}>
-                      <Text numberOfLines={1} size={12} style={styles.colName} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{item.name}</Text>
+                      <Text numberOfLines={1} size={12} style={styles.colName} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{SOURCE_NAME_ZH[id] || item.name}</Text>
                       <Text size={12} style={styles.colSmall}>{item.maxQuality.toUpperCase()}</Text>
                       <Text size={12} style={styles.colSmall} color={rateColor}>{rateText}</Text>
                       <Text size={12} style={styles.colSmall} color={sampled ? theme['c-font'] : theme['c-font-label']}>{timeText}</Text>
@@ -542,45 +678,64 @@ export default memo(() => {
         <View style={styles.modalContent}>
           <Text size={16} color={theme['c-font']} style={styles.modalTitle}>音源配置（运行参数）</Text>
           <ScrollView style={styles.modalScroll}>
-            {configData && Object.entries(configData)
-              .filter(([key]) => !['ikunApiKey', 'lingchuanApiKey', 'xinghaiDeviceId'].includes(key))
-              .map(([key, value]) => {
+            {configData && Object.keys(configData)
+              .filter(key => !!CONFIG_UNIT_CONFIG[key])
+              .map(key => {
                 const unitCfg = CONFIG_UNIT_CONFIG[key]
-                const unit = unitCfg?.unit || ''
-                const presets = unitCfg?.presets || []
+                const unit = unitCfg.unit
+                const presets = unitCfg.presets
                 const currentVal = configInputs[key] ?? ''
                 return (
-              <View key={key} style={styles.configRow}>
-                <Text size={12} color={theme['c-font-label']} style={styles.configLabel}>{CONFIG_LABELS[key] || key}</Text>
-                <View style={styles.configInputRow}>
-                  <TextInput
-                    style={[styles.configInput, { borderColor: theme['c-border-background'], color: theme['c-font'] }]}
-                    value={currentVal}
-                    onChangeText={(text) => setConfigInputs(prev => ({ ...prev, [key]: text }))}
-                    keyboardType="numeric"
-                  />
-                  {unit ? <Text size={11} color={theme['c-font-label']} style={styles.configUnit}>{unit}</Text> : null}
-                </View>
-                {/* 预设按钮 */}
-                {presets.length > 0 && (
-                  <View style={styles.presetRow}>
-                    {presets.map(p => {
-                      const isActive = currentVal === String(p)
-                      return (
-                        <Button
-                          key={p}
-                          style={styles.presetBtn}
-                          onPress={() => setConfigInputs(prev => ({ ...prev, [key]: String(p) }))}
-                        >
-                          <Text size={11} color={isActive ? theme['c-primary'] : theme['c-font-label']}>{p}{unit}</Text>
-                        </Button>
-                      )
-                    })}
+                  <View key={key} style={styles.configBlock}>
+                    <Text size={12} color={theme['c-font']} style={styles.configLabel}>{CONFIG_LABELS[key] || key}</Text>
+                    {CONFIG_DESCS[key] ? <Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{CONFIG_DESCS[key]}</Text> : null}
+                    <View style={styles.configInputLine}>
+                      <TextInput
+                        style={[styles.configInput, { borderColor: theme['c-border-background'], color: theme['c-font'] }]}
+                        value={currentVal}
+                        onChangeText={(text) => setConfigInputs(prev => ({ ...prev, [key]: text }))}
+                        keyboardType="numeric"
+                      />
+                      {unit ? <Text size={11} color={theme['c-font-label']} style={styles.configUnit}>{unit}</Text> : null}
+                    </View>
+                    {/* 预设按钮 */}
+                    {presets.length > 0 && (
+                      <View style={styles.presetRow}>
+                        {presets.map(p => {
+                          const isActive = currentVal === String(p)
+                          return (
+                            <Button
+                              key={p}
+                              style={styles.presetBtn}
+                              onPress={() => setConfigInputs(prev => ({ ...prev, [key]: String(p) }))}
+                            >
+                              <Text size={11} color={isActive ? theme['c-primary'] : theme['c-font-label']}>{p}{unit}</Text>
+                            </Button>
+                          )
+                        })}
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
                 )
-            })}
+              })}
+            {configData ? (
+              <View style={styles.configSection}>
+                <Text size={12} color={theme['c-font']}>高级开关</Text>
+                <Text size={10} color={theme['c-font-label']}>关闭验真或片段兜底会改变交付策略，非排障不建议改。</Text>
+              </View>
+            ) : null}
+            {configData && BOOL_CONFIG_KEYS.map(key => (
+              <View key={key} style={styles.configSwitchRow}>
+                <View style={styles.configSwitchText}>
+                  <Text size={12} color={theme['c-font']}>{CONFIG_LABELS[key] || key}</Text>
+                  {CONFIG_DESCS[key] ? <Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{CONFIG_DESCS[key]}</Text> : null}
+                </View>
+                <Switch
+                  value={configBools[key] ?? BOOL_CONFIG_DEFAULT[key]}
+                  onValueChange={(v) => setConfigBools(prev => ({ ...prev, [key]: v }))}
+                />
+              </View>
+            ))}
           </ScrollView>
           <View style={styles.modalBtnRow}>
             <Button
@@ -593,6 +748,7 @@ export default memo(() => {
                   }
                 }
                 setConfigInputs(prev => ({ ...prev, ...defaults }))
+                setConfigBools(prev => ({ ...prev, ...BOOL_CONFIG_DEFAULT }))
               }}
             >
               恢复默认
@@ -730,6 +886,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  // v8.11.7：配置块（名称 + 说明 + 输入行 + 预设）
+  configBlock: {
+    marginBottom: 14,
+  },
+  configDesc: {
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  configInputLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  configSection: {
+    marginTop: 6,
+    marginBottom: 8,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ddd',
+  },
+  configSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  configSwitchText: {
+    flex: 1,
+    marginRight: 10,
   },
   configLabel: {
     flex: 1,
