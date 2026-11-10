@@ -92,6 +92,19 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   return entry
 }
 
+/** 逐行解析 JSONL；坏行/空行跳过，绝不因一行损坏丢整份日志 */
+export const parseHealthLines = (text: string): HealthLogEntry[] => {
+  const out: HealthLogEntry[] = []
+  for (const line of String(text || '').split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const parsed = JSON.parse(line)
+      if (parsed && typeof parsed === 'object' && typeof parsed.event === 'string') out.push(parsed)
+    } catch {}
+  }
+  return out
+}
+
 export const buildExportFileName = (now: Date = new Date()): string =>
   `source_health_diag_${dateKey(now)}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`
 
@@ -173,10 +186,7 @@ export const readRecentHealthEvents = async(limit = 800, now: Date = new Date())
     for (const name of names) {
       try {
         const text = await fs.readFile(dir + '/' + name, 'utf8')
-        for (const line of text.split('\n')) {
-          if (!line.trim()) continue
-          try { out.push(JSON.parse(line)) } catch {}
-        }
+        out.push(...parseHealthLines(text))
       } catch {}
     }
     return out.slice(-limit)

@@ -72,6 +72,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 **本地诊断闭环（2.4 方案，只本地不上传）**：
 
 - 音源侧新增只读 `healthEvents` action：容量 500 的环形缓冲，返回 `{schema, capacity, dropped, events}`；事件只含 `traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason`，不记歌名、URL、搜索词、账号、设备 ID、位置。
+- **预加载白名单**：`android/app/src/main/assets/script/user-api-preload.js` 的 `supportActions` 必须包含 `healthEvents`，并在 request switch 增加透传 case；否则音源声明了 action，App 真机仍不会注册。契约 H10 看护。
 - App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
 - 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/20 采样；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。
 - 健康页「最近异常」展示本地 1h/24h/7d 成功率、P95、Top 错误码与异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码）；「导出诊断包」生成 `report + events + snapshot + trend + logTail`，日志尾部会脱敏 URL/歌名，手动分享，不自动关源。

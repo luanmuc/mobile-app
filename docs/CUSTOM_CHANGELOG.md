@@ -1,5 +1,10 @@
 ## [音源健康 2.4 方案] - 2026-11-11
 
+### 审计补漏（预加载白名单 + 压力测试）
+- `user-api-preload.js` 的 `supportActions` 补齐 `healthEvents`（7 个源）并新增分发 case，修「真机收不到 healthEvents」；契约新增 H10，21→22 条
+- 新增 `scripts/check_health_diagnostics_stress.js`：10000 条聚合、5MB 截尾、7 天边界、脏行、RN 依赖缺失、200 错误码、证据包脱敏、traceId 唯一性、采样边界，12/0
+- `healthLog.ts` 抽出 `parseHealthLines` 并用于读取，坏行不再丢整份日志
+
 > 不标版本号、不改 `package.json`/`buildNumber`；只做端内本地诊断闭环，不做匿名上传。
 
 ### 纯诊断模块（`src/core/healthDiagnostics.ts`）

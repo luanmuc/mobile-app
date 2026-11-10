@@ -159,13 +159,13 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
     local: [],
   }
   const supportActions = {
-    kw: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend'],
-    kg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend'],
-    tx: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend'],
-    wy: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend'],
-    mg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend'],
-    xm: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend'],
-    local: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend'],
+    kw: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    kg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    tx: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    wy: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    mg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    xm: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
+    local: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
   }
 
   const verifyLyricInfo = (info) => {
@@ -300,6 +300,15 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
           case 'trend':
             // v29.4：健康趋势透传（{history, maxPoints}，App 趋势图 Modal 消费）
             if (typeof response != 'object' || response === null) throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
+          case 'healthEvents':
+            // 2.4：只读事件环形缓冲透传（{schema, capacity, dropped, events}，本地诊断消费）
+            if (typeof response != 'object' || response === null || !Array.isArray(response.events)) throw new Error('failed')
             result = {
               source: data.source,
               action: data.action,

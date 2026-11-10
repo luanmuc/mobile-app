@@ -10,6 +10,7 @@
 | 音源能力项 | App 需同步的位置 | 检查动作 |
 |---|---|---|
 | **音源 action（9 个）**<br>musicUrl / lyric / pic / health / toggle / probe / config / trend / healthEvents | ① `src/core/init/userApi/index.ts` 的 switch case<br>② `docs/MUSIC_SOURCE_GUIDE.md` 的 action 表 | 数一下音源侧 actions 数量，再数 userApi switch case 数量，再数 MUSIC_SOURCE_GUIDE 表里的数量——三者要一致 |
+| **预加载 action 白名单**<br>`android/app/src/main/assets/script/user-api-preload.js` 的 `supportActions` 与 request switch | 音源新增 action 必须同时加白名单与分发 case，否则真机收不到该 action | `grep -n "healthEvents" android/app/src/main/assets/script/user-api-preload.js`；`node scripts/check_health_diagnostics.js` 的 H10 |
 | **健康分字段**<br>异常 0 / 一般 1 / 无样本 2 / 健康 3（10 分制） | ① `src/screens/Home/Views/Setting/settings/Health.tsx` 健康面板阈值（≥3 绿 / ≥−5 主题字体色 / <−5 红）<br>② 趋势弹窗排序权重（异常<一般<无样本<健康） | 看 Health.tsx 里的阈值数字，和音源侧的健康分定义对不对得上 |
 | **trend 注释**<br>历史记录条数 | `src/screens/Home/Views/Setting/settings/Health.tsx` 的 trend action 调用注释 | 音源侧 trend 返回多少条历史，App 侧注释里写的条数要对得上 |
 | **lang 词条**<br>新增 toast / nav / 设置项文案 | `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` 三语言 | 三语言键数要一致（当前基线 872 键，含定制 `dl_*` 93 键）；新增词条三语言都要加 |

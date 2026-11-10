@@ -55,7 +55,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | B2 | 自定义音源导入 | ⚠️ | **R4**：`importUserApi` 无返回值，`Source.tsx` 读 `.id` 必抛 TypeError，「一键更新」失效 |
 | B3 | 音源标签 UI | ✅ | `PlayQualityTag` 渲染正常（但文案硬编码见 L 组 R10） |
 | B4 | 音源日志 | ✅ | 竞速打点与失败明细完整 |
-| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 8 个 action 与 `userApi` switch 同步 |
+| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 9 个 action（含 healthEvents）与 `userApi` switch 同步 |
 | B6 | 健康面板新增功能 | ⚠️ | 功能存在，配色缺陷同 R5 |
 | B7 | 配置热更新校验 | ✅ | 音源侧白名单校验 |
 

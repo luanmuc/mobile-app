@@ -259,6 +259,19 @@ check('H8 健康页接入最近异常 + 导出诊断包', () => {
   assert(src.includes('health_export_diag') || src.includes('exportDiagnostics'), '健康页缺导出诊断包入口');
 });
 
+check('H10 App 预加载脚本放行并透传 healthEvents', () => {
+  const preload = read('android/app/src/main/assets/script/user-api-preload.js');
+  const actionsBlock = preload.slice(preload.indexOf('const supportActions = {'));
+  for (const source of ['kw', 'kg', 'tx', 'wy', 'mg', 'xm', 'local']) {
+    const line = actionsBlock.split('\n').find(l => l.trim().startsWith(`${source}: [`));
+    assert(line, `supportActions 缺少 ${source}`);
+    assert(line.includes("'healthEvents'"), `${source} 白名单未放行 healthEvents`);
+  }
+  assert(preload.includes("case 'healthEvents':"), '分发 switch 缺少 healthEvents case');
+  assert(preload.includes('response.events'), 'healthEvents 未校验 events 数组');
+  assert(read('src/core/init/userApi/index.ts').includes("case 'healthEvents'"), 'userApi 缺少 healthEvents case');
+});
+
 console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`);
 if (failures.length) {
   console.log('失败项：');
