@@ -52,23 +52,14 @@ export default async() => {
   await initI18n(setting)
   bootLog('I18n inited.')
 
-  // v8.0：启动注入音源配置（从本地存储读配置，注入到 __lxSourceConfig，音源加载时自动应用）
+  // v8.11.7：启动注入音源配置（从本地存储读配置，注入到 __lxSourceConfig，音源加载时自动应用）
+  // 白名单/默认值/0 值规则统一由 sourceConfig 维护，避免与健康面板出现两套键表
   try {
     const { getData } = await import('@/plugins/storage')
-    const savedConfig = await getData<Record<string, number>>('lx_source_config')
+    const { filterConfigForInjection } = await import('@/core/sourceConfig')
+    const savedConfig = await getData<Record<string, unknown>>('lx_source_config')
     if (savedConfig && Object.keys(savedConfig).length) {
-      // 白名单校验：只注入合法 key + number 类型 + 正数，防本地存储损坏导致音源异常
-      const ALLOWED_KEYS = ["cacheTtlMs", "failCacheNotFoundMs", "failCacheExpiredMs",
-        "breakerThreshold", "breakerCooldownMs", "rateLimitBackoffMs",
-        "maxConcurrency", "rateWindowMs", "rateWindowMax",
-        "healthCheckIntervalMs", "raceOverallTimeoutMs", "raceMatchWaitMs",
-        "allFailShortTtlMs", "playDeadReviveMs"]
-      const filtered: Record<string, number> = {}
-      for (const [k, v] of Object.entries(savedConfig)) {
-        if (ALLOWED_KEYS.includes(k) && typeof v === 'number' && v > 0) {
-          filtered[k] = v
-        }
-      }
+      const filtered = filterConfigForInjection(savedConfig)
       if (Object.keys(filtered).length) {
         ;(globalThis as any).__lxSourceConfig = {
           ...(globalThis as any).__lxSourceConfig,
