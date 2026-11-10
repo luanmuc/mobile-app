@@ -35,6 +35,8 @@ node scripts/check_ts_syntax.js
 node scripts/check_health_diagnostics.js
 # 音源健康本地诊断压力（10000 条聚合/5MB 日志/脏行容错/异常依赖不抛）
 node scripts/check_health_diagnostics_stress.js
+
+# 门禁归属：契约 22 条在 release.yml 构建前阻塞；压力 12 条在 health-stress.yml（每周/手动）
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）

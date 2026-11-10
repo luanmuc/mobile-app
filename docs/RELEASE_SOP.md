@@ -20,6 +20,7 @@
 push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/**）
   └─ Job Android
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
+      ├─ 健康诊断契约门禁（22 条，`.github/workflows/release.yml`）：预加载 action 白名单/分发 case/traceId/本地日志/聚合脱敏；失败即停在构建前
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
       ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
       └─ ./gradlew assembleRelease → 5 个 ABI APK → upload-artifact
@@ -32,6 +33,8 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 ```
 
 ## 三、发布前测试清单（改动核心代码时必做）
+
+> 健康契约由 `.github/workflows/release.yml` 在 `Setup Env` 后自动阻塞；压力测试 12 条不在发版阻塞链，挂 `.github/workflows/health-stress.yml`（每周一 UTC 周日 18:45 / 手动 dispatch）。
 
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 

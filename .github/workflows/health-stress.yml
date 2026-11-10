@@ -1,0 +1,30 @@
+name: Health stress audit
+
+on:
+  schedule:
+    # 每周一凌晨巡检：UTC 周日 18:45 = 北京时间周一 02:45（错开 docs-audit 的 18:15）
+    - cron: '45 18 * * 0'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  health-stress:
+    name: 健康诊断压力（12 条）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: 压力测试（10000 条聚合 / 5MB 截尾 / 脏行容错）
+        run: node scripts/check_health_diagnostics_stress.js
