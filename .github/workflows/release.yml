@@ -189,8 +189,15 @@ jobs:
             p.versionCode = Number(process.argv[3]);
             fs.writeFileSync(f, JSON.stringify(p, null, 2) + '\n');
           " "${PACKAGE_VERSION}" "${{ needs.Android.outputs.build }}" "${{ needs.Android.outputs.versionCode }}"
+          # README 的「当前底座 vX.Y 至 bN」跟本次构建号同步，避免每次发布后固定落后一版
+          node -e "
+            const fs = require('fs');
+            const s = fs.readFileSync('README.md', 'utf8');
+            const next = s.replace(/当前底座 v[\d.]+ 至 b\d+/, `当前底座 v\${process.argv[1]} 至 b\${process.argv[2]}`);
+            if (next !== s) fs.writeFileSync('README.md', next);
+          " "${PACKAGE_VERSION}" "${{ needs.Android.outputs.build }}"
           git config user.name "luanmuc"
           git config user.email "luanmuc@users.noreply.github.com"
-          git add publish/version.json publish/build-state.json npm-version-info/package.json
+          git add publish/version.json publish/build-state.json npm-version-info/package.json README.md
           git commit -m "chore: 更新版本信息 v${VER}" || echo "无改动，跳过提交"
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master || echo "推送失败（后续发布不影响已完成的 Release）"

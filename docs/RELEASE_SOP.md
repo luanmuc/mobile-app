@@ -28,7 +28,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ softprops/action-gh-release：创建 tag v1.9.2-b<build>，上传 APK
       ├─ 更新 publish/version.json（版本+描述+最近历史）
       ├─ 更新并发布 npm 版本信息包（luanmuc-lx-music-version-info）
-      └─ 提交 version.json + build-state.json + npm-version-info/package.json 回 master（不再触发构建）
+      └─ 提交 version.json + build-state.json + npm-version-info/package.json + README.md（底座 bN 同步）回 master（不再触发构建）
 ```
 
 ## 三、发布前测试清单（改动核心代码时必做）
@@ -51,7 +51,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 1. ✅ `Android` Job 编译成功（5 个 APK）
 2. ✅ `Release` Job 全部步骤绿
 3. ✅ 新 Release 已生成：tag `v1.9.2-bN`，发布说明 = 本次真实变更，包含 5 个 APK + MD5
-4. ✅ `publish/version.json` 已更新并提交回 master（最新提交为 "chore: 更新版本信息 v1.9.2-bN"），且 `publish/build-state.json` 已被回写（baseVersion/build/versionCode 递增）
+4. ✅ `publish/version.json` 已更新并提交回 master（最新提交为 "chore: 更新版本信息 v1.9.2-bN"），`README.md` 的「当前底座 v1.9.2 至 bN」已同提交更新，且 `publish/build-state.json` 已被回写（baseVersion/build/versionCode 递增）
 5. ✅ npm 包 `luanmuc-lx-music-version-info` 版本已发布（若 NPM_TOKEN 失效会有 `::error::` 提示，需更换 secret）
 6. ✅ 全部通过后才通知用户
 
