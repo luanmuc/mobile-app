@@ -64,6 +64,14 @@ jobs:
       - name: Setup Env
         uses: ./.github/actions/setup
 
+      - name: 音源标签/配置/语法契约门禁
+        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 519 个 TS 文件语法。
+        # 失败即停在本步，不进入构建与 Release，避免发出标签或配置回退的 APK。
+        run: |
+          node scripts/check_ts_syntax.js
+          node scripts/check_source_config_contract.js
+          node scripts/check_source_platform_label.js
+
       - name: 健康诊断契约门禁（22 条）
         # 只读契约：预加载 action 白名单 / 分发 case / traceId / 本地日志 / 聚合脱敏。
         # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。
