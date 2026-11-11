@@ -1,3 +1,25 @@
+## [播放页音源标签显示实际平台] - 2026-11-11
+
+> 背景：音源仓 v8.12.0 跨平台兜底后，`musicUrl` 已返回 `sourcePlatform`，但 App 全链路只认 `subSource/subSourceName`；`kw` 回退到 `tx` 时仍显示「酷我音乐 · Juhe聚合(tx)」。本轮对齐实际交付平台，本地改动，不 commit、不 push、不升版本。
+
+### 透传链路（preload → userApi → utils → online → UI）
+- `user-api-preload.js`：`musicUrl` 解析新增 `sourcePlatform`（字符串、截 16 字符、缺省空串），随 `data` 返回；旧音源无字段不受影响
+- `src/core/init/userApi/index.ts`：`musicUrl` 返回体新增 `sourcePlatform`
+- `src/core/music/utils.ts`：`handleGetOnlineMusicUrl` / `getOnlineOtherSourceMusicUrl` 返回新增 `sourcePlatform`；缓存命中从 `MusicSource.platform` 读，旧缓存无字段回退空串
+- `src/core/music/online.ts`：`playSource` 构造补 `platform` 并随缓存双写；`recordPlayResult.platform` 记录实际平台
+- 类型：`playSource` / `onSource` / `MusicSource` 统一补可选 `platform?: string`
+
+### 展示层
+- 新增 `src/core/music/sourceLabel.ts`：`resolvePlayPlatform` / `resolvePlatformName` / `buildSourceLabel`
+- 横屏/竖屏 `PlayInfo.tsx`：优先用 `playSource.platform`，否则回退 `musicInfo.source`；平台名走 `source_real_*` 翻译，未知平台回退平台 id，`local` 不显示
+- `src/plugins/player/playList.ts`：通知栏附加信息同口径显示「实际平台 · 子源名」
+
+### 验证
+- 新增 `scripts/check_source_platform_label.js`：9 条契约断言（先红 0/9 → 绿 9/9），覆盖标签行为矩阵与全链路静态接线
+- `node scripts/check_ts_syntax.js`：519 个 TS/TSX 文件 0 错误
+- `tsc --noEmit`：仅既存 `src/core/player/playCount.ts(85,40)` 1 条错误（非本轮引入）
+- 文档契约：`MUSIC_SOURCE_GUIDE.md` 返回契约/透传链路更新；`SYNC_POINTS.md` subSource 行补 `sourcePlatform`
+
 ## [音源健康 2.4 方案] - 2026-11-11
 
 ### 审计补漏（预加载白名单 + 压力测试）

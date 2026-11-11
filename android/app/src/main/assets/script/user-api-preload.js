@@ -223,16 +223,19 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
         switch (data.action) {
           case 'musicUrl':
             // 兼容三种返回：字符串 URL（旧音源）；{url, type} 对象（v11.13+ 携带实际交付音质）；
-            // {url, type, subSource, subSourceName}（v25.8+/b52+ 携带实际子源——播放页音源标签显示「平台·子源名」）
+            // {url, type, subSource, subSourceName, sourcePlatform}（v25.8+/b52+ 携带实际子源；v8.12.0 起携带实际平台）
             let musicUrl = response
             let actualType = data.info.type
             let subSource = ''
             let subSourceName = ''
+            let sourcePlatform = ''
             if (typeof response === 'object' && response !== null && typeof response.url === 'string') {
               musicUrl = response.url
               if (typeof response.type === 'string') actualType = response.type
               if (typeof response.subSource === 'string') subSource = response.subSource
               if (typeof response.subSourceName === 'string') subSourceName = response.subSourceName
+              // v8.12.0 跨平台兜底：实际交付平台（tx/wy/kw），旧音源无该字段时留空
+              if (typeof response.sourcePlatform === 'string') sourcePlatform = response.sourcePlatform.slice(0, 16)
             }
             if (typeof musicUrl != 'string' || musicUrl.length > 2048 || !/^https?:/.test(musicUrl)) throw new Error('failed')
             result = {
@@ -243,6 +246,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
                 url: musicUrl,
                 subSource,
                 subSourceName,
+                sourcePlatform,
               },
             }
             break

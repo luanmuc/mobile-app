@@ -28,8 +28,11 @@ publish/                    CI 生成的版本信息（勿手改，构建时自�
 ## 常用命令
 
 ```bash
-# 语法检查（518 个 TS/TSX，每次改动后必跑）
+# 语法检查（519 个 TS/TSX，每次改动后必跑）
 node scripts/check_ts_syntax.js
+
+# 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
+node scripts/check_source_platform_label.js
 
 # 音源健康本地诊断契约（22 条，含预加载 action 白名单）
 node scripts/check_health_diagnostics.js

@@ -11,6 +11,7 @@ import { useI18n } from '@/lang'
 import PlayQualityTag from '@/components/PlayQualityTag'
 import { useBufferProgress } from '@/plugins/player'
 import { getPlayQualityLabel } from '@/core/music/utils'
+import { buildSourceLabel, getPlatformNameKey, resolvePlatformName, resolvePlayPlatform } from '@/core/music/sourceLabel'
 
 // const FONT_SIZE = 13
 
@@ -37,10 +38,11 @@ export default () => {
   const playSource = usePlaySource()
   const playMusicInfo = usePlayMusicInfo()
   const src = (playMusicInfo?.musicInfo as any)?.source
-  const platformName = src && src != 'local' ? t(`source_real_${src}` as any) : ''
-  const sourceLabel = (playSource?.name && platformName && playSource.name != platformName)
-    ? `${platformName} · ${playSource.name}`
-    : (playSource?.name || platformName || '')
+  // v8.12.0：跨平台兜底后显示实际交付平台（sourcePlatform），旧音源无该字段时回退主平台
+  const actualPlatform = resolvePlayPlatform(playSource, src as string | undefined)
+  const platformKey = getPlatformNameKey(actualPlatform)
+  const platformName = resolvePlatformName(actualPlatform, platformKey ? t(platformKey) : '')
+  const sourceLabel = buildSourceLabel(platformName, playSource?.name)
   // console.log('render playInfo')
 
   return (

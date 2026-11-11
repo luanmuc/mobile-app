@@ -112,11 +112,13 @@ export default async(setting: LX.AppSetting) => {
                     }).then(res => {
                       // 音源返回实际交付音质（res.data.type，v1.0+）；旧音源无该字段时回退请求音质
                       // v6.0：透传实际子源（subSource id + subSourceName 中文名），旧音源无字段时为空字符串
+                      // v8.12.0：透传实际交付平台（sourcePlatform），跨平台兜底后标签显示真实平台
                       return {
                         type: (res.data as { type?: LX.Quality })?.type ?? type,
                         url: (res.data as { url: string }).url,
                         subSource: (res.data as { subSource?: string })?.subSource ?? '',
                         subSourceName: (res.data as { subSourceName?: string })?.subSourceName ?? '',
+                        sourcePlatform: (res.data as { sourcePlatform?: string })?.sourcePlatform ?? '',
                       }
                     }).catch(err => {
                       console.log(err.message)

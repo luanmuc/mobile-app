@@ -294,6 +294,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   isFromCache: boolean
   subSource: string
   subSourceName: string
+  sourcePlatform: string
 }> => {
   // b70 诊断：音源初始化检查打点（若卡在此步说明 apiInitPromise 未 resolve；15s 兜底超时）
   const initPromise = global.lx.apiInitPromise[0]
@@ -326,7 +327,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   if (cachedUrl && !isRefresh) {
     // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
     const cachedSource = await getStoreMusicSource(musicInfo, itemQuality)
-    return { url: cachedUrl, musicInfo, quality: itemQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '' }
+    return { url: cachedUrl, musicInfo, quality: itemQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '' }
   }
 
   let reqPromise
@@ -337,8 +338,8 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   }
   // retryedSource.includes(musicInfo.source)
   // eslint-disable-next-line @typescript-eslint/promise-function-async
-  return reqPromise.then(({ url, type, subSource = '', subSourceName = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string }) => {
-    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName }
+  return reqPromise.then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
     if (err.message == requestMsg.tooManyRequests) throw err
@@ -364,6 +365,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   isFromCache: boolean
   subSource: string
   subSourceName: string
+  sourcePlatform: string
 }> => {
   // b70 诊断：音源初始化检查打点（若卡在此步说明 apiInitPromise 未 resolve；15s 兜底超时）
   const initPromise = global.lx.apiInitPromise[0]
@@ -384,8 +386,8 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   } catch (err: any) {
     reqPromise = Promise.reject(err)
   }
-  return reqPromise.then(({ url, type, subSource = '', subSourceName = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string }) => {
-    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName }
+  return reqPromise.then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
   }).catch(async(err: any) => {
     console.log(err)
     if (!allowToggleSource || err.message == requestMsg.tooManyRequests) throw err

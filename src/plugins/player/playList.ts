@@ -4,6 +4,7 @@ import { defaultUrl } from '@/config'
 // import { action as playerAction } from '@/store/modules/player'
 import settingState from '@/store/setting/state'
 import playerState from '@/store/player/state'
+import { buildSourceLabel, getPlatformNameKey, resolvePlatformName, resolvePlayPlatform } from '@/core/music/sourceLabel'
 
 
 const list: LX.Player.Track[] = []
@@ -49,7 +50,16 @@ const getNotificationQualityTag = () => {
   if (q === 'hires') return 'Hi-Res'
   return q
 }
-const getNotificationSubSource = () => playerState.playSource?.name || undefined
+// v8.12.0：跨平台兜底后通知栏也显示实际平台；旧音源无 platform 时保持旧子源名
+const getNotificationSubSource = () => {
+  const source = playerState.playSource
+  if (!source) return undefined
+  const platform = resolvePlayPlatform(source, null)
+  const platformKey = getPlatformNameKey(platform)
+  const platformName = resolvePlatformName(platform, platformKey ? global.i18n.t(platformKey) : '')
+  const label = buildSourceLabel(platformName, source.name)
+  return label || undefined
+}
 
 const buildTracks = (musicInfo: LX.Player.PlayMusic, url?: LX.Player.Track['url'], duration?: LX.Player.Track['duration']): LX.Player.Track[] => {
   const mInfo = formatMusicInfo(musicInfo)

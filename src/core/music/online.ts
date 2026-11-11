@@ -50,7 +50,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
   onQuality?: (quality: LX.Quality) => void
-  onSource?: (source: { id: string; name: string } | null) => void
+  onSource?: (source: { id: string, name: string, platform?: string } | null) => void
 }): Promise<string> => {
   // if (!musicInfo._types[type]) {
   //   // 兼容旧版酷我源搜索列表过滤128k音质的bug
@@ -78,8 +78,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   const traceId = createHealthTraceId()
   log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh} trace=${traceId}`)
   // b70 诊断：兜底超时——防止任何链路异常导致 promise 永不 settle（无限 00:00），25s 强制失败并打点
-  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName }) => {
-    const source = subSource ? { id: subSource, name: subSourceName || subSource } : null
+  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName, sourcePlatform }) => {
+    const source = subSource ? { id: subSource, name: subSourceName || subSource, platform: sourcePlatform || '' } : null
     if (targetMusicInfo.id != musicInfo.id && !isFromCache) {
       void saveMusicUrl(targetMusicInfo, targetQuality, url)
       if (source) void saveMusicSource(targetMusicInfo, targetQuality, source)
@@ -90,7 +90,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     onSource(source)
     void recordPlayResult({
       traceId,
-      platform: targetMusicInfo.source || musicInfo.source,
+      platform: sourcePlatform || targetMusicInfo.source || musicInfo.source,
       quality: targetQuality,
       ok: true,
       latencyMs: Date.now() - startTs,
