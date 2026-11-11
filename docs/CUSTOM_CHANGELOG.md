@@ -4,6 +4,7 @@
 
 - `docs/AUDIT_PLAN.md`：顶部基线改为 `v1.9.2-b99` / HEAD `a6767fa1` / 三语 874 键 / 519 TS/TSX / tsc 0 / eslint 0；新增 **T 组（T1~T12）**：`sourcePlatform` 全链路透传、实际平台优先、标签拼装回退、7 平台枚举闭合、成功缓存保留平台、关源后标签一致性、跨仓版本一致、tsc 门禁、eslint 门禁、版本号持久化、新增文案三语闭合、文档时效；附 9 条执行命令与 4 条反证口径。
 - `scripts/check_source_platform_label.js`：标签行为矩阵扩为 **40 组合**（7 已知平台 + local + 未知 + 空 × 4 种子源名），锁住 `undefined`/双分隔符/悬挂分隔符；断言组数不变（9 组）。
+- 构建闭环：Build `42991043602` success（Android/Release 双绿，跨仓版本 v8.12.1），Release 自动回写 **v1.9.2-b100 / versionCode 259**；计划基线同步区分「审计起点 b99」与「当前发布 b100」。
 - 验证：`check_source_platform_label` 9/9；配置契约 24/0；健康诊断 22/0；诊断压测 12/0；`check_ts_syntax` 519/0；文档一致性 16 文档；`tsc --noEmit` rc=0；全仓 eslint 0/0；`docs-audit --dry-run` 待处理 0。
 
 ## [修复 eslint 门禁误扫构建产物] - 2026-11-11
