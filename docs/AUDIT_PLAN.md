@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b100**（HEAD `a67d26ae`，versionCode 259，Build `42991043602` success；原审计轮为 b74 / `20ac0519`）
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b102**（HEAD `fb200504`，Build `43010653552` success；原审计轮为 b74 / `20ac0519`）
 > 最近更新：2026-11-11（v8.12.1 跨平台兜底 + `sourcePlatform` 标签 + tsc/eslint 双门禁入 CI；构建后版本号自动 +1 至 b100）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值**：三语各 **891 键**、TS/TSX **519 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.1**。
+> **当前真值**：三语各 **891 键**、TS/TSX **520 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.1**。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -424,8 +424,9 @@ node scripts/check_source_platform_label.js        # 9/9
 node scripts/check_source_config_contract.js       # 24/0
 node scripts/check_health_diagnostics.js           # 39/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
-node scripts/check_ts_syntax.js                    # 519/0
-node scripts/check_docs_consistency.js             # 16 文档
+node scripts/check_health_diagnostics_view.js      # 20/0
+node scripts/check_ts_syntax.js                    # 520/0
+node scripts/check_docs_consistency.js             # 17 文档
 node scripts/docs-audit.js --dry-run               # 待处理 0
 node node_modules/typescript/bin/tsc --noEmit      # 0 error
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
@@ -438,6 +439,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | 标签矩阵穷举 | `buildSourceLabel` × 平台（7 已知 + local + 未知 + 空，10 种）× 子源（有/无/同平台名/空，4 种） | 40 组合无 `undefined`/空串/双分隔符/悬挂分隔符；实际平台优先 |
 | 健康诊断压力 | `check_health_diagnostics_stress.js` 10000 条事件、5MB 日志、200 错误码 | 14/14，不崩、不越界、证据包脱敏 |
 | 健康诊断深度审计 | `check_health_diagnostics_deep.js` 51 条：统计/窗口/异常/隐私/多字节/10 万条 | 51/51，详见 [AUDIT_PLAN_HEALTH_DIAGNOSTICS.md](./AUDIT_PLAN_HEALTH_DIAGNOSTICS.md) |
+| 诊断窗口视图模型 | `check_health_diagnostics_view.js` 20 条：折叠态/覆盖/四格统计/错误码分组/空态/1 万次构建 | 20/20 |
 | 跨仓版本反证 | 故意把 `MUSIC_SOURCE_GUIDE` 版本写成 8.11.7，跑构建前校验 | 必须报「文档音源版本 ≠ 本次内置」而非放行 |
 | CI 生成物反证 | 在本地生成一个含分号的 `builtin_source.js`，跑 `eslint .` | 必须 0 错误（证明忽略规则生效，不是恰好没有该文件） |
 
@@ -451,8 +453,9 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_source_config_contract.js` | **24/0** | 0 |
 | `check_health_diagnostics.js` | **39/0** | 0 |
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
-| `check_ts_syntax.js` | **519 文件 0 错误** | 0 |
-| `check_docs_consistency.js` | **16 文档无过时引用** | 0 |
+| `check_health_diagnostics_view.js` | **20/0** | 0 |
+| `check_ts_syntax.js` | **520 文件 0 错误** | 0 |
+| `check_docs_consistency.js` | **17 文档无过时引用** | 0 |
 | `tsc --noEmit` | **0 error** | 0 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
 | `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 0 |

@@ -56,7 +56,7 @@
 | 文件 | 代码/契约 | 验证 |
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
-| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠 | H14/H18/H19/H27 |
+| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView` | H14/H18/H19/H27 + 视图 20 条 |
 | `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 15 个 `health_diag_*` 三语 | docs-audit 891 键 |
 | `docs/AGENTS.md` 等 | 31→39 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
@@ -117,6 +117,33 @@
 | G2 | 10 万条报告 | ≤3000ms，findings≤12 |
 | G3 | 2 万条证据包 | ≤4000ms，可 JSON 序列化 |
 
+### 3.1 视图模型审计（20 条）
+
+运行入口：`node scripts/check_health_diagnostics_view.js`。纯函数 `buildHealthDiagnosticsView(report)` 负责折叠态摘要、覆盖状态、24h 四格、1h 空态、未加权样本提示、错误码/其他线索分组。
+
+| ID | 关注点 | 断言 |
+| --- | --- | --- |
+| V1 | 百分比 | null/undefined → `-`，0 → `0%`，22.1% → `22%`，1 → `100%` |
+| V2 | 空报告 | 空态、无错误码/其他线索、覆盖率 `-`、跨度 `0 小时` |
+| V3 | 低成功率 | 22% 判低，60% 不判低 |
+| V4 | 覆盖 7 天 | `full=true`，不显示截断，跨度 `7 天` |
+| V5 | 覆盖 8 小时 | `full=false`、`truncated=true`，跨度 `8 小时` |
+| V6 | 1 小时 | 0 条为空态；非 0 保留 total/ok |
+| V7 | 错误码分组 | 只收 `new_code`/`recent_failure`，其他线索不混入 |
+| V8 | 顺序/只读 | 分组保持原顺序，不改写原 `findings` |
+| V9 | 线索数 | `findingCount` 包含全部；空态仅由 findings 决定 |
+| V10 | 未加权样本 | 2 条时 `hasUnweighted=true` |
+| V11 | 无未加权样本 | `hasUnweighted=false` |
+| V12 | 折叠态 | ok/total/rate/findingCount 与报告一致 |
+| V13 | 12 条线索 | 全量保留，不截断 |
+| V14 | 0 跨度 | 不产生负值/NaN |
+| V15 | 0% 成功率 | 可展示且判低 |
+| V16 | d7 未覆盖 | `full=false` 且 h24 统计不丢 |
+| V17 | 引用 | 分组保留原 finding 引用，不改原报告 |
+| V18 | 构建压力 | 10000 次 ≤300ms |
+| V19 | 格式化压力 | 100000 次 ≤200ms |
+| V20 | 无副作用 | 连续两次构建结果一致 |
+
 ## 4. 压力维度与阈值
 
 | 维度 | 规模 | 阈值 | 证据 |
@@ -157,15 +184,16 @@ node scripts/check_health_diagnostics_deep.js
 # 既有契约/压力回归
 node scripts/check_health_diagnostics.js          # 39/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
+node scripts/check_health_diagnostics_view.js     # 20/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 519 文件 0 错误
+node scripts/check_ts_syntax.js                   # 520 文件 0 错误
 node scripts/check_source_config_contract.js      # 24/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx  # rc=0
-node scripts/check_docs_consistency.js            # 16 文档
+node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 51/0；契约 39/0；压力 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；深度审计 51/0；契约 39/0；压力 14/0；视图 20/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

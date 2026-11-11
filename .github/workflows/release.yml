@@ -74,17 +74,20 @@ jobs:
         run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 
       - name: 音源标签/配置/语法契约门禁
-        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 519 个 TS 文件语法。
+        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 520 个 TS 文件语法。
         # 失败即停在本步，不进入构建与 Release，避免发出标签或配置回退的 APK。
         run: |
           node scripts/check_ts_syntax.js
           node scripts/check_source_config_contract.js
           node scripts/check_source_platform_label.js
 
-      - name: 健康诊断契约门禁（39 条）
-        # 只读契约：预加载 action 白名单 / 分发 case / traceId / 本地日志 / 聚合脱敏。
+      - name: 健康诊断契约门禁（39 条 + 视图 20 条）
+        # 只读契约：预加载 action 白名单 / 分发 case / traceId / 本地日志 / 聚合脱敏；
+        # 视图模型锁折叠态、错误码/其他线索分组与空态。
         # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。
-        run: node scripts/check_health_diagnostics.js
+        run: |
+          node scripts/check_health_diagnostics.js
+          node scripts/check_health_diagnostics_view.js
 
       - name: Compute build number
         # 构建序号与 versionCode 统一由 publish/build-state.json 状态文件驱动：

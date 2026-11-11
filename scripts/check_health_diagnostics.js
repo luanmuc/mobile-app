@@ -446,8 +446,12 @@ check('H26 汇总必须标明未加权历史成功样本', () => {
 
 check('H27 本地诊断窗口按可信度/总体/错误码/其他线索分层', () => {
   const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
-  for (const key of ['health_diag_coverage_short', 'health_diag_h24', 'health_diag_codes', 'health_diag_other', 'coverage.unweightedSuccesses', 'spanText(', 'diagnosticsExpanded']) {
+  const view = read('src/core/healthDiagnosticsView.ts')
+  for (const key of ['health_diag_coverage_short', 'health_diag_h24', 'health_diag_codes', 'health_diag_other', 'diagnosticsExpanded', 'buildHealthDiagnosticsView']) {
     assert(src.includes(key), `窗口缺少分层元素：${key}`)
+  }
+  for (const key of ['coverage.unweightedSuccesses', 'spanText(']) {
+    assert(view.includes(key), `视图模型缺少口径字段：${key}`)
   }
 })
 

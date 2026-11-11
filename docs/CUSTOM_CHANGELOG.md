@@ -5,9 +5,11 @@
 - `src/screens/Home/Views/Setting/settings/Health.tsx`：最近异常窗口改为可折叠卡片；折叠态显示 `24h 成功/取链 · 本地成功率 · 线索数`，展开态依次显示可信度徽标（已覆盖 7 天 / 仅覆盖最近 N 小时 / 已达读取上限）、24h 取链/成功/失败/成功率四格、1h 记录与采样口径、错误码、其他线索；错误码与线索仍可点开 `samples`。
 - `src/core/healthDiagnostics.ts`：`HealthCoverage` 增加 `unweightedSuccesses`，`buildHealthReport` 直接写入覆盖对象，页面不再解析汇总长文本；`spanText` 改为导出，供页面显示实际覆盖时长。
 - `src/lang/{zh-cn,zh-tw,en-us}.json`：新增 15 个 `health_diag_*` 键，三语 876 → 891。
+- `src/core/healthDiagnosticsView.ts`：新增纯函数视图模型，收敛折叠态摘要、覆盖状态、24h 四格、1h 空态、未加权提示和错误码/其他线索分组；`Health.tsx` 不再直接拼这些分支。
 - `scripts/check_health_diagnostics.js`：新增 H27（窗口必须包含可信度/总体/错误码/其他线索分层与 `diagnosticsExpanded`），H26 追加 `coverage.unweightedSuccesses === 2`；契约 38 → 39 条。
+- `scripts/check_health_diagnostics_view.js`：新增 V1~V20（含 1 万次构建 / 10 万次格式化压力）；接入 release 与 health-stress 门禁。
 - 文档：`AGENTS`/`AUDIT_PLAN`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS`/`RELEASE_SOP`/`release.yml` 同步 39 条；`DOWNLOAD_DESIGN`/`MERGE_GUIDE`/`SYNC_POINTS`/`doc-sync-map` 同步 891 键；`MUSIC_SOURCE_GUIDE` 四b 节补充窗口分层与折叠。
-- 验证：契约 39/0、深度 51/0、压力 14/0、`tsc` 与改动文件 eslint rc=0。
+- 验证：契约 39/0、深度 51/0、压力 14/0、视图 20/0、`tsc` 与改动文件 eslint rc=0。
 
 ## [本地诊断误报修复：新错误码基线、同码去重、未加权样本提示] - 2026-11-11
 

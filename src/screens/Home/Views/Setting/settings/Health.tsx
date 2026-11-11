@@ -19,7 +19,8 @@ import {
   msToDisplay,
 } from '@/core/sourceConfig'
 import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
-import { buildEvidencePackage, buildHealthReport, spanText, type HealthReport } from '@/core/healthDiagnostics'
+import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
+import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 import { clipboardWriteText } from '@/utils/tools'
 
@@ -374,9 +375,8 @@ export default memo(() => {
   // 聚合摘要：与表格共用同一分类函数，9 桶（含已摘除/限流），合计=源数
   const summary = summarizeHealthItems(items)
 
-  const codeFindings = diagnostics?.findings.filter(f => f.id === 'new_code' || f.id === 'recent_failure') ?? []
-  const otherFindings = diagnostics?.findings.filter(f => f.id !== 'new_code' && f.id !== 'recent_failure') ?? []
-  const diagRateText = (rate: number | null | undefined) => rate == null ? '-' : `${Math.round(rate * 100)}%`
+  // 窗口展示逻辑收敛到纯函数视图模型，页面只负责文案与样式
+  const diagView = diagnostics ? buildHealthDiagnosticsView(diagnostics) : null
 
   const renderFinding = (f: HealthReport['findings'][number], idx: number) => {
     const key = `${f.id}-${idx}`
@@ -458,21 +458,21 @@ export default memo(() => {
           ) : null
         }
         {
-          diagnostics ? (
+          diagView ? (
             <View style={[styles.diagnosticsBox, { borderColor: theme['c-border-background'] }]}>
               <Pressable onPress={() => { setDiagnosticsExpanded(v => !v) }} style={styles.diagHeader}>
                 <View style={{ flex: 1 }}>
                   <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text>
                   <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
-                    {diagnostics.windows.h24.total
-                      ? `${diagnostics.windows.h24.ok}/${diagnostics.windows.h24.total} · ${diagRateText(diagnostics.windows.h24.successRate)} · ${diagnostics.findings.length}${t('health_diag_items')}`
+                    {diagView.stats.total
+                      ? `${diagView.collapsed.ok}/${diagView.collapsed.total} · ${diagView.collapsed.rateText} · ${diagView.collapsed.findingCount}${t('health_diag_items')}`
                       : t('health_diag_none')}
                   </Text>
-                  <Text size={10} color={diagnostics.windows.d7.covered ? '#52c41a' : '#fa8c16'} style={{ marginTop: 2 }}>
-                    {diagnostics.windows.d7.covered
+                  <Text size={10} color={diagView.coverage.full ? '#52c41a' : '#fa8c16'} style={{ marginTop: 2 }}>
+                    {diagView.coverage.full
                       ? t('health_diag_coverage_full')
-                      : t('health_diag_coverage_short', { span: spanText(diagnostics.coverage.coveredMs) })}
-                    {diagnostics.coverage.truncated ? ` · ${t('health_diag_truncated')}` : ''}
+                      : t('health_diag_coverage_short', { span: diagView.coverage.span })}
+                    {diagView.coverage.truncated ? ` · ${t('health_diag_truncated')}` : ''}
                   </Text>
                 </View>
                 <Text size={14} color={theme['c-font-label']}>{diagnosticsExpanded ? '▾' : '▸'}</Text>
@@ -483,50 +483,50 @@ export default memo(() => {
                     <View style={[styles.diagStats, { marginTop: 4 }]}>
                       <View style={styles.diagStat}>
                         <Text size={10} color={theme['c-font-label']}>{t('health_diag_h24')}</Text>
-                        <Text size={18}>{diagnostics.windows.h24.total}</Text>
+                        <Text size={18}>{diagView.stats.total}</Text>
                       </View>
                       <View style={styles.diagStat}>
                         <Text size={10} color={theme['c-font-label']}>{t('health_diag_ok')}</Text>
-                        <Text size={18} color="#52c41a">{diagnostics.windows.h24.ok}</Text>
+                        <Text size={18} color="#52c41a">{diagView.stats.ok}</Text>
                       </View>
                       <View style={styles.diagStat}>
                         <Text size={10} color={theme['c-font-label']}>{t('health_diag_failed')}</Text>
-                        <Text size={18} color="#ff4d4f">{diagnostics.windows.h24.failed}</Text>
+                        <Text size={18} color="#ff4d4f">{diagView.stats.failed}</Text>
                       </View>
                       <View style={styles.diagStat}>
                         <Text size={10} color={theme['c-font-label']}>{t('health_diag_rate')}</Text>
-                        <Text size={18} color={diagnostics.windows.h24.successRate != null && diagnostics.windows.h24.successRate < 0.6 ? '#ff4d4f' : theme['c-font']}>
-                          {diagRateText(diagnostics.windows.h24.successRate)}
+                        <Text size={18} color={diagView.stats.rateWarn ? '#ff4d4f' : theme['c-font']}>
+                          {diagView.stats.rateText}
                         </Text>
                       </View>
                     </View>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 6 }}>
-                      {diagnostics.windows.h1.total
-                        ? t('health_diag_h1', { n: diagnostics.windows.h1.total, ok: diagnostics.windows.h1.ok })
-                        : t('health_diag_h1_none')}
+                      {diagView.h1.empty
+                        ? t('health_diag_h1_none')
+                        : t('health_diag_h1', { n: diagView.h1.total, ok: diagView.h1.ok })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
-                      {diagnostics.coverage.unweightedSuccesses
-                        ? t('health_diag_unweighted', { n: diagnostics.coverage.unweightedSuccesses })
+                      {diagView.weighting.hasUnweighted
+                        ? t('health_diag_unweighted', { n: diagView.weighting.unweightedSuccesses })
                         : t('health_diag_weighted')}
                     </Text>
                     {
-                      codeFindings.length ? (
+                      diagView.codes.length ? (
                         <View>
                           <Text size={11} style={styles.diagSection}>{t('health_diag_codes')}</Text>
-                          {codeFindings.map(renderFinding)}
+                          {diagView.codes.map(renderFinding)}
                         </View>
                       ) : null
                     }
                     {
-                      otherFindings.length ? (
+                      diagView.others.length ? (
                         <View>
                           <Text size={11} style={styles.diagSection}>{t('health_diag_other')}</Text>
-                          {otherFindings.map(renderFinding)}
+                          {diagView.others.map(renderFinding)}
                         </View>
                       ) : null
                     }
-                    {!diagnostics.findings.length ? (
+                    {diagView.empty ? (
                       <Text size={11} color={theme['c-font-label']} style={{ marginTop: 8 }}>{t('health_diag_none')}</Text>
                     ) : null}
                   </View>
