@@ -26,7 +26,7 @@
 
 ## [App src 目录 eslint 清零] - 2026-11-11
 
-> 工程债务治理：`src` 从 **213 errors + 3 warnings** 清到 **0 errors**，3 条 warning 为原有基线（未新增、未改规则）。全仓 `eslint .` 仍有 **471 errors / 3 warnings**（`src` 之外的历史债务），eslint 仍未纳入 CI，不得表述为“全仓 lint 清零”。
+> 工程债务治理：`src` 从 **213 errors + 3 warnings** 清到 **0 errors**，3 条 warning 为原有基线（未新增、未改规则）。全仓 `eslint .` 当时仍有 **471 errors / 3 warnings**（`src` 之外的历史债务）；eslint 当时未纳入 CI，已由后续 `5986fe88` 纳入 `release.yml`。不得把该提交表述为“全仓 lint 清零”。
 
 - 改动面：33 个 `src/**` 文件，+281/−238；先跑 `eslint src --fix`（23 文件），再逐文件人工治理
 - 类型收敛：`downloadManager.ts` 用局部强类型 `updateItem(item: LX.Download.ListItem)` 包装替代 20+ 处 `as any`；`getData<T>()` 泛型替代断言；`healthLog.ts` 声明 `HealthFs` 接口替代 `any`；`Health.tsx` 增加 `tt(key: string)` 动态 i18n 辅助与统一 rejection 处理
@@ -44,7 +44,7 @@
 
 ## [App 本轮触达文件 tsc / lint 清零] - 2026-11-11
 
-> G 项收尾：只修本轮触达文件的类型与 lint，不改业务行为，不升 App 版本。该提交时全仓 `eslint .` 仍有 **684 errors / 3 warnings** 历史债务（本轮未处理，未纳入 CI）；后续 `src` 清零后全仓为 **471 errors / 3 warnings**（见上条），仍不得表述为“全仓 lint 清零”。
+> G 项收尾：只修本轮触达文件的类型与 lint，不改业务行为，不升 App 版本。该提交时全仓 `eslint .` 仍有 **684 errors / 3 warnings** 历史债务（本轮未处理，当时未纳入 CI）；后续 `src` 清零后全仓为 **471 errors / 3 warnings**（见上条），仍不得表述为“全仓 lint 清零”。
 
 - `src/core/player/playCount.ts`：`getTrackKey` 对下载列表项读 `metadata.musicInfo.source`，修 `PlayMusic` 联合类型下 `info.source` 的 TS2339；移除未使用的 `appStateSub` 引用（监听副作用保留）
 - `src/core/init/userApi/index.ts`：`||` → `??`（2 处）、`void` 箭头加花括号、去掉 `builtinApi!.id` 多余断言
