@@ -14,6 +14,15 @@ import { requestMsg } from '@/utils/message'
 import BackgroundTimer from 'react-native-background-timer'
 import { apis } from '@/utils/musicSdk/api-source'
 import { shouldHostFallback } from '@/core/init/userApi/sourceContract'
+import {
+  classifyPlaybackErrorCode,
+  createBudgetExhaustedError,
+  createPlaybackBudget,
+  isBudgetExhausted,
+  raceWithBudget,
+  type PlaybackAttempt,
+  type PlaybackBudget,
+} from './playbackBudget'
 
 
 const getOtherSourcePromises = new Map()
@@ -281,13 +290,15 @@ export const getDownloadQuality = (highQuality: LX.Quality, musicInfo: LX.Music.
   return type
 }
 
-export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, isRefresh, retryedSource = [], traceId }: {
+export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggleSource, isRefresh, retryedSource = [], traceId, budget, attempts }: {
   musicInfos: LX.Music.MusicInfoOnline[]
   quality?: LX.Quality
   onToggleSource: (musicInfo?: LX.Music.MusicInfoOnline) => void
   isRefresh: boolean
   retryedSource?: LX.OnlineSource[]
   traceId?: string
+  budget?: PlaybackBudget
+  attempts?: PlaybackAttempt[]
 }): Promise<{
   url: string
   musicInfo: LX.Music.MusicInfoOnline
@@ -297,6 +308,8 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   subSourceName: string
   sourcePlatform: string
 }> => {
+  const playbackBudget = budget ?? createPlaybackBudget()
+  const playbackAttempts = attempts ?? []
   // b70 诊断：音源初始化检查打点（若卡在此步说明 apiInitPromise 未 resolve；15s 兜底超时）
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
@@ -312,6 +325,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   let itemQuality: LX.Quality | null = null
   // eslint-disable-next-line no-cond-assign
   while (musicInfo = (musicInfos.shift()!)) {
+    if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     if (!assertApiSupport(musicInfo.source)) continue
@@ -322,7 +336,11 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     onToggleSource(musicInfo)
     break
   }
-  if (!musicInfo || !itemQuality) throw new Error(global.i18n.t('toggle_source_failed'))
+  if (!musicInfo || !itemQuality) {
+    const err = new Error(global.i18n.t('toggle_source_failed')) as Error & { attempts?: PlaybackAttempt[] }
+    err.attempts = playbackAttempts
+    throw err
+  }
 
   const cachedUrl = await getStoreMusicUrl(musicInfo, itemQuality)
   if (cachedUrl && !isRefresh) {
@@ -331,7 +349,8 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     return { url: cachedUrl, musicInfo, quality: itemQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '' }
   }
 
-  let reqPromise
+  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
+  const attemptStartedAt = Date.now()
   try {
     reqPromise = musicSdk[musicInfo.source].getMusicUrl(toOldMusicInfo(musicInfo), itemQuality, traceId).promise
   } catch (err: any) {
@@ -339,26 +358,34 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   }
   // retryedSource.includes(musicInfo.source)
   // eslint-disable-next-line @typescript-eslint/promise-function-async
-  return reqPromise.then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+    playbackAttempts.push({ source: musicInfo.source, stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    if (err.message == requestMsg.tooManyRequests) throw err
+    playbackAttempts.push({ source: musicInfo.source, stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
+    if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
+    if (err.message == requestMsg.tooManyRequests) {
+      err.attempts = playbackAttempts
+      throw err
+    }
     console.log(err)
-    return getOnlineOtherSourceMusicUrl({ musicInfos, quality, onToggleSource, isRefresh, retryedSource, traceId })
+    return getOnlineOtherSourceMusicUrl({ musicInfos, quality, onToggleSource, isRefresh, retryedSource, traceId, budget: playbackBudget, attempts: playbackAttempts })
   })
 }
 
 /**
  * 获取在线音乐URL
  */
-export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }: {
+export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId, budget, attempts }: {
   musicInfo: LX.Music.MusicInfoOnline
   quality?: LX.Quality
   isRefresh: boolean
   allowToggleSource: boolean
   onToggleSource: (musicInfo?: LX.Music.MusicInfoOnline) => void
   traceId?: string
+  budget?: PlaybackBudget
+  attempts?: PlaybackAttempt[]
 }): Promise<{
   url: string
   musicInfo: LX.Music.MusicInfoOnline
@@ -368,6 +395,8 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   subSourceName: string
   sourcePlatform: string
 }> => {
+  const playbackBudget = budget ?? createPlaybackBudget()
+  const playbackAttempts = attempts ?? []
   // b70 诊断：音源初始化检查打点（若卡在此步说明 apiInitPromise 未 resolve；15s 兜底超时）
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
@@ -381,19 +410,26 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   // console.log(musicInfo.source)
   const targetQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
 
-  let reqPromise
+  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
+  const primaryStartedAt = Date.now()
   try {
     reqPromise = musicSdk[musicInfo.source].getMusicUrl(toOldMusicInfo(musicInfo), targetQuality, traceId).promise
   } catch (err: any) {
     reqPromise = Promise.reject(err)
   }
-  return reqPromise.then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
+    playbackAttempts.push({ source: musicInfo.source, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
   }).catch(async(err: any) => {
+    playbackAttempts.push({ source: musicInfo.source, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt })
+    if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     console.log(err)
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。
     const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
-    if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) throw err
+    if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) {
+      if (err && typeof err === 'object') err.attempts = playbackAttempts
+      throw err
+    }
     onToggleSource()
     // 换源候选处理：先复用 10 分钟候选缓存；候选全部请求失败时，
     // 若是刷新场景则强制重搜一次兜底，避免旧候选全死时"换不了源"直接卡死
@@ -402,6 +438,9 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
       musicInfo: LX.Music.MusicInfoOnline
       quality: LX.Quality
       isFromCache: boolean
+      subSource: string
+      subSourceName: string
+      sourcePlatform: string
     } | null> => {
       const otherSource = await getOtherSource(musicInfo, forceSearch)
       if (!otherSource.length) return null
@@ -412,6 +451,8 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
         isRefresh,
         retryedSource: [musicInfo.source],
         traceId,
+        budget: playbackBudget,
+        attempts: playbackAttempts,
       })
     }
     let toggledResult = null
@@ -428,6 +469,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
       }
     }
     if (toggledResult) return toggledResult
+    if (err && typeof err === 'object') err.attempts = playbackAttempts
     throw err
   })
 }

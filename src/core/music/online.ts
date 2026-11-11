@@ -110,6 +110,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   })
   return Promise.race([urlPromise, timeoutPromise]).catch(err => {
     const codeMatch = String(err?.message || '').match(/^([A-Z_]+):/)
+    const errAttempts = (err as { attempts?: unknown[] } | null)?.attempts
     // 2.4 归因：失败也尽量带 sourceId，避免报告把同一源拆成 platform/sourceId 两个身份。
     // 优先错误对象自带的 sourceId / detail[0].source；都取不到才退回 platform。
     const errAny = err as { sourceId?: string, detail?: Array<{ source?: string }> } | null
@@ -123,7 +124,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       latencyMs: Date.now() - startTs,
       sourceId: failureSourceId,
     })
-    log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message} trace=${traceId}`)
+    log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message} trace=${traceId} attempts=${errAttempts ? JSON.stringify(errAttempts) : '无'}`)
     throw err
   })
 }

@@ -26,7 +26,7 @@ git add .
 git commit -m "merge: 合并上游更新"
 
 # 4. 全量语法检查
-# 521 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
+# 522 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
 
 # 5. 推送触发云编译
 git push origin master
@@ -79,7 +79,7 @@ git push origin master
 
 ## 合并后必查清单
 
-1. 全量语法检查 0 错误（521 个 TS/TSX）
+1. 全量语法检查 0 错误（522 个 TS/TSX）
 2. `APP_PROVIDER_NAME`（constant.ts）与 AndroidManifest 的 `${applicationId}.provider`、原生 shareFile/openFile 传参一致
 3. 内置音源兜底逻辑仍在（`has_imported_builtin_source` 标记 + 名称含「豆包定制」检测）
 4. 权限三分支（<30 / 30-32 / >=33）未被上游覆盖

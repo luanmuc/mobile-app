@@ -1,3 +1,15 @@
+## [P1 第二刀：播放取链预算与 attempts 账本] - 2026-11-12
+
+> 极端预算：初始化 15s + 源内 12s = 27s，已超过 App 外层 25s `Promise.race`；最终被改写成 `URL获取超时(25s)`，真正失败源归不到。
+
+- 新增 `src/core/music/playbackBudget.ts`：`PLAYBACK_BUDGET_MS=24_000`、`createPlaybackBudget`、`remainingBudgetMs`、`isBudgetExhausted`、`classifyPlaybackErrorCode`、`createBudgetExhaustedError`、`raceWithBudget`。
+- `handleGetOnlineMusicUrl` 与 `getOnlineOtherSourceMusicUrl` 接受可选 `budget/attempts`；主源与候选请求都受 24s 预算 race 约束，预算先于外层 25s 触发，抛 `BUDGET_EXHAUSTED`（`retryable=true`）。
+- attempts 账本记录 `{source, stage:'primary'|'fallback', ok, code, latencyMs}`；候选循环在每次取链前与失败后检查预算，耗尽即停并带账本抛出。
+- `online.ts` 失败诊断日志增加 `attempts=...`；`recordPlayResult` 口径与 P0/P1 一致，不新增事件。
+- 新增 `scripts/check_playback_budget.js`：首跑 RED 0/7（模块缺失、主/候选未接线、日志无 attempts），GREEN 9/0（含两条预算 race 行为用例）。
+- CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_playback_budget.js`；TS 语法计数 521 → 522。
+- 边界：本刀只做预算与 attempts；并发竞速、首成功取消、`play_result.attempts[]` 结构化落盘仍留待后续。lyric/pic/local 路径未加 owner gate 的问题仍在。
+
 ## [P1 降级所有权（Fallback Owner）] - 2026-11-12
 
 - `src/core/init/userApi/sourceContract.ts`：新增 `FallbackOwner`、`normalizeFallbackOwner`（仅 `source` 保留，其余归 `host`）、`shouldHostFallback`；`normalizeSourceInfo` 输出 `fallbackOwner`。
