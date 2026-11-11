@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   health-stress:
-    name: 健康诊断压力（14 条）
+    name: 健康诊断压力（14 条 + 深度 50 条）
     runs-on: ubuntu-latest
     steps:
       - name: Check out git repository
@@ -28,3 +28,6 @@ jobs:
 
       - name: 压力测试（10000 条聚合 / 5MB 截尾 / 脏行容错）
         run: node scripts/check_health_diagnostics_stress.js
+
+      - name: 深度审计压力（10 万条聚合 / 窗口边界 / 异常正反例 / 隐私 / 多字节）
+        run: node scripts/check_health_diagnostics_deep.js

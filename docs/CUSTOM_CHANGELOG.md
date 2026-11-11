@@ -1,4 +1,4 @@
-## [音源健康本地诊断：采样加权 / 失败归因 / 窗口覆盖 / 证据展开] - 2026-11-11
+## [音源健康本地诊断：采样加权 / 失败归因 / 窗口覆盖 / 证据展开 + 深度审计修复] - 2026-11-11
 
 > 修三处会让报告结论失真的统计口径：成功率被 1/20 采样系统性压低、失败只记 `platform` 导致快照对照漏报、只读最近 500/800 条却标 7 天。改法对齐 OpenTelemetry probability sampling 的 adjusted count，但不引入 SDK、不上传。
 
@@ -8,7 +8,8 @@
 - `Health.tsx`：诊断读取上限 500/800 提到 20000，并把截断状态传给报告；新增「复制诊断摘要」，分享失败时回退复制；异常标题可点开查看单条样本；导出透传 `appVersion` / `sourceVersion`。
 - `src/lang/*.json`：新增 `health_copy_report` / `health_copy_done`，三语 874→876 键。
 - `scripts/check_health_diagnostics.js`：新增 H11~H21，22→33 条；`check_health_diagnostics_stress.js` 新增 U11/U12，12→14 条；实跑 33/0、14/0。
-- 验证：`tsc --noEmit` rc=0；`check_health_diagnostics` 33/0；`check_health_diagnostics_stress` 14/0。
+- 深度审计（`check_health_diagnostics_deep.js`，50 条）修三处真实缺陷：`trimJsonlTail` 多字节按字符数截尾导致超字节上限；脱敏不覆盖大写 `HTTPS://` / `FTP://` / `file://`；证据包 `events.sourceEvents[].reason` 未脱敏可带出 URL/歌名。
+- 验证：`tsc --noEmit` rc=0；`check_health_diagnostics` 33/0；`check_health_diagnostics_stress` 14/0；深度审计 50/0。
 
 ## [docs-audit 规则 9：去掉 MUSIC_SOURCE_GUIDE 假警告] - 2026-11-11
 

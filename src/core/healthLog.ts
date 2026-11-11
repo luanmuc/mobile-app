@@ -68,6 +68,21 @@ export const isExpiredHealthFileName = (name: string, today: string, keepDays: n
   return diffDays > keepDays
 }
 
+/** UTF-8 字节数（不依赖 Node Buffer，RN 运行时也能用） */
+const utf8Bytes = (text: string): number => {
+  let bytes = 0
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    if (code < 0x80) bytes += 1
+    else if (code < 0x800) bytes += 2
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      bytes += 4
+      i++
+    } else bytes += 3
+  }
+  return bytes
+}
+
 /** 按字节上限保留 JSONL 尾部，且必须从完整行开始，避免写出残行 */
 export const trimJsonlTail = (text: string, maxBytes: number): string => {
   if (!text) return ''
@@ -75,7 +90,7 @@ export const trimJsonlTail = (text: string, maxBytes: number): string => {
   let start = lines.length
   let size = 0
   for (let i = lines.length - 1; i >= 0; i--) {
-    const add = lines[i].length + (start < lines.length ? 1 : 0)
+    const add = utf8Bytes(lines[i]) + (start < lines.length ? 1 : 0)
     if (size + add > maxBytes) break
     size += add
     start = i

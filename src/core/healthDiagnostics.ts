@@ -424,12 +424,30 @@ export const buildHealthReport = (input: {
 
 export const redactDiagnosticText = (text: string): string => {
   if (!text) return ''
-  const URL_RE = new RegExp('https?' + '://[^\\s\'"]+', 'g')
+  // 大小写与 ftp/file 也要覆盖：日志里的链接不一定是小写 http(s)。
+  const URL_RE = new RegExp('(?:https?|ftp|file)' + '://[^\\s\'"]+', 'gi')
   return String(text)
     .replace(URL_RE, '[url]')
     .replace(/歌=[^\s]+/g, '歌=[已脱敏]')
     .replace(/singer=[^\s]+/g, 'singer=[已脱敏]')
     .replace(/搜索词=[^\s]+/g, '搜索词=[已脱敏]')
+}
+
+// 证据包会把源脚本返回的 sourceEvents 原样带出，里面的 reason 可能含 URL/歌名。
+// 只对字符串做递归脱敏，保留结构；深度/数组长度设上限，防止异常大对象拖垮导出。
+const redactValue = (value: unknown, depth = 0): unknown => {
+  if (typeof value === 'string') return redactDiagnosticText(value)
+  if (Array.isArray(value)) {
+    if (depth >= 4) return []
+    return value.slice(0, 200).map(v => redactValue(v, depth + 1))
+  }
+  if (value && typeof value === 'object') {
+    if (depth >= 4) return '[truncated]'
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>).slice(0, 50)) out[k] = redactValue(v, depth + 1)
+    return out
+  }
+  return value
 }
 
 export const buildEvidencePackage = (input: {
@@ -442,7 +460,7 @@ export const buildEvidencePackage = (input: {
   sourceVersion?: string
 }): HealthEvidencePackage => {
   const report = input.report
-  const events = (Array.isArray(input.events) ? input.events : []).map(e => ({ ...e }))
+  const events = (Array.isArray(input.events) ? input.events : []).map(e => redactValue({ ...e }) as HealthEventLike)
   const attempts: HealthEvidencePackage['attempts'] = []
   for (const e of events) {
     if (attempts.length >= 50) break
