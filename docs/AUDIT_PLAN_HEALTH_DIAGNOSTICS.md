@@ -48,7 +48,8 @@
 | `createHealthTraceId` | 格式 / 2000 次唯一性 | F8 |
 | `healthFileName` / `buildExportFileName` | 日期、时分秒、无设备/账号 | F10 |
 | `trimTailByBytes` | 纯中文 / 代理对 / 超字节上限 | F11 |
-| `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失 | 既有压力 U2、U3、U5 |
+| `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失；父目录整体删除后逐级重建 | 既有压力 U2、U3、U5；契约 H28 |
+| `ensureHealthLogsDir` | 打开诊断页确保目录存在，不依赖下一次播放 | H28 |
 | `recordPlayResult` | 失败 100% / 成功 1/20 / 失败抓 sourceEvents | 契约 H11、H15 + 压力 U9~U12 |
 
 ### 2.3 其它改动面
@@ -58,7 +59,7 @@
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView` | H14/H18/H19/H27 + 视图 20 条 |
 | `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 15 个 `health_diag_*` 三语 | docs-audit 891 键 |
-| `docs/AGENTS.md` 等 | 31→39 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
+| `docs/AGENTS.md` 等 | 31→40 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ## 3. 断言矩阵（51 条）
 
@@ -144,6 +145,26 @@
 | V19 | 格式化压力 | 100000 次 ≤200ms |
 | V20 | 无副作用 | 连续两次构建结果一致 |
 
+### 3.2 日志目录审计（13 条）
+
+运行入口：`node scripts/check_log_directory.js`。用内存 RNFS 加载真实 `log.ts` / `healthLog.ts`，覆盖公共优先、私有降级、回迁合并、同名冲突、幂等、四类文件补齐与压力。
+
+| ID | 关注点 | 断言 |
+| --- | --- | --- |
+| L1 | 公共优先 | 公共可写时 `getLogsDir()` 为公共目录 |
+| L2 | 私有降级 | 公共不可写时切私有，日志页仍可读 |
+| L3 | JSONL 合并 | 同名健康 JSONL 追加，行不丢 |
+| L4 | JSON 冲突 | 公共同名不覆盖，私有改名保留 |
+| L5 | 幂等 | 重复检查权限不重复追加 |
+| L6 | 四类补齐 | 写 error 后 error/source/diagnose/debug 都存在 |
+| L7 | 内容保留 | 已有其他日志不被清空 |
+| L8 | 私有清空 | 私有降级时 `clearLogs` 有效 |
+| L9 | 父目录重建 | `lx-music` 与 `logs` 都被逐级补回 |
+| L10 | 健康事件 | 写健康事件同时补齐四类固定日志 |
+| L11 | 并发 | 并发检查权限只迁移一次 |
+| L12 | 回迁压力 | 500 个私有文件回迁 < 300ms |
+| L13 | 补齐压力 | 10000 次补齐四类文件 < 400ms |
+
 ## 4. 压力维度与阈值
 
 | 维度 | 规模 | 阈值 | 证据 |
@@ -182,9 +203,10 @@
 node scripts/check_health_diagnostics_deep.js
 
 # 既有契约/压力回归
-node scripts/check_health_diagnostics.js          # 39/0
+node scripts/check_health_diagnostics.js          # 40/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
 node scripts/check_health_diagnostics_view.js     # 20/0
+node scripts/check_log_directory.js               # 13/0
 
 # 仓库门禁
 node scripts/check_ts_syntax.js                   # 520 文件 0 错误
@@ -196,4 +218,4 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 51/0；契约 39/0；压力 14/0；视图 20/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；深度审计 51/0；契约 40/0；压力 14/0；视图 20/0；日志目录 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

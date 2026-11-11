@@ -21,7 +21,7 @@ import {
 import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
-import { REPORT_EVENT_LIMIT, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
+import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 import { clipboardWriteText } from '@/utils/tools'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
@@ -100,6 +100,7 @@ export default memo(() => {
 
   const refreshDiagnostics = useCallback(async(snap: HealthSnapshot | null, history: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>) => {
     try {
+      await ensureHealthLogsDir()
       const events = await readRecentHealthEvents(REPORT_EVENT_LIMIT)
       const report = buildHealthReport({ events, snapshot: (snap ?? {}), trend: history, now: Date.now(), truncated: events.length >= REPORT_EVENT_LIMIT })
       setDiagnostics(report)

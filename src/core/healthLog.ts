@@ -157,8 +157,21 @@ const getLogsDir = (): string => {
 const ensureDir = async(dir: string): Promise<void> => {
   const fs = getFs()
   try {
+    // RNFS.mkdir 不递归：父目录被整体删除时，必须先逐级补回父目录再建 logs
+    const parent = dir.slice(0, dir.lastIndexOf('/'))
+    if (parent && parent !== dir && !await fs.exists(parent)) await ensureDir(parent)
     if (!await fs.exists(dir)) await fs.mkdir(dir)
   } catch {}
+}
+
+export const ensureHealthLogsDir = async(): Promise<string | null> => {
+  try {
+    const dir = getLogsDir()
+    await ensureDir(dir)
+    return dir
+  } catch {
+    return null
+  }
 }
 
 export const cleanupOldHealthFiles = async(now: Date = new Date()): Promise<number> => {
@@ -189,6 +202,10 @@ export const appendHealthEvent = async(entry: HealthLogEntry): Promise<string | 
     const fs = getFs()
     const dir = getLogsDir()
     await ensureDir(dir)
+    try {
+      const logMod = require('../utils/log')
+      if (typeof logMod.ensureAllLogFiles === 'function') await logMod.ensureAllLogFiles(dir)
+    } catch {}
     await cleanupOldHealthFiles()
     const path = dir + '/' + healthFileName(new Date(entry.ts || Date.now()))
     try {

@@ -61,6 +61,58 @@ const ensurePrivateDir = async(): Promise<string> => {
   return PRIVATE_LOGS_DIR
 }
 
+const TEXT_LOG_SUFFIX = ['.log', '.txt', '.jsonl']
+const isTextLogFile = (name: string): boolean => TEXT_LOG_SUFFIX.some(ext => name.endsWith(ext))
+const migrationLock = { active: false }
+
+const copyThenRemove = async(src: string, dest: string): Promise<void> => {
+  try {
+    await RNFS.moveFile(src, dest)
+  } catch {
+    await RNFS.copyFile(src, dest)
+    await RNFS.unlink(src)
+  }
+}
+
+// 公共目录恢复可用时，把无权限期间写在私有目录的日志全部迁回公共目录。
+// 文本日志/JSONL 追加合并；JSON 等非文本文件遇到同名不覆盖，改名保留。
+export const migratePrivateLogsToPublic = async(): Promise<number> => {
+  if (migrationLock.active) return 0
+  migrationLock.active = true
+  try {
+    if (!await RNFS.exists(PRIVATE_LOGS_DIR)) return 0
+    const entries = await RNFS.readDir(PRIVATE_LOGS_DIR)
+    let moved = 0
+    for (const item of entries) {
+      const name = item?.name
+      if (!name || name.startsWith('.')) continue
+      if (typeof item.isFile === 'function' && !item.isFile()) continue
+      const src = PRIVATE_LOGS_DIR + '/' + name
+      const dest = LOGS_DIR + '/' + name
+      try {
+        if (!await RNFS.exists(dest)) {
+          await copyThenRemove(src, dest)
+          moved++
+          continue
+        }
+        if (isTextLogFile(name)) {
+          await RNFS.appendFile(dest, await RNFS.readFile(src, 'utf8'), 'utf8')
+          await RNFS.unlink(src)
+          moved++
+          continue
+        }
+        await copyThenRemove(src, dest + '.migrated-' + Date.now())
+        moved++
+      } catch {}
+    }
+    return moved
+  } catch {
+    return 0
+  } finally {
+    migrationLock.active = false
+  }
+}
+
 export const checkLogPermission = async(): Promise<boolean> => {
   // b71 双通道：真实写测试公共目录——成功→公共；失败→私有降级（原版零权限逻辑，永不再提示）
   try {
@@ -71,6 +123,7 @@ export const checkLogPermission = async(): Promise<boolean> => {
   // 确定生效目录
   if (hasPermission) {
     activeLogsDir = LOGS_DIR
+    await migratePrivateLogsToPublic()
   } else {
     activeLogsDir = await ensurePrivateDir()
   }
@@ -94,6 +147,15 @@ const ensureLogsDir = async() => {
   return LOGS_DIR
 }
 
+export const ensureAllLogFiles = async(dir: string): Promise<void> => {
+  for (const { name } of Object.values(LOG_FILES)) {
+    try {
+      const path = dir + '/' + name
+      if (!await RNFS.exists(path)) await RNFS.writeFile(path, '', 'utf8')
+    } catch {}
+  }
+}
+
 const writeLog = async(category: LogCategory, msg: string) => {
   // b71 双通道：公共不可用时自动写私有目录（原版零权限逻辑，日志永不丢弃）
   // hasPermission 为 null（init 未完成）时先入启动缓冲，init 后冲刷——热路径零阻塞
@@ -107,6 +169,8 @@ const writeLog = async(category: LogCategory, msg: string) => {
   }
   const { name, max } = LOG_FILES[category]
   const dir = hasPermission ? await ensureLogsDir() : await ensurePrivateDir()
+  // 任一分类开始写日志时，把同一目录下其余固定日志文件补齐，避免“只有一类文件存在”
+  await ensureAllLogFiles(dir)
   const path = dir + '/' + name
   try {
     // 写前检查大小，超限先清空再写（归零重新积累，保留最新日志）
@@ -148,10 +212,9 @@ export const LOG_CATEGORY_LABELS: Record<LogCategory, string> = {
 // 读取日志：category 缺省读全部（分段展示）；指定则只读该类
 export const getLogs = async(category?: LogCategory): Promise<string> => {
   if (hasPermission == null) await checkLogPermission()
-  if (!hasPermission) return ''
   const categories: LogCategory[] = category ? [category] : (['error', 'source', 'diagnose', 'debug'] as LogCategory[])
   const parts: string[] = []
-  const dir = activeLogsDir ?? (await ensurePrivateDir())
+  const dir = activeLogsDir ?? (hasPermission ? LOGS_DIR : await ensurePrivateDir())
   for (const cat of categories) {
     const path = dir + '/' + LOG_FILES[cat].name
     try {
@@ -169,9 +232,8 @@ export const getLogs = async(category?: LogCategory): Promise<string> => {
 // 清空日志：category 缺省清全部；指定则只清该类
 export const clearLogs = async(category?: LogCategory) => {
   if (hasPermission == null) await checkLogPermission()
-  if (!hasPermission) return
   const categories: LogCategory[] = category ? [category] : (['error', 'source', 'diagnose', 'debug'] as LogCategory[])
-  const dir = activeLogsDir ?? (await ensurePrivateDir())
+  const dir = activeLogsDir ?? (hasPermission ? LOGS_DIR : await ensurePrivateDir())
   for (const cat of categories) {
     try {
       const path = dir + '/' + LOG_FILES[cat].name

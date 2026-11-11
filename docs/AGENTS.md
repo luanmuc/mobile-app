@@ -34,7 +34,7 @@ node scripts/check_ts_syntax.js
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
 node scripts/check_source_platform_label.js
 
-# 音源健康本地诊断契约（39 条，含预加载 action 白名单）
+# 音源健康本地诊断契约（40 条，含预加载 action 白名单/日志回迁）
 node scripts/check_health_diagnostics.js
 # 音源健康本地诊断压力（10000 条聚合/5MB 日志/脏行容错/异常依赖不抛）
 node scripts/check_health_diagnostics_stress.js
@@ -43,7 +43,7 @@ node scripts/check_health_diagnostics_deep.js
 # 本地诊断视图模型审计（20 条：折叠态/四层分组/空态/1 万次构建）
 node scripts/check_health_diagnostics_view.js
 
-# 门禁归属：契约 39 + 视图 20 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 20 条在 health-stress.yml（每周/手动）
+# 门禁归属：契约 40 + 视图 20 + 日志目录 13 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 20 + 日志目录 13 条在 health-stress.yml（每周/手动）
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
@@ -100,7 +100,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（520 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（39 条）+ 视图模型 `check_health_diagnostics_view.js`（20 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（520 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（40 条）+ 视图模型 `check_health_diagnostics_view.js`（20 条）+ 日志目录 `check_log_directory.js`（13 条）。
 
 ### 任务类型分流
 

@@ -469,6 +469,23 @@ check('H23 日志死 API 清零且运行日志页仍可读 debug', () => {
   assert(page.includes('getLogs') && page.includes('LOG_CATEGORY_LABELS'), '运行日志页读取链路被误删')
 })
 
+check('H28 日志公共优先、私有回迁、目录逐级重建且四类日志文件自动补齐', () => {
+  const log = read('src/utils/log.ts')
+  const health = read('src/core/healthLog.ts')
+  const page = read('src/screens/Home/Views/Setting/settings/Health.tsx')
+  assert(log.includes('migratePrivateLogsToPublic'), '日志模块缺少私有日志回迁函数')
+  assert(log.includes('await migratePrivateLogsToPublic()'), '权限恢复分支未调用私有日志回迁')
+  assert(log.includes('PRIVATE_LOGS_DIR') && log.includes('LOGS_DIR'), '日志模块未同时维护公共/私有目录')
+  assert(log.includes('appendFile'), '同文件迁移未做追加合并')
+  assert(log.includes('export const ensureAllLogFiles'), '日志模块缺少四类日志文件补齐入口')
+  assert(log.includes('await ensureAllLogFiles(dir)'), '写任一分类日志时未补齐其余日志文件')
+  assert(log.includes('Object.values(LOG_FILES)'), '补齐逻辑未覆盖全部固定日志文件')
+  assert(health.includes('ensureAllLogFiles(dir)'), '健康事件写入时未补齐四类日志文件')
+  assert(health.includes('export const ensureHealthLogsDir'), '健康日志缺少目录确保入口')
+  assert(health.includes('const parent'), '健康日志未逐级创建父目录')
+  assert(page.includes('ensureHealthLogsDir()'), '诊断页打开时未确保日志目录')
+})
+
 console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
 if (failures.length) {
   console.log('失败项：')

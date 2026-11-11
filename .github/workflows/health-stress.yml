@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   health-stress:
-    name: 健康诊断压力（14 条 + 深度 51 条 + 视图 20 条）
+    name: 健康诊断压力（14 条 + 深度 51 条 + 视图 20 条 + 日志目录 13 条）
     runs-on: ubuntu-latest
     steps:
       - name: Check out git repository
@@ -34,3 +34,6 @@ jobs:
 
       - name: 视图模型审计（折叠态 / 四层分组 / 空态 / 百分比）
         run: node scripts/check_health_diagnostics_view.js
+
+      - name: 日志目录审计（公共优先 / 私有回迁 / 四类补齐 / 500 文件 / 1 万次）
+        run: node scripts/check_log_directory.js

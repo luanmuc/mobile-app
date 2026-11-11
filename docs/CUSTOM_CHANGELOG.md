@@ -1,3 +1,16 @@
+## [日志公共优先 + 私有日志回迁] - 2026-11-11
+
+> 公共日志目录被整体删除后，健康诊断只 `mkdir(logs)`、父目录不存在时静默失败；同时无权限期间写在私有目录的日志，在权限恢复后不会回到公共目录。
+
+- `src/utils/log.ts`：公共目录可用时优先写 `Download/lx-music/logs`；新增 `migratePrivateLogsToPublic()`，在 `checkLogPermission()` 成功分支把私有目录全部日志迁回公共目录——文本/JSONL 追加合并，JSON 等同名冲突改名保留，迁移后删除私有源文件；「运行日志」页与清空操作在私有降级时也直接读写私有目录，不再返回空。
+- `src/utils/log.ts`：新增 `ensureAllLogFiles()`，任一分类开始写日志时先补齐同目录下 `error.log` / `source.log` / `diagnose.log` / `lx_debug_log.txt` 四个固定文件，缺哪个建哪个。
+- `src/core/healthLog.ts`：`ensureDir` 改为逐级创建父目录，父目录被整体删除后也能恢复；新增 `ensureHealthLogsDir()`；健康事件写入时也补齐四类固定日志。
+- `Health.tsx`：打开本地诊断页先确保日志目录存在，不再依赖下一次播放事件。
+- `scripts/check_health_diagnostics.js`：新增 H28，契约 39 → 40 条。
+- 文档：`AGENTS`/`AUDIT_PLAN`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS`/`RELEASE_SOP`/`release.yml` 同步 40 条。
+- `scripts/check_log_directory.js`：新增 L1~L13 行为审计/压力（公共优先、私有降级、回迁合并、同名冲突、幂等、四类补齐、父目录重建、并发、500 文件回迁、1 万次补齐），接入 release 与 health-stress 门禁。
+- 验证：契约 40/0、深度 51/0、压力 14/0、视图 20/0、日志目录 13/0、`tsc`/全量 eslint rc=0。
+
 ## [本地诊断窗口重排 + 折叠] - 2026-11-11
 
 > 原来的窗口把“汇总一段话 + 最多 5 条 finding”平铺在一起，用户看到的只是“有事”，看不出“这份结论可不可信、总体怎么样、哪个错误码在涨”。重排为四层，并默认折叠，点标题展开。
