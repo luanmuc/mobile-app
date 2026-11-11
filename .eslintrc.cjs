@@ -80,5 +80,7 @@ module.exports = {
     '*.min.js',
     'test.js',
     '*Test.ts',
+    // 构建期从音源仓下载生成，不属于本仓代码；其风格差异不应阻断 App 构建
+    'android/app/src/main/assets/builtin_source.js',
   ],
 }

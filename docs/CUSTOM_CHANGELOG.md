@@ -1,3 +1,9 @@
+## [修复 eslint 门禁误扫构建产物] - 2026-11-11
+
+> 首次带 eslint 门禁的 Build 在「ESLint 全仓检查」失败：CI 会在构建前把音源仓 `lx-source.js` 下载为 `android/app/src/main/assets/builtin_source.js`，该生成文件被 `eslint .` 扫到并报 3396 条风格错误。该文件不属于 App 仓源码，已加入 eslint 忽略。
+
+- `.eslintrc.cjs`：`ignorePatterns` 增加 `android/app/src/main/assets/builtin_source.js`
+- 验证：本地 `eslint . --ext .js,.jsx,.ts,.tsx` 仍为 0 errors / 0 warnings；`tsc --noEmit` rc=0
 ## [App eslint 纳入发版门禁] - 2026-11-11
 
 > 全仓 eslint 已清零（0 errors / 0 warnings），具备入 CI 条件；本轮只加门禁与文档，不改业务代码。
