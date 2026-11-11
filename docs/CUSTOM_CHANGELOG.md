@@ -1,3 +1,10 @@
+## [App eslint 纳入发版门禁] - 2026-11-11
+
+> 全仓 eslint 已清零（0 errors / 0 warnings），具备入 CI 条件；本轮只加门禁与文档，不改业务代码。
+
+- `.github/workflows/release.yml`：`Setup Env` 后、契约门禁前新增「ESLint 全仓检查」，命令 `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`
+- `docs/RELEASE_SOP.md`：流水线树、底部阻塞说明、发布前清单第 1 条补 eslint；`docs/AGENTS.md`：L0 验证链与发布额外阻塞说明补 eslint
+- 验证：全仓 eslint **0 errors / 0 warnings**（rc=0）；`tsc --noEmit` rc=0；`check_docs_consistency` 16 文档通过；`docs-audit --dry-run` 待处理 0；release.yml YAML 解析通过
 ## [App eslint 全仓 0 errors / 0 warnings] - 2026-11-11
 
 > 收尾上一条：全仓最后 3 条 warning 清零，`eslint . --ext .js,.jsx,.ts,.tsx` 现为 **0 errors / 0 warnings**（rc=0）。

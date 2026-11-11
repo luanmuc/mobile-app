@@ -81,13 +81,13 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 
 | 层级 | 验证内容 | 方法 | 能发现 |
 |---|---|---|---|
-| L0 静态 | 语法/类型/结构 | `node scripts/check_ts_syntax.js`（519 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
+| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（519 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
 | L1 逻辑 | 行为/状态流 | 代码走查、必要时补单测 | 逻辑缺陷、状态机错误 |
 | L2 接口 | 依赖/音源 | curl/实测（音源接口、上游 API、npm 包） | 接口失效、协议不匹配 |
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 三条只读契约 `check_ts_syntax.js`（519 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（22 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（519 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（22 条）。
 
 ### 任务类型分流
 

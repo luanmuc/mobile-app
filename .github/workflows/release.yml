@@ -69,6 +69,10 @@ jobs:
         # 失败即停在构建前，避免带类型错误的 APK 进入 Release。
         run: node node_modules/typescript/bin/tsc --noEmit
 
+      - name: ESLint 全仓检查
+        # 全仓 eslint 必须 0 error / 0 warning；与 tsc 互补，失败即停在构建前。
+        run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
+
       - name: 音源标签/配置/语法契约门禁
         # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 519 个 TS 文件语法。
         # 失败即停在本步，不进入构建与 Release，避免发出标签或配置回退的 APK。
