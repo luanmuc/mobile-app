@@ -221,7 +221,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
       events.request.call(globalThis.lx, { source: data.source, action: data.action, info: data.info }).then(response => {
         let result
         switch (data.action) {
-          case 'musicUrl':
+          case 'musicUrl': {
             // 兼容三种返回：字符串 URL（旧音源）；{url, type} 对象（v11.13+ 携带实际交付音质）；
             // {url, type, subSource, subSourceName, sourcePlatform}（v25.8+/b52+ 携带实际子源；v8.12.0 起携带实际平台）
             let musicUrl = response
@@ -250,6 +250,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
               },
             }
             break
+          }
           case 'lyric':
             result = {
               source: data.source,

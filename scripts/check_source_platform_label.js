@@ -38,6 +38,8 @@ const loadTs = (rel) => {
     fileName: file,
   }).outputText
   const mod = { exports: {} }
+  // 仅在仓库自检脚本里加载转译后的本仓 TS 模块，不执行外部输入
+  // eslint-disable-next-line no-new-func
   const fn = new Function('exports', 'require', 'module', '__filename', '__dirname', output)
   fn(mod.exports, require, mod, file, path.dirname(file))
   return mod.exports
@@ -64,7 +66,7 @@ const assertIncludes = (text, needle, label) => {
 run('L1 preload 透传 sourcePlatform', () => {
   const preload = read('android/app/src/main/assets/script/user-api-preload.js')
   assertIncludes(preload, "let sourcePlatform = ''", 'preload')
-  assertIncludes(preload, "response.sourcePlatform", 'preload')
+  assertIncludes(preload, 'response.sourcePlatform', 'preload')
   assertIncludes(preload, 'sourcePlatform,', 'preload 返回 data')
 })
 

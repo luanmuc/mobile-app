@@ -16,15 +16,15 @@
  *   - 每个 section 独立汇总，失败时退出码 1；
  *   - 这是 App 仓目前唯一的逻辑级单测入口，CI 仍以 check_ts_syntax 为底线。
  */
-'use strict';
+'use strict'
 
-const fs = require('fs');
-const path = require('path');
-const assert = require('assert');
+const fs = require('fs')
+const path = require('path')
+const assert = require('assert')
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..')
 const ONLY = (() => {
-  const arg = process.argv.find(v => v.startsWith('--only='));
+  const arg = process.argv.find(v => v.startsWith('--only='))
   return arg ? arg.slice('--only='.length) : ''
 })()
 
@@ -47,6 +47,8 @@ const loadTs = (rel) => {
     fileName: file,
   }).outputText
   const mod = { exports: {} }
+  // 仅在仓库自检脚本里加载转译后的本仓 TS 模块，不执行外部输入
+  // eslint-disable-next-line no-new-func
   const fn = new Function('exports', 'require', 'module', '__filename', '__dirname', output)
   fn(mod.exports, require, mod, file, path.dirname(file))
   return mod.exports

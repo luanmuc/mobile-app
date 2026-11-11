@@ -1,3 +1,14 @@
+## [全仓 eslint 清零（scripts / android 预加载）] - 2026-11-11
+
+> 承上一提交 `a876fdec`（`src` 清零）：本轮清掉 `src` 之外的 **471 errors**，全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 现为 **0 errors / 3 warnings**。3 条 warning 为 `src/config/globalData.ts` 原有基线，未新增、未改规则。
+
+- `scripts/**`：466 → 0。`eslint scripts --fix` 自动修 461 条（主要是 411 条 `semi`、对象换行/空格/引号等纯格式），剩余 5 条人工处理：
+  - 4 个自检脚本的 `new Function(...)`（用于加载转译后的本仓 TS 模块）加定向 `eslint-disable-next-line no-new-func` 与原因注释，不改加载方式；
+  - `check_health_diagnostics.js` 删除未使用的 `DAY` 常量。
+- `android/app/src/main/assets/script/user-api-preload.js`：5 条 `no-case-declarations`，给 `case 'musicUrl'` 加块级作用域 `{}`，变量声明与逻辑不变。
+- 未改动任何业务判断、字符串内容或门禁断言；`scripts/*.js` 与预加载脚本全部通过 `node --check`。
+- 验证：`tsc --noEmit` rc=0；`check_ts_syntax` 519/0；`check_source_platform_label` 9/9；`check_source_config_contract` 24/0；`check_health_diagnostics` 22/0；`check_health_diagnostics_stress` 12/0；`check_docs_consistency` 16 文档无过时引用；`docs-audit --dry-run` 待处理 0；全仓 eslint **0 errors / 3 warnings**。
+
 ## [App src 目录 eslint 清零] - 2026-11-11
 
 > 工程债务治理：`src` 从 **213 errors + 3 warnings** 清到 **0 errors**，3 条 warning 为原有基线（未新增、未改规则）。全仓 `eslint .` 仍有 **471 errors / 3 warnings**（`src` 之外的历史债务），eslint 仍未纳入 CI，不得表述为“全仓 lint 清零”。
@@ -6,7 +17,7 @@
 - 类型收敛：`downloadManager.ts` 用局部强类型 `updateItem(item: LX.Download.ListItem)` 包装替代 20+ 处 `as any`；`getData<T>()` 泛型替代断言；`healthLog.ts` 声明 `HealthFs` 接口替代 `any`；`Health.tsx` 增加 `tt(key: string)` 动态 i18n 辅助与统一 rejection 处理
 - 语义保护：`item.rateLimitActive || item.rateLimited` 保留“布尔短路”语义（显式 `=== true`），不改 `??`；`t(...) || fallback || id` 保留“i18n 空串即缺失”的回退链；`download.notifyComplete` 保留“缺省开启”语义（`?? true`）
 - 验证：`eslint src` **0 error**（3 warning）；`tsc --noEmit` rc=0 **0 error**；`check_ts_syntax` 519/0、`check_source_platform_label` 9/9、`check_source_config_contract` 24/0、`check_health_diagnostics` 22/0、`check_health_diagnostics_stress` 12/0、`check_docs_consistency` 16 文档无过时引用；`docs-audit --dry-run` 待处理 0
-- 全仓复测：`eslint . --ext .js,.jsx,.ts,.tsx` = **471 errors / 3 warnings**（剩余在 scripts/tools/test 等 `src` 外目录）
+- 截至该提交，全仓复测：`eslint . --ext .js,.jsx,.ts,.tsx` = **471 errors / 3 warnings**（剩余在 scripts/tools/test 等 `src` 外目录；已由下一条提交清零）
 
 ## [CI 增加全仓 TypeScript 类型检查] - 2026-11-11
 
