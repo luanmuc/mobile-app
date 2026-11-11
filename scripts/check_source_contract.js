@@ -126,6 +126,26 @@ run('P0-A5 8 个错误码且 retryable 默认稳定', () => {
   }
 })
 
+SECTION('fallback-owner')
+run('P1-A1 normalizeSourceInfo 透出 owner，缺省/非法回退 host', () => {
+  const { normalizeSourceInfo } = CONTRACT()
+  const info = normalizeSourceInfo({
+    kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'], fallbackOwner: 'source' },
+    tx: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'], fallbackOwner: 'bogus' },
+    wy: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] },
+  })
+  assert.strictEqual(info.kw.fallbackOwner, 'source')
+  assert.strictEqual(info.tx.fallbackOwner, 'host')
+  assert.strictEqual(info.wy.fallbackOwner, 'host')
+})
+
+run('P1-A4 shouldHostFallback 仅 source 关闭 host 换源', () => {
+  const { shouldHostFallback } = CONTRACT()
+  assert.strictEqual(shouldHostFallback('source'), false)
+  assert.strictEqual(shouldHostFallback('host'), true)
+  assert.strictEqual(shouldHostFallback(undefined), true)
+})
+
 SECTION('preload')
 run('P0-A2 preload 不再维护 supportActions 白名单', () => {
   const source = read('android/app/src/main/assets/script/user-api-preload.js')
@@ -139,7 +159,18 @@ run('P0-A4 preload 在分发前解 v2 envelope', () => {
   assert.ok(source.includes('response = unwrapResponse(response)'), 'preload 未在 switch 前解 envelope')
 })
 
+run('P1-A2 preload 透传 fallbackOwner', () => {
+  const source = read('android/app/src/main/assets/script/user-api-preload.js')
+  assert.ok(source.includes('fallbackOwner: userSource.fallbackOwner'), 'preload 未透传 fallbackOwner')
+})
+
 SECTION('init')
+run('P1-A3 App 保存 fallbackOwners 映射并在换源前判断', () => {
+  const source = read('src/core/init/userApi/index.ts')
+  assert.ok(source.includes('global.lx.fallbackOwners'), 'index.ts 未写入 fallbackOwners')
+  assert.ok(read('src/core/music/utils.ts').includes('shouldHostFallback'), 'utils.ts 换源前缺少 host gate')
+})
+
 run('P0-A6 App switch 覆盖全部 SOURCE_ACTIONS', () => {
   const { SOURCE_ACTIONS } = CONTRACT()
   const source = read('src/core/init/userApi/index.ts')

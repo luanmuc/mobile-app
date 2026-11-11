@@ -1,3 +1,13 @@
+## [P1 降级所有权（Fallback Owner）] - 2026-11-12
+
+- `src/core/init/userApi/sourceContract.ts`：新增 `FallbackOwner`、`normalizeFallbackOwner`（仅 `source` 保留，其余归 `host`）、`shouldHostFallback`；`normalizeSourceInfo` 输出 `fallbackOwner`。
+- `user-api-preload.js`：`sourceInfo.sources[source]` 透传 `fallbackOwner`；缺省不伪造。
+- `src/core/init/userApi/index.ts`：init 时写 `global.lx.fallbackOwners`；`src/types/app.d.ts` / `src/config/globalData.ts` 增加映射与初值。
+- `src/core/music/utils.ts`：`handleGetOnlineMusicUrl` 的 App 换源前加 gate；源声明 `source` 时不再重复搜索其他平台，未声明源行为不变。
+- `scripts/check_source_contract.js`：新增 P1-A1~A4，契约 9 → 13 条；首跑 RED 9/4，GREEN 13/0。
+- 源仓 `lx-source.js`：`sourceConfig[platform]` 5 个平台声明 `fallbackOwner:"source"`，聚合源版本 8.12.1 → 8.12.2；新增 `test/audit/w-fallback-owner.js`（RED 1/2 → GREEN 2/2）。
+- 边界：P1 第一刀只做 owner 能力与 URL 换源 gate；预算切片、`attempts[]`、首成功取消、`BUDGET_EXHAUSTED` 留到 P1 第二刀；lyric/pic/local 路径未加 owner gate。
+
 ## [P0 音源契约统一（Source Contract v2）] - 2026-11-12
 
 > App 侧 `supportActions`、preload 白名单、`init/userApi` switch、TS 联合类型四处各自维护 action；源侧 `kw` 只声明 8 个（无 `lyric`），App 却声明 9 个，靠源内 handler 兜住。新增 action 至少要改 5 处，且未知 action 会被静默裁掉。

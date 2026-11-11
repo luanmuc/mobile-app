@@ -21,6 +21,8 @@ export const SOURCE_ACTIONS = [
 
 export type SourceAction = typeof SOURCE_ACTIONS[number]
 
+export type FallbackOwner = 'host' | 'source'
+
 export const SOURCE_QUALITIES = ['128k', '320k', 'flac', 'flac24bit'] as const
 
 export const SOURCE_ERROR_CODES = [
@@ -46,6 +48,13 @@ export const isSourceQuality = (value: unknown): value is LX.Quality =>
 
 export const getErrorRetryable = (code: SourceErrorCode | string): boolean =>
   RETRYABLE_ERROR_CODES.has(code as SourceErrorCode)
+
+export const normalizeFallbackOwner = (value: unknown): FallbackOwner =>
+  value === 'source' ? 'source' : 'host'
+
+/** 只有显式声明 source 所有权的源，App 才不启动自己的换源。 */
+export const shouldHostFallback = (owner: FallbackOwner | string | undefined): boolean =>
+  owner !== 'source'
 
 export interface SourceError {
   code: SourceErrorCode
@@ -119,6 +128,7 @@ export const normalizeSourceInfo = (raw: unknown): Partial<Record<LX.Source, LX.
       type: 'music',
       actions,
       qualitys,
+      fallbackOwner: normalizeFallbackOwner(item.fallbackOwner),
     }
   }
 

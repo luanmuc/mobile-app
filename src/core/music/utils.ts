@@ -13,6 +13,7 @@ import { log } from '@/utils/log'
 import { requestMsg } from '@/utils/message'
 import BackgroundTimer from 'react-native-background-timer'
 import { apis } from '@/utils/musicSdk/api-source'
+import { shouldHostFallback } from '@/core/init/userApi/sourceContract'
 
 
 const getOtherSourcePromises = new Map()
@@ -390,7 +391,9 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
   }).catch(async(err: any) => {
     console.log(err)
-    if (!allowToggleSource || err.message == requestMsg.tooManyRequests) throw err
+    // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。
+    const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
+    if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) throw err
     onToggleSource()
     // 换源候选处理：先复用 10 分钟候选缓存；候选全部请求失败时，
     // 若是刷新场景则强制重搜一次兜底，避免旧候选全死时"换不了源"直接卡死

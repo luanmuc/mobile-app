@@ -36,6 +36,7 @@ interface GlobalData {
 
   qualityList: LX.QualityList
   apis: Partial<LX.UserApi.UserApiSources>
+  fallbackOwners: Partial<Record<LX.Source, LX.UserApi.UserApiFallbackOwner>>
   apiInitPromise: [Promise<boolean>, boolean, (success: boolean) => void]
 
   jumpMyListPosition: boolean

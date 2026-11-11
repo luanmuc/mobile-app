@@ -85,9 +85,11 @@ export default async(setting: LX.AppSetting) => {
       if (info.sources) {
         let apis: any = {}
         let qualitys: LX.QualityList = {}
-        for (const [source, { actions, type, qualitys: sourceQualitys }] of Object.entries(normalizeSourceInfo(info.sources))) {
+        const fallbackOwners: Partial<Record<LX.Source, LX.UserApi.UserApiFallbackOwner>> = {}
+        for (const [source, { actions, type, qualitys: sourceQualitys, fallbackOwner }] of Object.entries(normalizeSourceInfo(info.sources))) {
           if (type != 'music') continue
           apis[source as LX.Source] = {}
+          fallbackOwners[source as LX.Source] = fallbackOwner
           logger.info('userApi', `[debug] ${source} actions = ${actions.join(',')}`)
           for (const action of actions) {
             switch (action) {
@@ -337,6 +339,7 @@ export default async(setting: LX.AppSetting) => {
         }
         global.lx.qualityList = qualitys
         global.lx.apis = apis
+        global.lx.fallbackOwners = fallbackOwners
         global.state_event.apiSourceUpdated(settingState.setting['common.apiSource'])
       }
     } else {

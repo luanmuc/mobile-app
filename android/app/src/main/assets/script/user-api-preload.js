@@ -407,6 +407,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
           type: 'music',
           actions: userSource.actions,
           qualitys: qualitys.filter(q => userSource.qualitys.includes(q)),
+          fallbackOwner: userSource.fallbackOwner,
         }
       }
     } catch (error) {
