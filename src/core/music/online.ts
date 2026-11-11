@@ -17,7 +17,7 @@ import {
   getCachedLyricInfo,
 } from './utils'
 import { log } from '@/utils/log'
-import { createHealthTraceId, recordPlayResult } from '@/core/healthLog'
+import { createHealthTraceId, recordCacheHit, recordPlayResult } from '@/core/healthLog'
 
 /* export const setMusicUrl = ({ musicInfo, type, url }: {
   musicInfo: LX.Music.MusicInfo
@@ -69,6 +69,12 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     // 同步执行（gettingUrlId 仍为当前歌），校验放行。
     const cachedSource = await getStoreMusicSource(musicInfo, targetQuality)
     onSource(cachedSource ?? null)
+    // 缓存命中不证明音源当前可出链：单独记 cache_hit，不进成功率；用来解释“听歌了但本地诊断 0 次”。
+    void recordCacheHit({
+      platform: cachedSource?.platform ?? musicInfo.source,
+      quality: targetQuality,
+      sourceId: cachedSource?.id,
+    })
     return cachedUrl
   }
 

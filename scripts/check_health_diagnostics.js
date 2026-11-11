@@ -191,9 +191,10 @@ if (healthLog) {
     assert(healthLog.healthFileName(d) === 'source_health_20261111.jsonl', `实际 ${healthLog.healthFileName(d)}`)
   })
 
-  check('H5 成功 1/20 采样', () => {
+  check('H5 成功 1/5 采样', () => {
     assert(healthLog.shouldSampleSuccess(() => 0.01) === true, '0.01 应采样')
-    assert(healthLog.shouldSampleSuccess(() => 0.06) === false, '0.06 不应采样')
+    assert(healthLog.shouldSampleSuccess(() => 0.19) === true, '0.19 应采样')
+    assert(healthLog.shouldSampleSuccess(() => 0.2) === false, '0.2 不应采样')
     assert(healthLog.shouldSampleSuccess(() => 0.999) === false, '0.999 不应采样')
   })
 
@@ -273,16 +274,16 @@ check('H10 App 预加载脚本放行并透传 healthEvents', () => {
   assert(read('src/core/init/userApi/index.ts').includes("case 'healthEvents'"), 'userApi 缺少 healthEvents case')
 })
 
-check('H11 成功采样加权：真实 95% 不得报成 48.7%', () => {
+check('H11 成功采样加权：真实 95% 不得报成 79%', () => {
   const weighted = []
-  for (let i = 0; i < 475; i++) {
-    weighted.push({ traceId: `w-ok-${i}`, event: 'source_result', sourceId: 'wSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 300, ts: NOW - 5 * MIN, sampleWeight: 20 })
+  for (let i = 0; i < 95; i++) {
+    weighted.push({ traceId: `w-ok-${i}`, event: 'source_result', sourceId: 'wSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 300, ts: NOW - 5 * MIN, sampleWeight: 5 })
   }
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 25; i++) {
     weighted.push({ traceId: `w-fail-${i}`, event: 'source_result', sourceId: 'wSrc', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 300, ts: NOW - 5 * MIN })
   }
   const agg = diag.aggregateHealthEvents(weighted, NOW)
-  assert(agg.windows.h1.total === 10000, `加权 total 应为 10000，实际 ${agg.windows.h1.total}`)
+  assert(agg.windows.h1.total === 500, `加权 total 应为 500，实际 ${agg.windows.h1.total}`)
   assert(Math.abs(agg.windows.h1.successRate - 0.95) < 0.01, `加权成功率应约 95%，实际 ${agg.windows.h1.successRate}`)
 })
 
@@ -339,15 +340,15 @@ check('H16 按源拆分 + 证据包 attempts 展开', () => {
 })
 
 
-check('H17 趋势判断同样加权：真实 95%→95% 不得因采样比例误报下跌', () => {
+check('H17 趋势判断同样加权：真实 100%→95% 不得因采样比例误报下跌', () => {
   const trendEvents = []
   for (let i = 0; i < 100; i++) {
     trendEvents.push({ traceId: `p-ok-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 200, ts: NOW - 30 * HOUR })
   }
-  for (let i = 0; i < 475; i++) {
-    trendEvents.push({ traceId: `r-ok-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 200, ts: NOW - 2 * HOUR, sampleWeight: 20 })
+  for (let i = 0; i < 95; i++) {
+    trendEvents.push({ traceId: `r-ok-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 200, ts: NOW - 2 * HOUR, sampleWeight: 5 })
   }
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 25; i++) {
     trendEvents.push({ traceId: `r-fail-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 200, ts: NOW - 2 * HOUR })
   }
   const findings = diag.detectHealthAnomalies({ events: trendEvents, now: NOW })
@@ -484,6 +485,21 @@ check('H28 日志公共优先、私有回迁、目录逐级重建且四类日志
   assert(health.includes('export const ensureHealthLogsDir'), '健康日志缺少目录确保入口')
   assert(health.includes('const parent'), '健康日志未逐级创建父目录')
   assert(page.includes('ensureHealthLogsDir()'), '诊断页打开时未确保日志目录')
+})
+
+check('H29 缓存命中单独计数，不进入取链成功率', () => {
+  const events = [
+    { event: 'cache_hit', sourceId: 'kw', platform: 'kw', quality: '128k', ts: NOW - 2 * HOUR },
+    { event: 'cache_hit', sourceId: 'kw', platform: 'kw', quality: '128k', ts: NOW - 1 * HOUR },
+    { traceId: 'p1', event: 'play_result', sourceId: 'kw', platform: 'kw', quality: '128k', ok: true, latencyMs: 100, ts: NOW - 30 * MIN, sampleWeight: 5 },
+  ]
+  const report = diag.buildHealthReport({ events, now: NOW })
+  assert(report.cacheHits.h24 === 2, `24h 缓存命中应为 2，实际 ${report.cacheHits.h24}`)
+  assert(report.windows.h24.total === 5 && report.windows.h24.ok === 5, `缓存命中污染取链窗口：${JSON.stringify(report.windows.h24)}`)
+  assert(report.windows.h24.successRate === 1, `缓存命中污染成功率：${report.windows.h24.successRate}`)
+  assert(read('src/core/healthLog.ts').includes('recordCacheHit'), 'healthLog 缺少缓存命中写入入口')
+  assert(read('src/core/healthLog.ts').includes("event: 'cache_hit'"), '缓存命中事件名不是 cache_hit')
+  assert(read('src/core/music/online.ts').includes('recordCacheHit({'), '缓存命中分支未接线')
 })
 
 console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)

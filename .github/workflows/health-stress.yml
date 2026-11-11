@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   health-stress:
-    name: 健康诊断压力（14 条 + 深度 51 条 + 视图 20 条 + 日志目录 13 条）
+    name: 健康诊断压力（14 条 + 深度 51 条 + 视图 22 条 + 日志目录 13 条）
     runs-on: ubuntu-latest
     steps:
       - name: Check out git repository

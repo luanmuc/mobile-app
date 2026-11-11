@@ -105,14 +105,14 @@ const DAY = 24 * HOUR
 // ---------- B. 报告覆盖与文案 ----------
 {
   const emptyReport = diag.buildHealthReport({ events: [], now: NOW })
-  rec('D8', '空报告：coverage 空、summary 引导、findings=0', emptyReport.coverage.eventCount === 0 && emptyReport.coverage.oldestTs === null && emptyReport.coverage.coveredMs === 0 && emptyReport.findings.length === 0 && emptyReport.summary.includes('先播放几首歌'), emptyReport.summary)
+  rec('D8', '空报告：coverage 空、summary 引导、findings=0', emptyReport.coverage.eventCount === 0 && emptyReport.coverage.oldestTs === null && emptyReport.coverage.coveredMs === 0 && emptyReport.findings.length === 0 && emptyReport.summary.includes('播放一首未缓存的歌'), emptyReport.summary)
 
   const short = diag.buildHealthReport({
     events: [event({ traceId: 's1', ts: NOW - 30 * MIN, ok: false, code: 'E' })],
     now: NOW,
     truncated: true,
   })
-  rec('D9', '只有 30min 数据 + truncated：d7=false 且 summary 说明覆盖时长', short.windows.d7.covered === false && short.coverage.truncated === true && short.summary.includes('仅覆盖最近') && short.summary.includes('1/20'), short.summary)
+  rec('D9', '只有 30min 数据 + truncated：d7=false 且 summary 说明覆盖时长', short.windows.d7.covered === false && short.coverage.truncated === true && short.summary.includes('仅覆盖最近') && short.summary.includes('1/5'), short.summary)
 
   const long = diag.buildHealthReport({
     events: [
@@ -298,7 +298,7 @@ const DAY = 24 * HOUR
 
   rec('F6', '非法文件名不判过期，7 天边界正确', log.isExpiredHealthFileName('foo.jsonl', '20261111') === false && log.isExpiredHealthFileName('source_health_20261103.jsonl', '20261111') === true && log.isExpiredHealthFileName('source_health_20261104.jsonl', '20261111') === false, 'foo/20261103/20261104')
 
-  rec('F7', '成功采样边界 0→采、0.049→采、0.05→不采、0.999→不采', log.shouldSampleSuccess(() => 0) && log.shouldSampleSuccess(() => 0.049) && !log.shouldSampleSuccess(() => 0.05) && !log.shouldSampleSuccess(() => 0.999), 'floor(r*20)===0')
+  rec('F7', '成功采样边界 0→采、0.19→采、0.2→不采、0.999→不采', log.shouldSampleSuccess(() => 0) && log.shouldSampleSuccess(() => 0.19) && !log.shouldSampleSuccess(() => 0.2) && !log.shouldSampleSuccess(() => 0.999), 'floor(r*5)===0')
 
   const traceIds = new Set(Array.from({ length: 2000 }, () => log.createHealthTraceId()))
   rec('F8', '2000 个 traceId 唯一且格式稳定', traceIds.size === 2000 && Array.from(traceIds).every(id => /^app_[a-z0-9]+_[a-z0-9]{1,6}$/.test(id)), `unique=${traceIds.size}`)

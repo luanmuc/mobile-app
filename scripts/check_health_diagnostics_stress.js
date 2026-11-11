@@ -133,18 +133,18 @@ const DAY = 24 * HOUR;
   rec('U8', '1000 个 traceId 唯一且格式正确', formatOk && ids.size === 1000, `unique=${ids.size}`)
 
   // U9
-  rec('U9', '成功采样边界 0.049→采 / 0.05→不采', log.shouldSampleSuccess(() => 0.049) === true && log.shouldSampleSuccess(() => 0.05) === false, 'floor(r*20)===0')
+  rec('U9', '成功采样边界 0.19→采 / 0.2→不采', log.shouldSampleSuccess(() => 0.19) === true && log.shouldSampleSuccess(() => 0.2) === false, 'floor(r*5)===0')
 
   // U10
   const entry = log.buildPlayResultEntry({ traceId: 't', platform: 'kw', quality: '128k', ok: true, latencyMs: 12 })
   rec('U10', '播放结果条目无歌名/URL', !('name' in entry) && !('url' in entry) && entry.event === 'play_result', JSON.stringify(entry))
 
-  // U11 加权口径：475 条成功(weight 20) + 500 条失败 = 真实 95%
+  // U11 加权口径：95 条成功(weight 5) + 25 条失败 = 真实 95%
   const sampled = []
-  for (let i = 0; i < 475; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: true, latencyMs: 300, sampleWeight: 20 })
-  for (let i = 0; i < 500; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: false, code: 'E', latencyMs: 300 })
+  for (let i = 0; i < 95; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: true, latencyMs: 300, sampleWeight: 5 })
+  for (let i = 0; i < 25; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: false, code: 'E', latencyMs: 300 })
   const sampledAgg = diag.aggregateHealthEvents(sampled, NOW)
-  rec('U11', '475 成功*20 + 500 失败 = 95%', sampledAgg.windows.h1.total === 10000 && Math.abs(sampledAgg.windows.h1.successRate - 0.95) < 0.01, `${sampledAgg.windows.h1.total}/${sampledAgg.windows.h1.successRate}`)
+  rec('U11', '95 成功*5 + 25 失败 = 95%', sampledAgg.windows.h1.total === 500 && Math.abs(sampledAgg.windows.h1.successRate - 0.95) < 0.01, `${sampledAgg.windows.h1.total}/${sampledAgg.windows.h1.successRate}`)
 
   // U12 截断标记：只覆盖最近 2h，d7 不可用且 truncated 显式传递
   const shortReport = diag.buildHealthReport({

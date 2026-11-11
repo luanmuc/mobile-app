@@ -5,7 +5,7 @@
  * - `source_health_YYYYMMDD.jsonl` 按天滚动
  * - 单文件 2MB 封顶，超限保留尾部
  * - 保留 7 天，启动/写入时清理
- * - 失败 100% 记；成功 1/20 采样
+ * - 失败 100% 记；成功 1/5 采样；缓存命中单独记 cache_hit
  * - 失败时抓同 traceId 的音源事件一起落盘
  *
  * 纯函数与运行时函数放在同一模块，运行时依赖全部惰性 require，
@@ -43,8 +43,9 @@ export interface HealthLogEntry {
 const DAY = 24 * 60 * 60 * 1000
 export const HEALTH_FILE_MAX_BYTES = 2 * 1024 * 1024
 export const HEALTH_KEEP_DAYS = 7
-// 成功按 1/20 采样落盘；聚合时用 20 作为权重，估算未采样成功量（对齐 OTel adjusted count）。
-export const SUCCESS_SAMPLE_RATE = 20
+// 成功按 1/5 采样落盘；聚合时用 5 作为权重，估算未采样成功量（对齐 OTel adjusted count）。
+// 本地诊断是单机低频场景，1/20 会让“听几首歌仍为 0”，因此放宽到 1/5。
+export const SUCCESS_SAMPLE_RATE = 5
 // 报告读取上限：约覆盖 7 天中等流量；超过时报告标 truncated，不把截断数据叫 7 天。
 export const REPORT_EVENT_LIMIT = 20000
 const HEALTH_FILE_RE = /^source_health_(\d{8})\.jsonl$/
@@ -54,7 +55,7 @@ const dateKey = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.
 
 export const healthFileName = (now: Date = new Date()): string => `source_health_${dateKey(now)}.jsonl`
 
-export const shouldSampleSuccess = (random: () => number = Math.random): boolean => Math.floor(random() * 20) === 0
+export const shouldSampleSuccess = (random: () => number = Math.random): boolean => Math.floor(random() * 5) === 0
 
 export const isExpiredHealthFileName = (name: string, today: string, keepDays: number = HEALTH_KEEP_DAYS): boolean => {
   const m = HEALTH_FILE_RE.exec(name)
@@ -96,6 +97,24 @@ export const trimJsonlTail = (text: string, maxBytes: number): string => {
     start = i
   }
   return lines.slice(start).join('\n')
+}
+
+export interface CacheHitInput {
+  platform?: string
+  quality?: string
+  sourceId?: string
+}
+
+/** 缓存命中只证明“本地有可用 URL”，不证明音源当前可出链；单独记事件，绝不混入成功率。 */
+export const buildCacheHitEntry = (input: CacheHitInput): HealthLogEntry => {
+  const entry: HealthLogEntry = {
+    ts: Date.now(),
+    event: 'cache_hit',
+  }
+  if (input.platform) entry.platform = String(input.platform)
+  if (input.quality) entry.quality = String(input.quality)
+  if (input.sourceId) entry.sourceId = String(input.sourceId)
+  return entry
 }
 
 export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => {
@@ -287,8 +306,12 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
   }
 }
 
+export const recordCacheHit = async(input: CacheHitInput): Promise<void> => {
+  await appendHealthEvent(buildCacheHitEntry(input))
+}
+
 export const recordPlayResult = async(input: PlayResultInput): Promise<void> => {
-  // 失败 100% 落盘；成功只落 1/20，但落盘时带权重 20，聚合端才能还原真实成功率。
+  // 失败 100% 落盘；成功只落 1/5，但落盘时带权重 5，聚合端才能还原真实成功率。
   if (input.ok && !shouldSampleSuccess()) return
   const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
   await appendHealthEvent(entry)

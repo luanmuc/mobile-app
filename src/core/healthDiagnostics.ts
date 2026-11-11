@@ -94,12 +94,19 @@ export type HealthSnapshotLike = Record<string, {
   [key: string]: unknown
 }>
 
+export interface HealthCacheHits {
+  h1: number
+  h24: number
+  d7: number
+}
+
 export interface HealthReport {
   schema: 1
   generatedAt: number
   summary: string
   windows: HealthWindows
   coverage: HealthCoverage
+  cacheHits: HealthCacheHits
   breakdown: HealthBreakdownRow[]
   findings: HealthFinding[]
   recommendations: string[]
@@ -133,7 +140,7 @@ const p95 = (values: number[]): number | null => {
   return Math.round(sorted[idx])
 }
 
-// 成功按 1/20 采样落盘，落盘时带 sampleWeight=20；历史事件没有权重，按 1 处理。
+// 成功按 1/5 采样落盘，落盘时带 sampleWeight=5；历史事件没有权重，按 1 处理。
 const weightOf = (e: HealthEventLike): number => {
   const w = Number(e.sampleWeight)
   return Number.isFinite(w) && w > 0 ? w : 1
@@ -254,7 +261,7 @@ export const detectHealthAnomalies = (input: {
     const recent = outcomes.filter(e => sourceOf(e) === sourceId && inWindow(e, now, DAY))
     const prev = outcomes.filter(e => sourceOf(e) === sourceId && e.ts <= now - DAY && e.ts > now - 2 * DAY)
     if (recent.length >= 5 && prev.length >= 5) {
-      // 与窗口统计同一口径：成功样本按 1/20 采样，必须用 sampleWeight 还原，
+      // 与窗口统计同一口径：成功样本按 1/5 采样，必须用 sampleWeight 还原，
       // 否则采样比例变化会被误读成成功率变化。
       const recentStats = statsOf(recent, true)
       const prevStats = statsOf(prev, true)
@@ -418,15 +425,23 @@ export const buildHealthReport = (input: {
   }
   const h1 = agg.windows.h1
   const h24 = agg.windows.h24
+  const cacheHits: HealthCacheHits = {
+    h1: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, HOUR)).length,
+    h24: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, DAY)).length,
+    d7: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, 7 * DAY)).length,
+  }
+  const cacheNote = cacheHits.h24 ? `近 24 小时缓存命中 ${cacheHits.h24} 次（不计入取链）。` : ''
   const weightingNote = coverage.unweightedSuccesses
-    ? `成功按 1/20 采样加权；其中 ${coverage.unweightedSuccesses} 条成功为升级前未加权样本，成功率仅供参考。`
-    : '成功按 1/20 采样加权，数值为估算。'
+    ? `成功按 1/5 采样加权；其中 ${coverage.unweightedSuccesses} 条成功为升级前未加权样本，成功率仅供参考。`
+    : '成功按 1/5 采样加权，数值为估算。'
   const coverageNote = agg.windows.d7.covered
     ? ''
     : ` 本地日志仅覆盖最近 ${spanText(coverage.coveredMs)}，7 天结论仅供参考。`
   const summary = h24.total
-    ? `近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；${weightingNote}发现 ${findings.length} 项异常/线索。${coverageNote}`
-    : `近 24 小时还没有本地取链记录。先播放几首歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
+    ? `近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；${cacheNote}${weightingNote}发现 ${findings.length} 项异常/线索。${coverageNote}`
+    : cacheHits.h24
+      ? `近 24 小时没有本地取链记录，缓存命中 ${cacheHits.h24} 次；要判断音源健康，播放一首未缓存的歌，或到音源健康页点一次探测。${coverageNote}`
+      : `近 24 小时还没有本地取链记录。播放一首未缓存的歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
   const traceIds = trimTrace(findings.flatMap(f => f.traceIds))
   const recommendations = Array.from(new Set(findings.map(f => f.suggestion).filter(Boolean))).slice(0, 6)
   return {
@@ -435,6 +450,7 @@ export const buildHealthReport = (input: {
     summary,
     windows: agg.windows,
     coverage,
+    cacheHits,
     breakdown: agg.breakdown,
     findings,
     recommendations,

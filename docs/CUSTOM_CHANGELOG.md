@@ -1,3 +1,17 @@
+## [本地诊断缓存命中计数 + 成功采样 1/5] - 2026-11-11
+
+> 真机上听了多首歌，本地诊断仍显示 0：缓存播放不走联网取链、不记录；成功又只按 1/20 采样，几首歌很可能一条都没采到。窗口看起来像坏了，实际是口径太稀疏。
+
+- `src/core/healthLog.ts`：`SUCCESS_SAMPLE_RATE` 20 → 5；新增 `buildCacheHitEntry()` / `recordCacheHit()`，缓存命中记 `event=cache_hit`，不带 `ok`，不参与成功率。
+- `src/core/music/online.ts`：本地 URL 缓存命中分支写入 `cache_hit`（平台/音质/子源），不阻塞播放。
+- `src/core/healthDiagnostics.ts`：报告新增 `cacheHits.h1/h24/d7`；缓存命中不计入 `windows` 成功率，只解释“有播放但无取链”；空取链摘要改为“播放一首未缓存的歌，或点一次探测”。
+- `src/core/healthDiagnosticsView.ts` / `Health.tsx`：折叠态在无取链但有缓存命中时显示“缓存命中 N 次 · 0 项线索”；展开态增加“24h 缓存命中 N 次（不计入取链）”。
+- `src/lang/{zh-cn,zh-tw,en-us}.json`：新增 `health_diag_cache_hits` / `health_diag_cache_collapsed`，三语 891 → 893；采样说明改 1/5。
+- `scripts/check_health_diagnostics.js`：H5/H11/H17 改 1/5 口径，新增 H29 锁“缓存命中不进成功率”，契约 40 → 41。
+- `scripts/check_health_diagnostics_view.js`：新增 V21/V22（缓存命中透出/旧报告缺字段回退），视图 20 → 22。
+- 文档：`README`/`AGENTS`/`AUDIT_PLAN`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS`/`MUSIC_SOURCE_GUIDE`/`RELEASE_SOP`/三语键数相关文档同步。
+- 验证：契约 41/0、深度 51/0、压力 14/0、视图 22/0、日志目录 13/0、语法 520/0、docs 17。
+
 ## [日志公共优先 + 私有日志回迁] - 2026-11-11
 
 > 公共日志目录被整体删除后，健康诊断只 `mkdir(logs)`、父目录不存在时静默失败；同时无权限期间写在私有目录的日志，在权限恢复后不会回到公共目录。

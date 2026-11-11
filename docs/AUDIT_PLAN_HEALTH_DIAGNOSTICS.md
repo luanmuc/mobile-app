@@ -8,7 +8,7 @@
 
 本地诊断回答的是「这个音源到底坏没坏」。它必须同时满足：
 
-1. **数值可信**：成功按 1/20 采样落盘，聚合必须还原真实成功率；任何派生的趋势/异常比较也不得回到原始条数。
+1. **数值可信**：成功按 1/5 采样落盘，聚合必须还原真实成功率；任何派生的趋势/异常比较也不得回到原始条数。
 2. **归因正确**：失败必须绑定真实 `sourceId`；没有归因证据时宁可少报，不得把 `platform` 冒充成源。
 3. **窗口诚实**：`1h/24h/7d` 是否覆盖由全量事件最早时间戳判定；覆盖不足必须降级文案，不能把 2 小时说成 7 天。
 4. **异常可复核**：每条 finding 有 evidence、traceId、最多 5 条 samples，且总条数有上限。
@@ -50,16 +50,16 @@
 | `trimTailByBytes` | 纯中文 / 代理对 / 超字节上限 | F11 |
 | `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失；父目录整体删除后逐级重建 | 既有压力 U2、U3、U5；契约 H28 |
 | `ensureHealthLogsDir` | 打开诊断页确保目录存在，不依赖下一次播放 | H28 |
-| `recordPlayResult` | 失败 100% / 成功 1/20 / 失败抓 sourceEvents | 契约 H11、H15 + 压力 U9~U12 |
+| `recordPlayResult` | 失败 100% / 成功 1/5 / 失败抓 sourceEvents；缓存命中单独 `cache_hit` | 契约 H11、H15 + 压力 U9~U12 |
 
 ### 2.3 其它改动面
 
 | 文件 | 代码/契约 | 验证 |
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
-| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView` | H14/H18/H19/H27 + 视图 20 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 15 个 `health_diag_*` 三语 | docs-audit 891 键 |
-| `docs/AGENTS.md` 等 | 31→40 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
+| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView` | H14/H18/H19/H27/H29 + 视图 22 条 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语 | docs-audit 893 键 |
+| `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ## 3. 断言矩阵（51 条）
 
@@ -75,7 +75,7 @@
 | D6 | 1h 窗口内 2 条 + 2h 基准 | total 2、covered true |
 | D7 | 3h 数据 / 30min 数据 | 3h 覆盖 1h 不覆盖 24h；30min 不覆盖 1h |
 | D8 | 空报告 | coverage 空、findings 0、summary 引导 |
-| D9 | 30min + truncated | d7 false；summary 含“仅覆盖最近”和“1/20” |
+| D9 | 30min + truncated | d7 false；summary 含“仅覆盖最近”和“1/5” |
 | D10 | 恰好 7 天前基准 | d7 covered true、total 20（权重 20） |
 | D11 | 全失败 | rate 0、有 findings/recommendations |
 | D12 | 非法事件 | 不抛，只保留合法 ts |
@@ -109,7 +109,7 @@
 | F4 | 延迟/权重 | 延迟四舍五入，失败权重 1 保留 |
 | F5 | 脏行 | 数组/null/无 event 跳过，合法行保留 |
 | F6 | 文件名过期 | 非法名不判过期，7 天边界准确 |
-| F7 | 采样边界 | 0/0.049 采，0.05/0.999 不采 |
+| F7 | 采样边界 | 0/0.19 采，0.2/0.999 不采 |
 | F8 | traceId | 2000 个唯一且格式稳定 |
 | F9 | 恰好上限 | 完整行不被丢弃 |
 | F10 | 文件名 | 日期/时分秒正确，无账号设备 |
@@ -174,7 +174,7 @@
 | 证据包 | 20000 条 + 64KB logTail | ≤4000ms，可序列化 | G3，实测约 68ms / 3.1MB |
 | 日志截尾 | 5MB ASCII / 多字节日志 | ≤2MB / 指定上限，完整行 | 既有 U2、F1 |
 | 异常上限 | 200 个错误码 / 30 源 | findings≤12，samples≤5 | U6、D25 |
-| 采样还原 | 475×20+500 | total 10000 / rate 95% | U11、D1 |
+| 采样还原 | 95×5+25 | total 500 / rate 95% | U11、D1 |
 | 截断降级 | 只覆盖 30min | d7 false + 文案 | U12、D9 |
 | 脏数据 | 坏 JSON / 数组 / null / NaN ts / 未来 ts | 不抛、不误计 | U4、D12、D14 |
 | 隐私 | URL（大小写/协议）、歌名、嵌套 sourceEvents | 零残留 | E5~E7、U7 |
@@ -218,4 +218,4 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 51/0；契约 40/0；压力 14/0；视图 20/0；日志目录 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；深度审计 51/0；契约 41/0；压力 14/0；视图 22/0；日志目录 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

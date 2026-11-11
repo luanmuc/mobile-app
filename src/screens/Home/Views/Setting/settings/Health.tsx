@@ -467,7 +467,9 @@ export default memo(() => {
                   <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
                     {diagView.stats.total
                       ? `${diagView.collapsed.ok}/${diagView.collapsed.total} · ${diagView.collapsed.rateText} · ${diagView.collapsed.findingCount}${t('health_diag_items')}`
-                      : t('health_diag_none')}
+                      : diagView.cacheHits.hasAny
+                        ? t('health_diag_cache_collapsed', { n: diagView.cacheHits.h24 })
+                        : t('health_diag_none')}
                   </Text>
                   <Text size={10} color={diagView.coverage.full ? '#52c41a' : '#fa8c16'} style={{ marginTop: 2 }}>
                     {diagView.coverage.full
@@ -505,6 +507,9 @@ export default memo(() => {
                       {diagView.h1.empty
                         ? t('health_diag_h1_none')
                         : t('health_diag_h1', { n: diagView.h1.total, ok: diagView.h1.ok })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_cache_hits', { n: diagView.cacheHits.h24 })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
                       {diagView.weighting.hasUnweighted

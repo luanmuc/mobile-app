@@ -30,6 +30,11 @@ export interface HealthDiagnosticsView {
     ok: number
     empty: boolean
   }
+  cacheHits: {
+    h1: number
+    h24: number
+    hasAny: boolean
+  }
   weighting: {
     unweightedSuccesses: number
     hasUnweighted: boolean
@@ -74,6 +79,11 @@ export const buildHealthDiagnosticsView = (report: HealthReport): HealthDiagnost
       total: h1.total,
       ok: h1.ok,
       empty: h1.total === 0,
+    },
+    cacheHits: {
+      h1: report.cacheHits?.h1 ?? 0,
+      h24: report.cacheHits?.h24 ?? 0,
+      hasAny: (report.cacheHits?.h24 ?? 0) > 0,
     },
     weighting: {
       unweightedSuccesses: report.coverage.unweightedSuccesses,

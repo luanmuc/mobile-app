@@ -83,6 +83,7 @@ const report = (over = {}) => ({
     truncated: false,
     unweightedSuccesses: 0,
   },
+  cacheHits: { h1: 0, h24: 0, d7: 0 },
   breakdown: [],
   findings: [],
   recommendations: [],
@@ -255,6 +256,20 @@ check('V20 视图构建无副作用：连续两次结果一致', () => {
   const a = view.buildHealthDiagnosticsView(r)
   const b = view.buildHealthDiagnosticsView(r)
   assert(JSON.stringify(a) === JSON.stringify(b), '两次结果不一致')
+})
+
+check('V21 缓存命中计数独立透出', () => {
+  const v = view.buildHealthDiagnosticsView(report({
+    cacheHits: { h1: 2, h24: 9, d7: 9 },
+    windows: { h1: win(), h24: win(), d7: win() },
+  }))
+  assert(v.cacheHits.h1 === 2 && v.cacheHits.h24 === 9, JSON.stringify(v.cacheHits))
+  assert(v.stats.total === 0, '缓存命中不应进入取链统计')
+})
+
+check('V22 旧报告缺 cacheHits 时按 0 处理', () => {
+  const v = view.buildHealthDiagnosticsView(report({ cacheHits: undefined }))
+  assert(v.cacheHits.h1 === 0 && v.cacheHits.h24 === 0, JSON.stringify(v.cacheHits))
 })
 
 console.log(`\n===== 本地诊断视图模型审计：${passed} 通过 / ${failures.length} 失败 =====`)
