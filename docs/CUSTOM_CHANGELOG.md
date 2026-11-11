@@ -1,3 +1,10 @@
+## [docs-audit 规则 9：去掉 MUSIC_SOURCE_GUIDE 假警告] - 2026-11-11
+
+> 指南正文已改成「以下为当前结构；」，旧写法「以下为当前（vX）」不存在；`fixAll()` 却把「模式未命中」当警告刷，导致每次巡检都有 `⚠️ … 未命中，跳过`。版本实际已由「注」规则（`` `v8.12.1` 为音源本体当前版本 ``）覆盖。
+
+- `scripts/docs-audit.js`：规则 9 先判断旧写法是否存在，存在才 `fixAll`；不存在则输出一条 🟢 说明，不复用 `fixAll` 的未命中分支。
+- 验证：`docs-audit --dry-run` 输出 `🟢 [docs/MUSIC_SOURCE_GUIDE.md] 无「以下为当前（vX）」旧写法，正文版本由「注」规则覆盖`，汇总 `待处理 0 项 · 报告 20 项`；`eslint scripts/docs-audit.js` rc=0；`check_docs_consistency` 16 文档无过时引用。
+
 ## [审计计划刷新：补 v8.12.x 跨平台标签与工程门禁维度] - 2026-11-11
 
 > 原 `docs/AUDIT_PLAN.md` 的 A–S 组停留在 2026-11-07 快照（730 键 / b78 / TS 57→14），且没有覆盖 v8.12.x 的 `sourcePlatform` 标签链路、tsc/eslint 双门禁、跨仓版本一致。本轮只改计划与验证记录，不改业务代码。
