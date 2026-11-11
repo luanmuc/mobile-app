@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b105",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- df2f384e fix(health): 缓存播放单独记 cache_hit 并将成功采样放宽到 1/5",
+  "version": "1.9.2-b106",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6b1d8696 feat(source): 音源契约 v2 统一 action 与结果信封",
   "history": [
+    {
+      "version": "1.9.2-b105",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- df2f384e fix(health): 缓存播放单独记 cache_hit 并将成功采样放宽到 1/5"
+    },
     {
       "version": "1.9.2-b104",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- caa1cb64 fix(log): 公共目录优先、私有日志回迁并自动补齐日志文件"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b100",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 3e23fbb9 docs: 审计计划补 v8.12.x 标签与工程门禁（T1~T12）"
-    },
-    {
-      "version": "1.9.2-b99",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- a9d7fe49 fix(app): eslint 忽略构建期生成的内置音源\n- bab92f8c docs(app): 更新审计时效与 lint 入 CI 表述\n- 5986fe88 ci(app): 增加全仓 eslint 门禁\n- 63f57ed3 chore(app): 清零 eslint 最后 3 条 warning\n- c1fec364 chore(app): 全仓 eslint 清零（scripts/android 471→0）\n- a876fdec chore(app): src 目录 eslint 清零（213→0）\n- 55a7567a ci(app): 增加全仓 tsc --noEmit 门禁\n- 080584f6 chore(app): 本轮触达文件 tsc/eslint 清零（全仓 lint 仍有历史债务）\n- c8df0166 v8.12.1: 健康面板暴露跨平台总开关 + 文档同步\n- 105ea34c docs(app): 同步 release 构建前的音源契约门禁\n- 26b08493 ci(app): 构建前增加音源标签/配置/语法契约门禁\n- 6e494bb6 docs(app): 补齐 AGENTS 语法检查文件数 519\n- f1550546 feat(app): 播放页与通知栏按 sourcePlatform 显示实际平台"
     }
   ]
 }
