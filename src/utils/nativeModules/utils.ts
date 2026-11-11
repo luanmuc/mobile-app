@@ -50,10 +50,10 @@ export const shareText = async(shareTitle: string, title: string, text: string):
   UtilsModule.shareText(shareTitle, title, text)
 }
 
-export const shareFile = (filePath: string, shareTitle: string, title: string): Promise<void> =>
+export const shareFile = async(filePath: string, shareTitle: string, title: string): Promise<void> =>
   UtilsModule.shareFile(filePath, 'com.luanmuc.lxmusic.provider', shareTitle, title)
 
-export const openFileInFileManager = (filePath: string): Promise<boolean> =>
+export const openFileInFileManager = async(filePath: string): Promise<boolean> =>
   UtilsModule.openFileInFileManager(filePath, 'com.luanmuc.lxmusic.provider')
 
 export const getSystemLocales = async(): Promise<string> => {
@@ -116,5 +116,5 @@ export const requestIgnoreBatteryOptimization = async() => new Promise<boolean>(
  * @param album 专辑（可为空）
  * @param coverPath 本地封面图路径（可为空，为空则只写文本标签）
  */
-export const writeAudioTag = (filePath: string, title: string, artist: string, album: string, coverPath?: string): Promise<boolean> =>
+export const writeAudioTag = async(filePath: string, title: string, artist: string, album: string, coverPath?: string): Promise<boolean> =>
   UtilsModule.writeAudioTag(filePath, title, artist, album, coverPath ?? '')

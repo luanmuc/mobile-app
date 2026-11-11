@@ -110,6 +110,8 @@ const registerPlaybackService = async() => {
     console.log('playback-error', err)
     // b70 诊断：播放器错误打点（含错误内容——静默失败时可定位）
     try {
+      // 惰性 require：避免播放器服务初始化阶段与日志模块形成循环依赖
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { log } = require('@/utils/log')
       log.diagnose(`[播放诊断] 播放器错误: ${JSON.stringify(err?.message ?? err)?.slice(0, 300)}`)
     } catch {}

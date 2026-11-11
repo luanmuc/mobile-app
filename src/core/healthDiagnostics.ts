@@ -51,14 +51,12 @@ export interface HealthFinding {
   traceIds: string[]
 }
 
-export interface HealthSnapshotLike {
-  [sourceId: string]: {
-    name?: string
-    successRate?: number | null
-    healthScore?: number
-    [key: string]: unknown
-  }
-}
+export type HealthSnapshotLike = Record<string, {
+  name?: string
+  successRate?: number | null
+  healthScore?: number
+  [key: string]: unknown
+}>
 
 export interface HealthReport {
   schema: 1
@@ -118,7 +116,7 @@ export const aggregateHealthEvents = (events: HealthEventLike[], now: number = D
   }
   const counts = new Map<string, number>()
   for (const e of outcomes) {
-    if (e.ok === false && e.code) counts.set(e.code, (counts.get(e.code) || 0) + 1)
+    if (e.ok === false && e.code) counts.set(e.code, (counts.get(e.code) ?? 0) + 1)
   }
   const topCodes = Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -127,7 +125,11 @@ export const aggregateHealthEvents = (events: HealthEventLike[], now: number = D
   return { windows, topCodes }
 }
 
-const sourceOf = (e: HealthEventLike) => String(e.sourceId || e.platform || 'unknown')
+const sourceOf = (e: HealthEventLike) => {
+  if (e.sourceId != null && e.sourceId !== '') return String(e.sourceId)
+  if (e.platform != null && e.platform !== '') return String(e.platform)
+  return 'unknown'
+}
 const pct = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n * 100)}%`)
 const trimTrace = (ids: string[]) => Array.from(new Set(ids.filter(Boolean))).slice(0, 6)
 
@@ -139,7 +141,7 @@ export const detectHealthAnomalies = (input: {
   const now = input.now ?? Date.now()
   const events = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number')
   const outcomes = events.filter(isOutcome)
-  const snapshot = input.snapshot || {}
+  const snapshot = input.snapshot ?? {}
   const findings: HealthFinding[] = []
 
   // 1) 本地 0% 但音源快照健康：本地证据与源自评冲突，优先怀疑端内取链/缓存/时间窗
@@ -154,7 +156,7 @@ export const detectHealthAnomalies = (input: {
         detail: '本地记录与音源自评冲突，可能是端内取链失败、缓存命中失败或音源上报时间窗不同。',
         evidence: `近 24h 本地 0/${recent.length}，音源快照成功率 ${pct(snapRate)}`,
         suggestion: '先看同 traceId 的 source_attempt/source_skip，确认是取链失败还是被熔断/限速跳过；不要直接关闭音源。',
-        traceIds: trimTrace(recent.map(e => String(e.traceId || ''))),
+        traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
       })
     }
   }
@@ -176,7 +178,7 @@ export const detectHealthAnomalies = (input: {
           detail: '近 24h 与前 24h 对比出现明显下滑。',
           evidence: `前 24h ${pct(prevRate)}（${prev.length} 次）→ 近 24h ${pct(recentRate)}（${recent.length} 次）`,
           suggestion: '看近期失败码是否集中在同一类；若伴随 P95 翻倍，优先怀疑上游变慢或风控。',
-          traceIds: trimTrace(recent.filter(e => e.ok === false).map(e => String(e.traceId || ''))),
+          traceIds: trimTrace(recent.filter(e => e.ok === false).map(e => String(e.traceId ?? ''))),
         })
       }
     }
@@ -197,7 +199,7 @@ export const detectHealthAnomalies = (input: {
           detail: '近 24h 取链尾延迟明显高于前 24h。',
           evidence: `P95 ${prevP95}ms → ${recentP95}ms（${Math.round(recentP95 / prevP95)} 倍）`,
           suggestion: '结合 source_result 的 latencyMs 分布看是否某一子源拖尾；必要时在音源配置里降低该源并发或缩短预算。',
-          traceIds: trimTrace(recent.map(e => String(e.traceId || ''))),
+          traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
         })
       }
     }
@@ -220,7 +222,7 @@ export const detectHealthAnomalies = (input: {
       detail: '该错误码在前 7 天未出现过，可能是上游策略变化或新链路问题。',
       evidence: `近 24h ${hit.length} 次 ${code}，前 7d 未见`,
       suggestion: '把该错误码与同 traceId 的事件一起看；若是持续出现，再考虑临时降权该源。',
-      traceIds: trimTrace(hit.map(e => String(e.traceId || ''))),
+      traceIds: trimTrace(hit.map(e => String(e.traceId ?? ''))),
     })
   }
 
@@ -228,20 +230,20 @@ export const detectHealthAnomalies = (input: {
   const recentFails = outcomes.filter(e => inWindow(e, now, DAY) && e.ok === false)
   const byCode = new Map<string, HealthEventLike[]>()
   for (const e of recentFails) {
-    const code = String(e.code || 'UNKNOWN')
-    const list = byCode.get(code) || []
+    const code = e.code != null && e.code !== '' ? String(e.code) : 'UNKNOWN'
+    const list = byCode.get(code) ?? []
     list.push(e)
     byCode.set(code, list)
   }
   for (const [code, list] of Array.from(byCode.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 3)) {
     findings.push({
-      id: `recent_failure`,
+      id: 'recent_failure',
       level: 'info',
       title: `近 24h ${list.length} 次 ${code}`,
       detail: '近期失败样本，按错误码聚合。',
       evidence: `涉及 ${Array.from(new Set(list.map(sourceOf))).join('、')}`,
       suggestion: '点开对应 traceId 看第几次尝试、哪一步失败；若集中在同一源再考虑换源。',
-      traceIds: trimTrace(list.map(e => String(e.traceId || ''))),
+      traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
     })
   }
 
@@ -297,8 +299,8 @@ export const buildEvidencePackage = (input: {
     generatedAt: report?.generatedAt ?? Date.now(),
     report,
     events: (Array.isArray(input.events) ? input.events : []).map(e => ({ ...e })),
-    snapshot: input.snapshot || {},
+    snapshot: input.snapshot ?? {},
     trend: Array.isArray(input.trend) ? input.trend : [],
-    logTail: redactDiagnosticText(input.logTail || ''),
+    logTail: redactDiagnosticText(input.logTail ?? ''),
   }
 }

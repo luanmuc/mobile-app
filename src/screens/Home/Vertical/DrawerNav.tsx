@@ -81,8 +81,8 @@ const Header = () => {
   const [playCount, setPlayCount] = useState(getPlayCount())
   useEffect(() => {
     // 每 10 秒刷新一次听歌统计（与 core 结算周期 playCount.ts 对齐，避免界面滞后结算一头）
-    const timer = setInterval(() => setPlayCount(getPlayCount()), 10000)
-    return () => clearInterval(timer)
+    const timer = setInterval(() => { setPlayCount(getPlayCount()) }, 10000)
+    return () => { clearInterval(timer) }
   }, [])
   return (
     <View style={{ paddingTop: statusBarHeight, backgroundColor: theme['c-primary-light-700-alpha-500'] }}>
@@ -156,7 +156,7 @@ const TimeoutExitMenuItem = () => {
         <Text style={styles.text} color={active ? theme['c-primary-font'] : undefined}>
           {active ? t('timeout_exit_sidebar_remaining', { time: remainText })
             : isPlayedStop ? t('timeout_exit_sidebar_waiting')
-            : t('nav_timeout_exit')}
+              : t('nav_timeout_exit')}
         </Text>
       </TouchableOpacity>
       <TimeoutExitEditModal ref={modalRef} timeInfo={timeInfo} />

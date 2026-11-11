@@ -6,7 +6,7 @@
 
 | 代码 | 职责 |
 |---|---|
-| `src/core/downloadManager.ts`（916 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
+| `src/core/downloadManager.ts`（922 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
 | `src/store/download/{state,action,hook}.ts` | Redux 风格状态管理（任务列表、进度、UI 联动） |
 | `src/screens/Home/Views/Download/index.tsx` | 下载页 UI（进行中/已完成/未完成分组） |
 | `src/components/OnlineList/QualitySelect.tsx` | 音质选择弹窗（只显示歌曲实际支持音质） |

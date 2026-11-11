@@ -17,13 +17,13 @@ const officialAddress = [
   'https://gcore.jsdelivr.net/gh/lyswhut/lx-music-mobile@master/package.json',
 ]
 
-const request = (url: string) => {
+const request = async(url: string) => {
   return new Promise<string>((resolve, reject) => {
     httpGet(url, {
       timeout: 5000,
     }, (err: Error | null, resp: any, body: any) => {
-      if (err || resp?.statusCode != 200) {
-        reject(err || new Error(String(resp?.statusCode || 'failed')))
+      if (err != null || resp?.statusCode != 200) {
+        reject(err ?? new Error(String(resp?.statusCode ?? 'failed')))
       } else {
         resolve(typeof body === 'string' ? body : JSON.stringify(body))
       }

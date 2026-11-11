@@ -39,11 +39,11 @@ export const checkOfficialUpdate = async(showModalIfNew = true) => {
         [
           {
             text: global.i18n.t('official_btn_ok'),
-            onPress: () => officialVersionActions.setOfficialInfo({ showModal: false }),
+            onPress: () => { officialVersionActions.setOfficialInfo({ showModal: false }) },
             style: 'default',
           },
         ],
-        { cancelable: true, onDismiss: () => officialVersionActions.setOfficialInfo({ showModal: false }) }
+        { cancelable: true, onDismiss: () => { officialVersionActions.setOfficialInfo({ showModal: false }) } },
       )
     }
   }

@@ -14,7 +14,7 @@ import apiSourceInfo from '@/utils/musicSdk/api-source-info'
  * apiInitPromise[0] 上 resolve——成功走 userApi/index.ts 的 init 事件，
  * 失败走 setUserApi 的 catch。调用方若要"等切好再做事"，必须 await 返回值。
  */
-export const setApiSource = (apiId: string): Promise<boolean> => {
+export const setApiSource = async(apiId: string): Promise<boolean> => {
   if (global.lx.apiInitPromise[1]) {
     global.lx.apiInitPromise[0] = new Promise(resolve => {
       global.lx.apiInitPromise[1] = false
@@ -30,7 +30,7 @@ export const setApiSource = (apiId: string): Promise<boolean> => {
       console.log(err)
       let api = apiSourceInfo.find(api => !api.disabled)
       if (!api) return
-      if (api.id != settingState.setting['common.apiSource']) setApiSource(api.id)
+      if (api.id != settingState.setting['common.apiSource']) void setApiSource(api.id)
     })
   } else {
     // @ts-expect-error

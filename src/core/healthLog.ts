@@ -99,7 +99,7 @@ export const parseHealthLines = (text: string): HealthLogEntry[] => {
     if (!line.trim()) continue
     try {
       const parsed = JSON.parse(line)
-      if (parsed && typeof parsed === 'object' && typeof parsed.event === 'string') out.push(parsed)
+      if (parsed && typeof parsed === 'object' && typeof parsed.event === 'string') out.push(parsed as HealthLogEntry)
     } catch {}
   }
   return out
@@ -111,7 +111,18 @@ export const buildExportFileName = (now: Date = new Date()): string =>
 /** 一次播放（含换源重试）共用一个 traceId；只含随机与时间，不含设备/账号信息 */
 export const createHealthTraceId = (): string => `app_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 
-const getFs = (): any => {
+interface HealthFs {
+  exists: (path: string) => Promise<boolean>
+  mkdir: (path: string) => Promise<void>
+  readDir: (path: string) => Promise<Array<{ name?: string }>>
+  unlink: (path: string) => Promise<void>
+  stat: (path: string) => Promise<{ size: number }>
+  readFile: (path: string, encoding: string) => Promise<string>
+  writeFile: (path: string, content: string, encoding: string) => Promise<void>
+  appendFile: (path: string, content: string, encoding: string) => Promise<void>
+}
+
+const getFs = (): HealthFs => {
   const mod = require('react-native-fs')
   return mod.default || mod
 }
@@ -137,7 +148,7 @@ export const cleanupOldHealthFiles = async(now: Date = new Date()): Promise<numb
     const names = await fs.readDir(dir)
     let removed = 0
     for (const item of names) {
-      const name = item && item.name
+      const name = item?.name
       if (!name || !HEALTH_FILE_RE.test(name)) continue
       if (!isExpiredHealthFileName(name, today)) continue
       try {
@@ -179,7 +190,7 @@ export const readRecentHealthEvents = async(limit = 800, now: Date = new Date())
     if (!await fs.exists(dir)) return []
     const today = dateKey(now)
     const names = (await fs.readDir(dir) as Array<{ name?: string }>)
-      .map(item => item && item.name)
+      .map(item => item?.name)
       .filter((name): name is string => typeof name === 'string' && HEALTH_FILE_RE.test(name) && !isExpiredHealthFileName(name, today))
       .sort()
     const out: HealthLogEntry[] = []
@@ -209,11 +220,13 @@ export const readDiagnoseLogTail = async(maxBytes = 64 * 1024): Promise<string> 
 
 const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
   try {
-    const apis = global.lx && global.lx.apis
+    const apis = global.lx?.apis as Record<string, { healthEvents?: (params: { traceId: string }) => { promise: Promise<{ events?: unknown[] }> } }> | undefined
     if (!apis || !traceId) return []
     const sourceId = Object.keys(apis).find(id => typeof apis[id]?.healthEvents === 'function')
     if (!sourceId) return []
-    const res = await apis[sourceId].healthEvents({ traceId }).promise
+    const healthEvents = apis[sourceId].healthEvents
+    if (!healthEvents) return []
+    const res = await healthEvents({ traceId }).promise
     return Array.isArray(res?.events) ? res.events : []
   } catch {
     return []

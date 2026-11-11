@@ -81,7 +81,7 @@ export const hideDesktopLyric = async() => {
 // 播放器初始化完成后补同步一次「词」按钮状态：
 // 启动期（桌面歌词自动开启时）播放器还没就绪，同步被守卫拦掉，不补这一次图标会一直是灰的、与实际状态不符
 export const syncLyricButtonByState = () => {
-  syncLyricButtonState(settingState.setting['desktopLyric.enable'] === true)
+  syncLyricButtonState(settingState.setting['desktopLyric.enable'])
 }
 
 export const playDesktopLyric = play

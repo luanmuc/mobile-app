@@ -7,7 +7,7 @@ import Button from '../components/Button'
 import { useI18n } from '@/lang'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
-import { saveData, getData } from '@/plugins/storage'
+import { saveData } from '@/plugins/storage'
 import { logger } from '@/utils/logger'
 import {
   BOOL_CONFIG_DEFAULT,
@@ -24,6 +24,7 @@ import { exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents 
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
+  [key: string]: unknown
   id?: string
   name: string
   maxQuality: string
@@ -55,7 +56,7 @@ type HealthSnapshot = Record<string, HealthItem>
 // 配置名/说明、源名、单位、弹窗文案全部走 i18n，中文硬编码不再保留。
 
 // 获取当前音源的健康查询器（任一声明对应 action 的源均可，聚合结果与源无关）
-const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'config' | 'trend'): ((...args: any[]) => { promise: Promise<any> }) | null => {
+const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'config' | 'trend'): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
   const apis = (global as any).lx?.apis as Record<string, any> | undefined
   if (!apis) return null
   const sourceId = Object.keys(apis).find(id => typeof apis[id]?.[fn] === 'function')
@@ -68,6 +69,8 @@ const hasSample = hasHealthSample
 export default memo(() => {
   const t = useI18n()
   const theme = useTheme()
+  const tt = (key: string) => t(key as Parameters<typeof t>[0])
+  const ignored = (promise: Promise<unknown>) => { promise.catch(e => { logger.warn('Health', String(e)) }) }
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -93,7 +96,7 @@ export default memo(() => {
   const refreshDiagnostics = useCallback(async(snap: HealthSnapshot | null, history: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>) => {
     try {
       const events = await readRecentHealthEvents(500)
-      const report = buildHealthReport({ events, snapshot: (snap || {}) as any, now: Date.now() })
+      const report = buildHealthReport({ events, snapshot: (snap ?? {}), now: Date.now() })
       setDiagnostics(report)
     } catch (e) {
       console.log('health diagnostics failed:', e)
@@ -104,8 +107,8 @@ export default memo(() => {
     try {
       const events = await readRecentHealthEvents(800)
       const logTail = await readDiagnoseLogTail()
-      const report = buildHealthReport({ events, snapshot: (snapshot || {}) as any, now: Date.now() })
-      const pkg = buildEvidencePackage({ report, events, snapshot: (snapshot || {}) as any, trend: trendData, logTail })
+      const report = buildHealthReport({ events, snapshot: snapshot ?? {}, now: Date.now() })
+      const pkg = buildEvidencePackage({ report, events, snapshot: snapshot ?? {}, trend: trendData, logTail })
       const path = await exportAndShareDiagnostics(pkg)
       if (path) setProbeInfo(`${t('health_export_done')} ${path}`)
       else setError(t('health_export_failed'))
@@ -127,8 +130,8 @@ export default memo(() => {
         return
       }
       const { promise } = querier()
-      const data = await promise
-      setSnapshot(data as HealthSnapshot)
+      const data = await promise as HealthSnapshot
+      setSnapshot(data)
       // 成功拿到数据说明音源支持 health action，之前的 error（如"未检测到音源"）是误报，清空
       setError('')
 
@@ -137,11 +140,11 @@ export default memo(() => {
         const trendQuerier = getQuerier('trend')
         if (trendQuerier) {
           const trendPromise = trendQuerier().promise
-          const trendResult = await trendPromise
+          const trendResult = await trendPromise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
           // 历史快照结构固定为 { timestamp, sources }，显式声明类型，避免下游 entry/s 变成隐式 any
-          const history = ((trendResult as any)?.history || []) as Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>
+          const history = trendResult?.history ?? []
           setTrendData(history)
-          void refreshDiagnostics(data as HealthSnapshot, history)
+          void refreshDiagnostics(data, history)
 
           // 判断逻辑：最近 3 次探测，健康分连续下降 ≥5 分
           if (history.length >= 3) {
@@ -155,11 +158,11 @@ export default memo(() => {
             // 逐个源判断是否连续下降
             allSourceIds.forEach(sourceId => {
               // 检查该源是否还在当前 snapshot 里（已删除/手动关闭的源不预警）
-              if (!(data as any)?.[sourceId]) return
+              if (!(data)?.[sourceId]) return
               const scores = recent.map(entry => entry.sources[sourceId]?.score ?? null)
               // 要求 3 次都有分数（不是 null）
               if (scores.every(s => s !== null)) {
-                const [s1, s2, s3] = scores as number[]
+                const [s1, s2, s3] = scores
                 // 连续两次下降（s1 > s2 > s3），且累计下降 ≥5 分
                 if (s1 > s2 && s2 > s3 && (s1 - s3) >= 5) {
                   declining.push(sourceId)
@@ -174,7 +177,7 @@ export default memo(() => {
       } catch (e) {
         // trend 获取失败不影响主流程，静默忽略
         console.log('trend auto load failed:', e)
-        void refreshDiagnostics(data as HealthSnapshot, [])
+        void refreshDiagnostics(data, [])
       }
     } catch (e: any) {
       console.log(e)
@@ -204,11 +207,11 @@ export default memo(() => {
     setProbeInfo(t('health_probing'))
     try {
       const { promise } = querier()
-      const res = await promise
+      const res = await promise as { running?: boolean, doneAt?: number | string, active?: unknown[], sleeping?: unknown[] } | null
       if (res?.running) {
         setProbeInfo(t('health_probe_running'))
       } else if (res) {
-        const time = new Date(res.doneAt)
+        const time = new Date(res.doneAt ?? Date.now())
         const hh = String(time.getHours()).padStart(2, '0')
         const mm = String(time.getMinutes()).padStart(2, '0')
         setProbeInfo(`${t('health_probe_done_at')} ${hh}:${mm} · ${res.active?.length ?? 0}${t('health_probe_active')} · ${res.sleeping?.length ?? 0}${t('health_probe_sleeping')}`)
@@ -227,25 +230,26 @@ export default memo(() => {
     setConfigErrors({})
     const querier = getQuerier('config')
     logger.info('Health', `[debug] getQuerier(config) = ${querier ? 'function' : 'null'}`)
-    logger.info('Health', `[debug] apis keys = ${Object.keys((globalThis as any).lx?.apis || {}).join(',')}`)
-    logger.info('Health', `[debug] apis.wy keys = ${Object.keys((globalThis as any).lx?.apis?.wy || {}).join(',')}`)
+    const apis = globalThis.lx?.apis
+    logger.info('Health', `[debug] apis keys = ${Object.keys(apis ?? {}).join(',')}`)
+    logger.info('Health', `[debug] apis.wy keys = ${Object.keys(apis?.wy ?? {}).join(',')}`)
     if (!querier) {
       setError(t('health_no_source'))
       return
     }
     try {
       const { promise } = querier()
-      const res = await promise
+      const res = await promise as Record<string, unknown> | null
       setConfigData(res)
       // v8.0：ms值自动转成直观单位值显示（比如 21600000ms → 6小时）
       // v8.11.7：只把有单位配置的数字键放进输入框；布尔键进开关，卡密/对象键不渲染
       setConfigInputs(Object.fromEntries(
-        Object.entries(res)
+        Object.entries(res ?? {})
           .filter(([k]) => !!CONFIG_UNIT_CONFIG[k])
-          .map(([k, v]) => [k, String(msToDisplay(k, Number(v)))])
+          .map(([k, v]) => [k, String(msToDisplay(k, Number(v)))]),
       ))
       setConfigBools(Object.fromEntries(
-        BOOL_CONFIG_KEYS.map(k => [k, typeof (res as any)?.[k] === 'boolean' ? (res as any)[k] : BOOL_CONFIG_DEFAULT[k]])
+        BOOL_CONFIG_KEYS.map(k => [k, typeof res?.[k] === 'boolean' ? res[k] as boolean : BOOL_CONFIG_DEFAULT[k]]),
       ))
       setShowConfigModal(true)
     } catch (e: any) {
@@ -293,8 +297,8 @@ export default memo(() => {
     }
     try {
       const { promise } = querier()
-      const res = await promise
-      setTrendData(res.history || [])
+      const res = await promise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
+      setTrendData(res?.history ?? [])
       setShowTrendModal(true)
     } catch (e: any) {
       setError(String(e?.message || t('health_load_failed')))
@@ -331,29 +335,37 @@ export default memo(() => {
     return isUsing(it) ? 0 : 1
   }
   // v8.0：提取平台级降级聚合（_ 开头的特殊字段，不参与子源列表渲染）
-  const sourceLabel = (id: string, fallback?: string) => t(`health_source_${id}` as any) || fallback || id
-  const platformLabel = (id: string) => t(`health_platform_${id}` as any) || id
+  const sourceLabel = (id: string, fallback?: string) => {
+    const name = tt(`health_source_${id}`)
+    if (name !== '') return name
+    if (fallback != null && fallback !== '') return fallback
+    return id
+  }
+  const platformLabel = (id: string) => {
+    const name = tt(`health_platform_${id}`)
+    return name !== '' ? name : id
+  }
   const configErrorText = (code: string) => {
     const map: Record<string, string> = {
       'not-in-source': 'not_in_source',
-      'empty': 'empty',
+      empty: 'empty',
       'not-number': 'not_number',
-      'negative': 'negative',
+      negative: 'negative',
       'zero-not-allowed': 'zero',
       'below-min': 'below_min',
       'above-max': 'above_max',
       'not-boolean': 'not_boolean',
-      'missing': 'missing',
-      '__form': 'not_in_source',
+      missing: 'missing',
+      __form: 'not_in_source',
     }
-    return t(`health_config_err_${map[code] || 'not_in_source'}` as any)
+    return tt(`health_config_err_${map[code] || 'not_in_source'}`)
   }
-  const platformSummary = snapshot?._platformSummary as Record<string, { degraded: boolean; activeCount: number; deadCount: number }> | undefined
+  const platformSummary = snapshot?._platformSummary as Record<string, { degraded: boolean, activeCount: number, deadCount: number }> | undefined
   const fallbackPlatform = snapshot?._fallbackPlatform as string | undefined
   const degradedPlatforms = platformSummary ? Object.entries(platformSummary).filter(([, v]) => v.degraded).map(([k]) => platformLabel(k)) : []
 
   const items = snapshot ? Object.entries(snapshot)
-    .filter(([id]) => !id.startsWith('_'))  // 过滤平台聚合等特殊字段
+    .filter(([id]) => !id.startsWith('_')) // 过滤平台聚合等特殊字段
     .map(([id, it]) => ({ id, ...it }))
     .sort((a, b) => {
       const g = groupRank(a) - groupRank(b)
@@ -368,16 +380,16 @@ export default memo(() => {
     <Section title={t('setting_health')}>
       <SubTitle title={t('health_desc')}>
         <View style={styles.btnRow}>
-          <Button onPress={() => void loadHealth()} disabled={loading}>{loading ? t('health_loading') : t('health_refresh')}</Button>
+          <Button onPress={() => { ignored(loadHealth()) }} disabled={loading}>{loading ? t('health_loading') : t('health_refresh')}</Button>
           <View style={styles.btnGap} />
-          <Button onPress={() => void runProbe()}>{t('health_probe')}</Button>
+          <Button onPress={() => { ignored(runProbe()) }}>{t('health_probe')}</Button>
           <View style={styles.btnGap} />
-          <Button onPress={() => void showConfig()}>{t('health_config_btn')}</Button>
+          <Button onPress={() => { ignored(showConfig()) }}>{t('health_config_btn')}</Button>
           <View style={styles.btnGap} />
-          <Button onPress={() => void showTrend()}>{t('health_trend_btn')}</Button>
+          <Button onPress={() => { ignored(showTrend()) }}>{t('health_trend_btn')}</Button>
         </View>
         <View style={styles.btnRow}>
-          <Button onPress={() => void exportDiagnosticsPackage()}>{t('health_export_diag')}</Button>
+          <Button onPress={() => { ignored(exportDiagnosticsPackage()) }}>{t('health_export_diag')}</Button>
           <View style={styles.btnGap} />
           <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
         </View>
@@ -408,13 +420,13 @@ export default memo(() => {
           // 提前预警——健康分连续下降
           decliningSources.length ? (
             <View style={[styles.summary, { backgroundColor: '#fff2e8' }]}>
-              <Text size={12} color="#fa541c">{t('health_declining', { sources: decliningSources.map(id => sourceLabel(id, (snapshot as any)?.[id]?.name)).join(t('health_list_separator')) })}</Text>
+              <Text size={12} color="#fa541c">{t('health_declining', { sources: decliningSources.map(id => sourceLabel(id, snapshot?.[id]?.name)).join(t('health_list_separator')) })}</Text>
               <Text size={11} color={theme['c-font-label']}>{t('health_decline_hint')}</Text>
             </View>
           ) : null
         }
         {
-          diagnostics && diagnostics.findings.length ? (
+          diagnostics?.findings.length ? (
             <View style={[styles.diagnosticsBox, { borderColor: theme['c-border-background'] }]}>
               <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text>
               <Text size={12} color={theme['c-font-label']} style={{ marginTop: 4 }}>{diagnostics.summary}</Text>
@@ -437,8 +449,8 @@ export default memo(() => {
               <View style={styles.summaryItems}>
                 <Text size={12} color="#52c41a">● {summary.ok}{t('health_sum_ok')}</Text>
                 <Text size={12} color="#ff4d4f">● {summary.bad}{t('health_sum_bad')}</Text>
-                <Text size={12} color="#ff4d4f">● {summary.removed}{t('health_sum_removed' as any)}</Text>
-                <Text size={12} color="#faad14">● {summary.rate}{t('health_sum_rate' as any)}</Text>
+                <Text size={12} color="#ff4d4f">● {summary.removed}{t('health_sum_removed')}</Text>
+                <Text size={12} color="#faad14">● {summary.rate}{t('health_sum_rate')}</Text>
                 <Text size={12} color="#faad14">● {summary.open}{t('health_sum_open')}</Text>
                 <Text size={12} color="#faad14">● {summary.half}{t('health_sum_half')}</Text>
                 <Text size={12} color={theme['c-font-label']}>○ {summary.idle}{t('health_sum_idle')}</Text>
@@ -468,7 +480,7 @@ export default memo(() => {
                   const rateText = item.successRate == null ? '-' : `${(item.successRate * 100).toFixed(0)}%`
                   const timeText = item.avgTime == null ? '-' : `${Math.round(item.avgTime)}ms`
                   const status = classifyHealthState(item, sampled)
-                  const stateText = t(status.key as any)
+                  const stateText = tt(status.key)
                   const stateColor = status.tone === 'ok' ? '#52c41a'
                     : status.tone === 'warn' ? '#faad14'
                       : status.tone === 'bad' ? '#ff4d4f'
@@ -529,13 +541,13 @@ export default memo(() => {
               .filter(key => !!CONFIG_UNIT_CONFIG[key])
               .map(key => {
                 const unitCfg = CONFIG_UNIT_CONFIG[key]
-                const unit = t(unitCfg.unit as any)
+                const unit = tt(unitCfg.unit)
                 const presets = unitCfg.presets
                 const currentVal = configInputs[key] ?? ''
                 return (
                   <View key={key} style={styles.configBlock}>
-                    <Text size={12} color={theme['c-font']} style={styles.configLabel}>{t(configLabelKey(key) as any) || key}</Text>
-                    {<Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{t(configDescKey(key) as any)}</Text>}
+                    <Text size={12} color={theme['c-font']} style={styles.configLabel}>{tt(configLabelKey(key)) || key}</Text>
+                    {<Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{tt(configDescKey(key))}</Text>}
                     <View style={styles.configInputLine}>
                       <TextInput
                         style={[styles.configInput, { borderColor: theme['c-border-background'], color: theme['c-font'] }]}
@@ -563,7 +575,7 @@ export default memo(() => {
                             <Button
                               key={p}
                               style={styles.presetBtn}
-                              onPress={() => setConfigInputs(prev => ({ ...prev, [key]: String(p) }))}
+                              onPress={() => { setConfigInputs(prev => ({ ...prev, [key]: String(p) })) }}
                             >
                               <Text size={11} color={isActive ? theme['c-primary'] : theme['c-font-label']}>{p}{unit}</Text>
                             </Button>
@@ -583,8 +595,8 @@ export default memo(() => {
             {configData && BOOL_CONFIG_KEYS.map(key => (
               <View key={key} style={styles.configSwitchRow}>
                 <View style={styles.configSwitchText}>
-                  <Text size={12} color={theme['c-font']}>{t(configLabelKey(key) as any) || key}</Text>
-                  {<Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{t(configDescKey(key) as any)}</Text>}
+                  <Text size={12} color={theme['c-font']}>{tt(configLabelKey(key)) || key}</Text>
+                  {<Text size={10} color={theme['c-font-label']} style={styles.configDesc}>{tt(configDescKey(key))}</Text>}
                   {configErrors[key] ? <Text size={10} color="#ff4d4f">{configErrorText(configErrors[key])}</Text> : null}
                 </View>
                 <Switch
@@ -608,7 +620,7 @@ export default memo(() => {
                 // 恢复默认值
                 const defaults: Record<string, string> = {}
                 for (const [key, cfg] of Object.entries(CONFIG_UNIT_CONFIG)) {
-                  if (key in (configData || {})) {
+                  if (key in (configData ?? {})) {
                     defaults[key] = String(cfg.default)
                   }
                 }
@@ -619,9 +631,9 @@ export default memo(() => {
               {t('health_restore_default')}
             </Button>
             <View style={styles.btnGap} />
-            <Button onPress={() => setShowConfigModal(false)}>{t('health_cancel')}</Button>
+            <Button onPress={() => { setShowConfigModal(false) }}>{t('health_cancel')}</Button>
             <View style={styles.btnGap} />
-            <Button onPress={() => void saveConfig()}>{t('health_save')}</Button>
+            <Button onPress={() => { ignored(saveConfig()) }}>{t('health_save')}</Button>
           </View>
         </View>
       </View>
@@ -658,22 +670,22 @@ export default memo(() => {
               (() => {
                 // 收集所有源 ID（跨所有历史快照）
                 const allSourceIds = Array.from(new Set(
-                  trendData.flatMap(entry => Object.keys(entry.sources))
+                  trendData.flatMap(entry => Object.keys(entry.sources)),
                 ))
                 // v8.1：按最新健康分从低到高排序（异常排前面，一眼看到问题源）
                 // 排序权重：异常(红) < 一般(黄) < 无样本(灰) < 健康(绿)
                 const getSortWeight = (id: string) => {
                   const latestScore = trendData[trendData.length - 1]?.sources[id]?.score ?? null
                   if (latestScore === null) return 2 // 无样本排中间
-                  if (latestScore < -5) return 0   // 异常排最前
-                  if (latestScore < 3) return 1      // 一般排第二
-                  return 3                           // 健康排最后
+                  if (latestScore < -5) return 0 // 异常排最前
+                  if (latestScore < 3) return 1 // 一般排第二
+                  return 3 // 健康排最后
                 }
                 allSourceIds.sort((a, b) => getSortWeight(a) - getSortWeight(b))
                 return allSourceIds.map(id => {
                   // 源名优先用实时快照的中文名（音源侧历史快照不含 name，仅 score/successRate）；
                   // 再回退历史快照 name（兼容旧数据），最后回退 id
-                  const sourceName = sourceLabel(id, snapshot?.[id]?.name || (trendData[0]?.sources[id] as { name?: string } | undefined)?.name)
+                  const sourceName = sourceLabel(id, snapshot?.[id]?.name ?? (trendData[0]?.sources[id] as { name?: string } | undefined)?.name)
                   // 最新一次探测的分数
                   const latestScore = trendData[trendData.length - 1]?.sources[id]?.score ?? null
                   const latestColor = latestScore === null ? '#9e9e9e' : latestScore >= 3 ? '#4caf50' : latestScore >= -5 ? '#ff9800' : '#f44336'
@@ -705,7 +717,7 @@ export default memo(() => {
             )}
           </ScrollView>
           <View style={styles.modalBtnRow}>
-            <Button onPress={() => setShowTrendModal(false)}>{t('health_close')}</Button>
+            <Button onPress={() => { setShowTrendModal(false) }}>{t('health_close')}</Button>
           </View>
         </View>
       </View>

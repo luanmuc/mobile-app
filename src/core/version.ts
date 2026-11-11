@@ -47,8 +47,8 @@ export const checkUpdate = async() => {
   try {
     // 总超时兜底：30 秒内未完成视为失败，避免网络异常时无限卡在"检查更新中"
     const versionInfoPromise = getVersionInfo()
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('timeout')), 30000)
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      setTimeout(() => { reject(new Error('timeout')) }, 30000)
     })
     const { version, desc, history } = await Promise.race([versionInfoPromise, timeoutPromise])
     versionInfo.newVersion = {

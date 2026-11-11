@@ -90,31 +90,35 @@ export default memo(() => {
 
       <SubTitle title={t('setting__other_resource_cache')}>
         <View style={styles.btnRow}>
-          <Button onPress={() => confirmClean(async() => {
-            await clearAppCache()
-            await clearCache()
-          })}>{t('setting_other_cache_clear_btn')}</Button>
+          <Button onPress={() => {
+            confirmClean(async() => {
+              await clearAppCache()
+              await clearCache()
+            })
+          }}>{t('setting_other_cache_clear_btn')}</Button>
         </View>
       </SubTitle>
 
       <SubTitle title={t('setting_clean_cache_url')}>
         <View style={styles.btnRow}>
-          <Button onPress={() => confirmClean(clearMusicUrl)}>{t('setting_other_cache_clear_btn')}</Button>
+          <Button onPress={() => { confirmClean(clearMusicUrl) }}>{t('setting_other_cache_clear_btn')}</Button>
         </View>
       </SubTitle>
 
       <SubTitle title={t('setting_clean_cache_lyric')}>
         <View style={styles.btnRow}>
-          <Button onPress={() => confirmClean(async() => {
-            await clearLyric()
-            await clearEditedLyric()
-          })}>{t('setting_other_cache_clear_btn')}</Button>
+          <Button onPress={() => {
+            confirmClean(async() => {
+              await clearLyric()
+              await clearEditedLyric()
+            })
+          }}>{t('setting_other_cache_clear_btn')}</Button>
         </View>
       </SubTitle>
 
       <SubTitle title={t('setting_clean_cache_other_source')}>
         <View style={styles.btnRow}>
-          <Button onPress={() => confirmClean(clearOtherSource)}>{t('setting_other_cache_clear_btn')}</Button>
+          <Button onPress={() => { confirmClean(clearOtherSource) }}>{t('setting_other_cache_clear_btn')}</Button>
         </View>
         {
           metaInfo.otherSourceKeys.length || metaInfo.lyricKeys.length

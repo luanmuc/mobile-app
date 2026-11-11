@@ -92,7 +92,7 @@ export const onScriptAction = (handler: (event: ActionsEvent) => void): () => vo
       }
     }
     if (event.action == 'init') {
-      logger.info('userApi', `[debug] init event.data keys = ${Object.keys(event.data).join(',')}`)
+      logger.info('userApi', `[debug] init event.data keys = ${Object.keys(event.data as Record<string, unknown>).join(',')}`)
       if (event.data.info) event.data.info = { ...loadScriptInfo, ...event.data.info }
       else event.data.info = { ...loadScriptInfo }
     } else if (event.action == 'showUpdateAlert') {

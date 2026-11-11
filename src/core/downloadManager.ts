@@ -30,6 +30,10 @@ const save = () => {
   void saveData(DOWNLOAD_STORAGE_KEY, downloadState.list)
 }
 
+const updateItem = (item: LX.Download.ListItem) => {
+  downloadActions.updateItem(item)
+}
+
 // 失败原因按当前语言渲染（旧版把中文直接写进存储，切换语言后会残留中文）
 const getFailReasonText = (reason: LX.Download.DownloadErrorReason): string => {
   switch (reason) {
@@ -56,14 +60,14 @@ const failTask = (task: LX.Download.ListItem, err: any, failReason: LX.Download.
   // error 只存原始信息（HTTP 码 / 异常文本），中文部分交给 UI 按语言渲染，
   // 否则切到英文/繁体后这条失败原因仍然是简体
   const errMsg = (err as Error)?.message ?? ''
-  downloadActions.updateItem({
+  updateItem({
     ...task,
     status: 'error',
     statusText: FAIL_REASON_TEXT[failReason] ?? '未知错误',
     statusKey: 'dl_status_error',
     error: errMsg,
     errorCode: failReason,
-  } as any)
+  })
   save()
   // 下载失败立即提示原因（含"权限/链接/空间"等具体原因），避免只显示"重试"让用户无从下手
   const reasonText = getFailReasonText(failReason)
@@ -153,12 +157,12 @@ const getDownloadDir = async(): Promise<string> => {
           global.i18n.t('dl_alert_all_files_title'),
           global.i18n.t('dl_alert_all_files_msg'),
           [
-            { text: global.i18n.t('cancel'), onPress: () => resolve(false) },
-            { text: global.i18n.t('dl_alert_all_files_open'), onPress: () => resolve(true) },
-          ]
+            { text: global.i18n.t('cancel'), onPress: () => { resolve(false) } },
+            { text: global.i18n.t('dl_alert_all_files_open'), onPress: () => { resolve(true) } },
+          ],
         )
       })
-      if (wantOpen) Linking.openSettings()
+      if (wantOpen) void Linking.openSettings()
       throw makeError(global.i18n.t('dl_alert_all_files_title'), 'PERMISSION')
     }
     throw e
@@ -201,13 +205,13 @@ let replaceAllDownloads = false
  * 文件已存在时询问用户如何处理（借鉴 Spotube）
  * @returns 'replace' 替换后重新下载 | 'skip' 跳过并标记为已完成
  */
-const confirmReplaceFile = (name: string): Promise<'replace' | 'skip'> => {
+const confirmReplaceFile = async(name: string): Promise<'replace' | 'skip'> => {
   if (replaceAllDownloads) return Promise.resolve('replace')
   return new Promise((resolve) => {
     Alert.alert(global.i18n.t('dl_alert_file_exists_title'), global.i18n.t('dl_alert_file_exists_msg', { name }), [
-      { text: global.i18n.t('dl_btn_skip'), style: 'cancel', onPress: () => resolve('skip') },
+      { text: global.i18n.t('dl_btn_skip'), style: 'cancel', onPress: () => { resolve('skip') } },
       { text: global.i18n.t('dl_btn_replace_all'), onPress: () => { replaceAllDownloads = true; resolve('replace') } },
-      { text: global.i18n.t('dl_btn_replace'), onPress: () => resolve('replace') },
+      { text: global.i18n.t('dl_btn_replace'), onPress: () => { resolve('replace') } },
     ])
   })
 }
@@ -225,7 +229,7 @@ const writeAudioTagAsync = async(filePath: string, musicInfo: LX.Music.MusicInfo
         // 封面只是锦上添花：CDN 卡住会把"已完成"拖住，10s 后放弃并停掉底层任务
         const res = await Promise.race([
           job.promise,
-          new Promise<never>((_, reject) => setTimeout(() => {
+          new Promise<never>((_resolve, reject) => setTimeout(() => {
             try { RNFS.stopDownload(job.jobId) } catch (e) {}
             reject(new Error('cover timeout'))
           }, 10000)),
@@ -239,18 +243,18 @@ const writeAudioTagAsync = async(filePath: string, musicInfo: LX.Music.MusicInfo
       filePath,
       musicInfo.name ?? '',
       musicInfo.singer ?? '',
-      (musicInfo.meta as any)?.albumName ?? '',
+      String((musicInfo.meta as { albumName?: unknown })?.albumName ?? ''),
       coverPath,
     )
     if (coverPath) {
-      try { RNFS.unlink(coverPath) } catch (e) {}
+      void RNFS.unlink(coverPath).catch(() => {})
     }
   } catch (e) {
     // 标签写入失败不影响下载
   }
 }
 
-const runDownload = (task: LX.Download.ListItem): Promise<void> => {
+const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
   const { url, filePath } = task.metadata
   if (!url || !filePath) return Promise.reject(makeError(global.i18n.t('dl_err_no_url'), 'NO_URL'))
   // 缓存路径：先下载到 .part，完成后原子移动到正式路径。
@@ -259,7 +263,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
 
   return new Promise<void>((resolve, reject) => {
     // 清理上一次中断留下的缓存残件
-    try { RNFS.unlink(partPath) } catch (e) {}
+    void RNFS.unlink(partPath).catch(() => {})
 
     let lastProgress = 0
     let lastBytes = 0
@@ -288,7 +292,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
         // 注意：updateItem 是整体替换而非 merge，必须以当前任务为底重建状态，避免状态回退
         if (!hasPersistedTotal && totalBytes > 0) {
           hasPersistedTotal = true
-          downloadActions.updateItem({
+          updateItem({
             ...current,
             status: 'run',
             statusText: '下载中',
@@ -296,7 +300,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
             progress: progress > 0 ? progress : current.progress,
             downloaded: currentBytes,
             total: totalBytes,
-          } as any)
+          })
           save()
         }
 
@@ -315,7 +319,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
         if (progress - lastProgress < 0.05) return
         lastProgress = progress
 
-        downloadActions.updateItem({
+        updateItem({
           ...task,
           status: 'run',
           statusText: '下载中',
@@ -324,17 +328,17 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
           downloaded: currentBytes,
           total: totalBytes,
           speed,
-        } as any)
+        })
       },
     })
 
     activeJobs.set(job.jobId, task.id)
 
-    job.promise.then(async (result) => {
+    job.promise.then(async(result) => {
       activeJobs.delete(job.jobId)
       if (result.statusCode !== 200 && result.statusCode !== 206) {
         // 下载失败，删除缓存残件（正式路径不受影响）
-        try { RNFS.unlink(partPath) } catch (e) {}
+        void RNFS.unlink(partPath).catch(() => {})
         reject(new Error(`下载失败 (HTTP ${result.statusCode})`))
         return
       }
@@ -343,7 +347,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
       try {
         await moveFile(partPath, filePath)
       } catch (e) {
-        try { RNFS.unlink(partPath) } catch (err) {}
+        void RNFS.unlink(partPath).catch(() => {})
         reject(new Error('保存文件失败'))
         return
       }
@@ -353,7 +357,7 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
 
       // 下载成功，更新状态
       const bytesWritten = result.bytesWritten ?? 0
-      downloadActions.updateItem({
+      updateItem({
         ...task,
         isComplate: true,
         status: 'completed',
@@ -363,10 +367,10 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
         downloaded: bytesWritten,
         total: bytesWritten,
         speed: '',
-      } as any)
+      })
       save()
       // 下载完成提醒（可在设置里开关）
-      const showNotify = settingState.setting['download.notifyComplete'] !== false
+      const showNotify = settingState.setting['download.notifyComplete'] ?? true
       if (showNotify) {
         toast(`下载完成：${task.metadata.musicInfo.name}`)
         safeVibrate()
@@ -377,12 +381,12 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
       // 判断是否被用户主动暂停：暂停时保留状态，删除缓存残件，不当作失败
       const current = downloadState.list.find(t => t.id === task.id)
       if (current && current.status === 'pause') {
-        try { RNFS.unlink(partPath) } catch (e) {}
+        void RNFS.unlink(partPath).catch(() => {})
         resolve()
         return
       }
       // 下载失败，删除缓存残件（正式路径不受影响）
-      try { RNFS.unlink(partPath) } catch (e) {}
+      void RNFS.unlink(partPath).catch(() => {})
       reject(err)
     })
   })
@@ -390,18 +394,18 @@ const runDownload = (task: LX.Download.ListItem): Promise<void> => {
 
 const runTask = async(task: LX.Download.ListItem) => {
   activeDownloadCount++
-  downloadActions.updateItem({ ...task, status: 'run', statusText: '获取歌曲信息...', statusKey: 'dl_status_fetching' } as any)
+  updateItem({ ...task, status: 'run', statusText: '获取歌曲信息...', statusKey: 'dl_status_fetching' })
 
   try {
     // 仅 WiFi 下载：非 WiFi 环境下暂停任务，等待用户切换网络后继续
     if (Platform.OS === 'android' && settingState.setting['download.onlyWifi']) {
       if (!(await isWifiConnected())) {
-        downloadActions.updateItem({
+        updateItem({
           ...task,
           status: 'pause',
           statusText: '非WiFi环境，已暂停',
           statusKey: 'dl_status_wifi_paused',
-        } as any)
+        })
         save()
         return
       }
@@ -453,7 +457,7 @@ const runTask = async(task: LX.Download.ListItem) => {
           // 借鉴 Spotube：完整文件已存在时让用户选择替换/跳过（不直接覆盖）
           const action = await confirmReplaceFile(task.metadata.musicInfo.name)
           if (action === 'skip') {
-            downloadActions.updateItem({
+            updateItem({
               ...task,
               isComplate: true,
               status: 'completed',
@@ -463,9 +467,9 @@ const runTask = async(task: LX.Download.ListItem) => {
               downloaded: stat.size,
               total: stat.size,
               metadata: { ...task.metadata, url, fileName, filePath, quality: usedQuality },
-            } as any)
+            })
             save()
-            const showNotify = settingState.setting['download.notifyComplete'] !== false
+            const showNotify = settingState.setting['download.notifyComplete'] ?? true
             if (showNotify) {
               toast(global.i18n.t('dl_toast_file_exists', { name: task.metadata.musicInfo.name }))
               safeVibrate()
@@ -493,14 +497,14 @@ const runTask = async(task: LX.Download.ListItem) => {
     const isPermissionError = errCode === 'PERMISSION' || errorMsg.includes('权限') || errorMsg.includes('访问')
     const failReason: LX.Download.DownloadErrorReason = errCode === 'PERMISSION' ? 'noWrite'
       : errCode === 'NO_SPACE' ? 'noSpace'
-      : errCode === 'NO_SOURCE' || errCode === 'NO_URL' ? 'noSource'
-      : errorMsg.includes('存储空间') || errorMsg.includes('空间不足') ? 'noSpace'
-      : /HTTP 4\d\d/.test(errorMsg) ? 'noSource'
-      : errorMsg.includes('ENOTFOUND') || errorMsg.includes('timeout') || errorMsg.includes('EAI_AGAIN') || errorMsg.includes('网络') || /HTTP \d\d\d/.test(errorMsg) ? 'network'
-      : 'unknown'
+        : errCode === 'NO_SOURCE' || errCode === 'NO_URL' ? 'noSource'
+          : errorMsg.includes('存储空间') || errorMsg.includes('空间不足') ? 'noSpace'
+            : /HTTP 4\d\d/.test(errorMsg) ? 'noSource'
+              : errorMsg.includes('ENOTFOUND') || errorMsg.includes('timeout') || errorMsg.includes('EAI_AGAIN') || errorMsg.includes('网络') || /HTTP \d\d\d/.test(errorMsg) ? 'network'
+                : 'unknown'
     const retryCount = task.retryCount ?? 0
     if (!isPermissionError && settingState.setting['download.autoRetry'] && retryCount < MAX_RETRY_COUNT) {
-      downloadActions.updateItem({
+      updateItem({
         ...task,
         retryCount: retryCount + 1,
         status: 'waiting',
@@ -509,7 +513,7 @@ const runTask = async(task: LX.Download.ListItem) => {
         statusParams: { num: retryCount + 1, max: MAX_RETRY_COUNT },
         error: errorMsg || '下载失败',
         errorCode: failReason,
-      } as any)
+      })
       save()
     } else {
       failTask(task, err, failReason)
@@ -523,6 +527,8 @@ const runTask = async(task: LX.Download.ListItem) => {
 const startNext = async() => {
   // 按设置的并发数启动下载任务
   const maxTask = Math.max(1, settingState.setting['download.maxTask'] || 1)
+  // runTask 同步段会先递增 activeDownloadCount，ESLint 看不到这条跨函数修改，属误报
+  // eslint-disable-next-line no-unmodified-loop-condition
   while (activeDownloadCount < maxTask) {
     const task = downloadState.list.find(t => !t.isComplate && t.status === 'waiting')
     if (!task) break
@@ -563,7 +569,7 @@ export const startDownload = async(musicInfo: LX.Music.MusicInfoOnline, quality:
       fileName: '',
       filePath: '',
     },
-  } as any
+  }
 
   downloadActions.addItem(task)
   save()
@@ -599,7 +605,7 @@ export const startBatchDownload = async(musicList: LX.Music.MusicInfoOnline[], q
         fileName: '',
         filePath: '',
       },
-    } as any
+    }
     downloadActions.addItem(task)
     added++
   }
@@ -615,7 +621,7 @@ export const retryDownload = async(taskId: string) => {
   const task = downloadState.list.find(t => t.id === taskId)
   if (!task) return
   toast(global.i18n.t('toast_retrying_download'))
-  downloadActions.updateItem({
+  updateItem({
     ...task,
     retryCount: 0,
     status: 'waiting',
@@ -623,7 +629,7 @@ export const retryDownload = async(taskId: string) => {
     statusKey: 'dl_status_waiting',
     statusParams: undefined,
     error: '',
-  } as any)
+  })
   save()
   void startNext()
 }
@@ -636,13 +642,13 @@ export const pauseDownload = async(taskId: string) => {
   if (!task || task.isComplate || task.status === 'pause') return
 
   // 先标记为暂停，再停止底层下载（runDownload 的 catch 检测到暂停状态时不会当作失败）
-  downloadActions.updateItem({
+  updateItem({
     ...task,
     status: 'pause',
     statusText: '已暂停',
     statusKey: 'dl_status_paused',
     speed: '',
-  } as any)
+  })
   save()
 
   for (const [jobId, id] of activeJobs) {
@@ -661,13 +667,13 @@ export const pauseDownload = async(taskId: string) => {
 export const resumeDownload = async(taskId: string) => {
   const task = downloadState.list.find(t => t.id === taskId)
   if (!task) return
-  downloadActions.updateItem({
+  updateItem({
     ...task,
     status: 'waiting',
     statusText: '等待中',
     statusKey: 'dl_status_waiting',
     statusParams: undefined,
-  } as any)
+  })
   save()
   void startNext()
 }
@@ -699,7 +705,7 @@ export const migrateDownloadDir = async() => {
     // 同步更新下载记录 filePath：旧前缀 Download/lx-music/ → Download/lx-music/music/
     // 直接从存储读记录（不依赖内存 downloadState.list——initDownloadList 是 void 异步，可能未完成）
     if (movedAny) {
-      const stored = await getData(DOWNLOAD_STORAGE_KEY) as LX.Download.ListItem[] | null
+      const stored = await getData<LX.Download.ListItem[]>(DOWNLOAD_STORAGE_KEY)
       if (stored?.length) {
         let changed = false
         const updated = stored.map(t => {
@@ -806,13 +812,13 @@ export const moveTask = async(taskId: string, direction: 'up' | 'down') => {
 export const pauseAllDownload = async() => {
   for (const task of downloadState.list) {
     if (!task.isComplate && task.status !== 'pause') {
-      downloadActions.updateItem({
+      updateItem({
         ...task,
         status: 'pause',
         statusText: '已暂停',
         statusKey: 'dl_status_paused',
         speed: '',
-      } as any)
+      })
     }
   }
   save()
@@ -830,13 +836,13 @@ export const pauseAllDownload = async() => {
 export const resumeAllDownload = async() => {
   for (const task of downloadState.list) {
     if (!task.isComplate && task.status === 'pause') {
-      downloadActions.updateItem({
+      updateItem({
         ...task,
         status: 'waiting',
         statusText: '等待中',
         statusKey: 'dl_status_waiting',
         statusParams: undefined,
-      } as any)
+      })
     }
   }
   save()
@@ -850,7 +856,7 @@ export const resumeAllDownload = async() => {
 export const playDownload = async(index: number) => {
   const completedList = downloadState.list.filter(t => t.isComplate)
   const task = completedList[index]
-  if (!task || !task.metadata.filePath) return
+  if (!task?.metadata.filePath) return
   try {
     // 播放下载列表：getList('download') 返回已完成任务（ListItem 结构），
     // 播放器会通过 'progress' in musicInfo 走本地文件播放分支

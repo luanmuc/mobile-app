@@ -64,7 +64,7 @@ export const classifyHealthState = (
     return { key: 'health_state_removed', bucket: 'removed', tone: 'bad' }
   }
   // 熔断 open 优先于限流标签：熔断更严重，不能被“限流中”降级显示
-  if (item.state !== 'open' && (item.rateLimitActive || item.rateLimited)) {
+  if (item.state !== 'open' && (item.rateLimitActive === true || item.rateLimited === true)) {
     return {
       key: item.rateLimitActive ? 'health_state_rate_limiting' : 'health_state_rate_limited',
       bucket: 'rate',

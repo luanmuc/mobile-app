@@ -62,7 +62,7 @@ export default memo(() => {
     id: s.id,
   })), [t])
   const setApiSourceId = useCallback((id: string) => {
-    setApiSource(id)
+    setApiSource(id).catch(e => { console.log(e) })
   }, [])
   const userApiListRaw = useUserApiList()
   const apiStatus = useStatus()
@@ -108,8 +108,8 @@ export default memo(() => {
       const url = 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js'
       // 15 秒超时控制
       const fetchPromise = httpFetch(url).promise.then(resp => resp.body) as unknown as string
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(t('source_update_timeout'))), 15000)
+      const timeoutPromise = new Promise((_resolve, reject) =>
+        setTimeout(() => { reject(new Error(t('source_update_timeout'))) }, 15000),
       )
       const remoteScript = await Promise.race([fetchPromise, timeoutPromise]) as string
       if (remoteScript.length > 9_000_000) {
@@ -145,10 +145,12 @@ export default memo(() => {
           {
             text: t('cancel'),
             style: 'cancel',
-            onPress: () => setUpdating(false),
+            onPress: () => { setUpdating(false) },
           },
           {
             text: t('source_update_confirm'),
+            // RN Alert 不消费返回值，异步回调内部已完整 try/catch；此规则属误报
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onPress: async() => {
               try {
                 // 1) 先导新的（失败则什么都没动）

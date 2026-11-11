@@ -7,7 +7,7 @@ import { exitApp } from './utils/nativeModules/utils'
 import { windowSizeTools } from './utils/windowSizeTools'
 import { listenLaunchEvent } from './navigation/regLaunchedEvent'
 import { tipDialog, requestStoragePermission } from './utils/tools'
-import { Platform, PermissionsAndroid, Linking, Alert } from 'react-native'
+import { Platform, PermissionsAndroid, Alert } from 'react-native'
 
 console.log('starting app...')
 listenLaunchEvent()
@@ -63,7 +63,7 @@ void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize])
             if (Number(Platform.Version) < 30) {
               // Android 10及以下：普通存储权限，直接弹窗
               const hasStorage = await PermissionsAndroid.check(
-                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
               )
               if (!hasStorage) {
                 // 先弹说明
@@ -72,9 +72,9 @@ void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize])
                     '存储权限请求',
                     '允许存储权限后，可以下载歌曲到手机，管理本地音乐。是否现在开启？',
                     [
-                      { text: '暂不', onPress: () => resolve(false) },
-                      { text: '去开启', onPress: () => resolve(true) },
-                    ]
+                      { text: '暂不', onPress: () => { resolve(false) } },
+                      { text: '去开启', onPress: () => { resolve(true) } },
+                    ],
                   )
                 })
                 if (wantRequest) {
@@ -88,7 +88,7 @@ void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize])
           // 第二步：Android 13+，请求音乐文件访问权限（普通弹窗，不用跳设置）
           if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
             const hasAudioPermission = await PermissionsAndroid.check(
-              PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO
+              PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
             )
             if (!hasAudioPermission) {
               const wantRequest = await new Promise<boolean>((resolve) => {
@@ -96,9 +96,9 @@ void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize])
                   '音乐文件访问权限',
                   '允许访问音乐文件后，可以下载歌曲、管理本地音乐。是否现在开启？',
                   [
-                    { text: '暂不', onPress: () => resolve(false) },
-                    { text: '去开启', onPress: () => resolve(true) },
-                  ]
+                    { text: '暂不', onPress: () => { resolve(false) } },
+                    { text: '去开启', onPress: () => { resolve(true) } },
+                  ],
                 )
               })
               if (wantRequest) {

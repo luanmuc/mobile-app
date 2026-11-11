@@ -1,5 +1,4 @@
 import RNFS from 'react-native-fs'
-import { isExternalStorageManager } from '@/utils/nativeModules/utils'
 
 // ===== 日志系统（b64 重构版）=====
 // 公共目录结构：Download/lx-music/{music, logs}
@@ -21,21 +20,19 @@ const PRIVATE_LOGS_DIR = PRIVATE_LOG_ROOT + '/logs'
 let activeLogsDir: string | null = null
 
 // 2.4：诊断模块需要拿到“当前真正生效”的日志目录（公共或私有降级），只读复用，不新建目录
-export const getActiveLogsDir = (): string => activeLogsDir || PRIVATE_LOGS_DIR
+export const getActiveLogsDir = (): string => activeLogsDir ?? PRIVATE_LOGS_DIR
 
 // 日志文件定义：分类 → 文件名 / 上限
 const LOG_FILES = {
-  error:    { name: 'error.log',        max: 1024 * 1024 }, // 全局错误 1MB
-  source:   { name: 'source.log',       max: 1024 * 1024 }, // 音源日志 1MB
-  diagnose: { name: 'diagnose.log',     max: 512 * 1024 },  // 运行诊断 512KB
-  debug:    { name: 'lx_debug_log.txt', max: 512 * 1024 },  // 调试日志 512KB
+  error: { name: 'error.log', max: 1024 * 1024 }, // 全局错误 1MB
+  source: { name: 'source.log', max: 1024 * 1024 }, // 音源日志 1MB
+  diagnose: { name: 'diagnose.log', max: 512 * 1024 }, // 运行诊断 512KB
+  debug: { name: 'lx_debug_log.txt', max: 512 * 1024 }, // 调试日志 512KB
 } as const
 export type LogCategory = keyof typeof LOG_FILES
 
 // 权限状态缓存：init 与「运行日志」页打开时刷新；写入用缓存值（避免高频 native 调用）
 let hasPermission: boolean | null = null
-// 真实写测试标记：以真实创建文件为准（不依赖系统 API 语义差异，如各 ROM 的"所有文件访问"显示名不同）
-let testedByWrite = false
 // 启动缓冲：init 前产生的日志先暂存，权限可用时一次性写入（不丢早期日志）
 const tempLog: Array<{ category: LogCategory, time: string, text: string }> = []
 // 真实写测试：在公共日志目录创建测试文件，能写成功即视为有权限（唯一可靠标准）
@@ -71,7 +68,6 @@ export const checkLogPermission = async(): Promise<boolean> => {
   } catch {
     hasPermission = false
   }
-  testedByWrite = true
   // 确定生效目录
   if (hasPermission) {
     activeLogsDir = LOGS_DIR
@@ -137,7 +133,7 @@ export const init = async() => {
   } catch (e) {}
 }
 
-export const getLogsDir = () => activeLogsDir || LOGS_DIR
+export const getLogsDir = () => activeLogsDir ?? LOGS_DIR
 // 是否使用公共目录（UI 显示用）
 export const isUsingPublicDir = () => hasPermission === true
 
@@ -155,7 +151,7 @@ export const getLogs = async(category?: LogCategory): Promise<string> => {
   if (!hasPermission) return ''
   const categories: LogCategory[] = category ? [category] : (['error', 'source', 'diagnose', 'debug'] as LogCategory[])
   const parts: string[] = []
-  const dir = activeLogsDir || (await ensurePrivateDir())
+  const dir = activeLogsDir ?? (await ensurePrivateDir())
   for (const cat of categories) {
     const path = dir + '/' + LOG_FILES[cat].name
     try {
@@ -175,7 +171,7 @@ export const clearLogs = async(category?: LogCategory) => {
   if (hasPermission == null) await checkLogPermission()
   if (!hasPermission) return
   const categories: LogCategory[] = category ? [category] : (['error', 'source', 'diagnose', 'debug'] as LogCategory[])
-  const dir = activeLogsDir || (await ensurePrivateDir())
+  const dir = activeLogsDir ?? (await ensurePrivateDir())
   for (const cat of categories) {
     try {
       const path = dir + '/' + LOG_FILES[cat].name
@@ -192,26 +188,29 @@ const getTime = () => new Date().toLocaleString()
 //   log.diagnose → diagnose.log 运行诊断（播放音源标签链路等）
 // 调试日志（debug）由 utils/logger.ts 走同一公共目录 lx_debug_log.txt
 export const log = {
-  error(...msgs: any[]) {
+  error(...msgs: unknown[]) {
     const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
     if (msg.startsWith('%c')) return
-    tempLog.length ? tempLog.push({ category: 'error', time: getTime(), text: msg }) : void writeLog('error', `${getTime()} ERROR ${msg}`)
+    if (tempLog.length) tempLog.push({ category: 'error', time: getTime(), text: msg })
+    else void writeLog('error', `${getTime()} ERROR ${msg}`).catch(() => {})
   },
-  source(...msgs: any[]) {
+  source(...msgs: unknown[]) {
     const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
     if (msg.startsWith('%c')) return
-    tempLog.length ? tempLog.push({ category: 'source', time: getTime(), text: msg }) : void writeLog('source', `${getTime()} LOG ${msg}`)
+    if (tempLog.length) tempLog.push({ category: 'source', time: getTime(), text: msg })
+    else void writeLog('source', `${getTime()} LOG ${msg}`).catch(() => {})
   },
-  diagnose(...msgs: any[]) {
+  diagnose(...msgs: unknown[]) {
     const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
     if (msg.startsWith('%c')) return
-    tempLog.length ? tempLog.push({ category: 'diagnose', time: getTime(), text: msg }) : void writeLog('diagnose', `${getTime()} LOG ${msg}`)
+    if (tempLog.length) tempLog.push({ category: 'diagnose', time: getTime(), text: msg })
+    else void writeLog('diagnose', `${getTime()} LOG ${msg}`).catch(() => {})
   },
   // 兼容原 log.info/log.warn（各处排障日志）→ 归类到运行诊断
-  info(...msgs: any[]) {
+  info(...msgs: unknown[]) {
     log.diagnose(...msgs)
   },
-  warn(...msgs: any[]) {
+  warn(...msgs: unknown[]) {
     log.diagnose(...msgs)
   },
 }

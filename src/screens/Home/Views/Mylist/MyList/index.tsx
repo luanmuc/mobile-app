@@ -46,7 +46,7 @@ export default () => {
             ref={listMenuRef}
             onNew={index => listNameEditRef.current?.showCreate(index)}
             onRename={info => listNameEditRef.current?.show(info)}
-            onScanLocal={() => { handleScanDownloadDir() }}
+            onScanLocal={() => { handleScanDownloadDir().catch(() => {}) }}
             onSort={info => listMusicSortRef.current?.show(info)}
             onDuplicateMusic={info => duplicateMusicRef.current?.show(info)}
             onImport={(info, position) => listImportExportRef.current?.import(info, position)}

@@ -1,5 +1,4 @@
-import { View } from 'react-native'
-import { TouchableOpacity } from 'react-native'
+import { View, TouchableOpacity } from 'react-native'
 import { navigations } from '@/navigation'
 import { usePlayerMusicInfo, usePlayQuality } from '@/store/player/hook'
 // import { toast } from '@/utils/tools'

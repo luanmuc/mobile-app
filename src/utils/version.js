@@ -137,8 +137,8 @@ export const downloadNewVersion = async(version, onDownload = noop) => {
     `${temporaryDirectoryPath}/${apkFileName}`,
   ]
   // 下载前清理公共目录与缓存目录的旧包
-  void cleanupOldApk(downloadDirectoryPath, apkFileName)
-  void cleanupOldApk(temporaryDirectoryPath, apkFileName)
+  cleanupOldApk(downloadDirectoryPath, apkFileName).catch(() => {})
+  cleanupOldApk(temporaryDirectoryPath, apkFileName).catch(() => {})
   let lastErr = null
 
   for (const savePath of savePaths) {
@@ -166,6 +166,7 @@ export const downloadNewVersion = async(version, onDownload = noop) => {
       downloadJobId = jobId
       try {
         await promise
+        // eslint-disable-next-line require-atomic-updates -- 模块级当前下载任务句柄，后续 await 不依赖该值
         downloadJobId = null
         // 完整性校验：下载内容过小视为失败（防 404 页/断连残片被直接安装导致"解析包错误"）
         const fileStat = await stat(savePath)
@@ -178,6 +179,7 @@ export const downloadNewVersion = async(version, onDownload = noop) => {
       }
     }
   }
+  // eslint-disable-next-line require-atomic-updates -- 循环结束后统一复位模块级句柄
   downloadJobId = null
   throw lastErr || new Error('apk download failed')
 }

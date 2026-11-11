@@ -110,11 +110,11 @@ export const initSetting = async() => {
   // 防御：version 非字符串（数据被写坏/手改成数字）时跳过迁移，避免 compareVer 里 split 报错
   if (setting && typeof setting.version === 'string' && setting.version) {
     // v2.1 迁移
-    if (compareVer(setting.version as string, '2.1') < 0) {
+    if (compareVer(setting.version, '2.1') < 0) {
       setting['common.allowProgressBarSeek'] = false
     }
     // v2.2 迁移
-    if (compareVer(setting.version as string, '2.2') < 0) {
+    if (compareVer(setting.version, '2.2') < 0) {
       setting['player.isShowLyricTranslation'] = false
       setting['player.isShowLyricRoma'] = false
       setting['playDetail.isShowLyricProgressSetting'] = true
@@ -124,7 +124,7 @@ export const initSetting = async() => {
       setting['common.sourceNameType'] = 'real'
     }
     // v2.3 迁移：同步上游 v1.9.2「默认禁用音频卸载」，老用户升级后自动关闭（可手动重开）
-    if (compareVer(setting.version as string, '2.3') < 0) {
+    if (compareVer(setting.version, '2.3') < 0) {
       if (setting['player.isEnableAudioOffload']) setting['player.isEnableAudioOffload'] = false
     }
   }

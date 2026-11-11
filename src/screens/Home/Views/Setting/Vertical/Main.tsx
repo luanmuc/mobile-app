@@ -33,7 +33,7 @@ const PlayCountBlock = memo(() => {
     const timer = setInterval(() => {
       setPlayCount(getPlayCount())
     }, 10000)
-    return () => clearInterval(timer)
+    return () => { clearInterval(timer) }
   }, [])
 
   return (
@@ -72,7 +72,7 @@ export default memo(() => {
           <TouchableOpacity
             key={item}
             style={{ ...styles.listItem, borderBottomColor: theme['c-border-background'] }}
-            onPress={() => setActiveId(item)}
+            onPress={() => { setActiveId(item) }}
             activeOpacity={0.6}
           >
             <Text size={15} color={theme['c-font']}>{t(`setting_${item}`)}</Text>
@@ -92,7 +92,7 @@ export default memo(() => {
   return (
     <ScrollView style={styles.page} keyboardShouldPersistTaps={'always'}>
       <View style={styles.backBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveId(null)} activeOpacity={0.6}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { setActiveId(null) }} activeOpacity={0.6}>
           <Icon style={styles.backIcon} color={theme['c-primary']} name="chevron-left" size={16} />
           <Text size={14} color={theme['c-primary']}>{t('back')}</Text>
         </TouchableOpacity>

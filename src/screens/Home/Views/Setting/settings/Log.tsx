@@ -1,6 +1,6 @@
 import { memo, useRef, useState, useEffect } from 'react'
 import { View } from 'react-native'
-import { getLogs, clearLogs, checkLogPermission, getLogsDir, isUsingPublicDir, LOG_CATEGORY_LABELS, type LogCategory } from '@/utils/log'
+import { getLogs, clearLogs, checkLogPermission, getLogsDir, LOG_CATEGORY_LABELS, type LogCategory } from '@/utils/log'
 
 import Section from '../components/Section'
 import SubTitle from '../components/SubTitle'
@@ -87,7 +87,7 @@ export default memo(() => {
           {
             (Object.keys(LOG_CATEGORY_LABELS) as LogCategory[]).map(category => (
               <View key={category} style={styles.btnItem}>
-                <Button onPress={() => openLogModal(category)}>{LOG_CATEGORY_LABELS[category]}</Button>
+                <Button onPress={async() => openLogModal(category)}>{LOG_CATEGORY_LABELS[category]}</Button>
               </View>
             ))
           }

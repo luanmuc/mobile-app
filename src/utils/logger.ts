@@ -1,6 +1,6 @@
 import RNFS from 'react-native-fs'
 import settingState from '@/store/setting/state'
-import { isLogPermissionGranted, checkLogPermission } from '@/utils/log'
+import { isLogPermissionGranted } from '@/utils/log'
 
 const LOG_FILE_NAME = 'lx_debug_log.txt'
 const MAX_LOG_SIZE = 512 * 1024 // 512KB，超过自动清空
@@ -11,7 +11,7 @@ type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG'
 const getLogPath = () => `${RNFS.DownloadDirectoryPath}/lx-music/logs/${LOG_FILE_NAME}`
 const getPrivateLogPath = () => `${RNFS.TemporaryDirectoryPath}/lx-music/logs/${LOG_FILE_NAME}`
 
-const isEnabled = () => settingState.setting['common.enableDebugLog'] === true
+const isEnabled = () => settingState.setting['common.enableDebugLog']
 
 const formatTime = () => {
   const d = new Date()
@@ -19,7 +19,7 @@ const formatTime = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${d.getMilliseconds().toString().padStart(3, '0')}`
 }
 
-const writeLog = async (level: LogLevel, tag: string, message: string, force = false) => {
+const writeLog = async(level: LogLevel, tag: string, message: string, force = false) => {
   // 音源标签诊断（tag=PlaySource）强制写：不依赖"调试日志"开关，装包即可用日志定位
   if (!force && !isEnabled()) return
   try {
@@ -79,12 +79,12 @@ export const logger = {
 
   // 播放器事件日志
   player: (action: string, musicName?: string, extra?: string) => {
-    const msg = musicName ? `${musicName}${extra ? ' | ' + extra : ''}` : (extra || '')
+    const msg = musicName ? `${musicName}${extra ? ' | ' + extra : ''}` : (extra ?? '')
     void writeLog('INFO', 'Player', `${action}${msg ? ': ' + msg : ''}`)
   },
 
   // 获取日志内容
-  getLog: async (): Promise<string> => {
+  getLog: async(): Promise<string> => {
     try {
       return await RNFS.readFile(getLogPath(), 'utf8')
     } catch {
@@ -93,7 +93,7 @@ export const logger = {
   },
 
   // 清空日志
-  clearLog: async () => {
+  clearLog: async() => {
     try {
       await RNFS.writeFile(getLogPath(), '', 'utf8')
     } catch {}

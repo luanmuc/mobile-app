@@ -72,8 +72,8 @@ export default memo(() => {
       <View style={styles.part}>
         <Text style={styles.text}>当前版本：</Text>
         <Text style={styles.boldText}>{process.versions.app}</Text>
-        <Text style={styles.text}>　</Text>
-        <TouchableOpacity onPress={() => void checkUpdate()}>
+        <Text style={styles.text}> </Text>
+        <TouchableOpacity onPress={() => { checkUpdate().catch(() => {}) }}>
           <Text style={textLinkStyle}>检查更新</Text>
         </TouchableOpacity>
       </View>

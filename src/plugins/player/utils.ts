@@ -157,7 +157,7 @@ export const setResource = (musicInfo: LX.Player.PlayMusic, url: string, duratio
 // 播放器未初始化时（进程冷启动、setupPlayer 尚未完成、或 destroy 之后），
 // 原生 binder.getPlayback() 为 null，任何播放控制调用都会在主线程抛 NullPointerException 直接崩掉。
 // 这里统一在 JS 侧拦住，等初始化完成后再放行（初始化内部会自己调用 setVolume/setPlaybackRate）。
-const isReady = () => global.lx.playerStatus.isInitialized === true
+const isReady = () => global.lx.playerStatus.isInitialized
 
 export const setPlay = async() => { if (!isReady()) return; await TrackPlayer.play() }
 export const getPosition = async() => isReady() ? TrackPlayer.getPosition() : 0
