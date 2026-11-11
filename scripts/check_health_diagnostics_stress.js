@@ -139,6 +139,24 @@ const DAY = 24 * HOUR;
   const entry = log.buildPlayResultEntry({ traceId: 't', platform: 'kw', quality: '128k', ok: true, latencyMs: 12 })
   rec('U10', '播放结果条目无歌名/URL', !('name' in entry) && !('url' in entry) && entry.event === 'play_result', JSON.stringify(entry))
 
+  // U11 加权口径：475 条成功(weight 20) + 500 条失败 = 真实 95%
+  const sampled = []
+  for (let i = 0; i < 475; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: true, latencyMs: 300, sampleWeight: 20 })
+  for (let i = 0; i < 500; i++) sampled.push({ ts: NOW - MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: false, code: 'E', latencyMs: 300 })
+  const sampledAgg = diag.aggregateHealthEvents(sampled, NOW)
+  rec('U11', '475 成功*20 + 500 失败 = 95%', sampledAgg.windows.h1.total === 10000 && Math.abs(sampledAgg.windows.h1.successRate - 0.95) < 0.01, `${sampledAgg.windows.h1.total}/${sampledAgg.windows.h1.successRate}`)
+
+  // U12 截断标记：只覆盖最近 2h，d7 不可用且 truncated 显式传递
+  const shortReport = diag.buildHealthReport({
+    events: [
+      { ts: NOW - 30 * MIN, event: 'source_result', sourceId: 's', platform: 'kw', ok: true, latencyMs: 100 },
+      { ts: NOW - 2 * HOUR, event: 'source_result', sourceId: 's', platform: 'kw', ok: false, code: 'E', latencyMs: 100 },
+    ],
+    now: NOW,
+    truncated: true,
+  })
+  rec('U12', '截断时 d7 不可用且 coverage.truncated=true', shortReport.windows.d7.covered === false && shortReport.coverage.truncated === true && shortReport.summary.includes('仅覆盖最近'), `d7=${shortReport.windows.d7.covered} truncated=${shortReport.coverage.truncated}`)
+
   const failed = res.filter(x => !x.ok)
   console.log(`\n===== App 诊断压力汇总：${res.length - failed.length} 通过 / ${failed.length} 失败 =====`)
   if (failed.length) {

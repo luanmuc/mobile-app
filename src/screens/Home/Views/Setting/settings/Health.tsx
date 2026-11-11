@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useCallback, useRef } from 'react'
-import { StyleSheet, View, ScrollView, TextInput, Modal, Switch } from 'react-native'
+import { StyleSheet, View, ScrollView, TextInput, Modal, Switch, Pressable } from 'react-native'
 
 import Section from '../components/Section'
 import SubTitle from '../components/SubTitle'
@@ -7,7 +7,7 @@ import Button from '../components/Button'
 import { useI18n } from '@/lang'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
-import { saveData } from '@/plugins/storage'
+import { getData, saveData } from '@/plugins/storage'
 import { logger } from '@/utils/logger'
 import {
   BOOL_CONFIG_DEFAULT,
@@ -20,7 +20,8 @@ import {
 } from '@/core/sourceConfig'
 import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
-import { exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
+import { REPORT_EVENT_LIMIT, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
+import { clipboardWriteText } from '@/utils/tools'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
@@ -91,31 +92,55 @@ export default memo(() => {
   const [decliningSources, setDecliningSources] = useState<string[]>([])
   // 2.4：本地诊断报告（最近异常 + 一键导出）
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
+  const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const refreshDiagnostics = useCallback(async(snap: HealthSnapshot | null, history: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>) => {
     try {
-      const events = await readRecentHealthEvents(500)
-      const report = buildHealthReport({ events, snapshot: (snap ?? {}), now: Date.now() })
+      const events = await readRecentHealthEvents(REPORT_EVENT_LIMIT)
+      const report = buildHealthReport({ events, snapshot: (snap ?? {}), trend: history, now: Date.now(), truncated: events.length >= REPORT_EVENT_LIMIT })
       setDiagnostics(report)
     } catch (e) {
       console.log('health diagnostics failed:', e)
     }
   }, [])
 
+  const reportToText = useCallback((report: HealthReport) => [
+    report.summary,
+    ...report.findings.slice(0, 5).map(f => `- ${f.title}：${f.evidence}；建议：${f.suggestion}`),
+  ].join('\n'), [])
+
+  const copyDiagnosticsReport = useCallback(() => {
+    if (!diagnostics) return
+    clipboardWriteText(reportToText(diagnostics))
+    setProbeInfo(t('health_copy_done'))
+  }, [diagnostics, reportToText, t])
+
   const exportDiagnosticsPackage = useCallback(async() => {
+    let report: HealthReport | null = null
     try {
-      const events = await readRecentHealthEvents(800)
+      const events = await readRecentHealthEvents(REPORT_EVENT_LIMIT)
       const logTail = await readDiagnoseLogTail()
-      const report = buildHealthReport({ events, snapshot: snapshot ?? {}, now: Date.now() })
-      const pkg = buildEvidencePackage({ report, events, snapshot: snapshot ?? {}, trend: trendData, logTail })
+      report = buildHealthReport({ events, snapshot: snapshot ?? {}, trend: trendData, now: Date.now(), truncated: events.length >= REPORT_EVENT_LIMIT })
+      const appVersion = (process as unknown as { versions?: { app?: string } }).versions?.app
+      const sourceVersion = (await getData<string>('imported_builtin_source_version')) ?? undefined
+      const pkg = buildEvidencePackage({ report, events, snapshot: snapshot ?? {}, trend: trendData, logTail, appVersion, sourceVersion })
       const path = await exportAndShareDiagnostics(pkg)
-      if (path) setProbeInfo(`${t('health_export_done')} ${path}`)
-      else setError(t('health_export_failed'))
+      if (path) {
+        setProbeInfo(`${t('health_export_done')} ${path}`)
+        return
+      }
+      setError(t('health_export_failed'))
     } catch (e: any) {
       setError(String(e?.message || t('health_export_failed')))
     }
-  }, [snapshot, trendData, t])
+    // 分享通道不可用（无文件管理器/分享取消/写盘失败）时，至少把摘要复制出来，
+    // 避免用户点一次导出只得到一句“失败”而拿不到任何现场。
+    if (report) {
+      clipboardWriteText(reportToText(report))
+      setProbeInfo(t('health_copy_done'))
+    }
+  }, [snapshot, trendData, t, reportToText])
 
   const loadHealth = useCallback(async(silent = false) => {
     if (!silent) setLoading(true)
@@ -391,6 +416,8 @@ export default memo(() => {
         <View style={styles.btnRow}>
           <Button onPress={() => { ignored(exportDiagnosticsPackage()) }}>{t('health_export_diag')}</Button>
           <View style={styles.btnGap} />
+          <Button onPress={copyDiagnosticsReport} disabled={!diagnostics}>{t('health_copy_report')}</Button>
+          <View style={styles.btnGap} />
           <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
         </View>
         {
@@ -426,18 +453,37 @@ export default memo(() => {
           ) : null
         }
         {
-          diagnostics?.findings.length ? (
+          diagnostics ? (
             <View style={[styles.diagnosticsBox, { borderColor: theme['c-border-background'] }]}>
-              <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text>
+              {diagnostics.findings.length ? <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text> : null}
               <Text size={12} color={theme['c-font-label']} style={{ marginTop: 4 }}>{diagnostics.summary}</Text>
               {
-                diagnostics.findings.slice(0, 5).map((f, idx) => (
-                  <View key={`${f.id}-${idx}`} style={{ marginTop: 6 }}>
-                    <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>{f.title}</Text>
-                    <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
-                    <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
-                  </View>
-                ))
+                diagnostics.findings.slice(0, 5).map((f, idx) => {
+                  const key = `${f.id}-${idx}`
+                  const expanded = expandedFinding === key
+                  return (
+                    <View key={key} style={{ marginTop: 6 }}>
+                      <Pressable onPress={() => { setExpandedFinding(expanded ? null : key) }}>
+                        <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>
+                          {f.title}{f.samples?.length ? (expanded ? ' ▾' : ' ▸') : ''}
+                        </Text>
+                      </Pressable>
+                      <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
+                      <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
+                      {
+                        expanded && f.samples?.length ? (
+                          <View style={{ marginTop: 4 }}>
+                            {f.samples.map((s, i) => (
+                              <Text key={i} size={10} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                                {new Date(s.ts).toLocaleTimeString()} · {s.source}{s.code ? ` · ${s.code}` : ''}{s.latencyMs != null ? ` · ${s.latencyMs}ms` : ''}{s.traceId ? ` · ${s.traceId}` : ''}
+                              </Text>
+                            ))}
+                          </View>
+                        ) : null
+                      }
+                    </View>
+                  )
+                })
               }
             </View>
           ) : null

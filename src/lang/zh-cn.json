@@ -818,6 +818,8 @@
   "health_recent_anomaly": "最近异常（本地诊断）",
   "health_anomaly_suggestion": "建议",
   "health_export_done": "诊断包已生成",
+  "health_copy_report": "复制诊断摘要",
+  "health_copy_done": "已复制诊断摘要",
   "health_export_failed": "导出失败",
   "health_platform_degraded": "⚠ {platforms} 平台级降级",
   "health_platform_fallback": "正在用 {platform} 平台兜底",

@@ -1,3 +1,15 @@
+## [音源健康本地诊断：采样加权 / 失败归因 / 窗口覆盖 / 证据展开] - 2026-11-11
+
+> 修三处会让报告结论失真的统计口径：成功率被 1/20 采样系统性压低、失败只记 `platform` 导致快照对照漏报、只读最近 500/800 条却标 7 天。改法对齐 OpenTelemetry probability sampling 的 adjusted count，但不引入 SDK、不上传。
+
+- `src/core/healthLog.ts`：新增 `SUCCESS_SAMPLE_RATE=20` 与 `sampleWeight`；失败 100% 落盘权重 1，成功 1/20 落盘权重 20；新增 `REPORT_EVENT_LIMIT=20000`。
+- `src/core/healthDiagnostics.ts`：`statsOf` 按权重聚合（`total/ok/failed/successRate`），`p95` 仍按原始延迟样本；**前后 24h 成功率趋势同样加权**，避免采样比例变化误报下跌；新增 `coverage`（事件数/首末时间/覆盖时长/截断）与 `covered`；新增按源/平台/音质 `breakdown`；证据包新增 `attempts` 展开 `source_events` + `sourceVersion`；异常条目新增 `samples`（时间/源/错误码/耗时/traceId）；音源快照趋势最近 4 次连续下降 ≥15pp 生成 `trend_decline`，避免「本地样本太少就看不到下滑」；摘要明确「成功按 1/20 采样加权」并在 7 天未覆盖时提示实际覆盖时长。
+- `src/core/music/online.ts`：失败落盘提取 `err.sourceId` → `err.detail[0].source` → 都不存在才省略，避免同一源拆成两个身份。
+- `Health.tsx`：诊断读取上限 500/800 提到 20000，并把截断状态传给报告；新增「复制诊断摘要」，分享失败时回退复制；异常标题可点开查看单条样本；导出透传 `appVersion` / `sourceVersion`。
+- `src/lang/*.json`：新增 `health_copy_report` / `health_copy_done`，三语 874→876 键。
+- `scripts/check_health_diagnostics.js`：新增 H11~H21，22→33 条；`check_health_diagnostics_stress.js` 新增 U11/U12，12→14 条；实跑 33/0、14/0。
+- 验证：`tsc --noEmit` rc=0；`check_health_diagnostics` 33/0；`check_health_diagnostics_stress` 14/0。
+
 ## [docs-audit 规则 9：去掉 MUSIC_SOURCE_GUIDE 假警告] - 2026-11-11
 
 > 指南正文已改成「以下为当前结构；」，旧写法「以下为当前（vX）」不存在；`fixAll()` 却把「模式未命中」当警告刷，导致每次巡检都有 `⚠️ … 未命中，跳过`。版本实际已由「注」规则（`` `v8.12.1` 为音源本体当前版本 ``）覆盖。

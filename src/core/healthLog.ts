@@ -23,6 +23,7 @@ export interface PlayResultInput {
   code?: string
   latencyMs?: number
   sourceId?: string
+  sampleWeight?: number
 }
 
 export interface HealthLogEntry {
@@ -35,12 +36,17 @@ export interface HealthLogEntry {
   ok?: boolean
   code?: string
   latencyMs?: number
+  sampleWeight?: number
   sourceEvents?: unknown[]
 }
 
 const DAY = 24 * 60 * 60 * 1000
 export const HEALTH_FILE_MAX_BYTES = 2 * 1024 * 1024
 export const HEALTH_KEEP_DAYS = 7
+// 成功按 1/20 采样落盘；聚合时用 20 作为权重，估算未采样成功量（对齐 OTel adjusted count）。
+export const SUCCESS_SAMPLE_RATE = 20
+// 报告读取上限：约覆盖 7 天中等流量；超过时报告标 truncated，不把截断数据叫 7 天。
+export const REPORT_EVENT_LIMIT = 20000
 const HEALTH_FILE_RE = /^source_health_(\d{8})\.jsonl$/
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -89,6 +95,7 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   if (input.sourceId) entry.sourceId = String(input.sourceId)
   if (input.code) entry.code = String(input.code)
   if (Number.isFinite(input.latencyMs)) entry.latencyMs = Math.round(Number(input.latencyMs))
+  if (Number.isFinite(input.sampleWeight) && Number(input.sampleWeight) > 0) entry.sampleWeight = Number(input.sampleWeight)
   return entry
 }
 
@@ -234,8 +241,9 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
 }
 
 export const recordPlayResult = async(input: PlayResultInput): Promise<void> => {
+  // 失败 100% 落盘；成功只落 1/20，但落盘时带权重 20，聚合端才能还原真实成功率。
   if (input.ok && !shouldSampleSuccess()) return
-  const entry = buildPlayResultEntry(input)
+  const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
   await appendHealthEvent(entry)
   if (!input.ok && input.traceId) {
     const sourceEvents = await fetchSourceEvents(String(input.traceId))

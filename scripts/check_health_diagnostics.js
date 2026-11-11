@@ -273,6 +273,134 @@ check('H10 App 预加载脚本放行并透传 healthEvents', () => {
   assert(read('src/core/init/userApi/index.ts').includes("case 'healthEvents'"), 'userApi 缺少 healthEvents case')
 })
 
+check('H11 成功采样加权：真实 95% 不得报成 48.7%', () => {
+  const weighted = []
+  for (let i = 0; i < 475; i++) {
+    weighted.push({ traceId: `w-ok-${i}`, event: 'source_result', sourceId: 'wSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 300, ts: NOW - 5 * MIN, sampleWeight: 20 })
+  }
+  for (let i = 0; i < 500; i++) {
+    weighted.push({ traceId: `w-fail-${i}`, event: 'source_result', sourceId: 'wSrc', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 300, ts: NOW - 5 * MIN })
+  }
+  const agg = diag.aggregateHealthEvents(weighted, NOW)
+  assert(agg.windows.h1.total === 10000, `加权 total 应为 10000，实际 ${agg.windows.h1.total}`)
+  assert(Math.abs(agg.windows.h1.successRate - 0.95) < 0.01, `加权成功率应约 95%，实际 ${agg.windows.h1.successRate}`)
+})
+
+check('H12 失败归因 sourceId：同源 3 败 + 快照 90% 必报 local_zero', () => {
+  const attrEvents = [
+    { traceId: 'a1', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 1 * HOUR },
+    { traceId: 'a2', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 2 * HOUR },
+    { traceId: 'a3', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 3 * HOUR },
+  ]
+  const findings = diag.detectHealthAnomalies({ events: attrEvents, snapshot: { kuwoOfficial: { successRate: 0.9, healthScore: 4 } }, now: NOW })
+  assert(findings.some(f => f.id === 'local_zero_snapshot_healthy'), '带 sourceId 的同源 3 败未触发 local_zero')
+})
+
+check('H13 归因不足不误判：无 sourceId 的旧事件不得冒充快照源', () => {
+  const oldEvents = [
+    { traceId: 'o1', event: 'play_result', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 1 * HOUR },
+    { traceId: 'o2', event: 'play_result', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 2 * HOUR },
+    { traceId: 'o3', event: 'play_result', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 3 * HOUR },
+  ]
+  const findings = diag.detectHealthAnomalies({ events: oldEvents, snapshot: { kuwoOfficial: { successRate: 0.9, healthScore: 4 } }, now: NOW })
+  assert(!findings.some(f => f.id === 'local_zero_snapshot_healthy'), '无 sourceId 的旧事件被误判成 kuwoOfficial 0%')
+})
+
+check('H14 窗口覆盖：只覆盖 2h 时 d7.covered 必须为 false', () => {
+  const shortEvents = [
+    { traceId: 'c1', event: 'source_result', sourceId: 'cSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 100, ts: NOW - 1 * HOUR },
+    { traceId: 'c2', event: 'source_result', sourceId: 'cSrc', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 100, ts: NOW - 2 * HOUR },
+  ]
+  const report = diag.buildHealthReport({ events: shortEvents, now: NOW })
+  assert(report.coverage && report.coverage.eventCount === 2, `报告缺 coverage/事件数，实际 ${JSON.stringify(report.coverage)}`)
+  assert(report.windows.h1.covered === true, 'h1 应标记 covered=true')
+  assert(report.windows.d7.covered === false, 'd7 仅覆盖 2h 却标记 covered=true')
+})
+
+check('H15 失败落盘必须带 sourceId 提取', () => {
+  const src = read('src/core/music/online.ts')
+  const catchBlock = src.slice(src.indexOf('const codeMatch'), src.indexOf('log.diagnose(`[播放诊断] 链接获取失败'))
+  assert(/sourceId\s*:/.test(catchBlock), '失败 recordPlayResult 未写入 sourceId，归因只能退回 platform')
+})
+
+check('H16 按源拆分 + 证据包 attempts 展开', () => {
+  const srcEvents = [
+    { traceId: 'b1', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: true, latencyMs: 100, ts: NOW - 10 * MIN, sampleWeight: 20 },
+    { traceId: 'b2', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: true, latencyMs: 100, ts: NOW - 10 * MIN, sampleWeight: 20 },
+    { traceId: 'b3', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 100, ts: NOW - 10 * MIN },
+    { traceId: 'b3', event: 'source_events', sourceEvents: [{ source: 'kuwoOfficial', ok: false, code: 'SERVER_ERROR', latencyMs: 100 }], ts: NOW - 10 * MIN },
+  ]
+  const report = diag.buildHealthReport({ events: srcEvents, now: NOW })
+  const row = report.breakdown.find(r => r.sourceKey === 'kuwoOfficial')
+  assert(row && row.total === 41 && row.failed === 1, `按源拆分错误：${JSON.stringify(row)}`)
+  const pkg = diag.buildEvidencePackage({ report, events: srcEvents, snapshot: {}, logTail: '', appVersion: '1.9.2-b100' })
+  assert(pkg.attempts.length === 1 && pkg.attempts[0].sourceId === 'kuwoOfficial' && pkg.attempts[0].code === 'SERVER_ERROR', '证据包 attempts 未展开 source_events')
+  assert(pkg.appVersion === '1.9.2-b100', '证据包缺 appVersion')
+})
+
+
+check('H17 趋势判断同样加权：真实 95%→95% 不得因采样比例误报下跌', () => {
+  const trendEvents = []
+  for (let i = 0; i < 100; i++) {
+    trendEvents.push({ traceId: `p-ok-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 200, ts: NOW - 30 * HOUR })
+  }
+  for (let i = 0; i < 475; i++) {
+    trendEvents.push({ traceId: `r-ok-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: true, latencyMs: 200, ts: NOW - 2 * HOUR, sampleWeight: 20 })
+  }
+  for (let i = 0; i < 500; i++) {
+    trendEvents.push({ traceId: `r-fail-${i}`, event: 'source_result', sourceId: 'sSrc', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 200, ts: NOW - 2 * HOUR })
+  }
+  const findings = diag.detectHealthAnomalies({ events: trendEvents, now: NOW })
+  assert(!findings.some(f => f.id === 'rate_drop' && f.title.includes('sSrc')), '加权后同为约 95%，却按原始条数误报成功率下跌')
+})
+
+
+check('H18 证据包带内置音源版本，便于复现“哪个源版本出的问题”', () => {
+  const report = diag.buildHealthReport({ events: [], now: NOW })
+  const pkg = diag.buildEvidencePackage({ report, events: [], snapshot: {}, logTail: '', appVersion: '1.9.2-b100', sourceVersion: '8.12.1' })
+  assert(pkg.sourceVersion === '8.12.1', `证据包缺 sourceVersion，实际 ${JSON.stringify(pkg.sourceVersion)}`)
+})
+
+
+check('H19 异常条目带可展开样本（时间/源/错误码/耗时/traceId）', () => {
+  const samples = [
+    { traceId: 'x1', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 880, ts: NOW - 1 * HOUR },
+    { traceId: 'x2', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 900, ts: NOW - 2 * HOUR },
+    { traceId: 'x3', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 910, ts: NOW - 3 * HOUR },
+  ]
+  const findings = diag.detectHealthAnomalies({ events: samples, snapshot: { kuwoOfficial: { successRate: 0.9 } }, now: NOW })
+  const f = findings.find(x => x.id === 'local_zero_snapshot_healthy')
+  assert(f && Array.isArray(f.samples) && f.samples.length === 3, '异常条目缺少可展开样本')
+  const s0 = f.samples[0]
+  assert(s0.traceId === 'x1' && s0.source === 'kuwoOfficial' && s0.code === 'NETWORK_ERROR' && s0.latencyMs === 880 && s0.ts === NOW - 1 * HOUR, `样本字段不全：${JSON.stringify(s0)}`)
+})
+
+
+check('H20 快照趋势连续下降生成独立 finding', () => {
+  const trend = [0, 1, 2, 3].map(i => ({
+    timestamp: NOW - (3 - i) * HOUR,
+    sources: { kuwoOfficial: { score: 8 - i, successRate: [0.9, 0.8, 0.65, 0.45][i] } },
+  }))
+  const findings = diag.detectHealthAnomalies({ events: [], trend, now: NOW })
+  const f = findings.find(x => x.id === 'trend_decline')
+  assert(f, '趋势连续下降未生成 finding')
+  assert(f.title.includes('45pp'), `下降幅度文案不对：${f.title}`)
+  assert(f.evidence.includes('90%') && f.evidence.includes('45%'), `趋势证据不全：${f.evidence}`)
+})
+
+check('H21 快照趋势上升/抖动不得误报下降', () => {
+  const up = [0, 1, 2, 3].map(i => ({
+    timestamp: NOW - (3 - i) * HOUR,
+    sources: { kuwoOfficial: { score: 5 + i, successRate: [0.45, 0.6, 0.8, 0.9][i] } },
+  }))
+  const bounce = [0, 1, 2, 3].map(i => ({
+    timestamp: NOW - (3 - i) * HOUR,
+    sources: { kuwoOfficial: { score: 8, successRate: [0.9, 0.75, 0.8, 0.4][i] } },
+  }))
+  assert(!diag.detectHealthAnomalies({ events: [], trend: up, now: NOW }).some(x => x.id === 'trend_decline'), '上升趋势被误报为下降')
+  assert(!diag.detectHealthAnomalies({ events: [], trend: bounce, now: NOW }).some(x => x.id === 'trend_decline'), '非连续下降被误报')
+})
+
 console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
 if (failures.length) {
   console.log('失败项：')

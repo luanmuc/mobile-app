@@ -20,6 +20,8 @@ export interface HealthEventLike {
   code?: string
   latencyMs?: number
   reason?: string
+  sampleWeight?: number
+  sourceEvents?: unknown[]
 }
 
 export interface HealthWindowStats {
@@ -28,6 +30,7 @@ export interface HealthWindowStats {
   failed: number
   successRate: number | null
   p95: number | null
+  covered: boolean
 }
 
 export interface HealthWindows {
@@ -39,6 +42,32 @@ export interface HealthWindows {
 export interface HealthAggregate {
   windows: HealthWindows
   topCodes: Array<{ code: string, count: number }>
+  breakdown: HealthBreakdownRow[]
+}
+
+export interface HealthBreakdownRow {
+  sourceKey: string
+  platform: string
+  quality: string
+  total: number
+  failed: number
+  successRate: number | null
+}
+
+export interface HealthCoverage {
+  eventCount: number
+  oldestTs: number | null
+  newestTs: number | null
+  coveredMs: number
+  truncated: boolean
+}
+
+export interface HealthFindingSample {
+  traceId?: string
+  ts: number
+  source: string
+  code?: string
+  latencyMs?: number
 }
 
 export interface HealthFinding {
@@ -49,6 +78,12 @@ export interface HealthFinding {
   evidence: string
   suggestion: string
   traceIds: string[]
+  samples?: HealthFindingSample[]
+}
+
+export interface HealthTrendPoint {
+  timestamp: number
+  sources: Record<string, { score?: number | null, successRate?: number | null }>
 }
 
 export type HealthSnapshotLike = Record<string, {
@@ -63,6 +98,8 @@ export interface HealthReport {
   generatedAt: number
   summary: string
   windows: HealthWindows
+  coverage: HealthCoverage
+  breakdown: HealthBreakdownRow[]
   findings: HealthFinding[]
   recommendations: string[]
   traceIds: string[]
@@ -73,6 +110,9 @@ export interface HealthEvidencePackage {
   generatedAt: number
   report: HealthReport
   events: HealthEventLike[]
+  attempts: Array<{ traceId?: string, sourceId?: string, ok?: boolean, code?: string, latencyMs?: number }>
+  appVersion?: string
+  sourceVersion?: string
   snapshot: HealthSnapshotLike
   trend: unknown[]
   logTail: string
@@ -92,9 +132,15 @@ const p95 = (values: number[]): number | null => {
   return Math.round(sorted[idx])
 }
 
-const statsOf = (list: HealthEventLike[]): HealthWindowStats => {
-  const total = list.length
-  const ok = list.filter(e => e.ok === true).length
+// 成功按 1/20 采样落盘，落盘时带 sampleWeight=20；历史事件没有权重，按 1 处理。
+const weightOf = (e: HealthEventLike): number => {
+  const w = Number(e.sampleWeight)
+  return Number.isFinite(w) && w > 0 ? w : 1
+}
+
+const statsOf = (list: HealthEventLike[], covered: boolean): HealthWindowStats => {
+  const total = Math.round(list.reduce((sum, e) => sum + weightOf(e), 0))
+  const ok = Math.round(list.filter(e => e.ok === true).reduce((sum, e) => sum + weightOf(e), 0))
   const failed = total - ok
   const latencies = list.map(e => Number(e.latencyMs)).filter(n => Number.isFinite(n) && n >= 0)
   return {
@@ -103,16 +149,27 @@ const statsOf = (list: HealthEventLike[]): HealthWindowStats => {
     failed,
     successRate: total ? ok / total : null,
     p95: p95(latencies),
+    covered,
   }
+}
+
+const coversWindow = (list: HealthEventLike[], now: number, ms: number): boolean => {
+  if (!list.length) return false
+  const oldest = Math.min(...list.map(e => e.ts))
+  return oldest <= now - ms
 }
 
 export const aggregateHealthEvents = (events: HealthEventLike[], now: number = Date.now()): HealthAggregate => {
   const safe = (Array.isArray(events) ? events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
   const outcomes = safe.filter(isOutcome)
+  const windowOf = (ms: number) => {
+    const list = outcomes.filter(e => inWindow(e, now, ms))
+    return statsOf(list, coversWindow(outcomes, now, ms))
+  }
   const windows: HealthWindows = {
-    h1: statsOf(outcomes.filter(e => inWindow(e, now, HOUR))),
-    h24: statsOf(outcomes.filter(e => inWindow(e, now, DAY))),
-    d7: statsOf(outcomes.filter(e => inWindow(e, now, 7 * DAY))),
+    h1: windowOf(HOUR),
+    h24: windowOf(DAY),
+    d7: windowOf(7 * DAY),
   }
   const counts = new Map<string, number>()
   for (const e of outcomes) {
@@ -122,7 +179,26 @@ export const aggregateHealthEvents = (events: HealthEventLike[], now: number = D
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 8)
     .map(([code, count]) => ({ code, count }))
-  return { windows, topCodes }
+  const groups = new Map<string, { sourceKey: string, platform: string, quality: string, total: number, ok: number }>()
+  for (const e of outcomes) {
+    const sourceKey = sourceOf(e)
+    const platform = e.platform ? String(e.platform) : ''
+    const quality = e.quality ? String(e.quality) : ''
+    const key = `${sourceKey}|${platform}|${quality}`
+    const row = groups.get(key) ?? { sourceKey, platform, quality, total: 0, ok: 0 }
+    row.total += weightOf(e)
+    if (e.ok === true) row.ok += weightOf(e)
+    groups.set(key, row)
+  }
+  const breakdown: HealthBreakdownRow[] = Array.from(groups.values())
+    .map(row => {
+      const total = Math.round(row.total)
+      const ok = Math.round(row.ok)
+      return { sourceKey: row.sourceKey, platform: row.platform, quality: row.quality, total, failed: total - ok, successRate: total ? ok / total : null }
+    })
+    .sort((a, b) => b.total - a.total || a.sourceKey.localeCompare(b.sourceKey))
+    .slice(0, 10)
+  return { windows, topCodes, breakdown }
 }
 
 const sourceOf = (e: HealthEventLike) => {
@@ -132,10 +208,18 @@ const sourceOf = (e: HealthEventLike) => {
 }
 const pct = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n * 100)}%`)
 const trimTrace = (ids: string[]) => Array.from(new Set(ids.filter(Boolean))).slice(0, 6)
+const samplesOf = (list: HealthEventLike[], limit = 5): HealthFindingSample[] => list.slice(0, limit).map(e => ({
+  traceId: e.traceId != null ? String(e.traceId) : undefined,
+  ts: e.ts,
+  source: sourceOf(e),
+  code: e.code != null ? String(e.code) : undefined,
+  latencyMs: Number.isFinite(Number(e.latencyMs)) ? Math.round(Number(e.latencyMs)) : undefined,
+}))
 
 export const detectHealthAnomalies = (input: {
   events: HealthEventLike[]
   snapshot?: HealthSnapshotLike
+  trend?: HealthTrendPoint[]
   now?: number
 }): HealthFinding[] => {
   const now = input.now ?? Date.now()
@@ -157,6 +241,7 @@ export const detectHealthAnomalies = (input: {
         evidence: `近 24h 本地 0/${recent.length}，音源快照成功率 ${pct(snapRate)}`,
         suggestion: '先看同 traceId 的 source_attempt/source_skip，确认是取链失败还是被熔断/限速跳过；不要直接关闭音源。',
         traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
+        samples: samplesOf(recent.filter(e => e.ok === false)),
       })
     }
   }
@@ -168,17 +253,22 @@ export const detectHealthAnomalies = (input: {
     const recent = outcomes.filter(e => sourceOf(e) === sourceId && inWindow(e, now, DAY))
     const prev = outcomes.filter(e => sourceOf(e) === sourceId && e.ts <= now - DAY && e.ts > now - 2 * DAY)
     if (recent.length >= 5 && prev.length >= 5) {
-      const recentRate = recent.filter(e => e.ok === true).length / recent.length
-      const prevRate = prev.filter(e => e.ok === true).length / prev.length
+      // 与窗口统计同一口径：成功样本按 1/20 采样，必须用 sampleWeight 还原，
+      // 否则采样比例变化会被误读成成功率变化。
+      const recentStats = statsOf(recent, true)
+      const prevStats = statsOf(prev, true)
+      const recentRate = recentStats.successRate ?? 0
+      const prevRate = prevStats.successRate ?? 0
       if (prevRate - recentRate >= 0.2) {
         findings.push({
           id: 'rate_drop',
           level: 'warn',
           title: `${sourceId} 成功率下跌 ${Math.round((prevRate - recentRate) * 100)}pp`,
           detail: '近 24h 与前 24h 对比出现明显下滑。',
-          evidence: `前 24h ${pct(prevRate)}（${prev.length} 次）→ 近 24h ${pct(recentRate)}（${recent.length} 次）`,
+          evidence: `前 24h ${pct(prevRate)}（约 ${prevStats.total} 次）→ 近 24h ${pct(recentRate)}（约 ${recentStats.total} 次）`,
           suggestion: '看近期失败码是否集中在同一类；若伴随 P95 翻倍，优先怀疑上游变慢或风控。',
           traceIds: trimTrace(recent.filter(e => e.ok === false).map(e => String(e.traceId ?? ''))),
+          samples: samplesOf(recent.filter(e => e.ok === false)),
         })
       }
     }
@@ -200,6 +290,7 @@ export const detectHealthAnomalies = (input: {
           evidence: `P95 ${prevP95}ms → ${recentP95}ms（${Math.round(recentP95 / prevP95)} 倍）`,
           suggestion: '结合 source_result 的 latencyMs 分布看是否某一子源拖尾；必要时在音源配置里降低该源并发或缩短预算。',
           traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
+          samples: samplesOf(recent),
         })
       }
     }
@@ -223,6 +314,7 @@ export const detectHealthAnomalies = (input: {
       evidence: `近 24h ${hit.length} 次 ${code}，前 7d 未见`,
       suggestion: '把该错误码与同 traceId 的事件一起看；若是持续出现，再考虑临时降权该源。',
       traceIds: trimTrace(hit.map(e => String(e.traceId ?? ''))),
+      samples: samplesOf(hit),
     })
   }
 
@@ -244,25 +336,77 @@ export const detectHealthAnomalies = (input: {
       evidence: `涉及 ${Array.from(new Set(list.map(sourceOf))).join('、')}`,
       suggestion: '点开对应 traceId 看第几次尝试、哪一步失败；若集中在同一源再考虑换源。',
       traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
+      samples: samplesOf(list),
     })
+  }
+
+  // 6) 快照趋势连续下降：本地事件可能还不够多，先用音源自带趋势兜住
+  if (Array.isArray(input.trend) && input.trend.length >= 4) {
+    const points = input.trend
+      .filter(p => p && typeof p.timestamp === 'number' && p.sources)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-4)
+    const ids = Array.from(new Set(points.flatMap(p => Object.keys(p.sources ?? {}))))
+    for (const sourceId of ids) {
+      const series = points.map(p => p.sources?.[sourceId]?.successRate)
+      if (series.some(v => typeof v !== 'number' || !Number.isFinite(v))) continue
+      const nums = series as number[]
+      const declining = nums.every((v, i) => i === 0 || v < nums[i - 1])
+      const drop = nums[0] - nums[nums.length - 1]
+      if (!declining || drop < 0.15) continue
+      const local = outcomes.filter(e => sourceOf(e) === sourceId && inWindow(e, now, DAY))
+      findings.push({
+        id: 'trend_decline',
+        level: drop >= 0.2 ? 'warn' : 'info',
+        title: `${sourceId} 成功率连续下降 ${Math.round(drop * 100)}pp`,
+        detail: '最近 4 次音源快照的成功率逐次下降，可能是上游变慢/风控或本地网络变化。',
+        evidence: `最近 4 次探测：${nums.map(v => pct(v)).join(' → ')}`,
+        suggestion: '结合近 24h 本地日志与失败码确认；单看一次探测不下结论，也不要直接关闭音源。',
+        traceIds: trimTrace(local.map(e => String(e.traceId ?? ''))),
+        samples: samplesOf(local.filter(e => e.ok === false)),
+      })
+    }
   }
 
   return findings.slice(0, 12)
 }
 
+const spanText = (ms: number): string => {
+  if (!Number.isFinite(ms) || ms <= 0) return '0 小时'
+  if (ms < HOUR) return `${Math.max(1, Math.round(ms / 60000))} 分钟`
+  if (ms < DAY) return `${Math.round(ms / HOUR)} 小时`
+  return `${Math.round(ms / DAY)} 天`
+}
+
 export const buildHealthReport = (input: {
   events: HealthEventLike[]
   snapshot?: HealthSnapshotLike
+  trend?: HealthTrendPoint[]
   now?: number
+  truncated?: boolean
 }): HealthReport => {
   const now = input.now ?? Date.now()
-  const agg = aggregateHealthEvents(input.events || [], now)
-  const findings = detectHealthAnomalies({ events: input.events || [], snapshot: input.snapshot, now })
+  const safe = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
+  const agg = aggregateHealthEvents(safe, now)
+  const findings = detectHealthAnomalies({ events: safe, snapshot: input.snapshot, trend: input.trend, now })
+  const timestamps = safe.map(e => e.ts)
+  const oldestTs = timestamps.length ? Math.min(...timestamps) : null
+  const newestTs = timestamps.length ? Math.max(...timestamps) : null
+  const coverage: HealthCoverage = {
+    eventCount: safe.length,
+    oldestTs,
+    newestTs,
+    coveredMs: oldestTs != null && newestTs != null ? Math.max(0, newestTs - oldestTs) : 0,
+    truncated: Boolean(input.truncated),
+  }
   const h1 = agg.windows.h1
   const h24 = agg.windows.h24
+  const coverageNote = agg.windows.d7.covered
+    ? ''
+    : ` 本地日志仅覆盖最近 ${spanText(coverage.coveredMs)}，7 天结论仅供参考。`
   const summary = h24.total
-    ? `近 1 小时取链 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；发现 ${findings.length} 项异常/线索。`
-    : '近 24 小时还没有本地取链记录。先播放几首歌，或到音源健康页点一次探测，再回来导出。'
+    ? `近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；成功按 1/20 采样加权，数值为估算。发现 ${findings.length} 项异常/线索。${coverageNote}`
+    : `近 24 小时还没有本地取链记录。先播放几首歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
   const traceIds = trimTrace(findings.flatMap(f => f.traceIds))
   const recommendations = Array.from(new Set(findings.map(f => f.suggestion).filter(Boolean))).slice(0, 6)
   return {
@@ -270,6 +414,8 @@ export const buildHealthReport = (input: {
     generatedAt: now,
     summary,
     windows: agg.windows,
+    coverage,
+    breakdown: agg.breakdown,
     findings,
     recommendations,
     traceIds,
@@ -292,13 +438,36 @@ export const buildEvidencePackage = (input: {
   snapshot?: HealthSnapshotLike
   trend?: unknown[]
   logTail?: string
+  appVersion?: string
+  sourceVersion?: string
 }): HealthEvidencePackage => {
   const report = input.report
+  const events = (Array.isArray(input.events) ? input.events : []).map(e => ({ ...e }))
+  const attempts: HealthEvidencePackage['attempts'] = []
+  for (const e of events) {
+    if (attempts.length >= 50) break
+    if (e.event !== 'source_events' || !Array.isArray(e.sourceEvents)) continue
+    for (const raw of e.sourceEvents) {
+      if (attempts.length >= 50) break
+      if (!raw || typeof raw !== 'object') continue
+      const row = raw as { source?: unknown, sourceId?: unknown, ok?: unknown, code?: unknown, latencyMs?: unknown }
+      attempts.push({
+        traceId: e.traceId,
+        sourceId: row.sourceId != null ? String(row.sourceId) : row.source != null ? String(row.source) : undefined,
+        ok: typeof row.ok === 'boolean' ? row.ok : undefined,
+        code: row.code != null ? String(row.code) : undefined,
+        latencyMs: Number.isFinite(Number(row.latencyMs)) ? Math.round(Number(row.latencyMs)) : undefined,
+      })
+    }
+  }
   return {
     schema: 1,
     generatedAt: report?.generatedAt ?? Date.now(),
     report,
-    events: (Array.isArray(input.events) ? input.events : []).map(e => ({ ...e })),
+    events,
+    attempts,
+    ...(input.appVersion ? { appVersion: String(input.appVersion) } : {}),
+    ...(input.sourceVersion ? { sourceVersion: String(input.sourceVersion) } : {}),
     snapshot: input.snapshot ?? {},
     trend: Array.isArray(input.trend) ? input.trend : [],
     logTail: redactDiagnosticText(input.logTail ?? ''),

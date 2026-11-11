@@ -818,6 +818,8 @@
   "health_recent_anomaly": "Recent anomalies (local)",
   "health_anomaly_suggestion": "Suggestion",
   "health_export_done": "Diagnostics package created",
+  "health_copy_report": "Copy diagnostic summary",
+  "health_copy_done": "Diagnostic summary copied",
   "health_export_failed": "Export failed",
   "health_platform_degraded": "⚠ {platforms} platform degraded",
   "health_platform_fallback": "Falling back to {platform}",

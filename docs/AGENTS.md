@@ -34,12 +34,12 @@ node scripts/check_ts_syntax.js
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
 node scripts/check_source_platform_label.js
 
-# 音源健康本地诊断契约（22 条，含预加载 action 白名单）
+# 音源健康本地诊断契约（33 条，含预加载 action 白名单）
 node scripts/check_health_diagnostics.js
 # 音源健康本地诊断压力（10000 条聚合/5MB 日志/脏行容错/异常依赖不抛）
 node scripts/check_health_diagnostics_stress.js
 
-# 门禁归属：契约 22 条在 release.yml 构建前阻塞；压力 12 条在 health-stress.yml（每周/手动）
+# 门禁归属：契约 33 条在 release.yml 构建前阻塞；压力 14 条在 health-stress.yml（每周/手动）
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
@@ -48,6 +48,15 @@ node scripts/docs-audit.js
 # 提交 + 推送（push 即触发云编译发版 v1.9.2-bN；push 前必须先 fetch 检查远端，见协作规则第 8 条）
 git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push origin master
 ```
+
+## 本地诊断报告口径（`healthDiagnostics.ts`）
+
+- **成功采样加权**：失败 100% 落盘（`sampleWeight=1`）；成功只落 1/20（`sampleWeight=20`）。窗口 `total/ok/failed/successRate` 一律按权重重算，`p95` 仍用原始延迟样本；历史无权重事件按 1 计。异常规则里的前后 24h 成功率也必须用同一加权口径，禁止直接拿落盘条数相除。
+- **窗口覆盖 `covered`**：由**全量 outcomes 的最早时间戳**判定（`coversWindow(outcomes, now, ms)`），不是窗口内样本；`coverage` 额外给出事件数、首末时间、`coveredMs`、`truncated`。7 天未被覆盖时摘要必须写“本地日志仅覆盖最近 X，7 天结论仅供参考”。
+- **按源拆分 `breakdown`**：按 `sourceKey|platform|quality` 加权聚合，按 `total` 降序截 10 行，用于回答“是哪个源/平台/音质坏了”，不再让 `platform` 单键把同源拆成两个身份。
+- **证据包**：`attempts` 把 `source_events` 展开为 `traceId/sourceId/ok/code/latencyMs`（上限 50 条）；并带 `appVersion`、`sourceVersion`；`trend/logTail` 保留但日志尾部经 `redactDiagnosticText` 脱敏。
+- **异常条目**：除 `traceIds` 外提供 `samples`（时间/源/错误码/耗时/traceId，最多 5 条），UI 点标题展开；分享不可用时回退复制摘要。快照趋势最近 4 次连续下降且累计 ≥15pp 时生成独立 `trend_decline`，不替代本地 `rate_drop`。
+
 
 ## 版本推进协议（任一账号说「发布」即按此执行）
 
@@ -87,7 +96,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（519 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（22 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（519 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（33 条）。
 
 ### 任务类型分流
 
