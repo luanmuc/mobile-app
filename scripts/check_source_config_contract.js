@@ -77,10 +77,10 @@ const CFG = () => loadTs('src/core/sourceConfig.ts')
 
 section('contract', () => {
   const c = CFG()
-  run('28 个数字键 + 8 个布尔键', () => {
+  run('28 个数字键 + 9 个布尔键', () => {
     assert.strictEqual(c.NUMERIC_CONFIG_KEYS.length, 28)
-    assert.strictEqual(c.BOOL_CONFIG_KEYS.length, 8)
-    assert.strictEqual(c.SOURCE_CONFIG_KEYS.length, 36)
+    assert.strictEqual(c.BOOL_CONFIG_KEYS.length, 9)
+    assert.strictEqual(c.SOURCE_CONFIG_KEYS.length, 37)
   })
   run('所有数字键都有单位配置和下上限', () => {
     for (const key of c.NUMERIC_CONFIG_KEYS) {
@@ -88,7 +88,7 @@ section('contract', () => {
       assert(c.PARAM_LIMITS[key], `缺少 PARAM_LIMITS: ${key}`)
     }
   })
-  run('启动注入接受完整 36 键', () => {
+  run('启动注入接受完整 37 键', () => {
     const input = {}
     for (const key of c.NUMERIC_CONFIG_KEYS) {
       const spec = c.CONFIG_UNIT_CONFIG[key]
@@ -214,9 +214,9 @@ section('validation', () => {
     for (const key of c.NUMERIC_CONFIG_KEYS) inputs[key] = String(c.CONFIG_UNIT_CONFIG[key].default)
     return inputs
   }
-  run('全部合法时 36 项更新 0 错误', () => {
+  run('全部合法时 37 项更新 0 错误', () => {
     const r = c.buildConfigUpdates(makeData(), makeInputs(), { ...c.BOOL_CONFIG_DEFAULT })
-    assert.strictEqual(Object.keys(r.updates).length, 36)
+    assert.strictEqual(Object.keys(r.updates).length, 37)
     assert.strictEqual(Object.keys(r.errors).length, 0)
   })
   run('超上限报 above-max 且整次不提交', () => {
@@ -281,7 +281,7 @@ section('i18n', () => {
       'health_sum_removed', 'health_sum_rate',
     ]) assert(sets[0].has(k), `缺 ${k}`)
   })
-  run('36 个配置名/说明/8 个单位三语言齐全', () => {
+  run('37 个配置名/说明/8 个单位三语言齐全', () => {
     const c = CFG()
     const langs = ['zh-cn', 'zh-tw', 'en-us']
     const ds = langs.map(l => JSON.parse(read(`src/lang/${l}.json`)))

@@ -1,5 +1,5 @@
 /**
- * 音源配置契约（与 lx-source.js v8.11.7 config 写模式对齐）。
+ * 音源配置契约（与 lx-source.js v8.12.1 config 写模式对齐）。
  *
  * 这里是 App 侧唯一的一份配置键表 / 默认值 / 上下限 / 预设 / 注入过滤 / 保存校验。
  * 新增音源配置键时只改本文件，Health 面板与启动注入都从这里读，避免再次出现
@@ -61,7 +61,7 @@ export const NUMERIC_CONFIG_KEYS = [
   'memoryMapMax',
 ] as const
 
-/** 音源 v8.11.7 ALLOWED_BOOL_KEYS：8 个布尔键 */
+/** 音源 v8.12.1 ALLOWED_BOOL_KEYS：9 个布尔键 */
 export const BOOL_CONFIG_KEYS = [
   'verifyDelivery',
   'truthfulQuality',
@@ -71,6 +71,7 @@ export const BOOL_CONFIG_KEYS = [
   'fragmentFallback',
   'qualityShortCircuit',
   'coldStartWarmEnabled',
+  'crossPlatformEnabled',
 ] as const
 
 export const SOURCE_CONFIG_KEYS = [...NUMERIC_CONFIG_KEYS, ...BOOL_CONFIG_KEYS] as const
@@ -166,6 +167,7 @@ export const BOOL_CONFIG_DEFAULT: Record<string, boolean> = {
   fragmentFallback: true,
   qualityShortCircuit: true,
   coldStartWarmEnabled: true,
+  crossPlatformEnabled: true,
 }
 
 const withinLimits = (key: string, value: number) => {

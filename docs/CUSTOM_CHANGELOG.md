@@ -1,6 +1,18 @@
+## [音源 v8.12.1 配置面板与缓存失效] - 2026-11-11
+
+> 配套音源仓 v8.12.1：健康面板新增跨平台兜底总开关；关闭/开启子源时同步清跨平台缓存，避免「关了还出旧源」。
+
+### 配置契约
+- `src/core/sourceConfig.ts`：`BOOL_CONFIG_KEYS` 8→9，新增 `crossPlatformEnabled`，默认 `true`；文件头版本对齐 v8.12.1
+- 三语各新增 `health_cfg_label_crossPlatformEnabled` / `health_cfg_desc_crossPlatformEnabled`，872→874 键
+- `scripts/check_source_config_contract.js`：8→9 布尔、36→37 总键、36→37 合法更新、i18n 36→37
+
+### 验证
+- `check_source_config_contract.js` 24/0；`check_ts_syntax.js` 519 文件 0 错误；`check_source_platform_label.js` 9/9
+
 ## [播放页音源标签显示实际平台] - 2026-11-11
 
-> 背景：音源仓 v8.12.0 跨平台兜底后，`musicUrl` 已返回 `sourcePlatform`，但 App 全链路只认 `subSource/subSourceName`；`kw` 回退到 `tx` 时仍显示「酷我音乐 · Juhe聚合(tx)」。本轮对齐实际交付平台，本地改动，不 commit、不 push、不升版本。
+> 背景：音源仓 v8.12.0 跨平台兜底后，`musicUrl` 已返回 `sourcePlatform`，但 App 全链路只认 `subSource/subSourceName`；`kw` 回退到 `tx` 时仍显示「酷我音乐 · Juhe聚合(tx)」。本轮对齐实际交付平台，已本地提交（未 push、未升 App 版本）。
 
 ### 透传链路（preload → userApi → utils → online → UI）
 - `user-api-preload.js`：`musicUrl` 解析新增 `sourcePlatform`（字符串、截 16 字符、缺省空串），随 `data` 返回；旧音源无字段不受影响
