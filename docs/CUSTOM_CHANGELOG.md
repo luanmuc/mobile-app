@@ -7,6 +7,8 @@
 - `scripts/check_source_contract.js`：新增 P1-A1~A4，契约 9 → 13 条；首跑 RED 9/4，GREEN 13/0。
 - 源仓 `lx-source.js`：`sourceConfig[platform]` 5 个平台声明 `fallbackOwner:"source"`，聚合源版本 8.12.1 → 8.12.2；新增 `test/audit/w-fallback-owner.js`（RED 1/2 → GREEN 2/2）。
 - 边界：P1 第一刀只做 owner 能力与 URL 换源 gate；预算切片、`attempts[]`、首成功取消、`BUDGET_EXHAUSTED` 留到 P1 第二刀；lyric/pic/local 路径未加 owner gate。
+- 验证：App 契约 13/0、健康 41/0、`tsc` 0、全量 eslint 0、配置 24/0、标签 9/9、视图 22/0、日志 13/0、语法 521/0、docs-audit rc=0；源仓 W 2/2、U 10/10、V 13/13、self-check 8.12.2 通过。
+- 发布：源仓 `2905a77`（v8.12.2）→ App `b09115c6` → CI `43115586478` Android/Release success（日志确认内置 `@version 8.12.2`）→ `v1.9.2-b107`（release id `442281635`，5 APK uploaded）。
 
 ## [P0 音源契约统一（Source Contract v2）] - 2026-11-12
 
