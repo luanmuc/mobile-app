@@ -64,6 +64,11 @@ jobs:
       - name: Setup Env
         uses: ./.github/actions/setup
 
+      - name: TypeScript 类型检查
+        # 全仓 tsc --noEmit 必须 0 error；语法检查只能发现 parse 错误，类型检查补 TS 类型/接口契约。
+        # 失败即停在构建前，避免带类型错误的 APK 进入 Release。
+        run: node node_modules/typescript/bin/tsc --noEmit
+
       - name: 音源标签/配置/语法契约门禁
         # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 519 个 TS 文件语法。
         # 失败即停在本步，不进入构建与 Release，避免发出标签或配置回退的 APK。

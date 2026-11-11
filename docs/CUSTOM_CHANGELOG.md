@@ -1,3 +1,11 @@
+## [CI 增加全仓 TypeScript 类型检查] - 2026-11-11
+
+> 发版流水线在 `Setup Env` 后新增 `tsc --noEmit` 阻塞步骤；只加门禁，不改业务代码。
+
+- `.github/workflows/release.yml`：新增「TypeScript 类型检查」步骤，命令 `node node_modules/typescript/bin/tsc --noEmit`，与语法检查、配置契约、标签契约、健康诊断契约共同在构建前阻塞
+- `docs/RELEASE_SOP.md`：流水线树与发布前清单补 `tsc --noEmit`；`docs/AGENTS.md`：L0 验证链与发布额外阻塞说明补类型检查
+- 验证：`tsc --noEmit` **0 error**（rc=0）；`check_ts_syntax` 519/0；`check_docs_consistency` 16 文档通过
+
 ## [App 本轮触达文件 tsc / lint 清零] - 2026-11-11
 
 > G 项收尾：只修本轮触达文件的类型与 lint，不改业务行为，不升 App 版本。全仓 `eslint .` 仍有 **684 errors / 3 warnings** 历史债务（本轮未处理，未纳入 CI）；不得表述为“全仓历史 lint 基线清零”。
