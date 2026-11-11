@@ -87,6 +87,8 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞三条只读契约：`check_ts_syntax.js`（519 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）。
+
 ### 任务类型分流
 
 - **依据不足** → 标记「调研/实测」，先取证（读代码/读上游/实测），结论留档后再实现；
