@@ -162,7 +162,7 @@ export const getOnlineOtherSourceMusicUrlByLocal = async(musicInfo: LX.Music.Mus
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
   if (initPromise instanceof Promise) {
-    const initResult = await Promise.race([initPromise, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('音源初始化超时(15s)')), 15_000))])
+    const initResult = await Promise.race([initPromise, new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('音源初始化超时(15s)')) }, 15_000) })])
     if (!initResult) throw new Error('source init failed')
     log.diagnose(`[播放诊断] 音源初始化完成: 结果=${!!initResult}`)
   } else if (!initPromise) {
@@ -194,7 +194,7 @@ export const getOnlineOtherSourceLyricByLocal = async(musicInfo: LX.Music.MusicI
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
   if (initPromise instanceof Promise) {
-    const initResult = await Promise.race([initPromise, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('音源初始化超时(15s)')), 15_000))])
+    const initResult = await Promise.race([initPromise, new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('音源初始化超时(15s)')) }, 15_000) })])
     if (!initResult) throw new Error('source init failed')
     log.diagnose(`[播放诊断] 音源初始化完成: 结果=${!!initResult}`)
   } else if (!initPromise) {
@@ -223,7 +223,7 @@ export const getOnlineOtherSourcePicByLocal = async(musicInfo: LX.Music.MusicInf
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
   if (initPromise instanceof Promise) {
-    const initResult = await Promise.race([initPromise, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('音源初始化超时(15s)')), 15_000))])
+    const initResult = await Promise.race([initPromise, new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('音源初始化超时(15s)')) }, 15_000) })])
     if (!initResult) throw new Error('source init failed')
     log.diagnose(`[播放诊断] 音源初始化完成: 结果=${!!initResult}`)
   } else if (!initPromise) {
@@ -300,7 +300,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
   if (initPromise instanceof Promise) {
-    const initResult = await Promise.race([initPromise, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('音源初始化超时(15s)')), 15_000))])
+    const initResult = await Promise.race([initPromise, new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('音源初始化超时(15s)')) }, 15_000) })])
     if (!initResult) throw new Error('source init failed')
     log.diagnose(`[播放诊断] 音源初始化完成: 结果=${!!initResult}`)
   } else if (!initPromise) {
@@ -371,7 +371,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   const initPromise = global.lx.apiInitPromise[0]
   log.diagnose(`[播放诊断] 检查音源初始化: apiInitPromise类型=${initPromise instanceof Promise ? 'Promise' : String(initPromise)}`)
   if (initPromise instanceof Promise) {
-    const initResult = await Promise.race([initPromise, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('音源初始化超时(15s)')), 15_000))])
+    const initResult = await Promise.race([initPromise, new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('音源初始化超时(15s)')) }, 15_000) })])
     if (!initResult) throw new Error('source init failed')
     log.diagnose(`[播放诊断] 音源初始化完成: 结果=${!!initResult}`)
   } else if (!initPromise) {

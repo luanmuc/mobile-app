@@ -19,7 +19,7 @@ const RULES = [
   // 语言词条：改一语言必须三语言同步 + changelog
   { match: 'src/lang/', docs: [
     'docs:docs/CUSTOM_CHANGELOG.md（顶部补记）',
-    'action:三语言同步核对：zh-cn / zh-tw / en-us 键数一致（当前基线 866 键），新增词条三语言都要加',
+    'action:三语言同步核对：zh-cn / zh-tw / en-us 键数一致（当前基线 874 键），新增词条三语言都要加',
     'action:若涉及音源相关文案 → 核对 docs/SYNC_POINTS.md lang 行',
   ]},
   // 音源接入层：改 userApi 必须同步音源指南 + 同步点总表

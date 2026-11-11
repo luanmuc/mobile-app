@@ -267,7 +267,7 @@ export default async(setting: LX.AppSetting) => {
                       data: {
                         source,
                         action: 'config',
-                        info: updates || {},
+                        info: updates ?? {},
                       },
                     }).then(res => res.data).catch(async err => {
                       console.log(err.message)
@@ -413,7 +413,7 @@ export default async(setting: LX.AppSetting) => {
   const builtinSourceIdKey = 'builtin_source_id'
   const BUILTIN_NAME = '豆包定制[聚合音源]'
   const hasImportedBuiltin = await getData<boolean>(builtinSourceKey)
-  const importedVersion = (await getData<string>(builtinVersionKey)) || ''
+  const importedVersion = (await getData<string>(builtinVersionKey)) ?? ''
   // 内置源 id 标记（新机制）：自动导入时记录，此后升级/清理只认这一个 id
   const storedBuiltinId = await getData<string>(builtinSourceIdKey)
 
@@ -457,8 +457,8 @@ export default async(setting: LX.AppSetting) => {
       if (script && script.length > 1000) {
         // 仅删除旧内置源（id 标记或迁移唯一确认的那一份）；用户手动导入的其他源不动
         if (builtinApi) {
-          await removeUserApi([builtinApi.id]).catch(e => console.warn('Failed to remove old builtin source:', e))
-          const idx = userApiList.findIndex(api => api.id === builtinApi!.id)
+          await removeUserApi([builtinApi.id]).catch((e) => { console.warn('Failed to remove old builtin source:', e) })
+          const idx = userApiList.findIndex(api => api.id === builtinApi.id)
           if (idx >= 0) userApiList.splice(idx, 1)
         }
         const newApi = await addUserApi(script)

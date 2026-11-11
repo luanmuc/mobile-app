@@ -99,8 +99,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 子源=${subSourceName || subSource || '无'} trace=${traceId}`)
     return url
   })
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`)), 25_000)
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    setTimeout(() => { reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`)) }, 25_000)
   })
   return Promise.race([urlPromise, timeoutPromise]).catch(err => {
     const codeMatch = String(err?.message || '').match(/^([A-Z_]+):/)

@@ -1,3 +1,13 @@
+## [App 本轮触达文件 tsc / lint 清零] - 2026-11-11
+
+> G 项收尾：只修本轮触达文件的类型与 lint，不改业务行为，不升 App 版本。全仓 `eslint .` 仍有 **684 errors / 3 warnings** 历史债务（本轮未处理，未纳入 CI）；不得表述为“全仓历史 lint 基线清零”。
+
+- `src/core/player/playCount.ts`：`getTrackKey` 对下载列表项读 `metadata.musicInfo.source`，修 `PlayMusic` 联合类型下 `info.source` 的 TS2339；移除未使用的 `appStateSub` 引用（监听副作用保留）
+- `src/core/init/userApi/index.ts`：`||` → `??`（2 处）、`void` 箭头加花括号、去掉 `builtinApi!.id` 多余断言
+- `src/core/music/online.ts` / `utils.ts`：`Promise` 构造器参数统一为 `_resolve`/`reject`，`setTimeout(() => reject(...))` 改块语句
+- `src/utils/data.ts`：`getData<string>()` 泛型替代 `as string` 断言
+- 验证：`tsc --noEmit` **0 error**（rc=0）；上述 5 文件 eslint **0 error**；`check_ts_syntax` 519/0、`check_source_platform_label` 9/9、`check_source_config_contract` 24/0、`check_health_diagnostics` 22/0、`check_health_diagnostics_stress` 12/0、`check_docs_consistency` 16 文档无过时引用
+
 ## [音源 v8.12.1 配置面板与缓存失效] - 2026-11-11
 
 > 配套音源仓 v8.12.1：健康面板新增跨平台兜底总开关；关闭/开启子源时同步清跨平台缓存，避免「关了还出旧源」。

@@ -31,7 +31,6 @@ let data: PlayCountData = {
 }
 
 let timer: ReturnType<typeof setInterval> | null = null
-let appStateSub: { remove: () => void } | null = null
 // 当前这一段播放的起点（毫秒）；null 表示当前不在计时
 let playingSince: number | null = null
 // 暂停时保留下来的不足 1 秒的余数（毫秒），恢复播放时接回去，避免每次都丢零头
@@ -82,7 +81,9 @@ const flush = () => {
 
 const getTrackKey = () => {
   const info = playerState.playMusicInfo.musicInfo
-  return info == null ? null : `${info.source ?? ''}:${info.id}`
+  if (info == null) return null
+  const musicInfo = 'metadata' in info ? info.metadata.musicInfo : info
+  return `${musicInfo.source ?? ''}:${musicInfo.id}`
 }
 
 /**
@@ -143,7 +144,7 @@ export const initPlayCount = async() => {
     if (playerState.isPlay) flush()
   }, 10000)
   // 切后台/锁屏前立即结算，缩小被系统杀进程时的丢失窗口
-  appStateSub = AppState.addEventListener('change', nextState => {
+  AppState.addEventListener('change', nextState => {
     if (nextState !== 'active' && playerState.isPlay) flush()
   })
 }
