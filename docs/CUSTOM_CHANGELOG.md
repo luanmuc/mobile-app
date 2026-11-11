@@ -9,6 +9,7 @@
 - 新增 `scripts/check_playback_budget.js`：首跑 RED 0/7（模块缺失、主/候选未接线、日志无 attempts），GREEN 9/0（含两条预算 race 行为用例）。
 - CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_playback_budget.js`；TS 语法计数 521 → 522。
 - 边界：本刀只做预算与 attempts；并发竞速、首成功取消、`play_result.attempts[]` 结构化落盘仍留待后续。lyric/pic/local 路径未加 owner gate 的问题仍在。
+- 发布：App `c368a1ff` → CI `43119984613` Android/Release success（日志确认语法 522/0、契约 13/0、播放预算 9/0、内置源 v8.12.2）→ `v1.9.2-b108`（release id `442304517`，5 APK uploaded）。
 
 ## [P1 降级所有权（Fallback Owner）] - 2026-11-12
 
