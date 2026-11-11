@@ -1,3 +1,11 @@
+## [审计计划刷新：补 v8.12.x 跨平台标签与工程门禁维度] - 2026-11-11
+
+> 原 `docs/AUDIT_PLAN.md` 的 A–S 组停留在 2026-11-07 快照（730 键 / b78 / TS 57→14），且没有覆盖 v8.12.x 的 `sourcePlatform` 标签链路、tsc/eslint 双门禁、跨仓版本一致。本轮只改计划与验证记录，不改业务代码。
+
+- `docs/AUDIT_PLAN.md`：顶部基线改为 `v1.9.2-b99` / HEAD `a6767fa1` / 三语 874 键 / 519 TS/TSX / tsc 0 / eslint 0；新增 **T 组（T1~T12）**：`sourcePlatform` 全链路透传、实际平台优先、标签拼装回退、7 平台枚举闭合、成功缓存保留平台、关源后标签一致性、跨仓版本一致、tsc 门禁、eslint 门禁、版本号持久化、新增文案三语闭合、文档时效；附 9 条执行命令与 4 条反证口径。
+- `scripts/check_source_platform_label.js`：标签行为矩阵扩为 **40 组合**（7 已知平台 + local + 未知 + 空 × 4 种子源名），锁住 `undefined`/双分隔符/悬挂分隔符；断言组数不变（9 组）。
+- 验证：`check_source_platform_label` 9/9；配置契约 24/0；健康诊断 22/0；诊断压测 12/0；`check_ts_syntax` 519/0；文档一致性 16 文档；`tsc --noEmit` rc=0；全仓 eslint 0/0；`docs-audit --dry-run` 待处理 0。
+
 ## [修复 eslint 门禁误扫构建产物] - 2026-11-11
 
 > 首次带 eslint 门禁的 Build 在「ESLint 全仓检查」失败：CI 会在构建前把音源仓 `lx-source.js` 下载为 `android/app/src/main/assets/builtin_source.js`，该生成文件被 `eslint .` 扫到并报 3396 条风格错误。该文件不属于 App 仓源码，已加入 eslint 忽略。

@@ -132,6 +132,29 @@ run('L4/L5 标签行为矩阵', () => {
   assert.strictEqual(resolvePlatformName('tx', 'QQ音乐'), 'QQ音乐', '已知平台显示翻译名')
   assert.strictEqual(resolvePlatformName('xm', ''), 'xm', '未知平台回退平台 id，不显示翻译 key')
   assert.strictEqual(resolvePlatformName('local', ''), '', '本地平台不显示平台名')
+
+  // 40 组合穷举：7 个已知平台 + local + 未知 + 空 × 4 种子源名。
+  // 只锁「不产生 undefined / 双分隔符 / 前后悬挂分隔符」，不锁具体文案。
+  const platforms = ['all', 'bd', 'kg', 'kw', 'mg', 'tx', 'wy', 'local', 'xm', '']
+  const sources = ['', 'Juhe聚合(tx)', '酷我音乐', 'QQ音乐·Juhe聚合(tx)']
+  const names = {
+    all: '全部音源',
+    bd: '百度音乐',
+    kg: '酷狗音乐',
+    kw: '酷我音乐',
+    mg: '咪咕音乐',
+    tx: 'QQ音乐',
+    wy: '网易云音乐',
+  }
+  for (const p of platforms) {
+    assert.strictEqual(getPlatformNameKey(p), p === 'local' || p === '' || p === 'xm' ? '' : `source_real_${p}`, `平台 ${p} 的 i18n key`)
+    for (const s of sources) {
+      const label = buildSourceLabel(names[p] || '', s)
+      assert(!/undefined|null/.test(label), `标签含 undefined/null：${p}/${s}`)
+      assert(!label.includes(' ·  · '), `标签含双分隔符：${p}/${s}`)
+      assert(!label.startsWith(' · ') && !label.endsWith(' · '), `标签分隔符悬挂：${p}/${s}`)
+    }
+  }
 })
 
 console.log(`\n音源标签实际平台契约：${checks - failures}/${checks} 通过`)

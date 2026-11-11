@@ -1,9 +1,10 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：v1.9.2（当前 HEAD 以 `git log -1` 为准；原审计轮为 b74 / 20ac0519）
-> 最近更新：2026-11-11（全仓 eslint 清零并纳入 CI；三语基线 874 键）
+> 基线版本：**v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258，Build `42983183011` success；原审计轮为 b74 / `20ac0519`）
+> 最近更新：2026-11-11（v8.12.1 跨平台兜底 + `sourcePlatform` 标签 + tsc/eslint 双门禁入 CI）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **时效说明**：下表状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前基线以 `scripts/docs-audit.js` 与 `docs/SYNC_POINTS.md` 为准（三语 874 键、tsc/eslint 均 0）。
+> **当前真值**：三语各 **874 键**、TS/TSX **519 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.1**。
+> **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
 ---
@@ -392,3 +393,68 @@ grep -n "rateLimitActive" src/screens/Home/Views/Setting/settings/Health.tsx
 ### 已知限制
 
 App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L2 代码走查 + 局部实测**，没有 APK 产物级（L3）和设备级（L4）证据。不因为"审过了"而升级证据级别。
+
+---
+
+## T 组：v8.12.x 跨平台标签与工程质量门禁（2026-11-11 新增）
+
+> 本轮不是新增业务领域，而是补两类此前没有进入审计面的东西：
+> ①跨平台兜底后「实际交付平台」在 App 侧的透传与展示；②tsc/eslint/跨仓版本这三道新门禁是否真的守得住。
+> 判据一律按「消费端能观测到什么」写，不按「代码里有没有这个字段」写。
+
+| # | 维度 | 判据（消费端可观测） | 落地检查 | 证据级 |
+|---|---|---|---|---|
+| T1 | `sourcePlatform` 全链路透传 | 源仓返回 `sourcePlatform=tx` 时，preload → userApi → music/utils → online → player store → 播放页/通知栏，任一环丢失即缺陷 | `node scripts/check_source_platform_label.js` L1~L3 | L1/L2 |
+| T2 | 实际平台优先于主平台 | 跨平台交付时标签显示 `QQ音乐 · Juhe`，不得显示主平台「酷我音乐」；旧音源无字段时回退主平台 | 同上 L4/L5 行为矩阵 | L2 |
+| T3 | 标签拼装与未知平台回退 | `buildSourceLabel` 对空平台/空子源/平台=子源/未知平台四种输入都不产生 `undefined`、双分隔符或空串标签 | 同上 L4/L5 行为矩阵 | L1 |
+| T4 | 全链路枚举闭合 | 7 个已知平台（all/bd/kg/kw/mg/tx/wy）都有 i18n key；`local` 不显示平台；未知值回退原 id 而不是空串 | `getPlatformNameKey` / `resolvePlatformName` 断言 | L1 |
+| T5 | 成功缓存保留实际平台 | 二次播放命中缓存时 `sourcePlatform` 不丢，标签不退回主平台 | 同上 L2 链路 + 源仓 U5 | L2 |
+| T6 | 关闭目标源后的标签一致性 | 目标源被关闭后不得继续用其旧缓存显示该平台；重开后可恢复 | 源仓 U10 + App 侧只消费返回值 | L2 |
+| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的 v8.12.1 与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败 | `release.yml`「Download latest music source」 | L3 |
+| T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
+| T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
+| T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42983183011`：b99 / 258 | L3 |
+| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 874 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
+| T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
+
+### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
+
+```bash
+node scripts/check_source_platform_label.js        # 9/9
+node scripts/check_source_config_contract.js       # 24/0
+node scripts/check_health_diagnostics.js           # 22/0
+node scripts/check_health_diagnostics_stress.js    # 12/0
+node scripts/check_ts_syntax.js                    # 519/0
+node scripts/check_docs_consistency.js             # 16 文档
+node scripts/docs-audit.js --dry-run               # 待处理 0
+node node_modules/typescript/bin/tsc --noEmit      # 0 error
+node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
+```
+
+### T 组压力测试口径
+
+| 压测 | 做法 | 通过标准 |
+|---|---|---|
+| 标签矩阵穷举 | `buildSourceLabel` × 平台（7 已知 + local + 未知 + 空，10 种）× 子源（有/无/同平台名/空，4 种） | 40 组合无 `undefined`/空串/双分隔符/悬挂分隔符；实际平台优先 |
+| 健康诊断压力 | `check_health_diagnostics_stress.js` 10000 条事件、5MB 日志、200 错误码 | 12/12，不崩、不越界、证据包脱敏 |
+| 跨仓版本反证 | 故意把 `MUSIC_SOURCE_GUIDE` 版本写成 8.11.7，跑构建前校验 | 必须报「文档音源版本 ≠ 本次内置」而非放行 |
+| CI 生成物反证 | 在本地生成一个含分号的 `builtin_source.js`，跑 `eslint .` | 必须 0 错误（证明忽略规则生效，不是恰好没有该文件） |
+
+> 说明：T7~T10 的最终证据以 Build `42983183011` 的 step 日志为准；本地只做同构复核，不把本地绿替代 CI 绿。
+
+### T 组本轮实跑结果（2026-11-11）
+
+| 检查 | 实跑结果 | 退出码 |
+|---|---|---|
+| `check_source_platform_label.js` | **9/9** | 0 |
+| `check_source_config_contract.js` | **24/0** | 0 |
+| `check_health_diagnostics.js` | **22/0** | 0 |
+| `check_health_diagnostics_stress.js` | **12/0**（U6 200 错误码 findings=6） | 0 |
+| `check_ts_syntax.js` | **519 文件 0 错误** | 0 |
+| `check_docs_consistency.js` | **16 文档无过时引用** | 0 |
+| `tsc --noEmit` | **0 error** | 0 |
+| `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
+| `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 0 |
+| Build `42983183011` | Android success / Release success / 跨仓版本 v8.12.1 一致 | — |
+
+> 结论：T 组 12 维中 T1~T6、T11~T12 有本次本地实跑证据；T7~T10 以 Build `42983183011` 为产物级证据。S 组设备级（真机横竖屏/通知栏/批量下载）仍未做，按用户要求不列入本轮待办。
