@@ -1,13 +1,21 @@
+## [App eslint 全仓 0 errors / 0 warnings] - 2026-11-11
+
+> 收尾上一条：全仓最后 3 条 warning 清零，`eslint . --ext .js,.jsx,.ts,.tsx` 现为 **0 errors / 0 warnings**（rc=0）。
+
+- `src/config/globalData.ts`：`version` / `buildNumber` 的模板插值改为 `String(...)` 显式转字符串，消除 `restrict-template-expressions` 的 `never` 告警；构建版本串逻辑不变
+- `src/components/OnlineList/MultipleModeBar.tsx`：`useMemo` 依赖补 `onDownloadSelected`，消除 `react-hooks/exhaustive-deps`；按钮显隐与回调不变
+- 验证：`tsc --noEmit` rc=0；`check_ts_syntax` 519/0；标签 9/9；配置契约 24/0；健康诊断 22/0；诊断压测 12/0；文档一致性 16 文档通过；`docs-audit --dry-run` 待处理 0；全仓 eslint **0 errors / 0 warnings**
+
 ## [全仓 eslint 清零（scripts / android 预加载）] - 2026-11-11
 
-> 承上一提交 `a876fdec`（`src` 清零）：本轮清掉 `src` 之外的 **471 errors**，全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 现为 **0 errors / 3 warnings**。3 条 warning 为 `src/config/globalData.ts` 原有基线，未新增、未改规则。
+> 承上一提交 `a876fdec`（`src` 清零）：本轮清掉 `src` 之外的 **471 errors**，全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 当时为 **0 errors / 3 warnings**。3 条 warning 为 `src/config/globalData.ts` 等原有基线，未新增、未改规则；已由下一条提交清零。
 
 - `scripts/**`：466 → 0。`eslint scripts --fix` 自动修 461 条（主要是 411 条 `semi`、对象换行/空格/引号等纯格式），剩余 5 条人工处理：
   - 4 个自检脚本的 `new Function(...)`（用于加载转译后的本仓 TS 模块）加定向 `eslint-disable-next-line no-new-func` 与原因注释，不改加载方式；
   - `check_health_diagnostics.js` 删除未使用的 `DAY` 常量。
 - `android/app/src/main/assets/script/user-api-preload.js`：5 条 `no-case-declarations`，给 `case 'musicUrl'` 加块级作用域 `{}`，变量声明与逻辑不变。
 - 未改动任何业务判断、字符串内容或门禁断言；`scripts/*.js` 与预加载脚本全部通过 `node --check`。
-- 验证：`tsc --noEmit` rc=0；`check_ts_syntax` 519/0；`check_source_platform_label` 9/9；`check_source_config_contract` 24/0；`check_health_diagnostics` 22/0；`check_health_diagnostics_stress` 12/0；`check_docs_consistency` 16 文档无过时引用；`docs-audit --dry-run` 待处理 0；全仓 eslint **0 errors / 3 warnings**。
+- 验证：`tsc --noEmit` rc=0；`check_ts_syntax` 519/0；`check_source_platform_label` 9/9；`check_source_config_contract` 24/0；`check_health_diagnostics` 22/0；`check_health_diagnostics_stress` 12/0；`check_docs_consistency` 16 文档无过时引用；`docs-audit --dry-run` 待处理 0；全仓 eslint 当时 **0 errors / 3 warnings**（已由下一条提交清零）。
 
 ## [App src 目录 eslint 清零] - 2026-11-11
 

@@ -4,13 +4,12 @@ import { createAppEventHub } from '@/event/appEvent'
 import { createListEventHub } from '@/event/listEvent'
 import { createDislikeEventHub } from '@/event/dislikeEvent'
 import { createStateEventHub } from '@/event/stateEvent'
+// 显示真实构建版本：如 1.9.2-b13（CI 注入 buildNumber，本地开发为空则显示 1.9.2）
+const versionLabel = buildNumber ? `${String(version)}-${String(buildNumber)}` : String(version)
 if (process.versions == null) {
   // @ts-expect-error
-  process.versions = {
-    // 显示真实构建版本：如 1.9.2-b13（CI 注入 buildNumber，本地开发为空则显示 1.9.2）
-    app: buildNumber ? `${version}-${buildNumber}` : version,
-  }
-} else process.versions.app = buildNumber ? `${version}-${buildNumber}` : version
+  process.versions = { app: versionLabel }
+} else process.versions.app = versionLabel
 
 // global.i18n = null
 

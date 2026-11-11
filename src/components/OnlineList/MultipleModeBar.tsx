@@ -140,7 +140,7 @@ export default forwardRef<MultipleModeBarType, MultipleModeBarProps>(({ onSelect
         </TouchableOpacity>
       </Animated.View>
     )
-  }, [animaStyle, selectMode, theme, handleSelectAll, isSelectAll, onExitSelectMode, onSwitchMode])
+  }, [animaStyle, selectMode, theme, handleSelectAll, isSelectAll, onDownloadSelected, onExitSelectMode, onSwitchMode])
 
   return !visible && animatePlayed ? null : component
 })
