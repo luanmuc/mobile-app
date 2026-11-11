@@ -40,6 +40,10 @@ musicSdk（内置官方源）  ──┐
 
 脚本内可调用 App 提供的 `request`（HTTP 请求，带 UA/防爬头）、`logInfo` 等能力。
 
+**action 权威表（P0 / Source Contract v2）**：App 侧唯一权威列表是 `src/core/init/userApi/sourceContract.ts` 的 `SOURCE_ACTIONS`（9 个）。`user-api-preload.js` 不再按 source 维护 `supportActions` 白名单，而是直接透传源脚本声明的 `actions`；App 在 `normalizeSourceInfo` 中过滤未知 action、非法音质和非 `music` 源。新增 action 的最小改动变为：源脚本 `inited` 声明 1 处 + App `sourceContract.ts` 列表 1 处 + App `index.ts` handler 1 处；preload 不再需要改。
+
+**结果契约（P0）**：`unwrapSourceResult` 同时接受旧 raw 与 v2 envelope。v2 成功返回 `{ok:true,data}`，失败返回 `{ok:false,error:{code,message,retryable?,stage?}}`；失败码固定 8 个：`NO_MATCH` / `NOT_AUDIO` / `NETWORK` / `TIMEOUT` / `RATE_LIMITED` / `INVALID_REQUEST` / `UNSUPPORTED_ACTION` / `INTERNAL`。`retryable` 缺省按 code 派生：`NETWORK` / `TIMEOUT` / `RATE_LIMITED` 为 true，其余为 false。旧音源不需要改。
+
 **musicUrl 返回契约（v6.0+ / b52+ 起）**——支持三态：
 
 | 返回形态 | 说明 |
@@ -73,7 +77,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 **本地诊断闭环（2.4 方案，只本地不上传）**：
 
 - 音源侧新增只读 `healthEvents` action：容量 500 的环形缓冲，返回 `{schema, capacity, dropped, events}`；事件只含 `traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason`，不记歌名、URL、搜索词、账号、设备 ID、位置。
-- **预加载白名单**：`android/app/src/main/assets/script/user-api-preload.js` 的 `supportActions` 必须包含 `healthEvents`，并在 request switch 增加透传 case；否则音源声明了 action，App 真机仍不会注册。契约 H10 看护。
+- **action 透传（P0 起）**：`user-api-preload.js` 不再维护按 source 的 `supportActions` 白名单，直接把源脚本声明的 `actions` 透传给 App；App 的 `normalizeSourceInfo` 只保留 `sourceContract.ts` 中 9 个合法 action，未知 action 不注册。契约 H10 看护。
 - App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
 - 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/5 采样；缓存命中单独记 `cache_hit`，只说明本地已有 URL，不计入取链成功率；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。报告里的成功率按采样权重还原（成功 weight=5、失败 weight=1），是本地估算而非服务端真值。
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。

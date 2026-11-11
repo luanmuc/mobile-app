@@ -73,16 +73,17 @@ jobs:
         # 全仓 eslint 必须 0 error / 0 warning；与 tsc 互补，失败即停在构建前。
         run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 
-      - name: 音源标签/配置/语法契约门禁
-        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 520 个 TS 文件语法。
-        # 失败即停在本步，不进入构建与 Release，避免发出标签或配置回退的 APK。
+      - name: 音源标签/配置/语法/action 契约门禁
+        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 9 个 action 权威表与 v2 envelope / 521 个 TS 文件语法。
+        # 失败即停在本步，不进入构建与 Release，避免发出标签、配置或 action 契约回退的 APK。
         run: |
           node scripts/check_ts_syntax.js
           node scripts/check_source_config_contract.js
+          node scripts/check_source_contract.js
           node scripts/check_source_platform_label.js
 
       - name: 健康诊断契约门禁（41 条 + 视图 22 条 + 日志目录 13 条）
-        # 只读契约：预加载 action 白名单 / 分发 case / traceId / 本地日志 / 聚合脱敏；
+        # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
         # 视图模型锁折叠态、错误码/其他线索分组与空态。
         # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。
         run: |

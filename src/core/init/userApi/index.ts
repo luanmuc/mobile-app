@@ -9,6 +9,7 @@ import { getData, saveData } from '@/plugins/storage'
 import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
+import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
 
 
 export default async(setting: LX.AppSetting) => {
@@ -84,7 +85,7 @@ export default async(setting: LX.AppSetting) => {
       if (info.sources) {
         let apis: any = {}
         let qualitys: LX.QualityList = {}
-        for (const [source, { actions, type, qualitys: sourceQualitys }] of Object.entries(info.sources)) {
+        for (const [source, { actions, type, qualitys: sourceQualitys }] of Object.entries(normalizeSourceInfo(info.sources))) {
           if (type != 'music') continue
           apis[source as LX.Source] = {}
           logger.info('userApi', `[debug] ${source} actions = ${actions.join(',')}`)
@@ -113,12 +114,20 @@ export default async(setting: LX.AppSetting) => {
                       // 音源返回实际交付音质（res.data.type，v1.0+）；旧音源无该字段时回退请求音质
                       // v6.0：透传实际子源（subSource id + subSourceName 中文名），旧音源无字段时为空字符串
                       // v8.12.0：透传实际交付平台（sourcePlatform），跨平台兜底后标签显示真实平台
+                      // P0：兼容旧 raw 与 v2 {ok,data} envelope
+                      const data = unwrapSourceResult<{
+                        url: string
+                        type?: LX.Quality
+                        subSource?: string
+                        subSourceName?: string
+                        sourcePlatform?: string
+                      }>(res.data)
                       return {
-                        type: (res.data as { type?: LX.Quality })?.type ?? type,
-                        url: (res.data as { url: string }).url,
-                        subSource: (res.data as { subSource?: string })?.subSource ?? '',
-                        subSourceName: (res.data as { subSourceName?: string })?.subSourceName ?? '',
-                        sourcePlatform: (res.data as { sourcePlatform?: string })?.sourcePlatform ?? '',
+                        type: data?.type ?? type,
+                        url: data.url,
+                        subSource: data?.subSource ?? '',
+                        subSourceName: data?.subSourceName ?? '',
+                        sourcePlatform: data?.sourcePlatform ?? '',
                       }
                     }).catch(err => {
                       console.log(err.message)
@@ -147,7 +156,7 @@ export default async(setting: LX.AppSetting) => {
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
                       // console.log(res)
-                      return res.data
+                      return unwrapSourceResult(res.data)
                     }).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
@@ -175,7 +184,7 @@ export default async(setting: LX.AppSetting) => {
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
                       // console.log(res)
-                      return res.data
+                      return unwrapSourceResult(res.data)
                     }).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
@@ -201,7 +210,7 @@ export default async(setting: LX.AppSetting) => {
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
                       // console.log(res)
-                      return res.data
+                      return unwrapSourceResult(res.data)
                     }).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
@@ -224,7 +233,7 @@ export default async(setting: LX.AppSetting) => {
                         action: 'toggle',
                         info: { id, enabled },
                       },
-                    }).then(res => res.data).catch(async err => {
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
                     }),
@@ -246,7 +255,7 @@ export default async(setting: LX.AppSetting) => {
                         action: 'probe',
                         info: {},
                       },
-                    }).then(res => res.data).catch(async err => {
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
                     }),
@@ -269,7 +278,7 @@ export default async(setting: LX.AppSetting) => {
                         action: 'config',
                         info: updates ?? {},
                       },
-                    }).then(res => res.data).catch(async err => {
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
                     }),
@@ -291,7 +300,7 @@ export default async(setting: LX.AppSetting) => {
                         action: 'trend',
                         info: {},
                       },
-                    }).then(res => res.data).catch(async err => {
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
                     }),
@@ -313,7 +322,7 @@ export default async(setting: LX.AppSetting) => {
                         action: 'healthEvents',
                         info: query ?? {},
                       },
-                    }).then(res => res.data).catch(async err => {
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
                     }),

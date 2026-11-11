@@ -158,16 +158,6 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
     mg: ['128k', '320k', 'flac', 'flac24bit'],
     local: [],
   }
-  const supportActions = {
-    kw: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    kg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    tx: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    wy: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    mg: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    xm: ['musicUrl', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-    local: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents'],
-  }
-
   const verifyLyricInfo = (info) => {
     if (typeof info != 'object' || typeof info.lyric != 'string') throw new Error('failed')
     if (info.lyric.length > 51200) throw new Error('failed')
@@ -214,11 +204,29 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
     else targetRequest.callback(new Error(error), null)
   }
 
+  // P0：v2 envelope 兼容。旧音源直接返回 raw；新音源返回 {ok:true,data} 或 {ok:false,error}。
+  // 必须在 switch 之前解包，否则 musicUrl 分支会因 envelope 没有 url 字段而先失败。
+  const unwrapResponse = (response) => {
+    if (!response || typeof response != 'object' || typeof response.ok != 'boolean') return response
+    if (response.ok) return response.data
+    const error = response.error && typeof response.error == 'object' ? response.error : {}
+    const code = typeof error.code == 'string' ? error.code : 'INTERNAL'
+    const message = typeof error.message == 'string' && error.message ? error.message : 'unknown source error'
+    const err = new Error(code + ': ' + message)
+    err.code = code
+    err.retryable = typeof error.retryable == 'boolean'
+      ? error.retryable
+      : (code == 'NETWORK' || code == 'TIMEOUT' || code == 'RATE_LIMITED')
+    if (typeof error.stage == 'string') err.stage = error.stage
+    throw err
+  }
+
   const handleRequest = ({ requestKey, data }) => {
     // console.log(data)
     if (!events.request) return nativeCall(NATIVE_EVENTS_NAMES.response, { requestKey, status: false, errorMessage: 'Request event is not defined' })
     try {
       events.request.call(globalThis.lx, { source: data.source, action: data.action, info: data.info }).then(response => {
+        response = unwrapResponse(response)
         let result
         switch (data.action) {
           case 'musicUrl': {
@@ -392,11 +400,12 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
       for (const source of allSources) {
         const userSource = info.sources[source]
         if (!userSource || userSource.type !== 'music') continue
-        const qualitys = supportQualitys[source]
-        const actions = supportActions[source]
+        const qualitys = supportQualitys[source] || []
+        if (!Array.isArray(userSource.actions)) throw new Error('actions is required')
+        if (!Array.isArray(userSource.qualitys)) throw new Error('qualitys is required')
         sourceInfo.sources[source] = {
           type: 'music',
-          actions: actions.filter(a => userSource.actions.includes(a)),
+          actions: userSource.actions,
           qualitys: qualitys.filter(q => userSource.qualitys.includes(q)),
         }
       }

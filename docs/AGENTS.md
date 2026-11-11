@@ -28,13 +28,13 @@ publish/                    CI 生成的版本信息（勿手改，构建时自�
 ## 常用命令
 
 ```bash
-# 语法检查（520 个 TS/TSX，每次改动后必跑）
+# 语法检查（521 个 TS/TSX，每次改动后必跑）
 node scripts/check_ts_syntax.js
 
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
 node scripts/check_source_platform_label.js
 
-# 音源健康本地诊断契约（41 条，含预加载 action 白名单/日志回迁/缓存命中）
+# 音源健康本地诊断契约（41 条，含 action 透传/日志回迁/缓存命中）
 node scripts/check_health_diagnostics.js
 # 音源健康本地诊断压力（10000 条聚合/5MB 日志/脏行容错/异常依赖不抛）
 node scripts/check_health_diagnostics_stress.js
@@ -95,13 +95,13 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 
 | 层级 | 验证内容 | 方法 | 能发现 |
 |---|---|---|---|
-| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（520 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
+| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（521 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
 | L1 逻辑 | 行为/状态流 | 代码走查、必要时补单测 | 逻辑缺陷、状态机错误 |
 | L2 接口 | 依赖/音源 | curl/实测（音源接口、上游 API、npm 包） | 接口失效、协议不匹配 |
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 三条只读契约 `check_ts_syntax.js`（520 文件）、`check_source_config_contract.js`（24 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（41 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（13 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 四条只读契约 `check_ts_syntax.js`（521 文件）、`check_source_config_contract.js`（24 条）、`check_source_contract.js`（9 条）、`check_source_platform_label.js`（9 条）+ 健康诊断契约 `check_health_diagnostics.js`（41 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（13 条）。
 
 ### 任务类型分流
 

@@ -1,3 +1,15 @@
+## [P0 音源契约统一（Source Contract v2）] - 2026-11-12
+
+> App 侧 `supportActions`、preload 白名单、`init/userApi` switch、TS 联合类型四处各自维护 action；源侧 `kw` 只声明 8 个（无 `lyric`），App 却声明 9 个，靠源内 handler 兜住。新增 action 至少要改 5 处，且未知 action 会被静默裁掉。
+
+- 新增 `src/core/init/userApi/sourceContract.ts`：`SOURCE_ACTIONS` 作为 App 唯一 action 权威表（9 个）；`normalizeSourceInfo` 过滤非 `music` 源、未知 action、非法音质；`unwrapSourceResult` 兼容旧 raw 与 v2 `{ok,data}` / `{ok,false,error}` envelope；`SOURCE_ERROR_CODES` 固定 8 个，`retryable` 按 code 派生（`NETWORK`/`TIMEOUT`/`RATE_LIMITED` 为 true）。
+- `android/app/src/main/assets/script/user-api-preload.js`：删除按 source 的 `supportActions` 白名单，init 直接透传 `userSource.actions`；保留 `handleRequest` 的 9 个 action 透传 case。
+- `src/core/init/userApi/index.ts`：init 循环改用 `normalizeSourceInfo`；`musicUrl`/`lyric`/`pic`/`health`/`toggle`/`probe`/`config`/`trend`/`healthEvents` 结果统一走 `unwrapSourceResult`。
+- 新增 `scripts/check_source_contract.js`：P0-A1~A6 共 9 条，覆盖 App 侧 envelope 与 preload 解包；RED 实测 0/8（缺模块 + preload 仍有白名单），补 preload envelope 用例后 8/9，GREEN 9/0。
+- `scripts/check_health_diagnostics.js`：H10 改为看护“preload 无白名单 + 直接透传 `userSource.actions` + `sourceContract` 含 `healthEvents`”，契约 41/0。
+- 文档：`MUSIC_SOURCE_GUIDE` 更新 action 权威表、v2 envelope、preload 透传说明；`AGENTS`/`MERGE_GUIDE` TS 计数随 docs-audit 更新为 521。
+- 验证：契约 9/0、健康 41/0、`tsc` rc=0、相关 eslint rc=0、docs-audit rc=0。
+
 ## [本地诊断缓存命中计数 + 成功采样 1/5] - 2026-11-11
 
 > 真机上听了多首歌，本地诊断仍显示 0：缓存播放不走联网取链、不记录；成功又只按 1/20 采样，几首歌很可能一条都没采到。窗口看起来像坏了，实际是口径太稀疏。
