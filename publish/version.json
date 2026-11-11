@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b107",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b09115c6 feat(source): P1 降级所有权与 App 换源 gate",
+  "version": "1.9.2-b108",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- c368a1ff feat(playback): 24s 取链预算与 attempts 账本\n- 593010fd docs: 同步 P1 降级所有权发布数据 v1.9.2-b107",
   "history": [
+    {
+      "version": "1.9.2-b107",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b09115c6 feat(source): P1 降级所有权与 App 换源 gate"
+    },
     {
       "version": "1.9.2-b106",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6b1d8696 feat(source): 音源契约 v2 统一 action 与结果信封"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b102",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- fb200504 refactor(health): 合并趋势预警并清理日志死 API\n- ff9c2a4d test(health): 本地诊断深度审计 50 条并修复截尾/脱敏缺陷\n- a8c85bf5 fix(health): 本地诊断采样加权、失败归因与证据展开"
-    },
-    {
-      "version": "1.9.2-b101",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 037ddf80 fix(docs-audit): 去掉 MUSIC_SOURCE_GUIDE 版本巡检假警告\n- 5f279f24 docs: 审计基线同步至当前发布 v1.9.2-b100 [skip ci]"
     }
   ]
 }
