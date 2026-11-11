@@ -19,7 +19,7 @@ import {
   msToDisplay,
 } from '@/core/sourceConfig'
 import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
-import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
+import { buildEvidencePackage, buildHealthReport, spanText, type HealthReport } from '@/core/healthDiagnostics'
 import { REPORT_EVENT_LIMIT, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 import { clipboardWriteText } from '@/utils/tools'
 
@@ -92,6 +92,8 @@ export default memo(() => {
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
   // 趋势预警只保留报告一套判定，页面不再维护第二套阈值
   const trendDeclineFindings = diagnostics?.findings.filter(f => f.id === 'trend_decline') ?? []
+  // 诊断窗口默认折叠，点标题展开；避免首屏被一大段统计和线索占满
+  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -372,6 +374,37 @@ export default memo(() => {
   // 聚合摘要：与表格共用同一分类函数，9 桶（含已摘除/限流），合计=源数
   const summary = summarizeHealthItems(items)
 
+  const codeFindings = diagnostics?.findings.filter(f => f.id === 'new_code' || f.id === 'recent_failure') ?? []
+  const otherFindings = diagnostics?.findings.filter(f => f.id !== 'new_code' && f.id !== 'recent_failure') ?? []
+  const diagRateText = (rate: number | null | undefined) => rate == null ? '-' : `${Math.round(rate * 100)}%`
+
+  const renderFinding = (f: HealthReport['findings'][number], idx: number) => {
+    const key = `${f.id}-${idx}`
+    const expanded = expandedFinding === key
+    return (
+      <View key={key} style={{ marginTop: 6 }}>
+        <Pressable onPress={() => { setExpandedFinding(expanded ? null : key) }}>
+          <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>
+            {f.title}{f.samples?.length ? (expanded ? ' ▾' : ' ▸') : ''}
+          </Text>
+        </Pressable>
+        <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
+        <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
+        {
+          expanded && f.samples?.length ? (
+            <View style={{ marginTop: 4 }}>
+              {f.samples.map((sample, i) => (
+                <Text key={i} size={10} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                  {new Date(sample.ts).toLocaleTimeString()} · {sample.source}{sample.code ? ` · ${sample.code}` : ''}{sample.latencyMs != null ? ` · ${sample.latencyMs}ms` : ''}{sample.traceId ? ` · ${sample.traceId}` : ''}
+                </Text>
+              ))}
+            </View>
+          ) : null
+        }
+      </View>
+    )
+  }
+
   return (
     <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps={'always'}>
     <Section title={t('setting_health')}>
@@ -427,35 +460,77 @@ export default memo(() => {
         {
           diagnostics ? (
             <View style={[styles.diagnosticsBox, { borderColor: theme['c-border-background'] }]}>
-              {diagnostics.findings.length ? <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text> : null}
-              <Text size={12} color={theme['c-font-label']} style={{ marginTop: 4 }}>{diagnostics.summary}</Text>
+              <Pressable onPress={() => { setDiagnosticsExpanded(v => !v) }} style={styles.diagHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_recent_anomaly')}</Text>
+                  <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                    {diagnostics.windows.h24.total
+                      ? `${diagnostics.windows.h24.ok}/${diagnostics.windows.h24.total} · ${diagRateText(diagnostics.windows.h24.successRate)} · ${diagnostics.findings.length}${t('health_diag_items')}`
+                      : t('health_diag_none')}
+                  </Text>
+                  <Text size={10} color={diagnostics.windows.d7.covered ? '#52c41a' : '#fa8c16'} style={{ marginTop: 2 }}>
+                    {diagnostics.windows.d7.covered
+                      ? t('health_diag_coverage_full')
+                      : t('health_diag_coverage_short', { span: spanText(diagnostics.coverage.coveredMs) })}
+                    {diagnostics.coverage.truncated ? ` · ${t('health_diag_truncated')}` : ''}
+                  </Text>
+                </View>
+                <Text size={14} color={theme['c-font-label']}>{diagnosticsExpanded ? '▾' : '▸'}</Text>
+              </Pressable>
               {
-                diagnostics.findings.slice(0, 5).map((f, idx) => {
-                  const key = `${f.id}-${idx}`
-                  const expanded = expandedFinding === key
-                  return (
-                    <View key={key} style={{ marginTop: 6 }}>
-                      <Pressable onPress={() => { setExpandedFinding(expanded ? null : key) }}>
-                        <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>
-                          {f.title}{f.samples?.length ? (expanded ? ' ▾' : ' ▸') : ''}
+                diagnosticsExpanded ? (
+                  <View>
+                    <View style={[styles.diagStats, { marginTop: 4 }]}>
+                      <View style={styles.diagStat}>
+                        <Text size={10} color={theme['c-font-label']}>{t('health_diag_h24')}</Text>
+                        <Text size={18}>{diagnostics.windows.h24.total}</Text>
+                      </View>
+                      <View style={styles.diagStat}>
+                        <Text size={10} color={theme['c-font-label']}>{t('health_diag_ok')}</Text>
+                        <Text size={18} color="#52c41a">{diagnostics.windows.h24.ok}</Text>
+                      </View>
+                      <View style={styles.diagStat}>
+                        <Text size={10} color={theme['c-font-label']}>{t('health_diag_failed')}</Text>
+                        <Text size={18} color="#ff4d4f">{diagnostics.windows.h24.failed}</Text>
+                      </View>
+                      <View style={styles.diagStat}>
+                        <Text size={10} color={theme['c-font-label']}>{t('health_diag_rate')}</Text>
+                        <Text size={18} color={diagnostics.windows.h24.successRate != null && diagnostics.windows.h24.successRate < 0.6 ? '#ff4d4f' : theme['c-font']}>
+                          {diagRateText(diagnostics.windows.h24.successRate)}
                         </Text>
-                      </Pressable>
-                      <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
-                      <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
-                      {
-                        expanded && f.samples?.length ? (
-                          <View style={{ marginTop: 4 }}>
-                            {f.samples.map((s, i) => (
-                              <Text key={i} size={10} color={theme['c-font-label']} style={{ marginTop: 2 }}>
-                                {new Date(s.ts).toLocaleTimeString()} · {s.source}{s.code ? ` · ${s.code}` : ''}{s.latencyMs != null ? ` · ${s.latencyMs}ms` : ''}{s.traceId ? ` · ${s.traceId}` : ''}
-                              </Text>
-                            ))}
-                          </View>
-                        ) : null
-                      }
+                      </View>
                     </View>
-                  )
-                })
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 6 }}>
+                      {diagnostics.windows.h1.total
+                        ? t('health_diag_h1', { n: diagnostics.windows.h1.total, ok: diagnostics.windows.h1.ok })
+                        : t('health_diag_h1_none')}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {diagnostics.coverage.unweightedSuccesses
+                        ? t('health_diag_unweighted', { n: diagnostics.coverage.unweightedSuccesses })
+                        : t('health_diag_weighted')}
+                    </Text>
+                    {
+                      codeFindings.length ? (
+                        <View>
+                          <Text size={11} style={styles.diagSection}>{t('health_diag_codes')}</Text>
+                          {codeFindings.map(renderFinding)}
+                        </View>
+                      ) : null
+                    }
+                    {
+                      otherFindings.length ? (
+                        <View>
+                          <Text size={11} style={styles.diagSection}>{t('health_diag_other')}</Text>
+                          {otherFindings.map(renderFinding)}
+                        </View>
+                      ) : null
+                    }
+                    {!diagnostics.findings.length ? (
+                      <Text size={11} color={theme['c-font-label']} style={{ marginTop: 8 }}>{t('health_diag_none')}</Text>
+                    ) : null}
+                  </View>
+                ) : null
               }
             </View>
           ) : null
@@ -754,6 +829,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 10,
     marginBottom: 8,
+  },
+  diagHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  diagStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 10,
+  },
+  diagStat: {
+    minWidth: 64,
+  },
+  diagSection: {
+    marginTop: 10,
+    marginBottom: 2,
+    fontWeight: 'bold',
   },
   btnRow: {
     flexDirection: 'row',

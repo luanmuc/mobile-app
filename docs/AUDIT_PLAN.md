@@ -3,7 +3,7 @@
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b100**（HEAD `a67d26ae`，versionCode 259，Build `42991043602` success；原审计轮为 b74 / `20ac0519`）
 > 最近更新：2026-11-11（v8.12.1 跨平台兜底 + `sourcePlatform` 标签 + tsc/eslint 双门禁入 CI；构建后版本号自动 +1 至 b100）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值**：三语各 **876 键**、TS/TSX **519 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.1**。
+> **当前真值**：三语各 **891 键**、TS/TSX **519 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.1**。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -78,7 +78,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | D2 | 播放页 | ⚠️ | **R2**：`PlayDetail/Horizontal/Player/PlayInfo.tsx:61` 组件内 `theme` 未定义，横屏播放页渲染即 ReferenceError |
 | D3 | 弹窗 | ⚠️ | **R5**：健康面板弹窗配色；**R9** 管理器层弹窗中文硬编码 |
 | D4 | 主题适配 | ⚠️ | 除 R5 两个非法键外，其余 `theme[...]` 引用合法 |
-| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 876×3）；`Health.tsx` 参数面板已接三语（37 键，v8.12.1），无遗留 |
+| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 891×3）；`Health.tsx` 参数面板已接三语（37 键，v8.12.1），无遗留 |
 | D6 | 组件复用 | ✅ | common/ 公共组件 |
 
 ## E 组：文档与工程
@@ -414,7 +414,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
-| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 876 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
+| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 891 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
 | T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
 
 ### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
@@ -422,7 +422,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 ```bash
 node scripts/check_source_platform_label.js        # 9/9
 node scripts/check_source_config_contract.js       # 24/0
-node scripts/check_health_diagnostics.js           # 35/0
+node scripts/check_health_diagnostics.js           # 39/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_ts_syntax.js                    # 519/0
 node scripts/check_docs_consistency.js             # 16 文档
@@ -449,7 +449,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 |---|---|---|
 | `check_source_platform_label.js` | **9/9** | 0 |
 | `check_source_config_contract.js` | **24/0** | 0 |
-| `check_health_diagnostics.js` | **35/0** | 0 |
+| `check_health_diagnostics.js` | **39/0** | 0 |
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_ts_syntax.js` | **519 文件 0 错误** | 0 |
 | `check_docs_consistency.js` | **16 文档无过时引用** | 0 |

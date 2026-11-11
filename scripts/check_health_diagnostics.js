@@ -401,6 +401,56 @@ check('H21 快照趋势上升/抖动不得误报下降', () => {
   assert(!diag.detectHealthAnomalies({ events: [], trend: bounce, now: NOW }).some(x => x.id === 'trend_decline'), '非连续下降被误报')
 })
 
+check('H24 无前 24h 基线不得误报新错误码', () => {
+  const ev = []
+  for (let i = 0; i < 7; i++) {
+    ev.push(result(`n${i}`, undefined, false, 'NETWORK_TIMEOUT', 1200, NOW - (2 * 60 + i) * MIN))
+  }
+  for (let i = 0; i < 2; i++) {
+    ev.push(result(`ok${i}`, undefined, true, '', 300, NOW - (3 * 60 + i) * MIN))
+  }
+  const findings = diag.detectHealthAnomalies({ events: ev, snapshot: {}, now: NOW })
+  assert(!findings.some(f => f.id === 'new_code'), `覆盖仅 8 小时仍报新错误码：${findings.map(f => f.title).join(' / ')}`)
+  const recent = findings.filter(f => f.id === 'recent_failure')
+  assert(recent.length === 1 && recent[0].title.includes('NETWORK_TIMEOUT'), `近期失败聚合条目缺失或重复：${recent.map(f => f.title).join(' / ')}`)
+})
+
+check('H25 有基线时同码只出一条，且证据写实际基线跨度', () => {
+  const ev = []
+  for (let i = 0; i < 3; i++) {
+    ev.push(result(`old${i}`, undefined, false, 'OLD_CODE', 900, NOW - 2 * 24 * HOUR - i * MIN))
+  }
+  for (let i = 0; i < 7; i++) {
+    ev.push(result(`new${i}`, undefined, false, 'NETWORK_TIMEOUT', 1200, NOW - (2 * 60 + i) * MIN))
+  }
+  const findings = diag.detectHealthAnomalies({ events: ev, snapshot: {}, now: NOW })
+  const newCode = findings.find(f => f.id === 'new_code' && f.title.includes('NETWORK_TIMEOUT'))
+  assert(newCode, '有基线的新错误码未生成 finding')
+  assert(newCode.evidence.includes('此前 1 天未见'), `基线跨度文案不对：${newCode.evidence}`)
+  const dup = findings.filter(f => f.id === 'recent_failure' && f.title.includes('NETWORK_TIMEOUT'))
+  assert(dup.length === 0, `同一个码又用 recent_failure 重复出现：${dup.map(f => f.title).join(' / ')}`)
+})
+
+check('H26 汇总必须标明未加权历史成功样本', () => {
+  const ev = []
+  for (let i = 0; i < 7; i++) {
+    ev.push(result(`f${i}`, undefined, false, 'NETWORK_TIMEOUT', 1200, NOW - (2 * 60 + i) * MIN))
+  }
+  for (let i = 0; i < 2; i++) {
+    ev.push(result(`s${i}`, undefined, true, '', 300, NOW - (3 * 60 + i) * MIN))
+  }
+  const report = diag.buildHealthReport({ events: ev, now: NOW })
+  assert(report.summary.includes('2 条成功为升级前未加权样本'), `汇总未标明未加权历史样本：${report.summary}`)
+  assert(report.coverage.unweightedSuccesses === 2, `coverage 未记录未加权成功数：${report.coverage.unweightedSuccesses}`)
+})
+
+check('H27 本地诊断窗口按可信度/总体/错误码/其他线索分层', () => {
+  const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
+  for (const key of ['health_diag_coverage_short', 'health_diag_h24', 'health_diag_codes', 'health_diag_other', 'coverage.unweightedSuccesses', 'spanText(', 'diagnosticsExpanded']) {
+    assert(src.includes(key), `窗口缺少分层元素：${key}`)
+  }
+})
+
 check('H22 趋势预警单一来源：页面不得维护第二套阈值', () => {
   const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
   assert(!src.includes('decliningSources'), '健康页仍在维护 decliningSources 独立判定')

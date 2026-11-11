@@ -56,9 +56,9 @@
 | 文件 | 代码/契约 | 验证 |
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
-| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开 | H14/H18/H19 + 静态契约 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 三语 | docs-audit 876 键 |
-| `docs/AGENTS.md` 等 | 31→35 条（H22/H23 锁趋势单一来源/日志死 API）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
+| `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠 | H14/H18/H19/H27 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 15 个 `health_diag_*` 三语 | docs-audit 891 键 |
+| `docs/AGENTS.md` 等 | 31→39 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ## 3. 断言矩阵（51 条）
 
@@ -87,7 +87,7 @@
 | D19 | local_zero 反例 | 只有 platform 不得冒充 sourceId |
 | D20 | rate_drop 加权 | 99.5%→66.7% 必报 33pp，evidence 含“约” |
 | D21 | p95_spike | 100ms→1000ms 必报 |
-| D22 | new_code 正例 | 前 7d 未见的新码必报 |
+| D22 | new_code 正例 | 有前 24h 基线时，前 7d 未见的新码必报 |
 | D23 | new_code 反例 | 旧码再次出现不得报新码 |
 | D24 | trend_decline | 连续降必报；抖动降不报 |
 | D25 | 上限 | findings≤12，每条 samples≤5 |
@@ -155,7 +155,7 @@
 node scripts/check_health_diagnostics_deep.js
 
 # 既有契约/压力回归
-node scripts/check_health_diagnostics.js          # 35/0
+node scripts/check_health_diagnostics.js          # 39/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
 
 # 仓库门禁
@@ -168,4 +168,4 @@ node scripts/check_docs_consistency.js            # 16 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 51/0；契约 35/0；压力 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；深度审计 51/0；契约 39/0；压力 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

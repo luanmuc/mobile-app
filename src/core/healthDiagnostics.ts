@@ -60,6 +60,7 @@ export interface HealthCoverage {
   newestTs: number | null
   coveredMs: number
   truncated: boolean
+  unweightedSuccesses: number
 }
 
 export interface HealthFindingSample {
@@ -298,8 +299,17 @@ export const detectHealthAnomalies = (input: {
 
   // 4) 近 24h 出现前 7d 没见过的错误码
   const recentCodes = new Set(outcomes.filter(e => inWindow(e, now, DAY) && e.ok === false && e.code).map(e => String(e.code)))
-  const priorCodes = new Set(outcomes.filter(e => e.ts <= now - DAY && e.ts > now - 7 * DAY && e.ok === false && e.code).map(e => String(e.code)))
-  const newCodes = Array.from(recentCodes).filter(c => !priorCodes.has(c))
+  // “新错误码”必须建立在已有基线之上：本地日志只覆盖几小时时，1~7 天前是空窗，
+  // 不能把空窗当成“前 7 天没出现”，否则每个错误码都会被误判成新码。
+  const baseline = outcomes.filter(e => e.ts <= now - DAY && e.ts > now - 7 * DAY)
+  const baselineOldest = baseline.length ? Math.min(...baseline.map(e => e.ts)) : null
+  const baselineSpan = baselineOldest == null ? 0 : Math.max(0, now - DAY - baselineOldest)
+  const baselineText = baselineSpan >= DAY
+    ? `${Math.max(1, Math.round(baselineSpan / DAY))} 天`
+    : `${Math.max(1, Math.round(baselineSpan / HOUR))} 小时`
+  const priorCodes = new Set(baseline.filter(e => e.ok === false && e.code).map(e => String(e.code)))
+  const newCodes = baseline.length ? Array.from(recentCodes).filter(c => !priorCodes.has(c)) : []
+  const emittedNewCodes = new Set<string>()
   for (const code of newCodes.sort((a, b) => {
     const ca = outcomes.filter(e => e.code === a).length
     const cb = outcomes.filter(e => e.code === b).length
@@ -311,11 +321,12 @@ export const detectHealthAnomalies = (input: {
       level: 'info',
       title: `出现新错误码 ${code}`,
       detail: '该错误码在前 7 天未出现过，可能是上游策略变化或新链路问题。',
-      evidence: `近 24h ${hit.length} 次 ${code}，前 7d 未见`,
+      evidence: `近 24h ${hit.length} 次 ${code}，此前 ${baselineText}未见`,
       suggestion: '把该错误码与同 traceId 的事件一起看；若是持续出现，再考虑临时降权该源。',
       traceIds: trimTrace(hit.map(e => String(e.traceId ?? ''))),
       samples: samplesOf(hit),
     })
+    emittedNewCodes.add(code)
   }
 
   // 5) 近期失败按错误码聚合，保证“最近异常”里有可直接看的证据
@@ -328,6 +339,8 @@ export const detectHealthAnomalies = (input: {
     byCode.set(code, list)
   }
   for (const [code, list] of Array.from(byCode.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 3)) {
+    // 已经以“新错误码”露出过的码不再重复一条，避免同一批失败出现两个标题。
+    if (emittedNewCodes.has(code)) continue
     findings.push({
       id: 'recent_failure',
       level: 'info',
@@ -371,7 +384,7 @@ export const detectHealthAnomalies = (input: {
   return findings.slice(0, 12)
 }
 
-const spanText = (ms: number): string => {
+export const spanText = (ms: number): string => {
   if (!Number.isFinite(ms) || ms <= 0) return '0 小时'
   if (ms < HOUR) return `${Math.max(1, Math.round(ms / 60000))} 分钟`
   if (ms < DAY) return `${Math.round(ms / HOUR)} 小时`
@@ -392,20 +405,27 @@ export const buildHealthReport = (input: {
   const timestamps = safe.map(e => e.ts)
   const oldestTs = timestamps.length ? Math.min(...timestamps) : null
   const newestTs = timestamps.length ? Math.max(...timestamps) : null
+  // 升级前的成功事件没有 sampleWeight，按 1 计；它们会把加权成功率拉低，
+  // 报告必须显式说明，避免用户把混合口径当成当前真实成功率。
+  const unweightedSuccesses = safe.filter(e => isOutcome(e) && e.ok === true && weightOf(e) === 1).length
   const coverage: HealthCoverage = {
     eventCount: safe.length,
     oldestTs,
     newestTs,
     coveredMs: oldestTs != null && newestTs != null ? Math.max(0, newestTs - oldestTs) : 0,
     truncated: Boolean(input.truncated),
+    unweightedSuccesses,
   }
   const h1 = agg.windows.h1
   const h24 = agg.windows.h24
+  const weightingNote = coverage.unweightedSuccesses
+    ? `成功按 1/20 采样加权；其中 ${coverage.unweightedSuccesses} 条成功为升级前未加权样本，成功率仅供参考。`
+    : '成功按 1/20 采样加权，数值为估算。'
   const coverageNote = agg.windows.d7.covered
     ? ''
     : ` 本地日志仅覆盖最近 ${spanText(coverage.coveredMs)}，7 天结论仅供参考。`
   const summary = h24.total
-    ? `近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；成功按 1/20 采样加权，数值为估算。发现 ${findings.length} 项异常/线索。${coverageNote}`
+    ? `近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）；${weightingNote}发现 ${findings.length} 项异常/线索。${coverageNote}`
     : `近 24 小时还没有本地取链记录。先播放几首歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
   const traceIds = trimTrace(findings.flatMap(f => f.traceIds))
   const recommendations = Array.from(new Set(findings.map(f => f.suggestion).filter(Boolean))).slice(0, 6)

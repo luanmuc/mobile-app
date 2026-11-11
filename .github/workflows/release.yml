@@ -81,7 +81,7 @@ jobs:
           node scripts/check_source_config_contract.js
           node scripts/check_source_platform_label.js
 
-      - name: 健康诊断契约门禁（35 条）
+      - name: 健康诊断契约门禁（39 条）
         # 只读契约：预加载 action 白名单 / 分发 case / traceId / 本地日志 / 聚合脱敏。
         # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。
         run: node scripts/check_health_diagnostics.js

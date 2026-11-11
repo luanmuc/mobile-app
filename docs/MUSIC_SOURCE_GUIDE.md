@@ -77,7 +77,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 - App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
 - 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/20 采样；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。报告里的成功率按采样权重还原（成功 weight=20、失败 weight=1），是本地估算而非服务端真值。
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。
-- 健康页「最近异常」展示本地 1h/24h/7d 成功率、P95、Top 错误码与异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码、最近 4 次快照成功率连续下降且累计 ≥15pp）；页面顶部趋势预警与报告共用同一条 `trend_decline` finding，不再维护第二套健康分阈值；窗口覆盖不足时标记 `covered=false` 并提示实际覆盖时长，7 天结论仅供参考。「导出诊断包」生成 `report + events + snapshot + trend + logTail`，日志尾部会脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动关源。
+- 健康页「最近异常」默认折叠，点标题展开为四层：数据可信度（覆盖时长/是否截断）、近 24h 总体（取链/成功/失败/本地成功率）、错误码、其他线索；展开后仍展示异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码（仅在有前 24h 基线时判定）、最近 4 次快照成功率连续下降且累计 ≥15pp）；页面顶部趋势预警与报告共用同一条 `trend_decline` finding，不再维护第二套健康分阈值；同一错误码不会同时以“新错误码”和“近期失败”重复出现；窗口覆盖不足时标记 `covered=false` 并提示实际覆盖时长，7 天结论仅供参考。「导出诊断包」生成 `report + events + snapshot + trend + logTail`，日志尾部会脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动关源。
 
 **健康分语义（v1.9.2-b5 起，配套音源 v7.0）**：
 

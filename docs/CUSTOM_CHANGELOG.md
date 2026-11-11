@@ -1,3 +1,24 @@
+## [本地诊断窗口重排 + 折叠] - 2026-11-11
+
+> 原来的窗口把“汇总一段话 + 最多 5 条 finding”平铺在一起，用户看到的只是“有事”，看不出“这份结论可不可信、总体怎么样、哪个错误码在涨”。重排为四层，并默认折叠，点标题展开。
+
+- `src/screens/Home/Views/Setting/settings/Health.tsx`：最近异常窗口改为可折叠卡片；折叠态显示 `24h 成功/取链 · 本地成功率 · 线索数`，展开态依次显示可信度徽标（已覆盖 7 天 / 仅覆盖最近 N 小时 / 已达读取上限）、24h 取链/成功/失败/成功率四格、1h 记录与采样口径、错误码、其他线索；错误码与线索仍可点开 `samples`。
+- `src/core/healthDiagnostics.ts`：`HealthCoverage` 增加 `unweightedSuccesses`，`buildHealthReport` 直接写入覆盖对象，页面不再解析汇总长文本；`spanText` 改为导出，供页面显示实际覆盖时长。
+- `src/lang/{zh-cn,zh-tw,en-us}.json`：新增 15 个 `health_diag_*` 键，三语 876 → 891。
+- `scripts/check_health_diagnostics.js`：新增 H27（窗口必须包含可信度/总体/错误码/其他线索分层与 `diagnosticsExpanded`），H26 追加 `coverage.unweightedSuccesses === 2`；契约 38 → 39 条。
+- 文档：`AGENTS`/`AUDIT_PLAN`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS`/`RELEASE_SOP`/`release.yml` 同步 39 条；`DOWNLOAD_DESIGN`/`MERGE_GUIDE`/`SYNC_POINTS`/`doc-sync-map` 同步 891 键；`MUSIC_SOURCE_GUIDE` 四b 节补充窗口分层与折叠。
+- 验证：契约 39/0、深度 51/0、压力 14/0、`tsc` 与改动文件 eslint rc=0。
+
+## [本地诊断误报修复：新错误码基线、同码去重、未加权样本提示] - 2026-11-11
+
+> 真机截图暴露：本地日志只覆盖 8 小时时，1~7 天前是空窗，`new_code` 仍把 `NETWORK_TIMEOUT` 判成“前 7d 未见”；同一批 7 次失败又触发 `recent_failure`，同一错误码出现两条。另外升级前的成功事件没有 `sampleWeight`，汇总 22% 混入了未加权样本。
+
+- `src/core/healthDiagnostics.ts`：`new_code` 增加前 24h 基线前提——`baseline.length === 0` 时不判新码；证据文案从“前 7d 未见”改为实际基线跨度“此前 N 天/小时未见”；`recent_failure` 跳过已经由 `new_code` 露出的错误码，避免同码重复。
+- `buildHealthReport`：统计未加权成功样本（`ok === true && weightOf === 1`），汇总显式提示“其中 N 条成功为升级前未加权样本，成功率仅供参考”。
+- `scripts/check_health_diagnostics.js`：新增 H24/H25/H26，35→38 条；先 RED 后改码，三条均先因旧逻辑失败再转绿。
+- 文档：`AGENTS`/`AUDIT_PLAN`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS`/`RELEASE_SOP`/`release.yml` 计数同步 38；`MUSIC_SOURCE_GUIDE` 四b 节补充“新错误码需基线、同码不重复、未加权样本提示”。
+- 验证：契约 38/0、深度 51/0、压力 14/0、`tsc`/全量 `eslint` rc=0、`check_docs_consistency` 17 文档、`docs-audit --dry-run` 待处理 0。
+
 ## [日志/诊断去重：趋势预警单一来源、清理死 API、日志尾按字节] - 2026-11-11
 
 > 推送前做的一次去重：趋势预警原本在页面上按“3 次健康分 -5”独立算一遍，报告里又按“4 次成功率 -15pp”算一遍，同一份 `trendData` 可能给出两个结论；日志侧还有三个零调用的导出 API。

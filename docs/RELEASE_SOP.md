@@ -23,7 +23,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error，`.github/workflows/release.yml`）：与语法检查互补，失败即停在构建前
       ├─ ESLint 全仓检查（0 error / 0 warning，`.github/workflows/release.yml`）：格式/类型断言/空值语义等静态约束，失败即停在构建前
       ├─ 音源标签/配置/语法契约门禁（9+24+519，`.github/workflows/release.yml`）：`sourcePlatform` 全链路透传 / 配置键表 / TS 语法；失败即停在构建前
-      ├─ 健康诊断契约门禁（35 条，`.github/workflows/release.yml`）：预加载 action 白名单/分发 case/traceId/本地日志/聚合脱敏；失败即停在构建前
+      ├─ 健康诊断契约门禁（39 条，`.github/workflows/release.yml`）：预加载 action 白名单/分发 case/traceId/本地日志/聚合脱敏；失败即停在构建前
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
       ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
       └─ ./gradlew assembleRelease → 5 个 ABI APK → upload-artifact

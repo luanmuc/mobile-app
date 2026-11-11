@@ -13,7 +13,7 @@
 | **预加载 action 白名单**<br>`android/app/src/main/assets/script/user-api-preload.js` 的 `supportActions` 与 request switch | 音源新增 action 必须同时加白名单与分发 case，否则真机收不到该 action | `grep -n "healthEvents" android/app/src/main/assets/script/user-api-preload.js`；`node scripts/check_health_diagnostics.js` 的 H10 |
 | **健康分字段**<br>异常 0 / 一般 1 / 无样本 2 / 健康 3（10 分制） | ① `src/screens/Home/Views/Setting/settings/Health.tsx` 健康面板阈值（≥3 绿 / ≥−5 主题字体色 / <−5 红）<br>② 趋势弹窗排序权重（异常<一般<无样本<健康） | 看 Health.tsx 里的阈值数字，和音源侧的健康分定义对不对得上 |
 | **trend 注释**<br>历史记录条数 | `src/screens/Home/Views/Setting/settings/Health.tsx` 的 trend action 调用注释 | 音源侧 trend 返回多少条历史，App 侧注释里写的条数要对得上 |
-| **lang 词条**<br>新增 toast / nav / 设置项文案 | `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` 三语言 | 三语言键数要一致（当前基线 876 键，含定制 `dl_*` 93 键）；新增词条三语言都要加 |
+| **lang 词条**<br>新增 toast / nav / 设置项文案 | `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` 三语言 | 三语言键数要一致（当前基线 891 键，含定制 `dl_*` 93 键）；新增词条三语言都要加 |
 | **subSource 透出**<br>播放页显示音源子源 | ① 播放页 UI（竖屏 + 横屏）<br>② 底部播放栏<br>③ 通知栏附加信息 | 音源侧 musicUrl 返回 subSource 字段，App 侧要接住并显示；v8.12.0 起同时返回 sourcePlatform，标签按实际平台显示（旧音源缺字段时回退主平台） |
 | **音质档位表**<br>128k / 320k / flac / flac24bit / high | 音质选择弹窗 / 播放页音质标签 | 音源侧支持的音质档位，App 侧音质标签要能对应显示 |
 | **版本号（两套读取规则）**<br>`@version` 首 token（设置页检查更新）<br>logInfo 全文（启动导入判定） | ① `src/screens/Home/Views/Setting/settings/Basic/Source.tsx`（`@version\s+(\S+)` 取第一 token）<br>② `src/core/init/userApi/index.ts`（logInfo 正则取完整版本） | 音源侧 `@version` 的**第一个 token 必须就是完整版本号**（如 `8.10.2 记账顺序修复…`），不得写成 `8.10 + 说明`——否则启动导入认 8.10.2、设置页却显示 8.10。发布前两边各取一次比对<br>（`self-check.js` 只校验代码内两处版本串是否一致，**管不到 App 的实际显示路径**，此项必须人工核对） |
