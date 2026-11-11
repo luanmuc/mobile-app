@@ -422,7 +422,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 ```bash
 node scripts/check_source_platform_label.js        # 9/9
 node scripts/check_source_config_contract.js       # 24/0
-node scripts/check_health_diagnostics.js           # 33/0
+node scripts/check_health_diagnostics.js           # 35/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_ts_syntax.js                    # 519/0
 node scripts/check_docs_consistency.js             # 16 文档
@@ -437,7 +437,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 |---|---|---|
 | 标签矩阵穷举 | `buildSourceLabel` × 平台（7 已知 + local + 未知 + 空，10 种）× 子源（有/无/同平台名/空，4 种） | 40 组合无 `undefined`/空串/双分隔符/悬挂分隔符；实际平台优先 |
 | 健康诊断压力 | `check_health_diagnostics_stress.js` 10000 条事件、5MB 日志、200 错误码 | 14/14，不崩、不越界、证据包脱敏 |
-| 健康诊断深度审计 | `check_health_diagnostics_deep.js` 50 条：统计/窗口/异常/隐私/多字节/10 万条 | 50/50，详见 [AUDIT_PLAN_HEALTH_DIAGNOSTICS.md](./AUDIT_PLAN_HEALTH_DIAGNOSTICS.md) |
+| 健康诊断深度审计 | `check_health_diagnostics_deep.js` 51 条：统计/窗口/异常/隐私/多字节/10 万条 | 51/51，详见 [AUDIT_PLAN_HEALTH_DIAGNOSTICS.md](./AUDIT_PLAN_HEALTH_DIAGNOSTICS.md) |
 | 跨仓版本反证 | 故意把 `MUSIC_SOURCE_GUIDE` 版本写成 8.11.7，跑构建前校验 | 必须报「文档音源版本 ≠ 本次内置」而非放行 |
 | CI 生成物反证 | 在本地生成一个含分号的 `builtin_source.js`，跑 `eslint .` | 必须 0 错误（证明忽略规则生效，不是恰好没有该文件） |
 
@@ -449,7 +449,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 |---|---|---|
 | `check_source_platform_label.js` | **9/9** | 0 |
 | `check_source_config_contract.js` | **24/0** | 0 |
-| `check_health_diagnostics.js` | **33/0** | 0 |
+| `check_health_diagnostics.js` | **35/0** | 0 |
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_ts_syntax.js` | **519 文件 0 错误** | 0 |
 | `check_docs_consistency.js` | **16 文档无过时引用** | 0 |

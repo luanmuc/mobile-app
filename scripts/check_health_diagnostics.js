@@ -401,6 +401,20 @@ check('H21 快照趋势上升/抖动不得误报下降', () => {
   assert(!diag.detectHealthAnomalies({ events: [], trend: bounce, now: NOW }).some(x => x.id === 'trend_decline'), '非连续下降被误报')
 })
 
+check('H22 趋势预警单一来源：页面不得维护第二套阈值', () => {
+  const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
+  assert(!src.includes('decliningSources'), '健康页仍在维护 decliningSources 独立判定')
+  assert(src.includes("f.id === 'trend_decline'"), '健康页未复用报告 trend_decline finding')
+  assert(src.includes('trendDeclineFindings.map(f => f.title)'), '多源趋势下降未聚合展示')
+})
+
+check('H23 日志死 API 清零且运行日志页仍可读 debug', () => {
+  const logger = read('src/utils/logger.ts')
+  assert(!/^\s{2}(getLog|clearLog|getLogPath):/m.test(logger), 'logger 仍暴露零调用 API')
+  const page = read('src/screens/Home/Views/Setting/settings/Log.tsx')
+  assert(page.includes('getLogs') && page.includes('LOG_CATEGORY_LABELS'), '运行日志页读取链路被误删')
+})
+
 console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
 if (failures.length) {
   console.log('失败项：')

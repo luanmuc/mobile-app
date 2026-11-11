@@ -83,22 +83,4 @@ export const logger = {
     void writeLog('INFO', 'Player', `${action}${msg ? ': ' + msg : ''}`)
   },
 
-  // 获取日志内容
-  getLog: async(): Promise<string> => {
-    try {
-      return await RNFS.readFile(getLogPath(), 'utf8')
-    } catch {
-      return '（暂无日志）'
-    }
-  },
-
-  // 清空日志
-  clearLog: async() => {
-    try {
-      await RNFS.writeFile(getLogPath(), '', 'utf8')
-    } catch {}
-  },
-
-  // 获取日志文件路径
-  getLogPath: () => getLogPath(),
 }

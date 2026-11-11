@@ -47,6 +47,7 @@
 | `shouldSampleSuccess` | 0 / 0.049 / 0.05 / 0.999 | F7 |
 | `createHealthTraceId` | 格式 / 2000 次唯一性 | F8 |
 | `healthFileName` / `buildExportFileName` | 日期、时分秒、无设备/账号 | F10 |
+| `trimTailByBytes` | 纯中文 / 代理对 / 超字节上限 | F11 |
 | `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失 | 既有压力 U2、U3、U5 |
 | `recordPlayResult` | 失败 100% / 成功 1/20 / 失败抓 sourceEvents | 契约 H11、H15 + 压力 U9~U12 |
 
@@ -57,9 +58,9 @@
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开 | H14/H18/H19 + 静态契约 |
 | `src/lang/*.json` | `health_copy_report` / `health_copy_done` 三语 | docs-audit 876 键 |
-| `docs/AGENTS.md` 等 | 31→33 条、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
+| `docs/AGENTS.md` 等 | 31→35 条（H22/H23 锁趋势单一来源/日志死 API）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
-## 3. 断言矩阵（50 条）
+## 3. 断言矩阵（51 条）
 
 运行入口：`node scripts/check_health_diagnostics_deep.js`。分组与阈值如下，全部要求 rc=0。
 
@@ -111,6 +112,7 @@
 | F8 | traceId | 2000 个唯一且格式稳定 |
 | F9 | 恰好上限 | 完整行不被丢弃 |
 | F10 | 文件名 | 日期/时分秒正确，无账号设备 |
+| F11 | 诊断日志尾 | UTF-8 字节≤上限、不切断中文、无替换符 |
 | G1 | 10 万条聚合 | ≤2000ms，结果有限 |
 | G2 | 10 万条报告 | ≤3000ms，findings≤12 |
 | G3 | 2 万条证据包 | ≤4000ms，可 JSON 序列化 |
@@ -149,11 +151,11 @@
 ## 7. 执行命令与退出标准
 
 ```bash
-# 深度审计压力（50 条）
+# 深度审计压力（51 条）
 node scripts/check_health_diagnostics_deep.js
 
 # 既有契约/压力回归
-node scripts/check_health_diagnostics.js          # 33/0
+node scripts/check_health_diagnostics.js          # 35/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
 
 # 仓库门禁
@@ -166,4 +168,4 @@ node scripts/check_docs_consistency.js            # 16 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 50/0；契约 33/0；压力 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；深度审计 51/0；契约 35/0；压力 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

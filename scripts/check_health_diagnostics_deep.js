@@ -306,6 +306,10 @@ const DAY = 24 * HOUR
   const exact = JSON.stringify({ a: 'x'.repeat(10) })
   rec('F9', '恰好等于上限的完整行不被丢弃', log.trimJsonlTail(exact, Buffer.byteLength(exact)) === exact, `len=${Buffer.byteLength(exact)}`)
 
+  const longTail = '开头\n' + '中'.repeat(30000)
+  const cutTail = typeof log.trimTailByBytes === 'function' ? log.trimTailByBytes(longTail, 60000) : null
+  rec('F11', '诊断日志尾按 UTF-8 字节裁剪，不切断中文', cutTail != null && Buffer.byteLength(cutTail) <= 60000 && cutTail.endsWith('中') && !cutTail.includes('\uFFFD'), `bytes=${cutTail == null ? 'missing' : Buffer.byteLength(cutTail)}`)
+
   const day = new Date('2026-11-11T12:00:00+08:00')
   const exportName = log.buildExportFileName(day)
   rec('F10', '健康文件名/导出文件名带日期、时间且不含账号设备', /^source_health_2026111[01].jsonl$/.test(log.healthFileName(day)) && /^source_health_diag_20261111_[0-9]{6}.json$/.test(exportName), `${log.healthFileName(day)}/${exportName}`)

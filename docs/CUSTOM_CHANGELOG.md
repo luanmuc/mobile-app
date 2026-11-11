@@ -1,3 +1,14 @@
+## [日志/诊断去重：趋势预警单一来源、清理死 API、日志尾按字节] - 2026-11-11
+
+> 推送前做的一次去重：趋势预警原本在页面上按“3 次健康分 -5”独立算一遍，报告里又按“4 次成功率 -15pp”算一遍，同一份 `trendData` 可能给出两个结论；日志侧还有三个零调用的导出 API。
+
+- `Health.tsx`：删除 `decliningSources` 状态与 3 次健康分判定，顶部预警直接读报告 `trend_decline` finding；保留 `health_decline_hint`，文案改为“最近 4 次探测成功率持续下降”。
+- `src/utils/logger.ts`：删除零调用的 `getLog/clearLog/getLogPath`；`lx_debug_log.txt` 仍由 `writeLog` 与日志页统一读取。
+- `src/core/healthLog.ts`：新增 `trimTailByBytes`，`readDiagnoseLogTail` 按 UTF-8 字节裁剪并保留完整字符，不再用字符数冒充字节数；深度审计 F11 看护。
+- `src/lang/*.json`：`health_col_success` 改为“源内成功率 / Source rate”，与本地播放成功率区分；键数仍为 876。
+- `scripts/check_health_diagnostics.js`：新增 H22/H23，33→35 条，锁住“趋势预警单一来源”和“日志死 API 清零/日志页仍可读”。
+- 验证：深度审计 51/0、契约 35/0、压力 14/0、`tsc`/全量 `eslint` rc=0、`check_docs_consistency` 17 文档、`docs-audit --dry-run` 待处理 0。
+
 ## [音源健康本地诊断：采样加权 / 失败归因 / 窗口覆盖 / 证据展开 + 深度审计修复] - 2026-11-11
 
 > 修三处会让报告结论失真的统计口径：成功率被 1/20 采样系统性压低、失败只记 `platform` 导致快照对照漏报、只读最近 500/800 条却标 7 天。改法对齐 OpenTelemetry probability sampling 的 adjusted count，但不引入 SDK、不上传。

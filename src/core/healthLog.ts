@@ -228,13 +228,28 @@ export const readRecentHealthEvents = async(limit = 800, now: Date = new Date())
   }
 }
 
+/** 按 UTF-8 字节保留字符串尾部，不切断多字节字符（Array.from 保证代理对整体计入） */
+export const trimTailByBytes = (text: string, maxBytes: number): string => {
+  if (!text || maxBytes <= 0) return ''
+  const chars = Array.from(text)
+  let bytes = 0
+  let start = chars.length
+  for (let i = chars.length - 1; i >= 0; i--) {
+    const unit = utf8Bytes(chars[i])
+    if (bytes + unit > maxBytes) break
+    bytes += unit
+    start = i
+  }
+  return chars.slice(start).join('')
+}
+
 export const readDiagnoseLogTail = async(maxBytes = 64 * 1024): Promise<string> => {
   try {
     const fs = getFs()
     const path = getLogsDir() + '/diagnose.log'
     if (!await fs.exists(path)) return ''
     const text = await fs.readFile(path, 'utf8')
-    return text.length > maxBytes ? text.slice(-maxBytes) : text
+    return utf8Bytes(text) > maxBytes ? trimTailByBytes(text, maxBytes) : text
   } catch {
     return ''
   }

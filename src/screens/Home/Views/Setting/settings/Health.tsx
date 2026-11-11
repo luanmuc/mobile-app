@@ -88,10 +88,10 @@ export default memo(() => {
   // v8.0：趋势图相关 state
   const [trendData, setTrendData] = useState<Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>>([])
   const [showTrendModal, setShowTrendModal] = useState(false)
-  // 提前预警——健康分连续下降的源列表
-  const [decliningSources, setDecliningSources] = useState<string[]>([])
   // 2.4：本地诊断报告（最近异常 + 一键导出）
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
+  // 趋势预警只保留报告一套判定，页面不再维护第二套阈值
+  const trendDeclineFindings = diagnostics?.findings.filter(f => f.id === 'trend_decline') ?? []
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -170,34 +170,6 @@ export default memo(() => {
           const history = trendResult?.history ?? []
           setTrendData(history)
           void refreshDiagnostics(data, history)
-
-          // 判断逻辑：最近 3 次探测，健康分连续下降 ≥5 分
-          if (history.length >= 3) {
-            const recent = history.slice(-3)
-            const declining: string[] = []
-            // 收集所有出现过的源 id
-            const allSourceIds = new Set<string>()
-            recent.forEach(entry => {
-              Object.keys(entry.sources).forEach(id => allSourceIds.add(id))
-            })
-            // 逐个源判断是否连续下降
-            allSourceIds.forEach(sourceId => {
-              // 检查该源是否还在当前 snapshot 里（已删除/手动关闭的源不预警）
-              if (!(data)?.[sourceId]) return
-              const scores = recent.map(entry => entry.sources[sourceId]?.score ?? null)
-              // 要求 3 次都有分数（不是 null）
-              if (scores.every(s => s !== null)) {
-                const [s1, s2, s3] = scores
-                // 连续两次下降（s1 > s2 > s3），且累计下降 ≥5 分
-                if (s1 > s2 && s2 > s3 && (s1 - s3) >= 5) {
-                  declining.push(sourceId)
-                }
-              }
-            })
-            setDecliningSources(declining)
-          } else {
-            setDecliningSources([])
-          }
         }
       } catch (e) {
         // trend 获取失败不影响主流程，静默忽略
@@ -444,10 +416,10 @@ export default memo(() => {
           ) : null
         }
         {
-          // 提前预警——健康分连续下降
-          decliningSources.length ? (
+          // 趋势预警单一来源：直接展示本地诊断报告里的 trend_decline finding
+          trendDeclineFindings.length ? (
             <View style={[styles.summary, { backgroundColor: '#fff2e8' }]}>
-              <Text size={12} color="#fa541c">{t('health_declining', { sources: decliningSources.map(id => sourceLabel(id, snapshot?.[id]?.name)).join(t('health_list_separator')) })}</Text>
+              <Text size={12} color="#fa541c">{t('health_declining')} {trendDeclineFindings.map(f => f.title).join(t('health_list_separator'))}</Text>
               <Text size={11} color={theme['c-font-label']}>{t('health_decline_hint')}</Text>
             </View>
           ) : null
