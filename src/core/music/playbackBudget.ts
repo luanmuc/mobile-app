@@ -8,14 +8,20 @@
 export const PLAYBACK_BUDGET_MS = 24_000
 
 export type PlaybackStage = 'primary' | 'fallback'
+export type PlaybackOwner = 'host' | 'source'
 
 export interface PlaybackAttempt {
   source: string
+  owner: PlaybackOwner
   stage: PlaybackStage
   ok: boolean
   code: string
   latencyMs: number
 }
+
+/** 主源归谁：源声明 source 即源内换源；其余（缺省/host）由宿主兜底。 */
+export const resolvePlaybackOwner = (fallbackOwner?: string): PlaybackOwner =>
+  fallbackOwner === 'source' ? 'source' : 'host'
 
 export interface PlaybackBudget {
   startedAt: number

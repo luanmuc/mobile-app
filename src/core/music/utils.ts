@@ -20,6 +20,7 @@ import {
   createPlaybackBudget,
   isBudgetExhausted,
   raceWithBudget,
+  resolvePlaybackOwner,
   type PlaybackAttempt,
   type PlaybackBudget,
 } from './playbackBudget'
@@ -375,11 +376,11 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   // retryedSource.includes(musicInfo.source)
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
-    playbackAttempts.push({ source: musicInfo.source, stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
+    playbackAttempts.push({ source: musicInfo.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    playbackAttempts.push({ source: musicInfo.source, stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
+    playbackAttempts.push({ source: musicInfo.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     if (err.message == requestMsg.tooManyRequests) {
       err.attempts = playbackAttempts
@@ -425,6 +426,8 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   }
   // console.log(musicInfo.source)
   const targetQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
+  const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
+  const primaryOwner = resolvePlaybackOwner(fallbackOwner)
 
   let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
   const primaryStartedAt = Date.now()
@@ -434,14 +437,13 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     reqPromise = Promise.reject(err)
   }
   return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
-    playbackAttempts.push({ source: musicInfo.source, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt })
+    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
   }).catch(async(err: any) => {
-    playbackAttempts.push({ source: musicInfo.source, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt })
+    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     console.log(err)
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。
-    const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
     if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) {
       if (err && typeof err === 'object') err.attempts = playbackAttempts
       throw err

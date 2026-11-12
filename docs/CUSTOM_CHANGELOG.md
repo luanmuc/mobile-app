@@ -1,3 +1,13 @@
+## [验收收口：P2 错误码 + P1 owner 归因] - 2026-11-12
+
+> 报告验收表字面缺口：P2-A2/A3 缺 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`；P1-A7 的 `attempts[]` 缺 `owner`。
+
+- 源仓 `8.12.4`：`decodeMediaEnvelope` 旁增加 `mediaEnvelopeErrorCode()`；分片数不足/空片返回 `TRUNCATED_MEDIA`，`byteLength` 或 base64 结构不符返回 `BAD_ENVELOPE`；`toBytes` 仍返回 null，`probeAudioDelivery` 与 `admit` 在无字节时优先取信封错误码，不再落回 `NOT_AUDIO`。
+- App `playbackBudget.ts`：新增 `PlaybackOwner='host'|'source'` 与 `resolvePlaybackOwner()`；`PlaybackAttempt.owner` 必填。主源按 `fallbackOwners` 解析，候选固定 `host`；`healthLog` 白名单保留合法 owner，非法值丢弃。
+- P1-A4 不新增机制：候选 `source` 即平台，`retryedSource` 已完成同 trace 同平台去重，补运行时/源码断言锁定。
+- 测试：源 `x-media-envelope` 8→11（X5 改 `BAD_ENVELOPE`、X9 缺片、X10 1B/1KB、X11 admit）；App `check_playback_budget` 16→20（P1E-A1~A4）；首跑 RED 源 8/2、App 16/4，实现后 GREEN 源 11/0、App 20/0。
+- 验证：App `tsc` 0、语法 524/0、变更 eslint 0；源 `self-check` 8.12.4、docs-audit 0。
+
 ## [P1-A8：getOtherSource 缓存 TTL / 负缓存 / 容量] - 2026-11-12
 
 > 问题：候选搜索缓存按对象引用命中、无 TTL、空结果永久缓存；超过 10 条直接 `clear()`，热门歌重播会反复触发 12s 搜索。

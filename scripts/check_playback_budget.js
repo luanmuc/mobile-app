@@ -69,7 +69,7 @@ run('P1B-A1 24s 预算起点与 deadline 归一', () => {
 
 run('P1B-A2 预算耗尽错误带 code/retryable/attempts', () => {
   const { createBudgetExhaustedError } = BUDGET()
-  const attempts = [{ source: 'kw', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 }]
+  const attempts = [{ source: 'kw', owner: 'source', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 }]
   const error = createBudgetExhaustedError(attempts)
   assert.ok(error instanceof Error)
   assert.ok(error.message.startsWith('BUDGET_EXHAUSTED:'), error.message)
@@ -171,14 +171,14 @@ run('P1C-A1 play_result 持久化 attempts', () => {
     code: 'BUDGET_EXHAUSTED',
     latencyMs: 24000,
     attempts: [
-      { source: 'kw', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 },
-      { source: 'wy', stage: 'fallback', ok: false, code: 'NETWORK_ERROR', latencyMs: 8000 },
+      { source: 'kw', owner: 'source', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 },
+      { source: 'wy', owner: 'host', stage: 'fallback', ok: false, code: 'NETWORK_ERROR', latencyMs: 8000 },
     ],
   })
   assert.ok(Array.isArray(entry.attempts), 'play_result 未保存 attempts')
   assert.strictEqual(entry.attempts.length, 2, 'attempts 数量不符')
   assert.deepStrictEqual(entry.attempts[0], {
-    source: 'kw', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000,
+    source: 'kw', owner: 'source', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000,
   }, 'attempt 字段被改写')
 })
 
@@ -204,6 +204,43 @@ run('P1C-A3 失败记录接线并保留结构化错误码', () => {
   const online = read('src/core/music/online.ts')
   assert.ok(/attempts:\s*normalizeAttempts|attempts:\s*errAttempts/.test(online), '失败 recordPlayResult 未传 attempts')
   assert.ok(online.includes('errAny?.code'), '失败码未优先读取 err.code')
+})
+
+SECTION('owner attribution')
+run('P1E-A1 owner 解析：source 声明归源，其余归宿主', () => {
+  const { resolvePlaybackOwner } = BUDGET()
+  assert.strictEqual(resolvePlaybackOwner('source'), 'source')
+  assert.strictEqual(resolvePlaybackOwner('host'), 'host')
+  assert.strictEqual(resolvePlaybackOwner(undefined), 'host')
+})
+
+run('P1E-A2 play_result 保留合法 owner，丢弃非法值', () => {
+  const { buildPlayResultEntry } = HEALTH_LOG()
+  const entry = buildPlayResultEntry({
+    ok: false,
+    attempts: [
+      { source: 'kw', owner: 'source', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 },
+      { source: 'wy', owner: 'host', stage: 'fallback', ok: false, code: 'NETWORK_ERROR', latencyMs: 8000 },
+      { source: 'kg', owner: 'bogus', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 1 },
+    ],
+  })
+  assert.strictEqual(entry.attempts[0].owner, 'source')
+  assert.strictEqual(entry.attempts[1].owner, 'host')
+  assert.ok(!('owner' in entry.attempts[2]), '非法 owner 不应落盘')
+})
+
+run('P1E-A3 主源按 fallbackOwner 解析，候选固定 host', () => {
+  const utils = read('src/core/music/utils.ts')
+  assert.ok(utils.includes('resolvePlaybackOwner(fallbackOwner)'), '主源未按 fallbackOwner 解析 owner')
+  assert.ok(/stage: 'primary'.*owner: primaryOwner|owner: primaryOwner.*stage: 'primary'/.test(utils), 'primary attempt 未使用解析后的 owner')
+  assert.ok(/stage: 'fallback'.*owner: 'host'|owner: 'host'.*stage: 'fallback'/.test(utils), 'fallback attempt 未标记 host')
+})
+
+run('P1E-A4 同 trace 同平台候选只尝试一次', () => {
+  const utils = read('src/core/music/utils.ts')
+  assert.ok(utils.includes('if (retryedSource.includes(musicInfo.source)) continue'), '候选循环未按平台去重')
+  assert.ok(utils.includes('retryedSource.push(musicInfo.source)'), '候选平台未入已试集合')
+  assert.ok(utils.includes('retryedSource: [musicInfo.source]'), '首轮候选未预置主平台')
 })
 
 const asyncRun = async(name, fn) => {

@@ -17,6 +17,7 @@ declare const global: any
 
 export interface PlayAttempt {
   source: string
+  owner?: 'host' | 'source'
   stage?: string
   ok?: boolean
   code?: string
@@ -137,6 +138,7 @@ export const normalizePlayAttempts = (attempts?: PlayAttempt[]): PlayAttempt[] |
     if (!item || typeof item !== 'object') continue
     if (typeof item.source !== 'string' || !item.source) continue
     const attempt: PlayAttempt = { source: item.source }
+    if (item.owner === 'host' || item.owner === 'source') attempt.owner = item.owner
     if (typeof item.stage === 'string' && item.stage) attempt.stage = item.stage
     if (typeof item.ok === 'boolean') attempt.ok = item.ok
     if (typeof item.code === 'string' && item.code) attempt.code = item.code
