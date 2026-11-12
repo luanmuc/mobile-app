@@ -6,6 +6,7 @@
 - `src/core/music/online.ts`：失败 `recordPlayResult` 透传 `err.attempts`；失败码优先取 `err.code`，其次 `CODE:` 前缀，`BUDGET_EXHAUSTED` 不再被改写成 `PLAY_FAIL`。
 - `scripts/check_playback_budget.js` 从 9 条扩到 12 条，新增 P1C-A1~A3；首跑 RED 9/3（attempts 未落盘、未接线），实现后 GREEN 12/0。
 - 验证：播放预算 12/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
+- 发布：`7afbe4b6` → CI `43132044437` Android/Release success → `v1.9.2-b111`（release id `442370713`）；5 APK：arm64 14,255,579 / armeabi-v7a 13,248,688 / universal 29,254,169 / x86 14,699,578 / x86_64 14,579,747。
 
 ## [P2 桥媒体传输：base64 信封与 256KB 分片] - 2026-11-12
 
