@@ -6,6 +6,7 @@
 - `src/core/music/utils.ts` 的 `getOtherSource` 改为稳定 key（`source_id` / `local_id`）缓存；`isRefresh=true` 跳过读缓存但仍写回；空数组按负缓存 TTL 落盘，60s 内不再重搜。
 - `scripts/check_playback_budget.js` 从 12 条扩到 16 条，新增 P1D-A1~A4；首跑 RED 12/4（模块缺失、utils 未接线），实现后 GREEN 16/0。
 - 验证：播放预算 16/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
+- 发布：`88076d95` → CI `43134049562` Android/Release success → `v1.9.2-b112`（release id `442382357`）；5 APK：arm64 14,256,250 / armeabi-v7a 13,249,359 / universal 29,254,843 / x86 14,700,232 / x86_64 14,580,422。
 
 ## [P1 收口：play_result 结构化 attempts] - 2026-11-12
 
