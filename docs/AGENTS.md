@@ -44,6 +44,9 @@ node scripts/check_health_diagnostics_deep.js
 node scripts/check_health_diagnostics_view.js
 
 # 门禁归属：契约 41 + 视图 22 + 日志目录 13 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 22 + 日志目录 13 条在 health-stress.yml（每周/手动）
+# 源仓 HEAD CI 闸门（构建前硬阻断；源仓最近一次 push CI 必须 success，且绿提交是当前 HEAD 祖先）
+node scripts/check_source_ci_gate.js
+
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
@@ -169,5 +172,6 @@ node scripts/docs-audit.js   # 文档一致性检查：过时引用清零才可�
 ## 发布
 
 - push master 即触发云编译发版（`v1.9.2-bN`）；`publish/**`、`npm-version-info/**` 不触发。
+- 构建前先跑源仓 HEAD CI 闸门：源仓最近一次 push CI 非 success、未完成、无 run，或绿提交不是当前 HEAD 祖先时，直接阻断取源。
 - 完整流程、发布后验证清单与回滚方法见 `docs/RELEASE_SOP.md`。
 - 音源版本独立发布，由 CI 构建时拉取（见 `docs/MUSIC_SOURCE_GUIDE.md`）。

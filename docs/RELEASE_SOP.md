@@ -19,6 +19,7 @@
 ```
 push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/**）
   └─ Job Android
+      ├─ 源仓 HEAD CI 闸门（`node scripts/check_source_ci_gate.js`）：源仓最近一次 push CI 必须为 success，且绿提交是当前 HEAD 的祖先；红/未完成/无 run/分叉均阻断，不再允许从红提交取源构建
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error，`.github/workflows/release.yml`）：与语法检查互补，失败即停在构建前
       ├─ ESLint 全仓检查（0 error / 0 warning，`.github/workflows/release.yml`）：格式/类型断言/空值语义等静态约束，失败即停在构建前
@@ -42,13 +43,14 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 
 1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（524 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
-2. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
-3. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮
-4. **下载**：并发任务、暂停/恢复、失败自动重试、仅 WiFi 开关、音质降级链、标签写入、下载目录权限
-5. **音源**：搜索、播放 URL 可播、音质降级、歌词/封面、健康探测
-6. **权限**：Android <10 存储权限引导、11-12 全文件访问引导、≥13 READ_MEDIA_AUDIO
-7. **更新**：多源版本检查、`bN` 版本号比较、启动自动更新
-8. **回归**：原版核心功能抽查（播放列表/收藏/设置页/榜单）
+2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。
+3. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
+4. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮
+5. **下载**：并发任务、暂停/恢复、失败自动重试、仅 WiFi 开关、音质降级链、标签写入、下载目录权限
+6. **音源**：搜索、播放 URL 可播、音质降级、歌词/封面、健康探测
+7. **权限**：Android <10 存储权限引导、11-12 全文件访问引导、≥13 READ_MEDIA_AUDIO
+8. **更新**：多源版本检查、`bN` 版本号比较、启动自动更新
+9. **回归**：原版核心功能抽查（播放列表/收藏/设置页/榜单）
 
 ## 四、发布后验证清单（每次推送后必查）
 

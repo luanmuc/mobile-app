@@ -29,6 +29,13 @@ jobs:
       - name: Check out git repository
         uses: actions/checkout@v4
 
+      - name: 源仓 HEAD CI 闸门
+        # 源仓最近一次 push CI 非 success，或绿提交不是当前 HEAD 祖先时，构建前直接阻断；
+        # 防止再出现 b113 从源仓红提交 1da2f56 构建、测试转绿后才补 2e9b204 的情况。
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check_source_ci_gate.js
+
       - name: Download latest music source
         run: |
           echo "Downloading latest music source (lx-source.js)..."
