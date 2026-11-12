@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b111",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 7afbe4b6 feat(media): P1 收口 play_result 结构化 attempts\n- 548b34c2 docs: 同步源侧 X8 信封审计\n- 41f0215b docs: 修正 P2 源侧审计为 8/0\n- 07ac440c docs: 同步 P2 最终发布数据 v1.9.2-b110",
+  "version": "1.9.2-b112",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 88076d95 feat(playback): getOtherSource 缓存 TTL 与负缓存\n- 7570eb29 docs: 同步 P1 收口发布数据 v1.9.2-b111",
   "history": [
+    {
+      "version": "1.9.2-b111",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 7afbe4b6 feat(media): P1 收口 play_result 结构化 attempts\n- 548b34c2 docs: 同步源侧 X8 信封审计\n- 41f0215b docs: 修正 P2 源侧审计为 8/0\n- 07ac440c docs: 同步 P2 最终发布数据 v1.9.2-b110"
+    },
     {
       "version": "1.9.2-b110",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6ee9bbf1 docs: 同步 P2 桥媒体发布数据 v1.9.2-b109"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b106",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6b1d8696 feat(source): 音源契约 v2 统一 action 与结果信封"
-    },
-    {
-      "version": "1.9.2-b105",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- df2f384e fix(health): 缓存播放单独记 cache_hit 并将成功采样放宽到 1/5"
     }
   ]
 }
