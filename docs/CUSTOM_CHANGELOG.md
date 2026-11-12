@@ -1,3 +1,13 @@
+## [内置音源 v8.12.5：死代码清理版 APK] - 2026-11-12
+
+> 源仓 `v8.12.5` 只删未调用死代码（行为不变）；本次构建用于把该版本真正打进 APK，并验证源仓 HEAD 闸门绿路径。
+
+- 源仓：`1bec334`（删除 `getFailCached` 包装与 `safeConsole.error`；`lx-source.js` 4511→4509 行）；push CI `43175425887` success；tag/Release `v8.12.5`，资产 SHA-256 `f9980213e211e7a4ba14fdd2f00751b9c62344da98ad69553ca29c0b7ba1a028`。
+- App：`8f53b502` 同步 `MUSIC_SOURCE_GUIDE`/`AUDIT_PLAN` 到 `v8.12.5`；手动 dispatch Build `43177750140`，`源仓 HEAD CI 闸门` step **success**，Android/Release 两 job success。
+- 跨仓：APK 内 `assets/builtin_source.js` 290638 字节，SHA-256 与源仓 Release 资产完全一致，`@version 8.12.5`。
+- 发布：`v1.9.2-b115`（release id `442636986`）；5 APK：arm64 14,258,237 / armeabi-v7a 13,251,346 / universal 29,256,828 / x86 14,702,226 / x86_64 14,582,397；arm64 MD5 `717b7cfe58eff566fe573f71a2ba78f4`。
+- 边界：本次未改 App 生产代码；`v8.12.5` 的行为等价性由源仓 24 个入口全量回归与死代码静态核查保证。
+
 ## [P1 运行时收口：外呼计数 + 候选竞速] - 2026-11-12
 
 > 报告 P1-A1~A4 要求 App 运行时 mock 外呼计数，P1-A6 要求首成功取消其余候选；此前只有静态断言/顺序候选。
