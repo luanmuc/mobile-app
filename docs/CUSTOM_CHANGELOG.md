@@ -6,7 +6,8 @@
 - App `playbackBudget.ts`：新增 `PlaybackOwner='host'|'source'` 与 `resolvePlaybackOwner()`；`PlaybackAttempt.owner` 必填。主源按 `fallbackOwners` 解析，候选固定 `host`；`healthLog` 白名单保留合法 owner，非法值丢弃。
 - P1-A4 不新增机制：候选 `source` 即平台，`retryedSource` 已完成同 trace 同平台去重，补运行时/源码断言锁定。
 - 测试：源 `x-media-envelope` 8→11（X5 改 `BAD_ENVELOPE`、X9 缺片、X10 1B/1KB、X11 admit）；App `check_playback_budget` 16→20（P1E-A1~A4）；首跑 RED 源 8/2、App 16/4，实现后 GREEN 源 11/0、App 20/0。
-- 验证：App `tsc` 0、语法 524/0、变更 eslint 0；源 `self-check` 8.12.4、docs-audit 0。
+- 验证：App `tsc` 0、语法 524/0、全仓 eslint 0；源全量审计 a~x 全绿、`self-check` 8.12.4、docs-audit 0。
+- 发布：源仓 `1da2f56`（v8.12.4）→ App `1cf35f67` → CI `43137739681` Android/Release success（日志确认跨仓版本一致 v8.12.4、播放预算 20/0、桥媒体 6/0、语法 524/0）→ `v1.9.2-b113`（release id `442405852`）；5 APK：arm64 14,257,181 / armeabi-v7a 13,250,270 / universal 29,255,755 / x86 14,701,165 / x86_64 14,581,343。
 
 ## [P1-A8：getOtherSource 缓存 TTL / 负缓存 / 容量] - 2026-11-12
 
