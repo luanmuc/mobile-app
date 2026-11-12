@@ -11,7 +11,12 @@ on:
       - 'npm-version-info/**'
       - 'README.md'
       - 'docs/**'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: '仅用于闸门红分支验证：源仓 commit/ref；留空默认 master'
+        required: false
+        default: ''
 
 # 仓库默认 GITHUB_TOKEN 为只读：下载 artifact 需 actions:read，创建 Release 需 contents:write
 permissions:
@@ -34,6 +39,7 @@ jobs:
         # 防止再出现 b113 从源仓红提交 1da2f56 构建、测试转绿后才补 2e9b204 的情况。
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.event.inputs.source_ref || 'master' }}
         run: node scripts/check_source_ci_gate.js
 
       - name: Download latest music source

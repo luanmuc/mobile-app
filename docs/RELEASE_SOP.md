@@ -20,6 +20,7 @@
 push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/**）
   └─ Job Android
       ├─ 源仓 HEAD CI 闸门（`node scripts/check_source_ci_gate.js`）：源仓最近一次 push CI 必须为 success，且绿提交是当前 HEAD 的祖先；红/未完成/无 run/分叉均阻断，不再允许从红提交取源构建
+      │    └─ 手动 `workflow_dispatch` 可选 `source_ref`：仅供红分支验证，留空默认 master；正常发布不要填
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error，`.github/workflows/release.yml`）：与语法检查互补，失败即停在构建前
       ├─ ESLint 全仓检查（0 error / 0 warning，`.github/workflows/release.yml`）：格式/类型断言/空值语义等静态约束，失败即停在构建前
