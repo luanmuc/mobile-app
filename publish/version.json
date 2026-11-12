@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b113",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 1cf35f67 feat(playback): attempts owner 归因与 P2 错误码收口\n- ecd27ab6 docs: 同步 P1-A8 发布数据 v1.9.2-b112",
+  "version": "1.9.2-b114",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9b2414c7 feat(playback): P1 运行时外呼计数与候选竞速取消\n- 269c30ed docs: 校正 P1-A4 证据口径\n- 8e99e59b docs: 同步验收收口发布数据 v1.9.2-b113",
   "history": [
+    {
+      "version": "1.9.2-b113",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 1cf35f67 feat(playback): attempts owner 归因与 P2 错误码收口\n- ecd27ab6 docs: 同步 P1-A8 发布数据 v1.9.2-b112"
+    },
     {
       "version": "1.9.2-b112",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 88076d95 feat(playback): getOtherSource 缓存 TTL 与负缓存\n- 7570eb29 docs: 同步 P1 收口发布数据 v1.9.2-b111"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b108",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- c368a1ff feat(playback): 24s 取链预算与 attempts 账本\n- 593010fd docs: 同步 P1 降级所有权发布数据 v1.9.2-b107"
-    },
-    {
-      "version": "1.9.2-b107",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b09115c6 feat(source): P1 降级所有权与 App 换源 gate"
     }
   ]
 }
