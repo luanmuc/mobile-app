@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b103**（本次推送，Build 由 CI 生成；上一发布 b102 / `6c337f0e`；原审计轮为 b74 / `20ac0519`）
-> 最近更新：2026-11-12（v8.12.2 P1 降级所有权；P0 音源契约 v2 已发布 b106）
+> 最近更新：2026-11-12（v8.12.3 P2 桥媒体信封；P1 降级所有权、P0 音源契约 v2 已发布）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值**：三语各 **893 键**、TS/TSX **520 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.2**。
+> **当前真值**：三语各 **893 键**、TS/TSX **523 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.3**。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -410,7 +410,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T4 | 全链路枚举闭合 | 7 个已知平台（all/bd/kg/kw/mg/tx/wy）都有 i18n key；`local` 不显示平台；未知值回退原 id 而不是空串 | `getPlatformNameKey` / `resolvePlatformName` 断言 | L1 |
 | T5 | 成功缓存保留实际平台 | 二次播放命中缓存时 `sourcePlatform` 不丢，标签不退回主平台 | 同上 L2 链路 + 源仓 U5 | L2 |
 | T6 | 关闭目标源后的标签一致性 | 目标源被关闭后不得继续用其旧缓存显示该平台；重开后可恢复 | 源仓 U10 + App 侧只消费返回值 | L2 |
-| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的 v8.12.2 与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败 | `release.yml`「Download latest music source」 | L3 |
+| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的 v8.12.3 与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败 | `release.yml`「Download latest music source」 | L3 |
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |

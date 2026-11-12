@@ -55,6 +55,7 @@ global.lx = {
   qualityList: {},
   apis: {},
   fallbackOwners: {},
+  mediaEnvelopes: {},
   apiInitPromise: [Promise.resolve(false), true, () => {}],
 
   jumpMyListPosition: false,

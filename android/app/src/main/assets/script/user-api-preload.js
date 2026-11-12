@@ -191,7 +191,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
       requestInfo,
     })
 
-    nativeCall(NATIVE_EVENTS_NAMES.request, { requestKey, url, options })
+    nativeCall(NATIVE_EVENTS_NAMES.request, { requestKey, url, options, sourceId: id })
     return requestInfo
   }
   const handleNativeResponse = ({ requestKey, error, response }) => {

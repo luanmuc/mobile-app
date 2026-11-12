@@ -26,6 +26,8 @@ declare namespace LX {
       author: string
       homepage: string
       version: string
+      // P2：脚本声明的桥媒体信封能力；缺省 0/undefined 时 App 保持旧 Buffer 传输
+      mediaEnvelope?: number
       sources?: UserApiSources
     }
 

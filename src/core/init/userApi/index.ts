@@ -22,8 +22,10 @@ export default async(setting: LX.AppSetting) => {
     scriptRequestMap.delete(requestKey)
     target.abort()
   }
-  const sendScriptRequest = (requestKey: string, url: string, options: RequestParams['options']) => {
-    let req = fetchData(url, options)
+  const sendScriptRequest = (requestKey: string, url: string, options: RequestParams['options'], sourceId?: string) => {
+    // P2：只有脚本在 inited 显式声明 mediaEnvelope=2 才启用信封；旧源继续走 Buffer，避免协议回退。
+    const mediaEnvelope = !!sourceId && !!global.lx.mediaEnvelopes[sourceId]
+    let req = fetchData(url, { ...options, mediaEnvelope })
     req.request.then(response => {
       // console.log(response)
       sendAction('response', {
@@ -340,6 +342,7 @@ export default async(setting: LX.AppSetting) => {
         global.lx.qualityList = qualitys
         global.lx.apis = apis
         global.lx.fallbackOwners = fallbackOwners
+        global.lx.mediaEnvelopes[info.id] = info.mediaEnvelope === 2
         global.state_event.apiSourceUpdated(settingState.setting['common.apiSource'])
       }
     } else {
@@ -387,7 +390,7 @@ export default async(setting: LX.AppSetting) => {
         handleUserApiResponse(event.data)
         break
       case 'request':
-        sendScriptRequest(event.data.requestKey, event.data.url, event.data.options)
+        sendScriptRequest(event.data.requestKey, event.data.url, event.data.options, event.data.sourceId)
         break
       case 'cancelRequest':
         cancelRequest(event.data, 'request canceled')

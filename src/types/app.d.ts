@@ -37,6 +37,8 @@ interface GlobalData {
   qualityList: LX.QualityList
   apis: Partial<LX.UserApi.UserApiSources>
   fallbackOwners: Partial<Record<LX.Source, LX.UserApi.UserApiFallbackOwner>>
+  // P2：按音源脚本 id 记录是否支持 base64 媒体信封；缺省 false 走旧 Buffer
+  mediaEnvelopes: Record<string, boolean>
   apiInitPromise: [Promise<boolean>, boolean, (success: boolean) => void]
 
   jumpMyListPosition: boolean

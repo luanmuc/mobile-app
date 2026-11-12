@@ -1,6 +1,7 @@
 // import needle from 'needle'
 // import progress from 'request-progress'
 import BackgroundTimer from 'react-native-background-timer'
+import { encodeMediaBody } from './mediaBody'
 
 const defaultHeaders = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
@@ -71,7 +72,7 @@ const blobToBuffer = (blob) => {
   })
 }
 
-export const fetchData = (url, { timeout = 13_000, ...options }) => {
+export const fetchData = (url, { timeout = 13_000, mediaEnvelope = false, ...options }) => {
   // console.log('---start---', url)
 
   const controller = new global.AbortController()
@@ -98,7 +99,9 @@ export const fetchData = (url, { timeout = 13_000, ...options }) => {
       })).then(resp => {
         if (options.binary) {
           return blobToBuffer(resp.body).then(buffer => {
-            resp.body = buffer
+            // P2：只有脚本声明能力才启用信封；旧源继续拿 Buffer，避免把二进制判成 unknown。
+            // 不把 Buffer 直接交给原生桥（会被 JSON.stringify 成 3.57x 的 {type:'Buffer',data}）。
+            resp.body = mediaEnvelope ? encodeMediaBody(buffer) : buffer
             return resp
           })
         } else {

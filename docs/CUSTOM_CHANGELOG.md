@@ -1,3 +1,17 @@
+## [P2 桥媒体传输：base64 信封与 256KB 分片] - 2026-11-12
+
+> 问题：App 原生桥对 binary 响应做 `JSON.stringify(Buffer)`，1MiB 变 3,743,141 字节（3.57x）、`JSON.parse` 87.29ms；到达源侧是 `{type:"Buffer",data:[...]}` 普通对象。源侧 `toBytes` 虽已兼容该形状，但新加 base64 信封时若不同步扩源侧，会引入新的 `kindOf=unknown` 假阴性。
+
+- 新增 `src/core/init/userApi/mediaBody.ts`：`MEDIA_ENVELOPE_VERSION=2`、`MEDIA_CHUNK_BYTES=262_144`、`encodeMediaBody(bytes, chunkBytes)`；≤256KB 用单体 `body`，>256KB 用 `chunks`（`ceil(total/262144)` 片），0 字节保留 `byteLength:0`。
+- `src/core/init/userApi/request.js`：binary 分支不再把 Buffer 直接交给桥；仅在脚本声明 `inited.mediaEnvelope=2` 时调用 `encodeMediaBody`，否则保留旧 Buffer，避免旧源协议回退。
+- 能力协商：`src/types/user_api.d.ts` 增加 `mediaEnvelope?: number`；`src/core/init/userApi/index.ts` 写 `global.lx.mediaEnvelopes[info.id]`；`user-api-preload.js` 的 request 事件带 `sourceId`；`src/types/app.d.ts` / `src/config/globalData.ts` 增加映射与初值（缺省 `{}`）。
+- 源仓 `lx-source.js`：`inited` 声明 `mediaEnvelope:2`；`toBytes` 在对象分支前识别 `__lxMedia===2`，支持 `body` 与 `chunks`，分片逐片解码（base64 分片各自带 `=` 填充，拼成大串后中间 `=` 非法），`byteLength` 不符返回 null，0 字节返回零长 `Uint8Array`；旧 `{type:"Buffer",data}` 继续兼容。版本 `8.12.2→8.12.3`。
+- 新增 `scripts/check_media_body.js`（App）：首跑 RED 0/5（模块缺失、request.js 未接线），补能力协商后 GREEN 6/0（1MiB 体积 <1.6x / 64B SHA / 8MiB 32 片 / 0 字节 / 能力分流 / 协商链路）。
+- 新增 `test/audit/x-media-envelope.js`（源仓）：首跑 RED 2/4（信封不识别、64B `kindOf=unknown`、1MiB/8MiB 还原失败），实现后 GREEN 7/0（含 `inited.mediaEnvelope=2`）。
+- CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_media_body.js`；TS 语法计数 522 → 523。
+- 验证：App 契约 13/0、播放预算 9/0、桥媒体 6/0、健康 41/0、视图 22/0、日志 13/0、配置 24/0、标签 9/9、语法 523/0、`tsc` 0、全量 eslint 0、docs-audit rc=0；源仓 W 2/2、X 7/0、R 23/23、U 10/10、V 13/13、self-check 8.12.3。
+- 边界：信封只覆盖 binary 响应；源侧 `toBytes` 仍保留旧 Buffer 形状兼容；尚未做真机端到端 8MiB 响应实测。
+
 ## [P1 第二刀：播放取链预算与 attempts 账本] - 2026-11-12
 
 > 极端预算：初始化 15s + 源内 12s = 27s，已超过 App 外层 25s `Promise.race`；最终被改写成 `URL获取超时(25s)`，真正失败源归不到。

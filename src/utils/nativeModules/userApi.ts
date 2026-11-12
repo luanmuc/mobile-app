@@ -57,6 +57,8 @@ export interface UpdateInfoParams {
 export interface RequestParams {
   requestKey: string
   url: string
+  // P2：脚本 id，用于查 mediaEnvelopes 能力表
+  sourceId?: string
   options: {
     method: string
     data: any
