@@ -9,7 +9,7 @@
 - 新增 `scripts/check_media_body.js`（App）：首跑 RED 0/5（模块缺失、request.js 未接线），补能力协商后 GREEN 6/0（1MiB 体积 <1.6x / 64B SHA / 8MiB 32 片 / 0 字节 / 能力分流 / 协商链路）。
 - 新增 `test/audit/x-media-envelope.js`（源仓）：首跑 RED 2/4（信封不识别、64B `kindOf=unknown`、1MiB/8MiB 还原失败），实现后 GREEN 8/0（含 `inited.mediaEnvelope=2`、0 字节零长）。
 - CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_media_body.js`；TS 语法计数 522 → 523。
-- 验证：App 契约 13/0、播放预算 9/0、桥媒体 6/0、健康 41/0、视图 22/0、日志 13/0、配置 24/0、标签 9/9、语法 523/0、`tsc` 0、全量 eslint 0、docs-audit rc=0；源仓 W 2/2、X 7/0、R 23/23、U 10/10、V 13/13、self-check 8.12.3。
+- 验证：App 契约 13/0、播放预算 9/0、桥媒体 6/0、健康 41/0、视图 22/0、日志 13/0、配置 24/0、标签 9/9、语法 523/0、`tsc` 0、全量 eslint 0、docs-audit rc=0；源仓 W 2/2、X 8/0、R 23/23、U 10/10、V 13/13、self-check 8.12.3。
 - 发布：源仓 `5088182`（v8.12.3，含 0 字节零长修复）→ App `6ee9bbf1` → CI `43129233402` Android/Release success（日志确认语法 523/0、桥媒体 6/0、跨仓版本一致 v8.12.3）→ `v1.9.2-b110`（release id `442356718`）；5 APK：arm64 14,255,078 / armeabi 13,248,188 / universal 29,253,668 / x86 14,699,073 / x86_64 14,579,246。
 - 边界：信封只覆盖 binary 响应；源侧 `toBytes` 仍保留旧 Buffer 形状兼容；尚未做真机端到端 8MiB 响应实测。
 
