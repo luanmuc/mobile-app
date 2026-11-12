@@ -101,7 +101,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 六条只读契约 `check_ts_syntax.js`（524 文件）、`check_source_config_contract.js`（24 条）、`check_source_contract.js`（13 条，含 P1 fallbackOwner）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（5 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（41 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（13 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 七条只读契约 `check_ts_syntax.js`（524 文件）、`check_source_config_contract.js`（24 条）、`check_source_contract.js`（13 条，含 P1 fallbackOwner）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（5 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（41 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（13 条）。
 
 ### 任务类型分流
 

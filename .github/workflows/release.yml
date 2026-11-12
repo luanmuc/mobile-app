@@ -74,7 +74,7 @@ jobs:
         run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 
       - name: 音源标签/配置/语法/action 契约门禁
-        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 9 个 action 权威表与 v2 envelope / 523 个 TS 文件语法 / 播放 24s 预算与 attempts / 桥媒体 base64 信封与 256KB 分片。
+        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 9 个 action 权威表与 v2 envelope / 524 个 TS 文件语法 / 播放 24s 预算与 attempts / 桥媒体 base64 信封与 256KB 分片。
         # 失败即停在本步，不进入构建与 Release，避免发出标签、配置或 action 契约回退的 APK。
         run: |
           node scripts/check_ts_syntax.js
