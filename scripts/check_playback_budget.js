@@ -116,6 +116,48 @@ run('P1B-A6 外层失败日志带 attempts', () => {
   assert.ok(online.includes('attempts'), 'online.ts 失败日志未带 attempts')
 })
 
+SECTION('other source cache')
+const OTHER_CACHE = () => loadTs('src/core/music/otherSourceCache.ts')
+
+run('P1D-A1 正向缓存 5min 到点失效', () => {
+  const { createOtherSourceCache, readOtherSourceCache, writeOtherSourceCache, OTHER_SOURCE_CACHE_TTL_MS } = OTHER_CACHE()
+  assert.strictEqual(OTHER_SOURCE_CACHE_TTL_MS, 300_000, '正向 TTL 必须是 5min')
+  const cache = createOtherSourceCache()
+  writeOtherSourceCache(cache, 'kw_1', [{ id: 'x' }], 1000, OTHER_SOURCE_CACHE_TTL_MS)
+  assert.deepStrictEqual(readOtherSourceCache(cache, 'kw_1', 300_999), [{ id: 'x' }], '未到点应命中')
+  assert.strictEqual(readOtherSourceCache(cache, 'kw_1', 301_000), undefined, '到点必须失效')
+  assert.strictEqual(cache.has('kw_1'), false, '过期条目应删除')
+})
+
+run('P1D-A2 负缓存 60s 且不重搜', () => {
+  const { createOtherSourceCache, readOtherSourceCache, writeOtherSourceCache, OTHER_SOURCE_NEGATIVE_TTL_MS } = OTHER_CACHE()
+  assert.strictEqual(OTHER_SOURCE_NEGATIVE_TTL_MS, 60_000, '负缓存 TTL 必须是 60s')
+  const cache = createOtherSourceCache()
+  writeOtherSourceCache(cache, 'kw_miss', [], 1000, OTHER_SOURCE_NEGATIVE_TTL_MS)
+  assert.deepStrictEqual(readOtherSourceCache(cache, 'kw_miss', 60_999), [], '负缓存期内应返回空数组')
+  assert.strictEqual(readOtherSourceCache(cache, 'kw_miss', 61_000), undefined, '负缓存到点必须失效')
+})
+
+run('P1D-A3 容量 50 且 LRU 只淘汰最旧', () => {
+  const { createOtherSourceCache, readOtherSourceCache, writeOtherSourceCache, OTHER_SOURCE_CACHE_CAPACITY } = OTHER_CACHE()
+  assert.strictEqual(OTHER_SOURCE_CACHE_CAPACITY, 50, '容量必须是 50')
+  const cache = createOtherSourceCache()
+  for (let i = 0; i < 51; i++) writeOtherSourceCache(cache, `k${i}`, [i], 1000, 300_000)
+  assert.strictEqual(cache.size, 50, '超限必须淘汰而不是清空')
+  assert.strictEqual(readOtherSourceCache(cache, 'k0', 1000), undefined, '最旧条目应被淘汰')
+  assert.deepStrictEqual(readOtherSourceCache(cache, 'k1', 1000), [1], '第二条应保留')
+  assert.deepStrictEqual(readOtherSourceCache(cache, 'k50', 1000), [50], '最新条目应保留')
+})
+
+run('P1D-A4 utils 使用稳定 key 缓存并保留 refresh 语义', () => {
+  const utils = read('src/core/music/utils.ts')
+  assert.ok(utils.includes('readOtherSourceCache('), '未读 otherSourceCache')
+  assert.ok(utils.includes('writeOtherSourceCache('), '未写 otherSourceCache')
+  assert.ok(utils.includes('const cacheKey ='), '未使用稳定 key')
+  assert.ok(utils.includes('if (!isRefresh)'), '未保留 refresh 跳过缓存')
+  assert.ok(utils.includes('source.length ? OTHER_SOURCE_CACHE_TTL_MS : OTHER_SOURCE_NEGATIVE_TTL_MS'), '空结果未使用负缓存 TTL')
+})
+
 SECTION('play_result attempts')
 const HEALTH_LOG = () => loadTs('src/core/healthLog.ts')
 

@@ -1,3 +1,12 @@
+## [P1-A8：getOtherSource 缓存 TTL / 负缓存 / 容量] - 2026-11-12
+
+> 问题：候选搜索缓存按对象引用命中、无 TTL、空结果永久缓存；超过 10 条直接 `clear()`，热门歌重播会反复触发 12s 搜索。
+
+- 新增 `src/core/music/otherSourceCache.ts`：正向 TTL 5min、负缓存 60s、容量 50，命中刷新 recency，超限只淘汰最旧；`read/write` 注入 `now`，可用假时钟验证边界。
+- `src/core/music/utils.ts` 的 `getOtherSource` 改为稳定 key（`source_id` / `local_id`）缓存；`isRefresh=true` 跳过读缓存但仍写回；空数组按负缓存 TTL 落盘，60s 内不再重搜。
+- `scripts/check_playback_budget.js` 从 12 条扩到 16 条，新增 P1D-A1~A4；首跑 RED 12/4（模块缺失、utils 未接线），实现后 GREEN 16/0。
+- 验证：播放预算 16/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
+
 ## [P1 收口：play_result 结构化 attempts] - 2026-11-12
 
 > 问题：取链失败时 `attempts[]` 只拼进诊断日志字符串，`play_result` 落盘没有账本；从本地诊断报告只能看到最终错误码，无法按源定位真正失败点。

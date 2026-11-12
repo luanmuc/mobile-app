@@ -23,18 +23,24 @@ import {
   type PlaybackAttempt,
   type PlaybackBudget,
 } from './playbackBudget'
+import {
+  createOtherSourceCache,
+  readOtherSourceCache,
+  writeOtherSourceCache,
+  OTHER_SOURCE_CACHE_TTL_MS,
+  OTHER_SOURCE_NEGATIVE_TTL_MS,
+} from './otherSourceCache'
 
 
 const getOtherSourcePromises = new Map()
 export const existTimeExp = /\[\d{1,2}:.*\d{1,4}\]/
-const otherSourceCache = new Map<LX.Music.MusicInfo | LX.Download.ListItem, LX.Music.MusicInfoOnline[]>()
+const otherSourceCache = createOtherSourceCache<LX.Music.MusicInfoOnline[]>()
 
 export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh = false): Promise<LX.Music.MusicInfoOnline[]> => {
   // if (!isRefresh) {
   //   const cachedInfo = await getOtherSourceFromStore(musicInfo.id)
   //   if (cachedInfo.length) return cachedInfo
   // }
-  if (otherSourceCache.has(musicInfo)) return otherSourceCache.get(musicInfo)!
   let key: string
   let searchMusicInfo: {
     name: string
@@ -62,7 +68,12 @@ export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.
       interval: musicInfo.interval ?? '',
     }
   }
-  if (getOtherSourcePromises.has(key)) return getOtherSourcePromises.get(key)
+  const cacheKey = key
+  if (!isRefresh) {
+    const cached = readOtherSourceCache(otherSourceCache, cacheKey, Date.now())
+    if (cached !== undefined) return cached
+  }
+  if (getOtherSourcePromises.has(cacheKey)) return getOtherSourcePromises.get(cacheKey)
 
   const promise = new Promise<LX.Music.MusicInfoOnline[]>((resolve, reject) => {
     let timeout: null | number = BackgroundTimer.setTimeout(() => {
@@ -70,9 +81,14 @@ export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.
       reject(new Error('find music timeout'))
     }, 12_000)
     findMusic(searchMusicInfo).then((otherSource) => {
-      if (otherSourceCache.size > 10) otherSourceCache.clear()
       const source = otherSource.map(toNewMusicInfo) as LX.Music.MusicInfoOnline[]
-      otherSourceCache.set(musicInfo, source)
+      writeOtherSourceCache(
+        otherSourceCache,
+        cacheKey,
+        source,
+        Date.now(),
+        source.length ? OTHER_SOURCE_CACHE_TTL_MS : OTHER_SOURCE_NEGATIVE_TTL_MS,
+      )
       resolve(source)
     }).catch(reject).finally(() => {
       if (timeout) BackgroundTimer.clearTimeout(timeout)
@@ -81,9 +97,9 @@ export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.
     // if (otherSource.length) void saveOtherSourceFromStore(musicInfo.id, otherSource)
     return otherSource
   }).finally(() => {
-    if (getOtherSourcePromises.has(key)) getOtherSourcePromises.delete(key)
+    if (getOtherSourcePromises.has(cacheKey)) getOtherSourcePromises.delete(cacheKey)
   })
-  getOtherSourcePromises.set(key, promise)
+  getOtherSourcePromises.set(cacheKey, promise)
   return promise
 }
 
