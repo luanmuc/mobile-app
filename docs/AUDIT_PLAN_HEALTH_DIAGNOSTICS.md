@@ -203,14 +203,14 @@
 node scripts/check_health_diagnostics_deep.js
 
 # 既有契约/压力回归
-node scripts/check_health_diagnostics.js          # 40/0
+node scripts/check_health_diagnostics.js          # 51/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
-node scripts/check_health_diagnostics_view.js     # 20/0
-node scripts/check_log_directory.js               # 13/0
+node scripts/check_health_diagnostics_view.js     # 22/0
+node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 520 文件 0 错误
-node scripts/check_source_config_contract.js      # 24/0
+node scripts/check_ts_syntax.js                   # 524 文件 0 错误
+node scripts/check_source_config_contract.js      # 25/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx  # rc=0
@@ -218,4 +218,4 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；深度审计 51/0；契约 41/0；压力 14/0；视图 22/0；日志目录 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；健康契约 51/0；深度审计 51/0；诊断压力 14/0；视图 22/0；日志目录 15/0；配置契约 25/0；音源契约 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

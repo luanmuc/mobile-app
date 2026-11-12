@@ -43,7 +43,7 @@ node scripts/check_health_diagnostics_deep.js
 # 本地诊断视图模型审计（22 条：折叠态/四层分组/缓存命中/空态/1 万次构建）
 node scripts/check_health_diagnostics_view.js
 
-# 门禁归属：契约 41 + 视图 22 + 日志目录 13 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 22 + 日志目录 13 条在 health-stress.yml（每周/手动）
+# 门禁归属：健康契约 51 + 视图 22 + 日志目录 15 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 22 + 日志目录 15 条在 health-stress.yml（每周/手动）
 # 源仓 HEAD CI 闸门（构建前硬阻断；源仓最近一次 push CI 必须 success，且绿提交是当前 HEAD 祖先）
 node scripts/check_source_ci_gate.js
 

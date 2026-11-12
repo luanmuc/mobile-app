@@ -20,7 +20,7 @@
 - App：`8f53b502` 同步 `MUSIC_SOURCE_GUIDE`/`AUDIT_PLAN` 到 `v8.12.5`；手动 dispatch Build `43177750140`，`源仓 HEAD CI 闸门` step **success**，Android/Release 两 job success。
 - 跨仓：APK 内 `assets/builtin_source.js` 290638 字节，SHA-256 与源仓 Release 资产完全一致，`@version 8.12.5`。
 - 发布：`v1.9.2-b115`（release id `442636986`）；5 APK：arm64 14,258,237 / armeabi-v7a 13,251,346 / universal 29,256,828 / x86 14,702,226 / x86_64 14,582,397；arm64 MD5 `717b7cfe58eff566fe573f71a2ba78f4`。
-- 边界：本次未改 App 生产代码；`v8.12.5` 的行为等价性由源仓 24 个入口全量回归与死代码静态核查保证。
+- 边界：本次未改 App 生产代码；`v8.12.5` 的行为等价性由源仓 24 个入口全量回归与死代码静态核查保证（2026-11-12 复跑为 25 个测试入口，结论不变）。
 
 ## [P1 运行时收口：外呼计数 + 候选竞速] - 2026-11-12
 
