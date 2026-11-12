@@ -1,3 +1,12 @@
+## [P1 收口：play_result 结构化 attempts] - 2026-11-12
+
+> 问题：取链失败时 `attempts[]` 只拼进诊断日志字符串，`play_result` 落盘没有账本；从本地诊断报告只能看到最终错误码，无法按源定位真正失败点。
+
+- `src/core/healthLog.ts`：新增 `PlayAttempt` 与 `normalizePlayAttempts()`，`PlayResultInput`/`HealthLogEntry` 增加 `attempts?: PlayAttempt[]`；只保留 `source/stage/ok/code/latencyMs` 五个字段，单条最多 20 个 attempt，`latencyMs` 取整，URL/歌名等敏感字段不落盘。
+- `src/core/music/online.ts`：失败 `recordPlayResult` 透传 `err.attempts`；失败码优先取 `err.code`，其次 `CODE:` 前缀，`BUDGET_EXHAUSTED` 不再被改写成 `PLAY_FAIL`。
+- `scripts/check_playback_budget.js` 从 9 条扩到 12 条，新增 P1C-A1~A3；首跑 RED 9/3（attempts 未落盘、未接线），实现后 GREEN 12/0。
+- 验证：播放预算 12/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
+
 ## [P2 桥媒体传输：base64 信封与 256KB 分片] - 2026-11-12
 
 > 问题：App 原生桥对 binary 响应做 `JSON.stringify(Buffer)`，1MiB 变 3,743,141 字节（3.57x）、`JSON.parse` 87.29ms；到达源侧是 `{type:"Buffer",data:[...]}` 普通对象。源侧 `toBytes` 虽已兼容该形状，但新加 base64 信封时若不同步扩源侧，会引入新的 `kindOf=unknown` 假阴性。

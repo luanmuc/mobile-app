@@ -15,6 +15,14 @@
 declare const require: (name: string) => any
 declare const global: any
 
+export interface PlayAttempt {
+  source: string
+  stage?: string
+  ok?: boolean
+  code?: string
+  latencyMs?: number
+}
+
 export interface PlayResultInput {
   traceId?: string
   platform?: string
@@ -24,6 +32,7 @@ export interface PlayResultInput {
   latencyMs?: number
   sourceId?: string
   sampleWeight?: number
+  attempts?: PlayAttempt[]
 }
 
 export interface HealthLogEntry {
@@ -38,6 +47,7 @@ export interface HealthLogEntry {
   latencyMs?: number
   sampleWeight?: number
   sourceEvents?: unknown[]
+  attempts?: PlayAttempt[]
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -117,6 +127,26 @@ export const buildCacheHitEntry = (input: CacheHitInput): HealthLogEntry => {
   return entry
 }
 
+const MAX_PLAY_ATTEMPTS = 20
+
+// attempts 只允许诊断必需字段，避免把 URL/歌名等敏感内容带进本地日志。
+export const normalizePlayAttempts = (attempts?: PlayAttempt[]): PlayAttempt[] | undefined => {
+  if (!Array.isArray(attempts)) return undefined
+  const out: PlayAttempt[] = []
+  for (const item of attempts) {
+    if (!item || typeof item !== 'object') continue
+    if (typeof item.source !== 'string' || !item.source) continue
+    const attempt: PlayAttempt = { source: item.source }
+    if (typeof item.stage === 'string' && item.stage) attempt.stage = item.stage
+    if (typeof item.ok === 'boolean') attempt.ok = item.ok
+    if (typeof item.code === 'string' && item.code) attempt.code = item.code
+    if (Number.isFinite(item.latencyMs)) attempt.latencyMs = Math.round(Number(item.latencyMs))
+    out.push(attempt)
+    if (out.length >= MAX_PLAY_ATTEMPTS) break
+  }
+  return out.length ? out : undefined
+}
+
 export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => {
   const entry: HealthLogEntry = {
     ts: Date.now(),
@@ -130,6 +160,8 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   if (input.code) entry.code = String(input.code)
   if (Number.isFinite(input.latencyMs)) entry.latencyMs = Math.round(Number(input.latencyMs))
   if (Number.isFinite(input.sampleWeight) && Number(input.sampleWeight) > 0) entry.sampleWeight = Number(input.sampleWeight)
+  const attempts = normalizePlayAttempts(input.attempts)
+  if (attempts) entry.attempts = attempts
   return entry
 }
 

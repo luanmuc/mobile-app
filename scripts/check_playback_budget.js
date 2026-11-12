@@ -116,6 +116,54 @@ run('P1B-A6 外层失败日志带 attempts', () => {
   assert.ok(online.includes('attempts'), 'online.ts 失败日志未带 attempts')
 })
 
+SECTION('play_result attempts')
+const HEALTH_LOG = () => loadTs('src/core/healthLog.ts')
+
+run('P1C-A1 play_result 持久化 attempts', () => {
+  const { buildPlayResultEntry } = HEALTH_LOG()
+  const entry = buildPlayResultEntry({
+    traceId: 't-p1c',
+    platform: 'kw',
+    quality: '128k',
+    ok: false,
+    code: 'BUDGET_EXHAUSTED',
+    latencyMs: 24000,
+    attempts: [
+      { source: 'kw', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000 },
+      { source: 'wy', stage: 'fallback', ok: false, code: 'NETWORK_ERROR', latencyMs: 8000 },
+    ],
+  })
+  assert.ok(Array.isArray(entry.attempts), 'play_result 未保存 attempts')
+  assert.strictEqual(entry.attempts.length, 2, 'attempts 数量不符')
+  assert.deepStrictEqual(entry.attempts[0], {
+    source: 'kw', stage: 'primary', ok: false, code: 'TIMEOUT', latencyMs: 12000,
+  }, 'attempt 字段被改写')
+})
+
+run('P1C-A2 attempts 白名单归一、限 20 条', () => {
+  const { buildPlayResultEntry } = HEALTH_LOG()
+  const raw = Array.from({ length: 25 }, (_, i) => ({
+    source: `s${i}`,
+    stage: i % 2 ? 'fallback' : 'primary',
+    ok: false,
+    code: 'TIMEOUT',
+    latencyMs: 1.6,
+    url: 'https://secret.example/a.mp3',
+    name: '不能落盘的歌名',
+  }))
+  const entry = buildPlayResultEntry({ ok: false, attempts: raw })
+  assert.strictEqual(entry.attempts.length, 20, 'attempts 未限制 20 条')
+  assert.strictEqual(entry.attempts[0].latencyMs, 2, 'latency 未取整')
+  assert.ok(!('url' in entry.attempts[0]), 'attempts 泄漏 url')
+  assert.ok(!('name' in entry.attempts[0]), 'attempts 泄漏歌名')
+})
+
+run('P1C-A3 失败记录接线并保留结构化错误码', () => {
+  const online = read('src/core/music/online.ts')
+  assert.ok(/attempts:\s*normalizeAttempts|attempts:\s*errAttempts/.test(online), '失败 recordPlayResult 未传 attempts')
+  assert.ok(online.includes('errAny?.code'), '失败码未优先读取 err.code')
+})
+
 const asyncRun = async(name, fn) => {
   try { await fn(); checks++; console.log(`  ✓ ${name}`) } catch (e) {
     failures++
