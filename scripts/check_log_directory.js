@@ -105,6 +105,26 @@ test('L2 公共不可写时降级私有，日志页仍可读', async() => {
   assert((await log.getLogs('error')).includes('private-only'), '私有日志页读不到')
 })
 
+test('L14 init 公共可用后 activeDir/权限/UI 状态一致', async() => {
+  const env = makeEnv()
+  const log = loadLog(env)
+  await log.init()
+  assert(log.getActiveLogsDir() === '/public/lx-music/logs', `实际 ${log.getActiveLogsDir()}`)
+  assert(log.isLogPermissionGranted() === true, '权限状态应为 true')
+  assert(log.isUsingPublicDir() === true, 'UI 应显示使用公共目录')
+})
+
+test('L15 init 公共不可用时降级私有且 UI 状态一致', async() => {
+  const env = makeEnv()
+  env.flags.publicWriteFail = true
+  env.flags.publicMkdirFail = true
+  const log = loadLog(env)
+  await log.init()
+  assert(log.getActiveLogsDir() === '/private/lx-music/logs', `实际 ${log.getActiveLogsDir()}`)
+  assert(log.isLogPermissionGranted() === false, '权限状态应为 false')
+  assert(log.isUsingPublicDir() === false, 'UI 应显示未使用公共目录')
+})
+
 test('L3 JSONL 同名按追加合并，行不丢', async() => {
   const env = makeEnv({
     '/public/lx-music/logs/source_health_20261111.jsonl': '{"a":1}\n',

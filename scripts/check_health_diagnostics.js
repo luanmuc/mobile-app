@@ -24,7 +24,7 @@ try {
   ts = require('typescript')
 }
 
-const loadTs = (rel) => {
+const loadTs = (rel, stubs = {}) => {
   const file = path.join(ROOT, rel)
   if (!fs.existsSync(file)) throw new Error(`缺少模块：${rel}`)
   const source = fs.readFileSync(file, 'utf-8')
@@ -37,9 +37,10 @@ const loadTs = (rel) => {
   }).outputText
   const mod = { exports: {} }
   // 仅在仓库自检脚本里加载转译后的本仓 TS 模块，不执行外部输入
+  const localRequire = (id) => id in stubs ? stubs[id] : require(id)
   // eslint-disable-next-line no-new-func
   const fn = new Function('exports', 'require', 'module', '__filename', '__dirname', output)
-  fn(mod.exports, require, mod, file, path.dirname(file))
+  fn(mod.exports, localRequire, mod, file, path.dirname(file))
   return mod.exports
 }
 
@@ -530,9 +531,102 @@ check('H29 缓存命中单独计数，不进入取链成功率', () => {
   assert(read('src/core/music/online.ts').includes('recordCacheHit({'), '缓存命中分支未接线')
 })
 
-console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
-if (failures.length) {
-  console.log('失败项：')
-  for (const f of failures) console.log(' - ' + f)
-  process.exit(1)
+const checkAsync = async(name, fn) => {
+  try {
+    await fn()
+    passed++
+    console.log(`✓ ${name}`)
+  } catch (e) {
+    failures.push(`${name} — ${e && e.message}`)
+    console.log(`✗ ${name} — ${e && e.message}`)
+  }
 }
+
+const memoryFs = () => {
+  const files = new Map()
+  return {
+    files,
+    exists: async(p) => files.has(p) || Array.from(files.keys()).some(k => k.startsWith(p + '/')),
+    mkdir: async() => {},
+    readDir: async(dir) => Array.from(files.keys())
+      .filter(k => k.startsWith(dir + '/') && !k.slice(dir.length + 1).includes('/'))
+      .map(k => ({ name: k.slice(dir.length + 1) })),
+    unlink: async(p) => { files.delete(p) },
+    stat: async(p) => ({ size: (files.get(p) || '').length }),
+    readFile: async(p) => files.get(p) || '',
+    writeFile: async(p, content) => { files.set(p, content) },
+    appendFile: async(p, content) => { files.set(p, (files.get(p) || '') + content) },
+  }
+}
+
+;(async() => {
+  const mem = memoryFs()
+  const shared = []
+  const now = new Date(2026, 10, 11, 12, 0, 0)
+  const todayFile = '/logs/source_health_20261111.jsonl'
+  mem.files.set(todayFile, [
+    JSON.stringify({ ts: now.getTime() - 3 * HOUR, event: 'play_result', ok: false, code: 'OLD' }),
+    JSON.stringify({ ts: now.getTime() - 2 * HOUR, event: 'play_result', ok: true }),
+    JSON.stringify({ ts: now.getTime() - 1 * HOUR, event: 'cache_hit' }),
+  ].join('\n') + '\n')
+  mem.files.set('/logs/source_health_20261001.jsonl', JSON.stringify({ ts: 1, event: 'play_result' }) + '\n')
+  mem.files.set('/logs/diagnose.log', 'old-line\nnew-tail')
+
+  const runtime = loadTs('src/core/healthLog.ts', {
+    'react-native-fs': mem,
+    '../utils/log': { getActiveLogsDir: () => '/logs', ensureAllLogFiles: async() => {} },
+    'react-native': { Platform: { OS: 'android' }, Share: { share: async() => {} } },
+    '../utils/nativeModules/utils': { shareFile: async(p) => { shared.push(p) } },
+  })
+
+  await checkAsync('H6 读取最近事件只保留未过期文件并截取尾部', async() => {
+    const out = await runtime.readRecentHealthEvents(2, now)
+    assert(out.length === 2, `应只剩当天最后 2 条，实际 ${out.length}`)
+    assert(out[0].event === 'play_result' && out[1].event === 'cache_hit', '尾部顺序不符')
+  })
+
+  await checkAsync('H6 diagnose.log 按字节取尾部', async() => {
+    const out = await runtime.readDiagnoseLogTail(8)
+    assert(out === 'new-tail', `实际 ${JSON.stringify(out)}`)
+  })
+
+  await checkAsync('H5 recordCacheHit 真实追加 cache_hit 事件', async() => {
+    await runtime.recordCacheHit({ platform: 'kw', quality: '128k', sourceId: 'kw' })
+    const text = Array.from(mem.files.keys()).filter(k => k.startsWith('/logs/source_health_')).sort().map(k => mem.files.get(k)).join('')
+    const last = text.trim().split('\n').pop()
+    const entry = JSON.parse(last)
+    assert(entry.event === 'cache_hit' && entry.platform === 'kw', `实际 ${last}`)
+  })
+
+  await checkAsync('H5 recordPlayResult 失败落盘 play_result + source_events', async() => {
+    const prevLx = global.lx
+    global.lx = { ...(prevLx || {}), apis: { kw: { healthEvents: () => ({ promise: Promise.resolve({ events: [{ event: 'source_result', ok: false }] }) }) } } }
+    mem.files.clear()
+    await runtime.recordPlayResult({ traceId: 't-rt', platform: 'kw', quality: '128k', ok: false, code: 'SERVER_ERROR', latencyMs: 12 })
+    const text = Array.from(mem.files.keys()).filter(k => k.startsWith('/logs/source_health_')).sort().map(k => mem.files.get(k)).join('')
+    const lines = text.trim().split('\n').filter(Boolean).map(l => JSON.parse(l))
+    assert(lines.some(l => l.event === 'play_result' && l.traceId === 't-rt' && l.sampleWeight === 1), '缺少 play_result 或权重不是 1')
+    assert(lines.some(l => l.event === 'source_events' && Array.isArray(l.sourceEvents)), '缺少同 trace 音源事件')
+    global.lx = prevLx
+  })
+
+  await checkAsync('H8 exportDiagnostics 写诊断包并返回路径', async() => {
+    const p = await runtime.exportDiagnostics({ ok: true }, new Date(2026, 10, 11, 12, 0, 0))
+    assert(p === '/logs/source_health_diag_20261111_120000.json', `实际 ${p}`)
+    assert(mem.files.get(p).includes('"ok": true'), '诊断包内容不符')
+  })
+
+  await checkAsync('H8 exportAndShareDiagnostics 导出后调用系统分享', async() => {
+    shared.length = 0
+    const p = await runtime.exportAndShareDiagnostics({ ok: false }, new Date(2026, 10, 11, 13, 0, 0))
+    assert(p === '/logs/source_health_diag_20261111_130000.json', `实际 ${p}`)
+    assert(shared[0] === p, `分享路径不符：${shared[0]}`)
+  })
+
+  console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
+  if (failures.length) {
+    console.log('失败项：')
+    for (const f of failures) console.log(' - ' + f)
+    process.exit(1)
+  }
+})()

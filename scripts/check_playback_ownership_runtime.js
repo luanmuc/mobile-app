@@ -58,7 +58,7 @@ const fail = (code) => Object.assign(new Error(`${code}: mock`), { code })
 
 const setup = () => {
   const counts = { findMusic: [], urls: [], toggles: [] }
-  const behavior = { primary: 'ok', candidates: [], delays: {}, failCodes: {} }
+  const behavior = { primary: 'ok', candidates: [], delays: {}, failCodes: {}, picUrl: 'https://mock/pic.jpg', lyric: '[00:00.00]mock lyric', storeLyric: null }
   const sdk = {
     kw: { getMusicUrl: () => { throw new Error('not configured') } },
     wy: { getMusicUrl: () => { throw new Error('not configured') } },
@@ -77,6 +77,8 @@ const setup = () => {
   }
   for (const source of Object.keys(sdk)) {
     sdk[source].getMusicUrl = (info, quality) => ({ promise: makeUrl(source, info, quality) })
+    sdk[source].getPic = async() => behavior.picUrl
+    sdk[source].getLyric = () => ({ promise: Promise.resolve({ lyric: behavior.lyric, tlyric: '', rlyric: '', lxlyric: '' }) })
   }
   const findMusic = async(info) => {
     counts.findMusic.push(info)
@@ -86,7 +88,7 @@ const setup = () => {
     '@/utils/musicSdk': { __esModule: true, default: sdk, findMusic },
     '@/utils/data': {
       getMusicUrl: async() => null,
-      getPlayerLyric: async() => null,
+      getPlayerLyric: async() => behavior.storeLyric,
       getStoreMusicSource: async() => null,
     },
     '@/utils': {
@@ -99,7 +101,13 @@ const setup = () => {
     '@/utils/log': { log: { diagnose: () => {} } },
     '@/utils/message': { requestMsg: { tooManyRequests: 'too many requests' } },
     'react-native-background-timer': { __esModule: true, default: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) } },
-    '@/utils/musicSdk/api-source': { apis: () => ({ getMusicUrl: () => ({ promise: Promise.reject(new Error('not used')) }) }) },
+    '@/utils/musicSdk/api-source': {
+      apis: () => ({
+        getMusicUrl: () => ({ promise: Promise.resolve({ url: 'https://mock/local/url.mp3' }) }),
+        getLyric: () => ({ promise: Promise.resolve({ lyric: '[00:00.00]local lyric', tlyric: '', rlyric: '', lxlyric: '' }) }),
+        getPic: () => ({ promise: Promise.resolve('https://mock/local/pic.jpg') }),
+      }),
+    },
     '@/core/init/userApi/sourceContract': { shouldHostFallback: (owner) => owner !== 'source' },
   }
   global.lx = {
@@ -109,7 +117,7 @@ const setup = () => {
   }
   global.i18n = { t: (key) => key }
   const utils = loadTs('src/core/music/utils.ts', stubs)
-  return { utils, sdk, counts, behavior }
+  return { utils, sdk, counts, behavior, settings: stubs['@/store/setting/state'].default.setting }
 }
 
 let failures = 0
@@ -225,6 +233,66 @@ const run = async(name, fn) => {
     const long = h.utils.formatPlayError(new Error('x'.repeat(60)))
     assert.strictEqual(long.length, 41, `无码长文本应截断到 40+省略号，实际 ${long.length}`)
     assert.strictEqual(h.utils.formatPlayError({}), '播放失败', '空错误回退 i18n 兜底文案')
+  })
+
+  console.log('\n[歌词/封面获取行为]')
+  await run('P1U-Y1 buildLyricInfo 关闭简繁转换时补 rawlrcInfo', async() => {
+    const h = setup()
+    const input = { lyric: '[00:00.00]a', tlyric: '', rlyric: '', lxlyric: '' }
+    const out = await h.utils.buildLyricInfo(input)
+    assert.strictEqual(out.lyric, '[00:00.00]a')
+    assert(out.rawlrcInfo && out.rawlrcInfo.lyric === input.lyric, '未补 rawlrcInfo')
+  })
+
+  await run('P1U-Y2 buildLyricInfo 开启简繁转换时转换四轨', async() => {
+    const h = setup()
+    h.settings['player.isS2t'] = true
+    const out = await h.utils.buildLyricInfo({ lyric: 'a', tlyric: 'b', rlyric: 'c', lxlyric: 'd' })
+    assert(out.lyric === 'a' && out.tlyric === 'b' && out.rlyric === 'c' && out.lxlyric === 'd', '四轨转换不符')
+    assert(out.rawlrcInfo && out.rawlrcInfo.lyric === 'a', 'S2T 时也应保留原文')
+  })
+
+  await run('P1U-Y3 getCachedLyricInfo 命中缓存与平台白名单', async() => {
+    const h = setup()
+    h.behavior.storeLyric = { lyric: '[00:00.00]cached', tlyric: '', rlyric: null, lxlyric: null }
+    assert((await h.utils.getCachedLyricInfo(music('kw', 'l-cache'))).lyric === '[00:00.00]cached', 'kw 应收下带时间轴缓存')
+    assert(await h.utils.getCachedLyricInfo(music('wy', 'l-cache2')) === null, 'wy 缺 rlyric 应返回 null 触发在线拉取')
+  })
+
+  await run('P1U-Y4 本地歌曲取链/歌词/封面', async() => {
+    const h = setup()
+    h.behavior.storeLyric = { lyric: '[00:00.00]cached', tlyric: '', rlyric: null, lxlyric: null }
+    const info = { ...music('local', 'loc-1'), source: 'local' }
+    const u = await h.utils.getOnlineOtherSourceMusicUrlByLocal(info, true)
+    assert(u.url === 'https://mock/local/url.mp3' && u.quality === '128k' && u.isFromCache === false, '本地取链不符')
+    const l = await h.utils.getOnlineOtherSourceLyricByLocal(info, true)
+    assert(l.lyricInfo.lyric === '[00:00.00]local lyric' && l.isFromCache === false, '本地歌词不符')
+    const p = await h.utils.getOnlineOtherSourcePicByLocal(info)
+    assert(p.url === 'https://mock/local/pic.jpg', '本地封面不符')
+  })
+
+  await run('P1U-Y5 getOnlineOtherSourcePicUrl 优先缓存封面', async() => {
+    const h = setup()
+    const r = await h.utils.getOnlineOtherSourcePicUrl({ musicInfos: [music('kw', 'p-cache', { meta: { picUrl: 'https://cached/pic.jpg' } })], onToggleSource: () => {}, isRefresh: false })
+    assert(r.url === 'https://cached/pic.jpg' && r.isFromCache === true, '封面缓存优先不符')
+  })
+
+  await run('P1U-Y6 handleGetOnlinePicUrl 走平台封面接口', async() => {
+    const h = setup()
+    const r = await h.utils.handleGetOnlinePicUrl({ musicInfo: music('kw', 'p-net'), isRefresh: true, onToggleSource: () => {}, allowToggleSource: false })
+    assert(r.url === 'https://mock/pic.jpg' && r.isFromCache === false, '在线封面不符')
+  })
+
+  await run('P1U-Y7 getOnlineOtherSourceLyricInfo 换源拉歌词', async() => {
+    const h = setup()
+    const r = await h.utils.getOnlineOtherSourceLyricInfo({ musicInfos: [music('kw', 'l-net')], onToggleSource: () => {}, isRefresh: true })
+    assert(r.lyricInfo.lyric === '[00:00.00]mock lyric' && r.isFromCache === false, '在线歌词不符')
+  })
+
+  await run('P1U-Y8 handleGetOnlineLyricInfo 走平台歌词接口', async() => {
+    const h = setup()
+    const r = await h.utils.handleGetOnlineLyricInfo({ musicInfo: music('kw', 'l-main'), onToggleSource: () => {}, isRefresh: true, allowToggleSource: false })
+    assert(r.lyricInfo.lyric === '[00:00.00]mock lyric' && r.isFromCache === false, '主平台歌词不符')
   })
 
   console.log(`\n===== P1 运行时所有权审计：${checks} 通过 / ${failures} 失败 =====`)
