@@ -174,6 +174,59 @@ const run = async(name, fn) => {
     assert.deepStrictEqual(attempts.map(x => x.source), ['wy'], `晚到候选写入了 attempts：${attempts.map(x => x.source)}`)
   })
 
+  console.log('\n[播放纯函数行为]')
+  await run('P1U-Q1 getPlayQuality 高音质可用时取请求档', async() => {
+    const h = setup()
+    global.lx.qualityList.kw = ['flac24bit', 'flac', '320k', '128k']
+    const info = music('kw', 'q1', { meta: { _qualitys: { flac24bit: true, flac: true, '320k': true, '128k': true } } })
+    assert.strictEqual(h.utils.getPlayQuality('flac', info), 'flac')
+    assert.strictEqual(h.utils.getPlayQuality('flac24bit', info), 'flac24bit')
+  })
+
+  await run('P1U-Q2 getPlayQuality 请求档不可用时回退 128k', async() => {
+    const h = setup()
+    global.lx.qualityList.kw = ['flac', '128k']
+    const info = music('kw', 'q2', { meta: { _qualitys: { '128k': true } } })
+    assert.strictEqual(h.utils.getPlayQuality('flac', info), '128k')
+    assert.strictEqual(h.utils.getPlayQuality('320k', info), '128k')
+  })
+
+  await run('P1U-Q3 getDownloadQuality 按完整音质表回退', async() => {
+    const h = setup()
+    global.lx.qualityList.kw = ['flac', 'wav', '320k', '128k']
+    const info = music('kw', 'q3', { meta: { _qualitys: { wav: true, '128k': true } } })
+    assert.strictEqual(h.utils.getDownloadQuality('flac', info), 'wav')
+    assert.strictEqual(h.utils.getDownloadQuality('ape', info), '128k')
+  })
+
+  await run('P1U-L1 getPlayQualityLabel 实际音质标签', () => {
+    const h = setup()
+    assert.strictEqual(h.utils.getPlayQualityLabel('flac24bit'), 'FLAC24')
+    assert.strictEqual(h.utils.getPlayQualityLabel('320k'), '320K')
+    assert.strictEqual(h.utils.getPlayQualityLabel('m4a'), 'M4A')
+    assert.strictEqual(h.utils.getPlayQualityLabel(''), '')
+  })
+
+  await run('P1U-E1 formatPlayError 错误码中文化', () => {
+    const h = setup()
+    global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
+    assert.strictEqual(h.utils.formatPlayError(fail('NOT_FOUND')), '歌曲不可用：mock')
+    assert.strictEqual(h.utils.formatPlayError(new Error('PREVIEW_FRAGMENT: 该曲目只提供试听片段')), '仅提供试听片段：该曲目只提供试听片段')
+    assert.strictEqual(h.utils.formatPlayError(new Error('WEIRD_CODE: x')), 'WEIRD_CODE：x')
+  })
+
+  await run('P1U-E2 formatPlayError 聚合明细与兜底截断', () => {
+    const h = setup()
+    global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
+    const agg = h.utils.formatPlayError(new Error('NOT_AUDIO: 所有源均失败 [[flac] wyOuter=NOT_AUDIO | [128k] kw=NOT_AUDIO]'))
+    assert(agg.startsWith('返回的不是有效音频：'), agg)
+    assert(agg.includes('wyOuter=NOT_AUDIO'), agg)
+    assert(agg.includes('kw=NOT_A'), agg)
+    const long = h.utils.formatPlayError(new Error('x'.repeat(60)))
+    assert.strictEqual(long.length, 41, `无码长文本应截断到 40+省略号，实际 ${long.length}`)
+    assert.strictEqual(h.utils.formatPlayError({}), '播放失败', '空错误回退 i18n 兜底文案')
+  })
+
   console.log(`\n===== P1 运行时所有权审计：${checks} 通过 / ${failures} 失败 =====`)
   process.exit(failures ? 1 : 0)
 })()

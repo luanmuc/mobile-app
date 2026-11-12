@@ -421,7 +421,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 
 ```bash
 node scripts/check_source_platform_label.js        # 9/9
-node scripts/check_source_config_contract.js       # 24/0
+node scripts/check_source_config_contract.js       # 25/0
 node scripts/check_health_diagnostics.js           # 40/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_health_diagnostics_view.js      # 20/0
@@ -451,7 +451,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | 检查 | 实跑结果 | 退出码 |
 |---|---|---|
 | `check_source_platform_label.js` | **9/9** | 0 |
-| `check_source_config_contract.js` | **24/0** | 0 |
+| `check_source_config_contract.js` | **25/0** | 0 |
 | `check_health_diagnostics.js` | **40/0** | 0 |
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_health_diagnostics_view.js` | **20/0** | 0 |

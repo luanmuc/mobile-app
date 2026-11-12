@@ -1,3 +1,16 @@
+## [App TS 行为覆盖补证：63/83] - 2026-11-12
+
+> 只补测试与文档，不改 App 生产代码；目标是把“门禁加载了但没真正执行”的纯函数覆盖补上。
+
+- `check_source_platform_label.js`：新增 `resolvePlayPlatform` 实际平台优先/主平台回退/空值 5 个断言。
+- `check_source_config_contract.js`：新增 `configLabelKey`/`configDescKey`/`msToDisplay` 前缀与单位换算断言；契约 24→25/0。
+- `check_playback_ownership_runtime.js`：新增 `getPlayQuality`/`getDownloadQuality`/`getPlayQualityLabel`/`formatPlayError` 六条真实行为断言；运行时 5→11/0。
+- `check_health_diagnostics.js`：新增 `trimTailByBytes`（UTF-8 不切多字节）、`buildCacheHitEntry`、`parseHealthLines`（坏行跳过）、`createHealthTraceId` 四条断言；健康契约 41→45/0。
+- 复测口径不变：9 个行为门禁加载的 11 个 TS 模块，V8 coverage 按导出函数名匹配，**51/83=61.45% → 63/83=75.90%**；新增真实执行 12 个函数，剩余 20 个（utils 9、healthLog 7、log 4）。
+- 边界不变：仍不代表 524 个 TS 文件全量行覆盖；无生产代码改动，APK 行为与 b115 一致。
+- 验证：`tsc --noEmit` 0、变更脚本 eslint 0、语法 524/0、契约 13/0、配置 25/0、标签 9/9、预算 20/0、运行时 11/0、桥媒体 6/0、健康 45/0、视图 22/0、日志 13/0、深度 51/0、诊断压力 14/0、docs-consistency 17、docs-audit 20 项 0 ❌。
+- 本提交只改测试/文档，使用 `[skip ci]`，不生成 b116；最新 APK 仍为 b115（内置 v8.12.5）。
+
 ## [内置音源 v8.12.5：死代码清理版 APK] - 2026-11-12
 
 > 源仓 `v8.12.5` 只删未调用死代码（行为不变）；本次构建用于把该版本真正打进 APK，并验证源仓 HEAD 闸门绿路径。

@@ -208,6 +208,36 @@ if (healthLog) {
     assert(out.trim().split('\n').every(l => { try { JSON.parse(l); return true } catch { return false } }), '输出含残行')
   })
 
+  check('H6 按 UTF-8 字节保留尾部且不切断多字节字符', () => {
+    assert(healthLog.trimTailByBytes('ab音乐', 4) === '乐', `实际 ${JSON.stringify(healthLog.trimTailByBytes('ab音乐', 4))}`)
+    assert(healthLog.trimTailByBytes('x😀', 4) === '😀', '4 字节应完整保留代理对')
+    assert(healthLog.trimTailByBytes('x😀', 3) === '', '剩余字节不足时不得切半个 emoji')
+    assert(healthLog.trimTailByBytes('abc', 0) === '', 'maxBytes<=0 返回空串')
+  })
+
+  check('H5 缓存命中单独成事件且不含成功率字段', () => {
+    const entry = healthLog.buildCacheHitEntry({ platform: 'kw', quality: '128k', sourceId: '溯音酷我' })
+    assert(entry.event === 'cache_hit', 'event 应为 cache_hit')
+    assert(entry.platform === 'kw' && entry.quality === '128k' && entry.sourceId === '溯音酷我', '字段未保留')
+    assert(!('ok' in entry) && !('sampleWeight' in entry), 'cache_hit 不得混入成功率字段')
+  })
+
+  check('H6 JSONL 坏行跳过且不丢整份日志', () => {
+    const good = JSON.stringify({ ts: 1, event: 'play_result', ok: true })
+    const out = healthLog.parseHealthLines(`${good}\n{bad json}\n\n${JSON.stringify({ ts: 2 })}\n${JSON.stringify({ ts: 3, event: 'cache_hit' })}`)
+    assert(out.length === 2, `实际 ${out.length}`)
+    assert(out[0].event === 'play_result', '首条 event 不符')
+    assert(out[1].event === 'cache_hit', '次条 event 不符')
+  })
+
+  check('H4 traceId 只含时间与随机、可直接串联', () => {
+    const a = healthLog.createHealthTraceId()
+    const b = healthLog.createHealthTraceId()
+    assert(/^app_[0-9a-z]+_[0-9a-z]{1,6}$/.test(a), `格式不符：${a}`)
+    assert(a !== b, '两次 traceId 不应相同')
+    assert(!a.includes('@') && !a.includes(':'), 'traceId 不得含账号/设备标识')
+  })
+
   check('H6 7 天清理判定', () => {
     assert(healthLog.isExpiredHealthFileName('source_health_20261101.jsonl', '20261111', 7) === true, '10 天前应清理')
     assert(healthLog.isExpiredHealthFileName('source_health_20261105.jsonl', '20261111', 7) === false, '6 天前不应清理')

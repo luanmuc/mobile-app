@@ -79,6 +79,16 @@ const CFG = () => loadTs('src/core/sourceConfig.ts')
 
 section('contract', () => {
   const c = CFG()
+  run('i18n 前缀与显示单位换算', () => {
+    assert.strictEqual(c.configLabelKey('cacheTtlMs'), 'health_cfg_label_cacheTtlMs')
+    assert.strictEqual(c.configDescKey('cacheTtlMs'), 'health_cfg_desc_cacheTtlMs')
+    assert.strictEqual(c.msToDisplay('cacheTtlMs', 6 * 3600000), 6)
+    assert.strictEqual(c.msToDisplay('cacheTtlHighQualityMs', 30 * 60000), 30)
+    assert.strictEqual(c.msToDisplay('breakerCooldownMs', 0.5 * 60000), 0.5)
+    assert.strictEqual(c.msToDisplay('breakerThreshold', 3), 3, '无 msPerUnit 的纯数字键原值返回')
+    assert.strictEqual(c.msToDisplay('not-a-key', 1234), 1234, '未知键原值返回')
+    assert.strictEqual(c.msToDisplay('raceMatchWaitMs', 600), 0.6, '600ms → 0.6 秒')
+  })
   run('28 个数字键 + 9 个布尔键', () => {
     assert.strictEqual(c.NUMERIC_CONFIG_KEYS.length, 28)
     assert.strictEqual(c.BOOL_CONFIG_KEYS.length, 9)

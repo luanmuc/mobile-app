@@ -98,7 +98,7 @@ jobs:
           node scripts/check_playback_ownership_runtime.js
           node scripts/check_media_body.js
 
-      - name: 健康诊断契约门禁（41 条 + 视图 22 条 + 日志目录 13 条）
+      - name: 健康诊断契约门禁（45 条 + 视图 22 条 + 日志目录 13 条）
         # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
         # 视图模型锁折叠态、错误码/其他线索分组与空态。
         # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。

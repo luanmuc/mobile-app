@@ -133,6 +133,14 @@ run('L4/L5 标签行为矩阵', () => {
   assert.strictEqual(resolvePlatformName('xm', ''), 'xm', '未知平台回退平台 id，不显示翻译 key')
   assert.strictEqual(resolvePlatformName('local', ''), '', '本地平台不显示平台名')
 
+  // resolvePlayPlatform：有实际交付平台时优先，旧音源缺字段时回退歌曲主平台。
+  const { resolvePlayPlatform } = loadTs('src/core/music/sourceLabel.ts')
+  assert.strictEqual(resolvePlayPlatform({ platform: 'kw' }, 'tx'), 'kw', '实际交付平台优先于主平台')
+  assert.strictEqual(resolvePlayPlatform({}, 'tx'), 'tx', 'playSource 无 platform 时回退主平台')
+  assert.strictEqual(resolvePlayPlatform(null, 'wy'), 'wy', 'playSource 为空时回退主平台')
+  assert.strictEqual(resolvePlayPlatform(undefined, undefined), '', '两者都缺失时返回空串')
+  assert.strictEqual(resolvePlayPlatform({ platform: '' }, 'mg'), 'mg', '空平台回退主平台')
+
   // 40 组合穷举：7 个已知平台 + local + 未知 + 空 × 4 种子源名。
   // 只锁「不产生 undefined / 双分隔符 / 前后悬挂分隔符」，不锁具体文案。
   const platforms = ['all', 'bd', 'kg', 'kw', 'mg', 'tx', 'wy', 'local', 'xm', '']
