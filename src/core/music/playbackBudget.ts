@@ -73,3 +73,54 @@ export const raceWithBudget = async <T>(promise: Promise<T>, budget: PlaybackBud
     }),
   ])
 }
+
+/**
+ * 候选取链竞速：首个成功立即胜出，并逻辑取消其余候选。
+ *
+ * 源 SDK 的 getMusicUrl 只返回 promise，没有 abort 契约；这里的 cancel 是逻辑取消，
+ * 调用方必须在每个候选的 run 内检查 isCancelled，避免晚到结果写 attempts/缓存。
+ */
+export interface PlaybackCandidateTask<T> {
+  key: string
+  run: (isCancelled: () => boolean) => Promise<T>
+  cancel?: () => void
+}
+
+export interface PlaybackCandidateWinner<T> {
+  key: string
+  value: T
+}
+
+export const racePlaybackCandidates = async <T>(tasks: Array<PlaybackCandidateTask<T>>): Promise<PlaybackCandidateWinner<T>> => {
+  if (!tasks.length) throw new Error('NO_CANDIDATE')
+  return await new Promise<PlaybackCandidateWinner<T>>((resolve, reject) => {
+    let settled = false
+    let failed = 0
+    const errors: unknown[] = []
+    const states = tasks.map(() => ({ cancelled: false }))
+    const finishWin = (index: number, value: T) => {
+      if (settled) return
+      settled = true
+      states.forEach((state, i) => {
+        if (i === index) return
+        state.cancelled = true
+        try { tasks[i].cancel?.() } catch {}
+      })
+      resolve({ key: tasks[index].key, value })
+    }
+    const finishFail = (error: unknown) => {
+      if (settled) return
+      errors.push(error)
+      failed++
+      if (failed === tasks.length) {
+        settled = true
+        reject(errors[errors.length - 1])
+      }
+    }
+    tasks.forEach((task, index) => {
+      Promise.resolve()
+        .then(async() => await task.run(() => states[index].cancelled))
+        .then(value => { finishWin(index, value) }, error => { finishFail(error) })
+    })
+  })
+}

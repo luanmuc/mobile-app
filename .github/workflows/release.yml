@@ -82,6 +82,7 @@ jobs:
           node scripts/check_source_contract.js
           node scripts/check_source_platform_label.js
           node scripts/check_playback_budget.js
+          node scripts/check_playback_ownership_runtime.js
           node scripts/check_media_body.js
 
       - name: 健康诊断契约门禁（41 条 + 视图 22 条 + 日志目录 13 条）

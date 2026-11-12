@@ -1,3 +1,13 @@
+## [P1 运行时收口：外呼计数 + 候选竞速] - 2026-11-12
+
+> 报告 P1-A1~A4 要求 App 运行时 mock 外呼计数，P1-A6 要求首成功取消其余候选；此前只有静态断言/顺序候选。
+
+- 新增 `scripts/check_playback_ownership_runtime.js`：加载真实 `utils.ts`，只替换 musicSdk/data/setting/log 边界。P1F-A1 主源成功时 `findMusic=0`；P1F-A2 host 失败时 `findMusic=1`、主源/候选各 1 次 URL 请求；P1F-A3 source 失败时 App 搜索=0；P1F-A4 重复平台候选只请求 1 次；P1F-A6 延迟 mock 下先成功者胜出。
+- `playbackBudget.ts` 新增 `racePlaybackCandidates()`：首个成功胜出并逻辑取消其余候选；`utils.ts` 的候选阶段改为并发竞速，winner 才 `onToggleSource`，晚到候选在 `isCancelled()` 处丢弃，不写 attempts。
+- RED：旧顺序实现 P1F-A6 返回慢候选 `kw`，不是 40ms 先成功的 `wy`；实现后 harness 5/0。
+- 边界：源 SDK 只返回 Promise、无 abort 契约，“取消”为逻辑取消（抑制晚到 attempts/缓存写入），不保证中断真实 HTTP；8MiB 真机端到端仍未实测。
+- 验证：播放所有权运行时 5/0、播放预算 20/0、`tsc` 0、语法 524/0、全仓 eslint 0、契约 13/0、桥媒体 6/0、配置 24/0、标签 9/9、健康 41/0、深度 51/0、压力 14/0、视图 22/0、日志目录 13/0。
+
 ## [验收收口：P2 错误码 + P1 owner 归因] - 2026-11-12
 
 > 报告验收表字面缺口：P2-A2/A3 缺 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`；P1-A7 的 `attempts[]` 缺 `owner`。

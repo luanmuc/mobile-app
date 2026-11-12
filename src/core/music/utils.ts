@@ -19,6 +19,7 @@ import {
   createBudgetExhaustedError,
   createPlaybackBudget,
   isBudgetExhausted,
+  racePlaybackCandidates,
   raceWithBudget,
   resolvePlaybackOwner,
   type PlaybackAttempt,
@@ -338,57 +339,71 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     throw new Error('source init failed')
   }
 
+  const candidates: Array<{ musicInfo: LX.Music.MusicInfoOnline, itemQuality: LX.Quality }> = []
   let musicInfo: LX.Music.MusicInfoOnline | null = null
-  let itemQuality: LX.Quality | null = null
   // eslint-disable-next-line no-cond-assign
   while (musicInfo = (musicInfos.shift()!)) {
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     if (!assertApiSupport(musicInfo.source)) continue
-    itemQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
+    const itemQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
     if (!musicInfo.meta?._qualitys?.[itemQuality]) continue
-
-    console.log('try toggle to: ', musicInfo.source, musicInfo.name, musicInfo.singer, musicInfo.interval)
-    onToggleSource(musicInfo)
-    break
+    candidates.push({ musicInfo, itemQuality })
   }
-  if (!musicInfo || !itemQuality) {
+  if (!candidates.length) {
     const err = new Error(global.i18n.t('toggle_source_failed')) as Error & { attempts?: PlaybackAttempt[] }
     err.attempts = playbackAttempts
     throw err
   }
 
-  const cachedUrl = await getStoreMusicUrl(musicInfo, itemQuality)
-  if (cachedUrl && !isRefresh) {
-    // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
-    const cachedSource = await getStoreMusicSource(musicInfo, itemQuality)
-    return { url: cachedUrl, musicInfo, quality: itemQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '' }
+  interface CandidateResult {
+    url: string
+    musicInfo: LX.Music.MusicInfoOnline
+    quality: LX.Quality
+    isFromCache: boolean
+    subSource: string
+    subSourceName: string
+    sourcePlatform: string
   }
+  const candidateCancelled = () => Object.assign(new Error('CANDIDATE_CANCELLED: 已有候选先成功'), { code: 'CANDIDATE_CANCELLED' })
+  const tasks = candidates.map(({ musicInfo: candidate, itemQuality: candidateQuality }) => {
+    const attemptStartedAt = Date.now()
+    return {
+      key: candidate.source,
+      run: async(isCancelled: () => boolean): Promise<CandidateResult> => {
+        try {
+          const cachedUrl = await getStoreMusicUrl(candidate, candidateQuality)
+          if (isCancelled()) throw candidateCancelled()
+          if (cachedUrl && !isRefresh) {
+            // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
+            const cachedSource = await getStoreMusicSource(candidate, candidateQuality)
+            playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
+            return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '' }
+          }
 
-  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
-  const attemptStartedAt = Date.now()
-  try {
-    reqPromise = musicSdk[musicInfo.source].getMusicUrl(toOldMusicInfo(musicInfo), itemQuality, traceId).promise
-  } catch (err: any) {
-    reqPromise = Promise.reject(err)
-  }
-  // retryedSource.includes(musicInfo.source)
-  // eslint-disable-next-line @typescript-eslint/promise-function-async
-  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
-    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
-    // eslint-disable-next-line @typescript-eslint/promise-function-async
-  }).catch((err: any) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
-    if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
-    if (err.message == requestMsg.tooManyRequests) {
-      err.attempts = playbackAttempts
-      throw err
+          let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
+          try {
+            reqPromise = musicSdk[candidate.source].getMusicUrl(toOldMusicInfo(candidate), candidateQuality, traceId).promise
+          } catch (err: any) {
+            reqPromise = Promise.reject(err)
+          }
+          const { url, type, subSource = '', subSourceName = '', sourcePlatform = '' } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
+          if (isCancelled()) throw candidateCancelled()
+          playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
+          return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
+        } catch (err: any) {
+          // 已胜出的候选会取消其余任务；晚到失败不再写 attempts，避免同一 trace 出现两条归因。
+          if (!isCancelled()) playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
+          throw err
+        }
+      },
     }
-    console.log(err)
-    return getOnlineOtherSourceMusicUrl({ musicInfos, quality, onToggleSource, isRefresh, retryedSource, traceId, budget: playbackBudget, attempts: playbackAttempts })
   })
+
+  const winner = await racePlaybackCandidates(tasks)
+  onToggleSource(winner.value.musicInfo)
+  return winner.value
 }
 
 /**
