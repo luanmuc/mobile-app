@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b108",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- c368a1ff feat(playback): 24s 取链预算与 attempts 账本\n- 593010fd docs: 同步 P1 降级所有权发布数据 v1.9.2-b107",
+  "version": "1.9.2-b109",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- a128b846 feat(media): P2 桥媒体 base64 信封与能力协商\n- f6ddfe92 docs: 同步 P1 第二刀发布数据 v1.9.2-b108",
   "history": [
+    {
+      "version": "1.9.2-b108",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- c368a1ff feat(playback): 24s 取链预算与 attempts 账本\n- 593010fd docs: 同步 P1 降级所有权发布数据 v1.9.2-b107"
+    },
     {
       "version": "1.9.2-b107",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b09115c6 feat(source): P1 降级所有权与 App 换源 gate"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b103",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- cfc16956 docs: 同步 v1.9.2-b103 发布数据\n- 6c2d2964 test(health): 增加诊断窗口视图模型审计与压力\n- ea56a452 feat(health): 本地诊断窗口分层并支持折叠展开"
-    },
-    {
-      "version": "1.9.2-b102",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- fb200504 refactor(health): 合并趋势预警并清理日志死 API\n- ff9c2a4d test(health): 本地诊断深度审计 50 条并修复截尾/脱敏缺陷\n- a8c85bf5 fix(health): 本地诊断采样加权、失败归因与证据展开"
     }
   ]
 }
