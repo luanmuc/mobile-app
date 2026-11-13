@@ -170,12 +170,36 @@ if (diag) {
     assert(report.traceIds.includes('t-drop-new1'), '报告 traceIds 未包含失败链')
   })
 
-  check('H8 证据包 5 个载荷键', () => {
+  check('H8 证据包 v2 载荷键 + manifest', () => {
     const report = diag.buildHealthReport({ events, snapshot, now: NOW })
     const pkg = diag.buildEvidencePackage({ report, events, snapshot, trend: [], logTail: 'tail' })
-    assert(pkg.schema === 1, 'schema 应为 1')
-    for (const k of ['report', 'events', 'snapshot', 'trend', 'logTail']) assert(k in pkg, `证据包缺 ${k}`)
+    assert(pkg.schema === 2, `schema 应为 2，实际 ${pkg.schema}`)
+    for (const k of ['report', 'events', 'snapshot', 'trend', 'logTail', 'manifest']) assert(k in pkg, `证据包缺 ${k}`)
+    assert(pkg.manifest.format === 'lx-health-evidence' && pkg.manifest.version === 2, 'manifest 格式/版本不符')
+    assert(pkg.manifest.redacted === true && pkg.manifest.localOnly === true, 'manifest 缺脱敏/本地标记')
     assert(pkg.events.length === events.length, '证据包事件数不符')
+    assert(pkg.manifest.counts.events === events.length, 'manifest 事件数不符')
+  })
+
+  check('H8b 证据包事件/日志/趋势/总量上限（F08/F58）', () => {
+    const many = Array.from({ length: 3000 }, (_, i) => ({ ts: NOW - i, traceId: `t-${i}`, event: 'source_result', sourceId: 's', ok: false, code: 'X' }))
+    const report = diag.buildHealthReport({ events: many, snapshot, now: NOW })
+    const pkg = diag.buildEvidencePackage({
+      report,
+      events: many,
+      snapshot: { s: { reason: 'u=https://secret.test/a?b=1 歌=SECRET' } },
+      trend: Array.from({ length: 300 }, (_, i) => ({ ts: i })),
+      logTail: ('u=https://secret.test/x 歌=SECRET ' + 'x'.repeat(200)).repeat(1000),
+    })
+    assert(pkg.events.length === 1000, `事件未截断：${pkg.events.length}`)
+    assert(pkg.manifest.truncated.events === true, '未标记事件截断')
+    assert(pkg.trend.length <= 200, `趋势未截断：${pkg.trend.length}`)
+    assert(pkg.manifest.truncated.trend === true, '未标记趋势截断')
+    assert(Buffer.byteLength(pkg.logTail, 'utf8') <= 64 * 1024, '日志尾部未截断')
+    assert(pkg.manifest.truncated.logTail === true, '未标记日志截断')
+    assert(pkg.manifest.estimatedBytes <= 2 * 1024 * 1024, `证据包超 2MB：${pkg.manifest.estimatedBytes}`)
+    assert(!JSON.stringify(pkg.snapshot).includes('secret.test'), '快照 URL 未脱敏')
+    assert(!JSON.stringify(pkg.snapshot).includes('SECRET'), '快照歌名未脱敏')
   })
 
   check('H3 脱敏：URL 与歌名不落证据', () => {

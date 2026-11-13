@@ -113,9 +113,30 @@ export interface HealthReport {
   traceIds: string[]
 }
 
-export interface HealthEvidencePackage {
-  schema: 1
+// F08/F58：证据包上限。只保留最近事件，日志尾部截断，快照递归脱敏。
+export const EVIDENCE_MAX_EVENTS = 1000
+export const EVIDENCE_MAX_LOG_BYTES = 64 * 1024
+export const EVIDENCE_MAX_BYTES = 2 * 1024 * 1024
+export const EVIDENCE_MAX_TREND = 200
+
+export interface HealthEvidenceManifest {
+  format: 'lx-health-evidence'
+  version: 2
   generatedAt: number
+  appVersion?: string
+  sourceVersion?: string
+  redacted: true
+  localOnly: true
+  counts: { events: number, attempts: number, findings: number, trend: number, logTailBytes: number }
+  limits: { events: number, logTailBytes: number, totalBytes: number }
+  truncated: { events: boolean, logTail: boolean, trend: boolean, total: boolean }
+  estimatedBytes: number
+}
+
+export interface HealthEvidencePackage {
+  schema: 2
+  generatedAt: number
+  manifest: HealthEvidenceManifest
   report: HealthReport
   events: HealthEventLike[]
   attempts: Array<{ traceId?: string, sourceId?: string, ok?: boolean, code?: string, latencyMs?: number }>
@@ -486,6 +507,17 @@ const redactValue = (value: unknown, depth = 0): unknown => {
   return value
 }
 
+const utf8Bytes = (text: string): number => {
+  let bytes = 0
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    if (c < 0x80) bytes += 1
+    else if (c < 0x800) bytes += 2
+    else if (c >= 0xD800 && c <= 0xDBFF) { bytes += 4; i++ } else bytes += 3
+  }
+  return bytes
+}
+
 export const buildEvidencePackage = (input: {
   report: HealthReport
   events: HealthEventLike[]
@@ -496,7 +528,10 @@ export const buildEvidencePackage = (input: {
   sourceVersion?: string
 }): HealthEvidencePackage => {
   const report = input.report
-  const events = (Array.isArray(input.events) ? input.events : []).map(e => redactValue({ ...e }) as HealthEventLike)
+  const rawEvents = Array.isArray(input.events) ? input.events : []
+  const truncated = { events: rawEvents.length > EVIDENCE_MAX_EVENTS, logTail: false, trend: false, total: false }
+  // 先切片再递归脱敏，避免 2 万事件在 UI 线程上做无用的深层 redact。
+  const events = rawEvents.slice(-EVIDENCE_MAX_EVENTS).map(e => redactValue({ ...e }) as HealthEventLike)
   const attempts: HealthEvidencePackage['attempts'] = []
   for (const e of events) {
     if (attempts.length >= 50) break
@@ -514,16 +549,59 @@ export const buildEvidencePackage = (input: {
       })
     }
   }
-  return {
-    schema: 1,
-    generatedAt: report?.generatedAt ?? Date.now(),
+  const rawLog = input.logTail ?? ''
+  let logTail = redactDiagnosticText(rawLog)
+  if (utf8Bytes(logTail) > EVIDENCE_MAX_LOG_BYTES) {
+    truncated.logTail = true
+    // 按 UTF-8 真实字节裁，避免中文/脱敏占位符把 64KB 上限撑破；从头部丢弃，保留最近日志。
+    while (logTail.length && utf8Bytes(logTail) > EVIDENCE_MAX_LOG_BYTES) {
+      logTail = logTail.slice(Math.max(1, Math.ceil(logTail.length / 8)))
+    }
+  }
+  const rawTrend = Array.isArray(input.trend) ? input.trend : []
+  const trend = rawTrend.length > EVIDENCE_MAX_TREND ? rawTrend.slice(-EVIDENCE_MAX_TREND) : rawTrend
+  truncated.trend = rawTrend.length > EVIDENCE_MAX_TREND
+
+  const generatedAt = report?.generatedAt ?? Date.now()
+  const manifest: HealthEvidenceManifest = {
+    format: 'lx-health-evidence',
+    version: 2,
+    generatedAt,
+    ...(input.appVersion ? { appVersion: String(input.appVersion) } : {}),
+    ...(input.sourceVersion ? { sourceVersion: String(input.sourceVersion) } : {}),
+    redacted: true,
+    localOnly: true,
+    counts: { events: events.length, attempts: attempts.length, findings: report?.findings?.length ?? 0, trend: trend.length, logTailBytes: utf8Bytes(logTail) },
+    limits: { events: EVIDENCE_MAX_EVENTS, logTailBytes: EVIDENCE_MAX_LOG_BYTES, totalBytes: EVIDENCE_MAX_BYTES },
+    truncated: { ...truncated },
+    estimatedBytes: 0,
+  }
+  const pkg: HealthEvidencePackage = {
+    schema: 2,
+    generatedAt,
+    manifest,
     report,
     events,
     attempts,
     ...(input.appVersion ? { appVersion: String(input.appVersion) } : {}),
     ...(input.sourceVersion ? { sourceVersion: String(input.sourceVersion) } : {}),
-    snapshot: input.snapshot ?? {},
-    trend: Array.isArray(input.trend) ? input.trend : [],
-    logTail: redactDiagnosticText(input.logTail ?? ''),
+    // 快照也可能携带上游 URL/账号字段，统一递归脱敏。
+    snapshot: redactValue(input.snapshot ?? {}) as HealthSnapshotLike,
+    trend,
+    logTail,
   }
+  // 最后再做总量兜底：组件上限都满足仍超 2MB 时，优先丢事件/attempts/趋势，报告与 manifest 保留。
+  let size = utf8Bytes(JSON.stringify(pkg))
+  if (size > EVIDENCE_MAX_BYTES) {
+    truncated.total = true
+    pkg.events = []
+    pkg.attempts = []
+    pkg.trend = []
+    pkg.logTail = ''
+    pkg.manifest.counts = { events: 0, attempts: 0, findings: report?.findings?.length ?? 0, trend: 0, logTailBytes: 0 }
+    size = utf8Bytes(JSON.stringify(pkg))
+  }
+  pkg.manifest.truncated = { ...truncated }
+  pkg.manifest.estimatedBytes = size
+  return pkg
 }

@@ -1,3 +1,13 @@
+## [音源健康：F08/F58 证据包 v2 manifest/上限/脱敏] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- `HealthEvidencePackage` 升到 `schema: 2`，新增 `manifest`：`format/version/generatedAt`、`appVersion/sourceVersion`、`redacted/localOnly`、`counts`、`limits`、`truncated`、`estimatedBytes`。
+- 事件只保留最近 1000 条，趋势最近 200 条，日志尾部按 UTF-8 真实字节截到 64KB；总量超 2MB 时优先丢弃事件/attempts/趋势，报告与 manifest 保留。
+- 快照改为递归脱敏后再入包，避免源快照里的 URL/歌名随证据导出；日志仍按 URL/歌名/搜索词脱敏。
+- 导出仍只写本机并手动分享，不自动上传、不自动关源。
+- 验证：`check_health_diagnostics` 53/0（新增 H8b 上限断言）；deep 51/0；stress 14/0；view 22/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）。
+
 ## [音源健康：F16 质量档矩阵逐档可见] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。
