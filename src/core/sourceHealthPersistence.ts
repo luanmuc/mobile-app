@@ -5,13 +5,19 @@
  * 保存健康统计/熔断/档位短路/播放摘除元数据，绝不保存 success URL、歌名、歌手、账号。
  * P3-R：快照是全局元数据，统一写 canonical key，不再按平台复制全量副本。
  */
-export const HEALTH_STATE_VERSION = 1
+export const HEALTH_STATE_VERSION = 2
+// F57：v2 可读 v1；旧版本忽略 v2 字段，写新态统一 v2。
+export const HEALTH_STATE_ACCEPTED_VERSIONS = [1, 2]
 export const HEALTH_STATE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const HEALTH_STATE_FUTURE_TOLERANCE_MS = 60 * 60 * 1000
 export const HEALTH_STATE_MAX_BYTES = 256 * 1024
 export const HEALTH_STATE_KEY_PREFIX = '@___SOURCE_HEALTH___'
 // P3-R：健康快照是全局元数据，不再按平台复制 5 份；旧平台键只用于一次性迁移。
 export const HEALTH_STATE_CANONICAL_KEY = `${HEALTH_STATE_KEY_PREFIX}global`
+// F36/F57：用户控制独立 key，不绑 sourceVersion，也不随健康 TTL 一起丢。
+export const HEALTH_CONTROL_VERSION = 2
+export const HEALTH_CONTROL_KEY = '@___SOURCE_CONTROL___global'
+export const HEALTH_CONTROL_MAX_BYTES = 64 * 1024
 export const HEALTH_STATE_LEGACY_SOURCE_IDS = ['kw', 'wy', 'tx', 'mg', 'kg']
 
 const QUALITIES = ['128k', '320k', 'flac', 'flac24bit']
@@ -31,14 +37,26 @@ export interface HealthStateSource {
   byQuality: Record<string, Record<string, number>>
   playDead: { streak: number, deadline: number }
 }
+export interface HealthControlEntry {
+  enabled: boolean
+  manualOff?: boolean
+  autoOff?: boolean
+  autoOffAt?: number
+  autoOffReason?: string
+}
+export interface HealthControlState {
+  v: number
+  savedAt: number
+  controls: Record<string, HealthControlEntry>
+}
 export interface HealthState {
   v: number
   sourceVersion: string
   savedAt: number
   sources: Record<string, HealthStateSource>
   qualityShortCircuit: Record<string, number>
-  // v8.14：源侧开关权威（用户意图 + autoOff 短 TTL）。白名单不删字段，原样透传。
-  controls?: Record<string, { enabled: boolean, manualOff?: boolean, autoOff?: boolean, autoOffAt?: number, autoOffReason?: string }>
+  // v1 兼容：v2 的 controls 独立存储后，健康态不再携带；旧 v1 仍可带。
+  controls?: Record<string, HealthControlEntry>
 }
 export interface SanitizeResult {
   ok: boolean
@@ -46,11 +64,12 @@ export interface SanitizeResult {
   reason?: string
 }
 export interface SourceHealthApi {
-  restoreHealth?: (state: HealthState) => { promise: Promise<{ ok?: boolean, restored?: number, reason?: string }> }
+  restoreHealth?: (state: HealthState) => { promise: Promise<{ ok?: boolean, restored?: number, controlsRestored?: number, reason?: string }> }
   exportHealth?: () => { promise: Promise<HealthState> }
 }
 export interface RestoreResult {
   restored: number
+  controlsRestored?: number
   reason?: string
 }
 
@@ -77,7 +96,7 @@ export const sanitizeSourceHealthState = (input: unknown, opts: {
 } = {}): SanitizeResult => {
   const now = opts.now ?? Date.now()
   if (!isPlainObject(input)) return { ok: false, reason: 'state 必须是对象' }
-  if (input.v !== HEALTH_STATE_VERSION) return { ok: false, reason: 'schema version 不符' }
+  if (!HEALTH_STATE_ACCEPTED_VERSIONS.includes(Number(input.v))) return { ok: false, reason: 'schema version 不符' }
   const expectedVersion = opts.sourceVersion
   if (typeof input.sourceVersion !== 'string' || !input.sourceVersion) return { ok: false, reason: 'sourceVersion 非法' }
   if (expectedVersion !== undefined && input.sourceVersion !== expectedVersion) return { ok: false, reason: 'sourceVersion 不符' }
@@ -115,6 +134,31 @@ export const sanitizeSourceHealthState = (input: unknown, opts: {
   return { ok: true, state: input as HealthState }
 }
 
+/** F57：控制态校验不依赖 sourceVersion；只认用户意图字段。 */
+export const sanitizeSourceHealthControls = (input: unknown, opts: { now?: number, maxBytes?: number } = {}): { ok: boolean, state?: HealthControlState, reason?: string } => {
+  const now = opts.now ?? Date.now()
+  if (!isPlainObject(input)) return { ok: false, reason: 'control 必须是对象' }
+  if (input.v !== HEALTH_CONTROL_VERSION) return { ok: false, reason: 'control version 不符' }
+  if (!isFiniteNumber(input.savedAt)) return { ok: false, reason: 'control savedAt 非法' }
+  const age = now - input.savedAt
+  if (age < -HEALTH_STATE_FUTURE_TOLERANCE_MS || age > HEALTH_STATE_TTL_MS) return { ok: false, reason: 'control savedAt 超出 TTL' }
+  if (JSON.stringify(input).length > (opts.maxBytes ?? HEALTH_CONTROL_MAX_BYTES)) return { ok: false, reason: 'control 超过容量上限' }
+  if (!isPlainObject(input.controls)) return { ok: false, reason: 'controls 非法' }
+  const forbidden = findForbiddenKey(input, 'control')
+  if (forbidden) return { ok: false, reason: `禁止字段 ${forbidden}` }
+  const count = Object.keys(input.controls).length
+  if (!count) return { ok: false, reason: 'controls 为空' }
+  for (const [id, c] of Object.entries(input.controls)) {
+    if (!SOURCE_ID_PATTERN.test(id)) return { ok: false, reason: `control 源 ID 非法 ${id}` }
+    if (!isPlainObject(c) || typeof c.enabled !== 'boolean') return { ok: false, reason: `controls.${id}.enabled 非法` }
+    if (c.manualOff !== undefined && typeof c.manualOff !== 'boolean') return { ok: false, reason: `controls.${id}.manualOff 非法` }
+    if (c.autoOff !== undefined && typeof c.autoOff !== 'boolean') return { ok: false, reason: `controls.${id}.autoOff 非法` }
+    if (c.autoOffAt !== undefined && (!isFiniteNumber(c.autoOffAt) || c.autoOffAt < 0)) return { ok: false, reason: `controls.${id}.autoOffAt 非法` }
+    if (c.autoOffReason !== undefined && c.autoOffReason !== null && typeof c.autoOffReason !== 'string') return { ok: false, reason: `controls.${id}.autoOffReason 非法` }
+  }
+  return { ok: true, state: input as HealthControlState }
+}
+
 export const sourceHealthStateKey = (sourceId: string) => `${HEALTH_STATE_KEY_PREFIX}${sourceId}`
 
 const stateFingerprint = (state: HealthState): string => {
@@ -123,6 +167,7 @@ const stateFingerprint = (state: HealthState): string => {
   return JSON.stringify(copy)
 }
 const canonicalWriteCache = new WeakMap<object, { fingerprint: string, savedAt: number }>()
+const controlWriteCache = new WeakMap<object, { fingerprint: string, savedAt: number }>()
 const CANONICAL_REFRESH_MS = 60 * 60 * 1000
 
 const removeLegacyKeys = async(storage: HealthStorage): Promise<void> => {
@@ -140,6 +185,30 @@ const readCanonical = async(storage: HealthStorage, sourceVersion: string, now: 
     try { await storage.removeData(HEALTH_STATE_CANONICAL_KEY) } catch (e) { /* 忽略清理失败 */ }
   }
   return null
+}
+
+export const readSourceHealthControls = async(storage: HealthStorage, now = Date.now()): Promise<HealthControlState | null> => {
+  let raw: unknown = null
+  try { raw = await storage.getData<HealthControlState>(HEALTH_CONTROL_KEY) } catch (e) { return null }
+  const result = sanitizeSourceHealthControls(raw, { now })
+  if (result.ok) return result.state!
+  if (raw !== null && raw !== undefined) {
+    try { await storage.removeData(HEALTH_CONTROL_KEY) } catch (e) { /* 忽略清理失败 */ }
+  }
+  return null
+}
+
+export const writeSourceHealthControls = async(storage: HealthStorage, state: HealthControlState, now = Date.now()): Promise<boolean> => {
+  const result = sanitizeSourceHealthControls(state, { now })
+  if (!result.ok) return false
+  const fingerprint = JSON.stringify({ ...state, savedAt: 0 })
+  const cached = controlWriteCache.get(storage)
+  if (cached && fingerprint === cached.fingerprint && now - cached.savedAt < CANONICAL_REFRESH_MS) return true
+  try {
+    await storage.saveData(HEALTH_CONTROL_KEY, state)
+    controlWriteCache.set(storage, { fingerprint, savedAt: now })
+    return true
+  } catch (e) { return false }
 }
 
 export const readSourceHealthState = async(storage: HealthStorage, sourceId: string, sourceVersion: string, now = Date.now()): Promise<HealthState | null> => {
@@ -191,16 +260,29 @@ export const restoreSourceHealth = async(
   storage: HealthStorage,
   now = Date.now(),
 ): Promise<RestoreResult> => {
-  const state = await readSourceHealthState(storage, sourceId, sourceVersion, now)
-  if (!state) return { restored: 0, reason: 'no-state' }
   const api = apis[sourceId]?.restoreHealth
   if (typeof api !== 'function') return { restored: 0, reason: 'no-action' }
+  const control = await readSourceHealthControls(storage, now)
+  let controlsRestored = 0
+  if (control) {
+    // F57：控制态单独恢复，sourceVersion 不匹配也不丢用户意图。
+    const controlState = { v: HEALTH_CONTROL_VERSION, sourceVersion, savedAt: control.savedAt, sources: {}, qualityShortCircuit: {}, controls: control.controls }
+    try {
+      const res = await api(controlState).promise
+      if (res && res.ok) controlsRestored = res.controlsRestored ?? Object.keys(control.controls).length
+    } catch (e) { /* 控制恢复失败不阻断健康恢复 */ }
+  }
+  const state = await readSourceHealthState(storage, sourceId, sourceVersion, now)
+  if (!state) return { restored: 0, controlsRestored, reason: control ? undefined : 'no-state' }
+  const health = { ...state }
+  // 只有独立 control 已恢复时才从健康态剥离；v1 旧合并态保留 controls 走兼容路径。
+  if (control) delete (health as any).controls
   try {
-    const res = await api(state).promise
-    if (res && res.ok) return { restored: res.restored ?? 1 }
-    return { restored: 0, reason: res?.reason ?? 'restore-rejected' }
+    const res = await api(health).promise
+    if (res && res.ok) return { restored: res.restored ?? 1, controlsRestored }
+    return { restored: 0, controlsRestored, reason: res?.reason ?? 'restore-rejected' }
   } catch (e: any) {
-    return { restored: 0, reason: String(e?.message || e) }
+    return { restored: 0, controlsRestored, reason: String(e?.message || e) }
   }
 }
 
@@ -214,7 +296,12 @@ export const saveSourceHealth = async(
   if (typeof api !== 'function') return false
   try {
     const state = await api().promise
-    return await writeSourceHealthState(storage, sourceId, state, now)
+    const controls = state?.controls ? { v: HEALTH_CONTROL_VERSION, savedAt: state.savedAt, controls: state.controls } : null
+    const health = { ...state }
+    delete (health as any).controls
+    const healthOk = await writeSourceHealthState(storage, sourceId, health, now)
+    const controlOk = controls ? await writeSourceHealthControls(storage, controls, now) : true
+    return healthOk && controlOk
   } catch (e) {
     return false
   }

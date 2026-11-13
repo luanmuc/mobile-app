@@ -169,6 +169,49 @@ check('G5-A1 新源/新版本无需改持久化白名单', async() => {
   assert(back && back.sources.newProvider, '新源应可往返')
   assert(await mod.readSourceHealthState(st, 'newProvider', '8.13.0', NOW) === null, '旧版本仍应拒绝')
 })
+check('B1 v2 save 拆出独立 control key，健康态不带 controls', async() => {
+  const st = fakeStorage()
+  const state = mkState()
+  state.controls = { suyinQQ: { enabled: false, manualOff: true } }
+  const apis = { kw: { exportHealth: () => ({ promise: Promise.resolve(state) }) } }
+  assert(await mod.saveSourceHealth(apis, 'kw', st, NOW) === true, 'save 应成功')
+  const health = JSON.parse(st.map.get(mod.HEALTH_STATE_CANONICAL_KEY))
+  assert(!('controls' in health), '健康 key 不应再带 controls')
+  const control = JSON.parse(st.map.get(mod.HEALTH_CONTROL_KEY))
+  assert(control.v === 2 && control.controls.suyinQQ.manualOff === true, '控制 key 内容不符')
+})
+
+check('B2 control 独立恢复：健康版本不符仍保留用户意图', async() => {
+  const st = fakeStorage()
+  const health = mkState(); health.sourceVersion = '8.12.0'
+  await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, health)
+  await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinQQ: { enabled: false, manualOff: true }, suyinKuwo: { enabled: true } } })
+  const calls = []
+  const apis = { kw: { restoreHealth: state => ({ promise: Promise.resolve().then(() => { calls.push(state); return state.sources && Object.keys(state.sources).length ? { ok: true, restored: 1 } : { ok: true, restored: 0, controlsRestored: 2 } }) }) } }
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  assert(r.controlsRestored === 2, `控制恢复数不符：${JSON.stringify(r)}`)
+  assert(r.restored === 0 && r.reason === undefined, '健康元数据应按版本丢弃，但不能报失败')
+  assert(calls.length === 1 && calls[0].sources && Object.keys(calls[0].sources).length === 0, '只应发控制态')
+})
+
+check('B3 control 态不绑定 sourceVersion，TTL 与容量仍校验', async() => {
+  const ok = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
+  assert(ok.ok, ok.reason)
+  const old = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW - 8 * 24 * 3600 * 1000, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
+  assert(!old.ok, '过期 control 应拒绝')
+})
+
+check('B4 v1 旧合并态仍兼容：controls 随健康态恢复', async() => {
+  const st = fakeStorage()
+  const state = mkState()
+  state.controls = { suyinQQ: { enabled: false, manualOff: true } }
+  await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, state)
+  let called = null
+  const apis = { kw: { restoreHealth: s => ({ promise: Promise.resolve().then(() => { called = s; return { ok: true, restored: 1 } }) }) } }
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  assert(r.restored === 1 && called && called.controls && called.controls.suyinQQ, 'v1 合并态应原样恢复')
+})
+
 setTimeout(() => {
   console.log(`\n${passed} passed, ${failures.length} failed`)
   if (failures.length) process.exit(1)

@@ -1,3 +1,13 @@
+## [音源健康：F36/F57 持久化 v2（control 独立 / v1 兼容 / 可回滚）] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- 源侧 `exportHealthState` 升 `schema v2`；`controls` 与健康元数据分离；`restoreHealthState` 仍接受 v1；新增 controls-only 恢复（`sources:{}` + `controls`），控制态不绑 `sourceVersion`，只按 7 天 TTL/64KB 校验；`healthV2Enabled=false` 回旧 v1 导出。
+- App `HEALTH_STATE_VERSION=2`，仍接受 v1；新增 `HEALTH_CONTROL_VERSION=2` 与独立 key `@___SOURCE_CONTROL___global`、`sanitizeSourceHealthControls`、`read/writeSourceHealthControls`。
+- `saveSourceHealth` 把 `controls` 从健康态剥离，单独写 control key；`restoreSourceHealth` 先恢复 control 再恢复健康元数据，控制恢复数计入 `controlsRestored`。
+- v1 旧合并态仍可整包恢复；健康 `sourceVersion` 不匹配只丢健康元数据，不丢用户开关意图。
+- 验证：源仓 `aa-p3-persist` 10/0、整仓 `npm test` rc=0、`docs-audit` rc=0；App `check_source_health_persistence` 17/0、`tsc` 0、目标 eslint 0、`build-test` rc=0（产物已清理）、docs 18/0。
+
 ## [音源健康：F19/F60 健康页 API 绑定] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。
