@@ -825,7 +825,6 @@
   "health_diag_unweighted": "其中 {n} 條成功為升級前未加權樣本，成功率僅供參考",
   "health_diag_items": "項線索",
   "health_diag_codes": "錯誤碼",
-  "health_diag_codes_disabled": "覆蓋不足，錯誤碼結論暫不展示；先看下方其他線索。",
   "health_diag_other": "其他線索",
   "health_diag_none": "暫無異常或線索",
   "health_anomaly_suggestion": "建議",

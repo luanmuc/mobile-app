@@ -1,7 +1,7 @@
 # 音源健康 · 本地诊断深度审计计划与压力测试口径
 
 > 审计对象：App 仓 `lx-music-mobile`，本地诊断闭环（`healthLog.ts` / `healthDiagnostics.ts` / `online.ts` 失败归因 / `Health.tsx` / 三语文案 / 文档与 workflow）。
-> 本轮基线：历史起点 `a02db1af`；2026-11-13 当前复核提交 `e41d0d15`（已 push；b116 已发布），`check_health_diagnostics` 52/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 22/0、`check_log_directory` 15/0。
+> 本轮基线：历史起点 `a02db1af`；2026-11-13 当前复核提交 `a87d3f3a`，本轮修复提交（本地未推送）（本地未推送），`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 23/0、`check_log_directory` 15/0。
 > 原则：不是「跑一遍不崩」，而是逐分支验证统计口径、窗口语义、异常规则、隐私边界和大数据行为。
 
 > **2026-11-13 v8.14 健康整功能重构补审**：新增 `scripts/check_health_status_refactor.js`（HS1~HS8）专审状态优先级与 `offReason`，已 8/0。覆盖：手动关闭 > 自动关闭 > 默认关闭 > 休眠 > 待采样 > 播放摘除 > 异常；旧快照无 `offReason` 回退不回归；9 桶只落一桶。新增待审缺口：真实播放回传去重（同一首歌多次 Playing 目前每次成功回传，会抬高样本数）、`probeSource` 只读语义、自动关闭 TTL 6h 重启复验；这三项需真机或宿主模拟补证，未闭环前不得宣称“健康状态完全正确”。
@@ -61,7 +61,7 @@
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView` | H14/H18/H19/H27/H29 + 视图 22 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语 | docs-audit 893 键 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语 | docs-audit 904 键 |
 | `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ## 3. 断言矩阵（52 条）
@@ -206,9 +206,9 @@
 node scripts/check_health_diagnostics_deep.js
 
 # 既有契约/压力回归
-node scripts/check_health_diagnostics.js          # 52/0
+node scripts/check_health_diagnostics.js          # 54/0
 node scripts/check_health_diagnostics_stress.js   # 14/0
-node scripts/check_health_diagnostics_view.js     # 22/0
+node scripts/check_health_diagnostics_view.js     # 23/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
@@ -221,4 +221,4 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；健康契约 52/0；深度审计 51/0；诊断压力 14/0；视图 22/0；日志目录 15/0；配置契约 25/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；健康契约 54/0；深度审计 51/0；诊断压力 14/0；视图 23/0；日志目录 15/0；配置契约 25/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

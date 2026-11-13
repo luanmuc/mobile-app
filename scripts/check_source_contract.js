@@ -8,7 +8,7 @@
  *   P0-A3 源侧未知 action 不注册到 App
  *   P0-A4 结果兼容旧 raw 与 v2 envelope
  *   P0-A5 失败码 retryable 语义稳定
- *   P0-A6 现有 11 个 action 全部仍有 handler
+ *   P0-A6 现有 13 个 action 全部仍有 handler
  *
  * 用法：node20 scripts/check_source_contract.js
  */
@@ -66,13 +66,13 @@ const SECTION = (name) => console.log(`\n[${name}]`)
 SECTION('contract')
 const CONTRACT = () => loadTs('src/core/init/userApi/sourceContract.ts')
 
-run('P0-A1 SOURCE_ACTIONS 恰好 11 个且集合稳定', () => {
+run('P0-A1 SOURCE_ACTIONS 恰好 13 个且集合稳定', () => {
   const { SOURCE_ACTIONS } = CONTRACT()
   assert.ok(Array.isArray(SOURCE_ACTIONS), 'SOURCE_ACTIONS 必须是数组')
-  assert.strictEqual(SOURCE_ACTIONS.length, 11, `期望 11 个，实际 ${SOURCE_ACTIONS.length}`)
+  assert.strictEqual(SOURCE_ACTIONS.length, 13, `期望 13 个，实际 ${SOURCE_ACTIONS.length}`)
   assert.deepStrictEqual(
     [...SOURCE_ACTIONS].sort(),
-    ['config', 'exportHealthState', 'health', 'healthEvents', 'lyric', 'musicUrl', 'pic', 'probe', 'restoreHealthState', 'toggle', 'trend'].sort(),
+    ['config', 'exportHealthState', 'health', 'healthEvents', 'lyric', 'musicUrl', 'pic', 'probe', 'probeSource', 'reportPlayback', 'restoreHealthState', 'toggle', 'trend'].sort(),
   )
 })
 

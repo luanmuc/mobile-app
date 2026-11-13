@@ -825,7 +825,6 @@
   "health_diag_unweighted": "{n} successes are pre-upgrade unweighted samples; rate is for reference only",
   "health_diag_items": "signals",
   "health_diag_codes": "Error codes",
-  "health_diag_codes_disabled": "Coverage is incomplete; error-code conclusions are hidden. See other clues below.",
   "health_diag_other": "Other signals",
   "health_diag_none": "No anomalies or signals",
   "health_anomaly_suggestion": "Suggestion",

@@ -1,15 +1,80 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b115**（tag `8f53b502`，Release `442636986`；上一发布 b114；原审计轮为 b74 / `20ac0519`）
-> 最近更新：2026-11-13（源仓 v8.13.0 已本地提交 源仓当前单提交；App 本地提交 当前单提交，ahead 1；b115 仍为最近构建且内置 v8.12.5，b116 已发布；TS/TSX 526；全量门禁复跑）
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b116**（Release tag `e41d0d15`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交（本地未推送）（当前 HEAD，master，未推送）
+> 最近更新：2026-11-13（最终审计轮：源仓 `5d62195` / App `a87d3f3a` 均为本地未推送干净工作区；源 v8.13.0 / App 1.9.2；TS/TSX 526；22 个 check 脚本逐项实跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值**：三语各 **893 键**、TS/TSX **525 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（已 push；b116 内置 v8.13.0）**、App HEAD **`e41d0d15`（已 push；b116 已发布）**、11 个 action、持久化 **13/0**、行为模块导出函数 **83/83**。
+> **当前真值（2026-11-13 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（本地 `5d62195`，未推送）**、App 审计基线 **`a87d3f3a`**、本轮修复提交（本地未推送）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@5f9b01f` 基于绿提交 `7631325`，compare=ahead）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
 ---
 
-## 为什么要有 v2
+## 2026-11-13 最终审计计划（当前代码量身定制）
+
+> 适用基线：App `a87d3f3a`、源仓 `5d62195`。两仓均干净、本地未推送；本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
+
+### 0. 审计目标与边界
+
+1. **代码正确性**：类型/语法/导入/导出、异常路径、空值边界、缓存/并发/持久化状态机。
+2. **运行逻辑**：源 `buildSourceChain → computeEligibility → wrapExecute → admit/applyAdmission`；App `Health.tsx → healthDiagnostics* → healthLog → sourceConfig`。每条链路要能从 UI 入口追到数据落点。
+3. **全仓完成度**：TODO/FIXME/占位/半成品、声明了但无消费点的键、文档声称完成但代码未落地、测试夹具漂移。
+4. **跨仓契约**：13 个 action、v2 envelope、健康快照字段、三语键、持久化 v2。
+5. **不在本轮范围**：真机 UI 安装/播放（G2，无 adb/KVM）、tx 完整曲目（G7，上游约 60 秒试听）；标 blocked，不写成通过。
+
+### 1. 证据分级与执行纪律
+
+| 级别 | 证据 | 本轮用法 |
+|---|---|---|
+| L0 | `tsc --noEmit`、`eslint`、`node --check` | 语法/类型/未定义符号 |
+| L1 | 契约脚本、键对齐、文档一致性 | 声明与消费闭合 |
+| L2 | 纯 Node 行为脚本 + mock 宿主 | 状态机、边界、并发、隐私 |
+| L3 | 构建产物/包体（可行时） | 产物是否真带改动 |
+| L4 | 真机/真上游 | 仅记录外部阻塞 |
+
+纪律：每个结论附「命令 + rc + 通过/失败计数」；失败先修实现或明确夹具漂移，不以 `blocked` 冒充通过；反向修改必须能让断言变红。
+
+### 2. 审计矩阵（App 侧）
+
+| ID | 检查面 | 关键位置 | 验收 |
+|---|---|---|---|
+| A-A01 | 13 action 权威表 | `src/core/init/userApi/sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 14/0；每个 action 有 case |
+| A-A02 | 健康 4 主状态 | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0；无旧 11 态 |
+| A-A03 | 诊断窗口/覆盖 | `healthDiagnostics.ts`、`Health.tsx` | `check_health_diagnostics` 54/0；`coverage.full=false` 隐藏 codes+others |
+| A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 23/0；无 undefined/空串 |
+| A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0；eventId 优先 |
+| A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0；拒绝 v1 |
+| A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 25/0；37 键三语 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 904 键、无重复、无未消费键、无缺占位符 |
+| A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、19/0、6/0 |
+| A-A10 | 日志目录/隐私 | `check_log_directory`、诊断包 | 15/0；无 URL/歌名/歌手 |
+| A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性；自定义功能无未完成项 |
+| A-A12 | 文档真值 | 本文件、`STRESS_PLAN.md`、`SYNC_POINTS.md` | 版本/键数/action/HEAD 与代码一致 |
+
+### 3. 全仓完成度扫描方法
+
+```bash
+rg -n "TODO|FIXME|HACK|未实现|占位|半成品|待补|待做" src scripts docs
+rg -n "health_diag_codes_disabled|health_diag_conclusions_disabled" src
+rg -n "SOURCE_ACTIONS|11 个 action|13 个 action" src scripts docs
+```
+
+判定规则：上游继承的 TODO（列表同步、播放器启动等）标 `upstream`，不冒充本次定制缺口；自定义健康/音源/契约链上的未消费键、漂移计数、失效测试一律算缺口。
+
+### 4. 压力测试计划
+
+见 [`STRESS_PLAN.md`](./STRESS_PLAN.md) 当前版；本轮至少执行 S1~S13 共 214 条诊断/状态/契约断言，再跑 `tsc`、`eslint`、`build-test` 与 22 个 check 脚本。
+
+### 5. 本轮发现与处置
+
+| 编号 | 发现 | 等级 | 证据 | 处置 |
+|---|---|---|---|---|
+| A-F01 | `check_source_contract` 仍按 11 action 断言，实际 13（漏 `probeSource`/`reportPlayback`） | 中 | 首跑 13/1，`期望 11 个，实际 13` | 已改为 13 并补集合；复跑 14/0 |
+| A-F02 | 三语保留未被消费的 `health_diag_codes_disabled`，与 `health_diag_conclusions_disabled` 语义重复 | 低 | `rg` 仅 lang 命中；键数 905 但唯一语义 904 | 已删旧键，三语 904；相关检查复跑通过 |
+| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 904/526/13/`a87d3f3a` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
+| A-F04 | G2 真机、G7 tx 完整链、Batch 5 版本拍板外部阻塞 | — | `health_device_acceptance.sh --dry-run` rc=3；上游约 60s 试听 | 标 blocked，不写入通过 |
+| A-F05 | `check_source_ci_gate` 本地环境变量 `GITHUB_TOKEN` 无效导致 403 | 低 | 环境变量返回 `Bad credentials`；Git 凭据库令牌有效 | 已用 `git credential fill` 取有效令牌复跑 **rc0**；CI runner 仍用其自带 `GITHUB_TOKEN` |
+
+
 
 v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴露了 6 类运行时缺陷：启动 NPE 崩溃、`initial()` 不可自愈、`Buffer.byteLength` 会崩、`migrateDownloadDir()` 从未执行、下载状态中文落盘、`trimToBytes` 字节截断错误。
 
@@ -57,7 +122,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | B2 | 自定义音源导入 | ⚠️ | **R4**：`importUserApi` 无返回值，`Source.tsx` 读 `.id` 必抛 TypeError，「一键更新」失效 |
 | B3 | 音源标签 UI | ✅ | `PlayQualityTag` 渲染正常（但文案硬编码见 L 组 R10） |
 | B4 | 音源日志 | ✅ | 竞速打点与失败明细完整 |
-| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 11 个 action（含 healthEvents/exportHealthState/restoreHealthState）与 `userApi` switch 同步 |
+| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 13 个 action（含 healthEvents/exportHealthState/restoreHealthState/probeSource/reportPlayback）与 `userApi` switch 同步 |
 | B6 | 健康面板新增功能 | ⚠️ | 功能存在，配色缺陷同 R5 |
 | B7 | 配置热更新校验 | ✅ | 音源侧白名单校验 |
 
@@ -78,7 +143,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | D2 | 播放页 | ⚠️ | **R2**：`PlayDetail/Horizontal/Player/PlayInfo.tsx:61` 组件内 `theme` 未定义，横屏播放页渲染即 ReferenceError |
 | D3 | 弹窗 | ⚠️ | **R5**：健康面板弹窗配色；**R9** 管理器层弹窗中文硬编码 |
 | D4 | 主题适配 | ⚠️ | 除 R5 两个非法键外，其余 `theme[...]` 引用合法 |
-| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 893×3）；`Health.tsx` 参数面板已接三语（37 键，v8.12.1），无遗留 |
+| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 904×3）；`Health.tsx` 参数面板已接三语（37 键，v8.12.1），无遗留 |
 | D6 | 组件复用 | ✅ | common/ 公共组件 |
 
 ## E 组：文档与工程
@@ -414,7 +479,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
-| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 893 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
+| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 904 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
 | T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
 
 ### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
@@ -441,7 +506,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | 标签矩阵穷举 | `buildSourceLabel` × 平台（7 已知 + local + 未知 + 空，10 种）× 子源（有/无/同平台名/空，4 种） | 40 组合无 `undefined`/空串/双分隔符/悬挂分隔符；实际平台优先 |
 | 健康诊断压力 | `check_health_diagnostics_stress.js` 10000 条事件、5MB 日志、200 错误码 | 14/14，不崩、不越界、证据包脱敏 |
 | 健康诊断深度审计 | `check_health_diagnostics_deep.js` 51 条：统计/窗口/异常/隐私/多字节/10 万条 | 51/51，详见 [AUDIT_PLAN_HEALTH_DIAGNOSTICS.md](./AUDIT_PLAN_HEALTH_DIAGNOSTICS.md) |
-| 诊断窗口视图模型 | `check_health_diagnostics_view.js` 22 条：折叠态/覆盖/四格统计/缓存命中/错误码分组/空态/1 万次构建 | 22/22 |
+| 诊断窗口视图模型 | `check_health_diagnostics_view.js` 23 条：折叠态/覆盖/四格统计/缓存命中/错误码分组/空态/1 万次构建 | 23/23 |
 | 跨仓版本反证 | 故意把 `MUSIC_SOURCE_GUIDE` 版本写成 8.11.7，跑构建前校验 | 必须报「文档音源版本 ≠ 本次内置」而非放行 |
 | CI 生成物反证 | 在本地生成一个含分号的 `builtin_source.js`，跑 `eslint .` | 必须 0 错误（证明忽略规则生效，不是恰好没有该文件） |
 
@@ -477,7 +542,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 |---|---|---|
 | `tsc --noEmit` | 0 error | 全仓 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | 0 error / 0 warning | 全仓 |
-| `check_source_contract.js` | 14/0 | 11 action；preload 两 case |
+| `check_source_contract.js` | 14/0 | 13 action；preload 两 case |
 | `check_source_health_persistence.js` | 17/0 | canonical key、旧键迁移、v2 拆分、G5 动态源/版本 |
 | `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
 | `check_health_event_pipeline.js` | 10/0 | 事件白名单、去重、sourceEvents 脱敏、三块隔离 |
