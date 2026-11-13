@@ -360,9 +360,9 @@ check('H11 成功采样加权：真实 95% 不得报成 79%', () => {
 
 check('H12 失败归因 sourceId：同源 3 败 + 快照 90% 必报 local_zero', () => {
   const attrEvents = [
-    { traceId: 'a1', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 1 * HOUR },
-    { traceId: 'a2', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 2 * HOUR },
-    { traceId: 'a3', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 3 * HOUR },
+    { traceId: 'a1', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 1 * HOUR },
+    { traceId: 'a2', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 2 * HOUR },
+    { traceId: 'a3', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 100, ts: NOW - 3 * HOUR },
   ]
   const findings = diag.detectHealthAnomalies({ events: attrEvents, snapshot: { kuwoOfficial: { successRate: 0.9, healthScore: 4 } }, now: NOW })
   assert(findings.some(f => f.id === 'local_zero_snapshot_healthy'), '带 sourceId 的同源 3 败未触发 local_zero')
@@ -436,9 +436,9 @@ check('H18 证据包带内置音源版本，便于复现“哪个源版本出的
 
 check('H19 异常条目带可展开样本（时间/源/错误码/耗时/traceId）', () => {
   const samples = [
-    { traceId: 'x1', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 880, ts: NOW - 1 * HOUR },
-    { traceId: 'x2', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 900, ts: NOW - 2 * HOUR },
-    { traceId: 'x3', event: 'play_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 910, ts: NOW - 3 * HOUR },
+    { traceId: 'x1', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 880, ts: NOW - 1 * HOUR },
+    { traceId: 'x2', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 900, ts: NOW - 2 * HOUR },
+    { traceId: 'x3', event: 'source_result', sourceId: 'kuwoOfficial', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR', latencyMs: 910, ts: NOW - 3 * HOUR },
   ]
   const findings = diag.detectHealthAnomalies({ events: samples, snapshot: { kuwoOfficial: { successRate: 0.9 } }, now: NOW })
   const f = findings.find(x => x.id === 'local_zero_snapshot_healthy')

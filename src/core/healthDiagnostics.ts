@@ -279,7 +279,12 @@ export const detectHealthAnomalies = (input: {
 }): HealthFinding[] => {
   const now = input.now ?? Date.now()
   const events = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number')
-  const outcomes = events.filter(isOutcome)
+  // F54：异常检测按 block 分算。取链异常只看 source_result，播放/探测各自单列，
+  // cache_hit 永远不是异常（缓存命中是正常路径）。
+  const chainOutcomes = events.filter(isChainOutcome)
+  const playOutcomes = events.filter(isPlayOutcome)
+  const probeOutcomes = events.filter(isProbeOutcome)
+  const outcomes = chainOutcomes
   const snapshot = input.snapshot ?? {}
   const findings: HealthFinding[] = []
 
@@ -405,6 +410,35 @@ export const detectHealthAnomalies = (input: {
       traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
       samples: samplesOf(list),
     })
+  }
+
+  // 5b) 播放/探测失败单列，不混入取链成功率与取链错误码。
+  const blockFailures: Array<{ id: string, label: string, list: HealthEventLike[] }> = [
+    { id: 'play_failure', label: '播放', list: playOutcomes.filter(e => inWindow(e, now, DAY) && e.ok === false) },
+    { id: 'probe_failure', label: '探测', list: probeOutcomes.filter(e => inWindow(e, now, DAY) && e.ok === false && String(e.code ?? '') !== 'UNKNOWN') },
+  ]
+  for (const block of blockFailures) {
+    const byBlockCode = new Map<string, HealthEventLike[]>()
+    for (const e of block.list) {
+      const code = e.code != null && e.code !== '' ? String(e.code) : 'UNKNOWN'
+      const list = byBlockCode.get(code) ?? []
+      list.push(e)
+      byBlockCode.set(code, list)
+    }
+    for (const [code, list] of Array.from(byBlockCode.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 2)) {
+      findings.push({
+        id: block.id,
+        level: 'info',
+        title: `近 24h ${block.label} ${list.length} 次 ${code}`,
+        detail: `${block.label}失败独立统计，不影响取链成功率；缓存命中不计异常。`,
+        evidence: `涉及 ${Array.from(new Set(list.map(sourceOf))).join('、')}`,
+        suggestion: block.id === 'play_failure'
+          ? '看同 traceId 的取链结果与播放器日志，区分上游链失效和端内播放失败。'
+          : '探测失败只代表探测目标不可达；本地断网会记 UNKNOWN，不据此关闭音源。',
+        traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
+        samples: samplesOf(list),
+      })
+    }
   }
 
   // 6) 快照趋势连续下降：本地事件可能还不够多，先用音源自带趋势兜住

@@ -60,6 +60,14 @@
 - 音质展开区显示「绑定 API：<id>」，三语新增 `health_source_binding`（各 903 键）。
 - 验证：`check_health_status_refactor` HS10 10/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）；docs 18/0。
 
+## [音源健康：F54 异常检测 v2 分块] - 2026-11-13
+
+- `detectHealthAnomalies` 的取链规则只消费 `source_result`，播放/探测不再混入取链成功率、P95 与错误码聚合。
+- 播放失败单列 `play_failure`，探测非 `UNKNOWN` 失败单列 `probe_failure`；探测 `UNKNOWN`（本地断网）不算异常，`cache_hit` 始终不算异常。
+- 新增 `scripts/check_health_anomaly_v2.js` A1~A8 8/0：缓存零异常、取链/播放/探测分流、UNKNOWN 不误报、混合数据取链窗口不被污染、覆盖不足不宣称 7 天结论。
+- 修正 `check_health_diagnostics` H12/H19 夹具为 `source_result`，与 F53/F54 分块口径一致。
+- 验证：`check_health_diagnostics` 54/0、deep 51/0、stress 14/0、view 23/0、anomaly 8/0，`tsc` 0，目标 eslint 0，docs 18/0。
+
 ## [音源健康：Batch 1 开关权威拆分跨仓同步] - 2026-11-13
 
 - 源快照新增 `offAt`，App `HealthStatusItem` 同步可选字段；`offReason` 与 `offAt` 同源，默认关闭不伪造时间。
