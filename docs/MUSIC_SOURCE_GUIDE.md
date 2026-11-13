@@ -85,6 +85,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 - 全局「手动探测」保留整轮 `runHealthCheck` 并应用结果，但 App 先弹确认，文案明确“通过可能解除自动关闭、失败可能触发自动关闭”；用户取消则不发起探测。
 - 行内单源探测仍是 `probeSource` 默认 `apply:false` 只读；结果返回后再弹确认，确认才 `apply:true` 落账。
 - 快照新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs` 只读裁决，与源侧 `computeEligibility` 同源；App 不再用旧 9 桶自行推断某源是否可用。
+- 快照新增 `offReason/offAt`：`USER_OFF` 取手动关闭时间、`AUTO_OFF_PROBE` 取自动关闭时间、`SLEEPING` 取休眠时间、`DEFAULT_OFF` 为 0；App 不把 `enabled=false` 当唯一原因。控制态 `manualOffAt` 独立持久化，重启后 offAt 不丢。
 - 快照新增 `qualityShortCircuit: {128k,320k,flac,flac24bit}` 只读布尔；健康页行内在源名下方显示“档位短路：FLAC/320K”，不再只把短路藏在链构建内部。
 - 链项携带 `eligibility`；`wrapExecute` 发请求前重取一次结构资格，建链后用户关源/自动关闭/休眠/摘除的旧链项会被拦截。
 

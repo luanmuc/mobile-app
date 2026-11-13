@@ -60,6 +60,12 @@
 - 音质展开区显示「绑定 API：<id>」，三语新增 `health_source_binding`（各 903 键）。
 - 验证：`check_health_status_refactor` HS10 10/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）；docs 18/0。
 
+## [音源健康：Batch 1 开关权威拆分跨仓同步] - 2026-11-13
+
+- 源快照新增 `offAt`，App `HealthStatusItem` 同步可选字段；`offReason` 与 `offAt` 同源，默认关闭不伪造时间。
+- App 控制态新增 `manualOffAt` 透传/校验，旧 v2 控制态缺省 0；源侧重启恢复后手动关闭的 offAt 保留。
+- 验证：`check_source_health_persistence` 17/0、`check_health_persistence_v2` 9/0、`tsc` 0、目标 eslint 0、docs 18/0。
+
 ## [音源健康：F53 三块诊断 UI 收口] - 2026-11-13
 
 - `healthDiagnosticsView` 新增 `blocks.chain/play/probe` 三块视图模型，分别透出近 1h/24h 总数、成功、失败与成功率；缺失 `playWindows/probeWindows` 的旧报告按 0 降级，不抛错。

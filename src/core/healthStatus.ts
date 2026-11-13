@@ -42,6 +42,8 @@ export interface HealthStatusItem {
   userEnabled?: boolean
   autoOff?: boolean
   offReason?: 'USER_OFF' | 'AUTO_OFF_PROBE' | 'SLEEPING' | 'PLAY_DEAD' | 'DEFAULT_OFF' | null
+  // v8.14：关闭时间与 offReason 同源；0/缺省表示默认关闭或未知，不伪造时间。
+  offAt?: number
 }
 
 export interface HealthStateResult {

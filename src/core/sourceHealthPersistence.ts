@@ -40,6 +40,8 @@ export interface HealthStateSource {
 export interface HealthControlEntry {
   enabled: boolean
   manualOff?: boolean
+  // v8.14：手动关闭时间，源侧 offAt 跨重启不丢；旧 v2 控制态缺省为 0。
+  manualOffAt?: number
   autoOff?: boolean
   autoOffAt?: number
   autoOffReason?: string
@@ -152,6 +154,7 @@ export const sanitizeSourceHealthControls = (input: unknown, opts: { now?: numbe
     if (!SOURCE_ID_PATTERN.test(id)) return { ok: false, reason: `control 源 ID 非法 ${id}` }
     if (!isPlainObject(c) || typeof c.enabled !== 'boolean') return { ok: false, reason: `controls.${id}.enabled 非法` }
     if (c.manualOff !== undefined && typeof c.manualOff !== 'boolean') return { ok: false, reason: `controls.${id}.manualOff 非法` }
+    if (c.manualOffAt !== undefined && (!isFiniteNumber(c.manualOffAt) || c.manualOffAt < 0)) return { ok: false, reason: `controls.${id}.manualOffAt 非法` }
     if (c.autoOff !== undefined && typeof c.autoOff !== 'boolean') return { ok: false, reason: `controls.${id}.autoOff 非法` }
     if (c.autoOffAt !== undefined && (!isFiniteNumber(c.autoOffAt) || c.autoOffAt < 0)) return { ok: false, reason: `controls.${id}.autoOffAt 非法` }
     if (c.autoOffReason !== undefined && c.autoOffReason !== null && typeof c.autoOffReason !== 'string') return { ok: false, reason: `controls.${id}.autoOffReason 非法` }
