@@ -1,3 +1,12 @@
+## [音源健康：方案 6.3 持久化 v2 审计脚本补齐] - 2026-11-13
+
+> 本地提交，未推送；对应方案 6.3 必跑命令清单。
+
+- 源仓新增 `test/audit/health-persistence-v2.js`（P1~P8 8/0）：v2 结构、v1 兼容、controls-only 不绑 sourceVersion、controls-only 不恢复健康元数据、autoOff 6h 复验、`healthV2Enabled=false` 回 v1、版本/未知源/容量/禁止字段、导出无 URL。
+- App 新增 `scripts/check_health_persistence_v2.js`（Q1~Q9 9/0）：v2 常量与独立 control key、save 拆分、control 独立恢复、v1 合并态兼容、TTL/64KB、v1→v2 迁移、健康缺失仍返回 controlsRestored、control 校验不读 sourceVersion、源仓回滚开关存在。
+- 源仓 `package.json` 的 `test` 接入 `health-persistence-v2.js`；整仓 `npm test` 现为 10 个脚本。
+- 验证：源仓 `health-persistence-v2` 8/0、`aa-p3-persist` 10/0、`npm test` rc=0、`docs-audit` rc=0；App `check_health_persistence_v2` 9/0、`tsc` 0、目标 eslint 0、`build-test` rc=0（产物已清理）、docs 18/0。
+
 ## [音源健康：F36/F57 持久化 v2（control 独立 / v1 兼容 / 可回滚）] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。

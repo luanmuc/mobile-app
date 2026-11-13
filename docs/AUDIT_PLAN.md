@@ -478,7 +478,8 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `tsc --noEmit` | 0 error | 全仓 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | 0 error / 0 warning | 全仓 |
 | `check_source_contract.js` | 14/0 | 11 action；preload 两 case |
-| `check_source_health_persistence.js` | 13/0 | canonical key、旧键迁移、G5 动态源/版本 |
+| `check_source_health_persistence.js` | 17/0 | canonical key、旧键迁移、v2 拆分、G5 动态源/版本 |
+| `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
 | `check_source_platform_label.js` | 9/9 | 实际平台标签 |
 | `check_source_config_contract.js` | 25/0 | 配置键/三语 |
 | `check_playback_budget.js` | 20/0 | 24s 预算 |

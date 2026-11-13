@@ -33,6 +33,7 @@ node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 node scripts/check_source_contract.js
 node scripts/check_source_health_persistence.js
+node scripts/check_health_persistence_v2.js
 node scripts/check_source_platform_label.js
 node scripts/check_source_config_contract.js
 node scripts/check_playback_budget.js
