@@ -6,8 +6,8 @@
  * P3-R：快照是全局元数据，统一写 canonical key，不再按平台复制全量副本。
  */
 export const HEALTH_STATE_VERSION = 2
-// F57：v2 可读 v1；旧版本忽略 v2 字段，写新态统一 v2。
-export const HEALTH_STATE_ACCEPTED_VERSIONS = [1, 2]
+// 单一路径：只接受 v2；v1 合并态不再读取。
+export const HEALTH_STATE_ACCEPTED_VERSIONS = [2]
 export const HEALTH_STATE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const HEALTH_STATE_FUTURE_TOLERANCE_MS = 60 * 60 * 1000
 export const HEALTH_STATE_MAX_BYTES = 256 * 1024
@@ -57,7 +57,7 @@ export interface HealthState {
   savedAt: number
   sources: Record<string, HealthStateSource>
   qualityShortCircuit: Record<string, number>
-  // v1 兼容：v2 的 controls 独立存储后，健康态不再携带；旧 v1 仍可带。
+  // 源 export 仍带 controls 供 App 拆分；写健康 key 前必须剥离。
   controls?: Record<string, HealthControlEntry>
 }
 export interface SanitizeResult {
@@ -278,8 +278,8 @@ export const restoreSourceHealth = async(
   const state = await readSourceHealthState(storage, sourceId, sourceVersion, now)
   if (!state) return { restored: 0, controlsRestored, reason: control ? undefined : 'no-state' }
   const health = { ...state }
-  // 只有独立 control 已恢复时才从健康态剥离；v1 旧合并态保留 controls 走兼容路径。
-  if (control) delete (health as any).controls
+  // 单一路径：健康态永不携带 controls，控制意图只从独立 control key 恢复。
+  delete (health as any).controls
   try {
     const res = await api(health).promise
     if (res && res.ok) return { restored: res.restored ?? 1, controlsRestored }

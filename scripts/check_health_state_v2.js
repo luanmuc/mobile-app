@@ -2,8 +2,8 @@
 /**
  * 方案 6.3 状态 v2 契约（S1~S8）
  *
- * 覆盖：4 主状态 + reason、旧 11 态一一映射、主/旧桶双汇总、UI 消费、
- * 三语键齐备、reason 可显示。
+ * 覆盖：4 主状态 + reason 单一模型、摘要汇总、UI 消费、三语键齐备、reason 可显示。
+ * 旧 11 态 / 9 桶已删除，不再有第二套状态。
  *
  * 用法：node scripts/check_health_state_v2.js
  */
@@ -41,7 +41,6 @@ const base = {
   probeCount: 2,
 }
 const call = over => st.classifyHealthMainState({ ...base, ...over }, over.sampled ?? true)
-const oldCall = over => st.classifyHealthState({ ...base, ...over }, over.sampled ?? true)
 
 check('S1 主状态固定 4 个', () => {
   assert(Array.isArray(st.HEALTH_MAIN_STATES) && st.HEALTH_MAIN_STATES.length === 4, 'HEALTH_MAIN_STATES 应为 4')
@@ -66,7 +65,7 @@ check('S3 熔断/半开/限流/异常 = 降级且 reason 不同', () => {
 check('S4 摘除/休眠/自动关闭 = 暂停', () => {
   assert(call({ playDead: true }).state === 'paused' && call({ playDead: true }).reason === 'PLAYBACK_FAILED', 'playDead 映射错误')
   assert(call({ resolveDead: true }).reason === 'RESOLVE_FAILED', 'resolveDead 映射错误')
-  assert(call({ enabled: false, sleeping: true, sampled: false }).reason === 'SOURCE_SLEEPING', '休眠映射错误')
+  assert(call({ offReason: 'SLEEPING', sampled: false }).reason === 'SOURCE_SLEEPING', '休眠映射错误')
   assert(call({ autoOff: true, offReason: 'AUTO_OFF_PROBE' }).reason === 'AUTO_OFF_PROBE', '自动关闭映射错误')
 })
 
@@ -77,45 +76,28 @@ check('S5 用户关闭 / 默认关闭 = 手动关闭', () => {
   assert(d.state === 'off' && d.reason === 'DEFAULT_OFF', `DEFAULT_OFF 映射错误：${JSON.stringify(d)}`)
 })
 
-check('S6 旧 11 态全部有主状态 + reason，不丢信息', () => {
-  const cases = [
-    {}, { reqCount: 0, probeCount: 0, sampled: false }, { successRate: 0, healthScore: -10 },
-    { playDead: true }, { rateLimitActive: true }, { state: 'open' }, { state: 'half-open' },
-    { enabled: false, sleeping: true, sampled: false }, { autoOff: true, offReason: 'AUTO_OFF_PROBE' },
-    { userEnabled: false, offReason: 'USER_OFF', sampled: false }, { enabled: false, userEnabled: false, offReason: 'DEFAULT_OFF', sampled: false },
-  ]
-  for (const c of cases) {
-    const main = call(c)
-    const old = oldCall(c)
-    assert(st.HEALTH_MAIN_STATES.includes(main.state), '主状态越界')
-    assert(main.reason && typeof main.reason === 'string', '缺 reason')
-    assert(old.key && old.bucket, '旧态未保留')
-  }
-})
-
-check('S7 汇总同时给 4 主状态计数与 9 桶明细，合计都等于源数', () => {
+check('S7 汇总只给 4 主状态计数，合计等于源数', () => {
   const items = [
     { ...base },
     { ...base, state: 'open' },
     { ...base, playDead: true },
     { ...base, userEnabled: false, offReason: 'USER_OFF', enabled: false, reqCount: 0, probeCount: 0 },
   ]
-  const s = st.buildHealthSummaryV2(items)
-  const mainTotal = Object.values(s.main).reduce((a, b) => a + b, 0)
-  const bucketTotal = Object.values(s.buckets).reduce((a, b) => a + b, 0)
-  assert(mainTotal === items.length, `主状态合计 ${mainTotal} != ${items.length}`)
-  assert(bucketTotal === items.length, `旧桶合计 ${bucketTotal} != ${items.length}`)
-  assert(s.main.available === 1 && s.main.degraded === 1 && s.main.paused === 1 && s.main.off === 1, `主状态计数错误：${JSON.stringify(s.main)}`)
+  const s = st.buildHealthSummary(items)
+  const total = Object.values(s).reduce((a, b) => a + b, 0)
+  assert(total === items.length, `主状态合计 ${total} != ${items.length}`)
+  assert(s.available === 1 && s.degraded === 1 && s.paused === 1 && s.off === 1, `主状态计数错误：${JSON.stringify(s)}`)
 })
 
 check('S8 UI 消费主状态汇总且显示 reason；三语键齐备', () => {
   const ui = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Health.tsx'), 'utf8')
-  assert(ui.includes('buildHealthSummaryV2'), 'Health.tsx 未消费主状态汇总')
+  assert(ui.includes('buildHealthSummary'), 'Health.tsx 未消费主状态汇总')
   assert(ui.includes('classifyHealthMainState'), 'Health.tsx 未消费主状态分类')
   assert(ui.includes('status.reason'), 'Health.tsx 未显示 reason')
+  assert(!ui.includes('summary.buckets'), 'Health.tsx 仍渲染旧 9 桶')
   for (const lang of ['zh-cn', 'zh-tw', 'en-us']) {
     const json = JSON.parse(fs.readFileSync(path.join(ROOT, `src/lang/${lang}.json`), 'utf8'))
-    for (const k of ['health_main_available', 'health_main_degraded', 'health_main_paused', 'health_main_off', 'health_main_detail']) {
+    for (const k of ['health_main_available', 'health_main_degraded', 'health_main_paused', 'health_main_off']) {
       assert(typeof json[k] === 'string' && json[k], `${lang} 缺 ${k}`)
     }
   }

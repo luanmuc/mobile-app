@@ -1,3 +1,13 @@
+## [音源健康：单一路径收口（删除旧 11 态/9 桶与 v1 持久化）] - 2026-11-13
+
+> 本地提交，未推送；按用户要求删除新旧双轨，正常运行时只保留新架构。
+
+- `healthStatus.ts` 只保留 4 主状态 + reason；删除旧 `classifyHealthState`、`HealthBucket`、`summarizeHealthItems`、`buildHealthSummaryV2` 与旧 11/9 类型。
+- `Health.tsx` 摘要只渲染 4 主状态，删除“旧状态明细”9 桶展开及 `health_main_detail` 入口。
+- 三语删除 22 个旧键（11 个 `health_state_*` + 9 个 `health_sum_*` + `health_main_detail`），各语言 895 键；`health_footnote` 改为 4 主状态 + reason 口径。
+- `sourceHealthPersistence.ts` 只接受 v2；`restoreSourceHealth` 强制从健康态剥离 controls，控制意图只从独立 control key 恢复；删除 v1 合并态恢复路径。
+- 审计：`check_health_status_refactor` 10/0、`check_health_state_v2` 7/0、`check_source_config_contract` 25/0、`check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0、`check_health_ui_mapping` 11/0、`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 23/0、`check_health_anomaly_v2` 8/0、`check_health_event_pipeline` 10/0；tsc 0。
+
 ## [音源健康：源快照只读资格字段同步] - 2026-11-13
 
 > 本地提交，未推送；源仓 `b3d6275` 新增快照字段，App 文档同步。

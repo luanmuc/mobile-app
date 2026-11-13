@@ -6,72 +6,61 @@ const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
 let ts
 try { ts = require(path.resolve(ROOT, 'node_modules', 'typescript')) } catch { ts = require('typescript') }
-const file = path.join(ROOT, 'src/core/healthStatus.ts')
-const out = ts.transpileModule(fs.readFileSync(file, 'utf-8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  fileName: file,
-}).outputText
-const mod = { exports: {} }
-new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
-const { buildQualityMatrixRows, classifyHealthState, summarizeHealthItems } = mod.exports
-const bindFile = path.join(ROOT, 'src/core/healthSourceBinding.ts')
-const bindOut = ts.transpileModule(fs.readFileSync(bindFile, 'utf-8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  fileName: bindFile,
-}).outputText
-const bindMod = { exports: {} }
-new Function('exports', 'module', 'require', bindOut)(bindMod.exports, bindMod, require)
-const { bindHealthSource } = bindMod.exports
+const load = rel => {
+  const file = path.join(ROOT, rel)
+  const out = ts.transpileModule(fs.readFileSync(file, 'utf-8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    fileName: file,
+  }).outputText
+  const mod = { exports: {} }
+  new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
+  return mod.exports
+}
+const { buildQualityMatrixRows, classifyHealthMainState, buildHealthSummary } = load('src/core/healthStatus.ts')
+const { bindHealthSource } = load('src/core/healthSourceBinding.ts')
 let pass = 0
 let fail = 0
 const check = (id, name, fn) => {
-  try {
-    fn()
-    pass++
-    console.log(`✓ ${id} ${name}`)
-  } catch (e) {
-    fail++
-    console.log(`✗ ${id} ${name} — ${e.message}`)
-  }
+  try { fn(); pass++; console.log(`✓ ${id} ${name}`) } catch (e) { fail++; console.log(`✗ ${id} ${name} — ${e.message}`) }
 }
 const base = { name: 'x', maxQuality: 'flac', enabled: true, successRate: 0, avgTime: 0, state: 'closed', reqCount: 1, probeCount: 0, sleeping: false, healthScore: 0 }
 check('HS1', '手动关闭优先于自动关闭/摘除', () => {
-  const r = classifyHealthState({ ...base, offReason: 'USER_OFF', playDead: true, autoOff: true }, true)
-  if (r.key !== 'health_state_user_off') throw new Error(r.key)
+  const r = classifyHealthMainState({ ...base, offReason: 'USER_OFF', playDead: true, autoOff: true }, true)
+  if (r.state !== 'off' || r.reason !== 'USER_OFF') throw new Error(JSON.stringify(r))
 })
-check('HS2', '探测自动关闭显示 auto_off，不显示异常', () => {
-  const r = classifyHealthState({ ...base, enabled: false, offReason: 'AUTO_OFF_PROBE', sleeping: true, healthScore: -9 }, true)
-  if (r.key !== 'health_state_auto_off') throw new Error(r.key)
+check('HS2', '探测自动关闭显示 paused/AUTO_OFF_PROBE', () => {
+  const r = classifyHealthMainState({ ...base, offReason: 'AUTO_OFF_PROBE', healthScore: -9 }, true)
+  if (r.state !== 'paused' || r.reason !== 'AUTO_OFF_PROBE') throw new Error(JSON.stringify(r))
 })
-check('HS3', '默认关闭显示 disabled，不冒充用户关闭', () => {
-  const r = classifyHealthState({ ...base, enabled: false, offReason: 'DEFAULT_OFF', userEnabled: false }, true)
-  if (r.key !== 'health_state_disabled') throw new Error(r.key)
+check('HS3', '默认关闭显示 off/DEFAULT_OFF', () => {
+  const r = classifyHealthMainState({ ...base, offReason: 'DEFAULT_OFF', userEnabled: false }, true)
+  if (r.state !== 'off' || r.reason !== 'DEFAULT_OFF') throw new Error(JSON.stringify(r))
 })
-check('HS4', '真实播放摘除优先于异常', () => {
-  const r = classifyHealthState({ ...base, playDead: true, successRate: 0, healthScore: -9 }, true)
-  if (r.key !== 'health_state_removed') throw new Error(r.key)
+check('HS4', '真实播放摘除显示 paused/PLAYBACK_FAILED', () => {
+  const r = classifyHealthMainState({ ...base, playDead: true, successRate: 0, healthScore: -9 }, true)
+  if (r.state !== 'paused' || r.reason !== 'PLAYBACK_FAILED') throw new Error(JSON.stringify(r))
 })
 check('HS5', '自动关闭优先于播放摘除', () => {
-  const r = classifyHealthState({ ...base, enabled: false, offReason: 'AUTO_OFF_PROBE', playDead: true }, true)
-  if (r.key !== 'health_state_auto_off') throw new Error(r.key)
+  const r = classifyHealthMainState({ ...base, offReason: 'AUTO_OFF_PROBE', playDead: true }, true)
+  if (r.reason !== 'AUTO_OFF_PROBE') throw new Error(JSON.stringify(r))
 })
-check('HS6', '旧快照无 offReason 回退 enabled/sleeping', () => {
-  const r = classifyHealthState({ ...base, enabled: false, sleeping: true }, true)
-  if (r.key !== 'health_state_sleeping') throw new Error(r.key)
+check('HS6', '休眠显示 paused/SOURCE_SLEEPING', () => {
+  const r = classifyHealthMainState({ ...base, offReason: 'SLEEPING' }, true)
+  if (r.state !== 'paused' || r.reason !== 'SOURCE_SLEEPING') throw new Error(JSON.stringify(r))
 })
-check('HS7', '旧快照 userEnabled=false 但无 offReason 仍按用户关闭', () => {
-  const r = classifyHealthState({ ...base, enabled: false, userEnabled: false }, true)
-  if (r.key !== 'health_state_user_off') throw new Error(r.key)
+check('HS7', '无 offReason 时不再从 enabled/sleeping 推断旧状态', () => {
+  const r = classifyHealthMainState({ ...base, enabled: false, sleeping: true }, true)
+  if (r.state === 'paused' || r.state === 'off') throw new Error(JSON.stringify(r))
 })
-check('HS8', '9 桶只落一桶且合计等于源数', () => {
-  const r = summarizeHealthItems([
+check('HS8', '4 主状态只落一个且合计等于源数', () => {
+  const r = buildHealthSummary([
     { ...base, offReason: 'USER_OFF' },
-    { ...base, offReason: 'AUTO_OFF_PROBE', enabled: false },
+    { ...base, offReason: 'AUTO_OFF_PROBE' },
     { ...base, playDead: true },
     { ...base },
   ])
   const total = Object.values(r).reduce((a, b) => a + b, 0)
-  if (total !== 4 || r.off !== 2 || r.removed !== 1 || r.ok !== 1) throw new Error(JSON.stringify(r))
+  if (total !== 4 || r.off !== 1 || r.paused !== 2 || r.available !== 1) throw new Error(JSON.stringify(r))
 })
 check('HS9', '质量矩阵固定四档，逐档展示 success/fail/state（F16）', () => {
   const rows = buildQualityMatrixRows({

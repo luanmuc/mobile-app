@@ -1,104 +1,17 @@
 /**
  * 音源健康状态分类与摘要（纯逻辑，不依赖 React / 主题）。
  *
- * 表格胶囊与底部摘要必须共用同一个分类函数，避免出现
- * “表格显示已摘除/限流，摘要却把它算进正常”的两套口径。
+ * 单一状态模型：4 主状态 + reason。旧 11 态 / 9 桶已移除，表格与摘要共用
+ * `classifyHealthMainState`，不再保留第二套口径。
  */
 
 export type HealthStateKey =
-  | 'health_state_sleeping'
-  | 'health_state_disabled'
-  | 'health_state_user_off'
-  | 'health_state_auto_off'
-  | 'health_state_idle'
-  | 'health_state_abnormal'
-  | 'health_state_removed'
-  | 'health_state_rate_limiting'
-  | 'health_state_rate_limited'
-  | 'health_state_open'
-  | 'health_state_half-open'
-  | 'health_state_closed'
   | 'health_main_available'
   | 'health_main_degraded'
   | 'health_main_paused'
   | 'health_main_off'
 
 export type HealthTone = 'ok' | 'warn' | 'bad' | 'muted'
-export type HealthBucket = 'ok' | 'bad' | 'open' | 'half' | 'idle' | 'sleep' | 'off' | 'removed' | 'rate'
-
-export interface HealthStatusItem {
-  enabled: boolean
-  sleeping: boolean
-  state: 'closed' | 'open' | 'half-open'
-  successRate: number | null
-  healthScore: number
-  reqCount?: number
-  probeCount?: number
-  playDead?: boolean
-  resolveDead?: boolean
-  rateLimited?: boolean
-  rateLimitActive?: boolean
-  // v8.14：开关权威拆分（源快照提供）。旧快照没有这些字段时回退到 enabled/sleeping。
-  userEnabled?: boolean
-  autoOff?: boolean
-  offReason?: 'USER_OFF' | 'AUTO_OFF_PROBE' | 'SLEEPING' | 'PLAY_DEAD' | 'DEFAULT_OFF' | null
-  // v8.14：关闭时间与 offReason 同源；0/缺省表示默认关闭或未知，不伪造时间。
-  offAt?: number
-}
-
-export interface HealthStateResult {
-  key: HealthStateKey
-  bucket: HealthBucket
-  tone: HealthTone
-}
-
-export const hasHealthSample = (item: Pick<HealthStatusItem, 'reqCount' | 'probeCount'>) =>
-  (item.reqCount ?? 0) > 0 || (item.probeCount ?? 0) > 0
-
-/**
- * 单源状态判定。优先级：
- * 已关/休眠 → 待采样 → 异常 → 已摘除 → 限流 → 熔断/半开/正常。
- * 已关闭永远优先于播放摘除/限流，因为该源已经不参与任何请求。
- */
-export const classifyHealthState = (
-  item: HealthStatusItem,
-  sampled: boolean,
-): HealthStateResult => {
-  // v8.14：用户关闭/系统自动关闭必须优先于休眠与播放摘除；
-  // 旧快照没有 offReason 时回退到 enabled/sleeping，不改变旧行为。
-  if (item.offReason === 'USER_OFF' || (item.userEnabled === false && item.offReason == null)) {
-    return { key: 'health_state_user_off', bucket: 'off', tone: 'muted' }
-  }
-  if (item.offReason === 'AUTO_OFF_PROBE' || item.autoOff === true) {
-    return { key: 'health_state_auto_off', bucket: 'off', tone: 'warn' }
-  }
-  if (!item.enabled) {
-    return item.sleeping
-      ? { key: 'health_state_sleeping', bucket: 'sleep', tone: 'muted' }
-      : { key: 'health_state_disabled', bucket: 'off', tone: 'muted' }
-  }
-  if (!sampled) return { key: 'health_state_idle', bucket: 'idle', tone: 'muted' }
-  // v8.14：真实播放摘除优先于“异常”，否则成功率 0/负健康分会把“已摘除”盖成“异常”。
-  if (item.playDead === true || item.resolveDead === true || item.offReason === 'PLAY_DEAD') {
-    return { key: 'health_state_removed', bucket: 'removed', tone: 'bad' }
-  }
-  if (item.state === 'closed' && item.successRate === 0 && item.healthScore < 0) {
-    return { key: 'health_state_abnormal', bucket: 'bad', tone: 'bad' }
-  }
-  // 熔断 open 优先于限流标签：熔断更严重，不能被“限流中”降级显示
-  if (item.state !== 'open' && (item.rateLimitActive === true || item.rateLimited === true)) {
-    return {
-      key: item.rateLimitActive ? 'health_state_rate_limiting' : 'health_state_rate_limited',
-      bucket: 'rate',
-      tone: 'warn',
-    }
-  }
-  if (item.state === 'open') return { key: 'health_state_open', bucket: 'open', tone: 'bad' }
-  if (item.state === 'half-open') return { key: 'health_state_half-open', bucket: 'half', tone: 'warn' }
-  return { key: 'health_state_closed', bucket: 'ok', tone: 'ok' }
-}
-
-// F15/F51：UI 4 主状态。旧 11 态不删除，降为 reason + 旧桶明细。
 export type HealthMainState = 'available' | 'degraded' | 'paused' | 'off'
 export const HEALTH_MAIN_STATES: HealthMainState[] = ['available', 'degraded', 'paused', 'off']
 export type HealthMainReason =
@@ -115,84 +28,66 @@ export type HealthMainReason =
   | 'USER_OFF'
   | 'DEFAULT_OFF'
 
+export interface HealthStatusItem {
+  enabled: boolean
+  sleeping: boolean
+  state: 'closed' | 'open' | 'half-open'
+  successRate: number | null
+  healthScore: number
+  reqCount?: number
+  probeCount?: number
+  playDead?: boolean
+  resolveDead?: boolean
+  rateLimited?: boolean
+  rateLimitActive?: boolean
+  userEnabled?: boolean
+  autoOff?: boolean
+  offReason?: 'USER_OFF' | 'AUTO_OFF_PROBE' | 'SLEEPING' | 'PLAY_DEAD' | 'DEFAULT_OFF' | null
+  offAt?: number
+}
+
 export interface HealthMainResult {
   state: HealthMainState
   reason: HealthMainReason
   tone: HealthTone
   key: HealthStateKey
-  legacyKey: HealthStateKey
-  legacyBucket: HealthBucket
 }
 
+export const hasHealthSample = (item: Pick<HealthStatusItem, 'reqCount' | 'probeCount'>) =>
+  (item.reqCount ?? 0) > 0 || (item.probeCount ?? 0) > 0
+
 /**
- * F51：旧 classifyHealthState 的 11 态映射到 4 主状态 + reason。
- * 这里只做映射，不改变旧函数；旧 9 桶仍由 classifyHealthState 产出供明细展开。
+ * 单一裁决：关闭/暂停优先，其次待采样、降级、可用。
+ * offReason 是开关权威；不再从旧 enabled/sleeping 字段推断第二套状态。
  */
 export const classifyHealthMainState = (
   item: HealthStatusItem,
   sampled: boolean,
 ): HealthMainResult => {
-  const legacy = classifyHealthState(item, sampled)
-  const of = (state: HealthMainState, reason: HealthMainReason, key: HealthStateKey, tone: HealthTone): HealthMainResult => ({
-    state, reason, key, tone, legacyKey: legacy.key, legacyBucket: legacy.bucket,
-  })
-  if (legacy.key === 'health_state_user_off') return of('off', 'USER_OFF', 'health_main_off', 'muted')
-  if (legacy.key === 'health_state_auto_off') return of('paused', 'AUTO_OFF_PROBE', 'health_main_paused', 'muted')
-  if (legacy.key === 'health_state_sleeping') return of('paused', 'SOURCE_SLEEPING', 'health_main_paused', 'muted')
-  if (legacy.key === 'health_state_disabled') return of('off', 'DEFAULT_OFF', 'health_main_off', 'muted')
-  if (legacy.key === 'health_state_idle') return of('available', 'PENDING_SAMPLE', 'health_main_available', 'ok')
-  if (legacy.key === 'health_state_removed') {
-    return of('paused', item.resolveDead === true && item.playDead !== true ? 'RESOLVE_FAILED' : 'PLAYBACK_FAILED', 'health_main_paused', 'muted')
-  }
-  if (legacy.key === 'health_state_abnormal') return of('degraded', 'DEGRADED', 'health_main_degraded', 'warn')
-  if (legacy.key === 'health_state_rate_limiting' || legacy.key === 'health_state_rate_limited') return of('degraded', 'RATE_LIMITED', 'health_main_degraded', 'warn')
-  if (legacy.key === 'health_state_open') return of('degraded', 'QUALITY_OPEN', 'health_main_degraded', 'warn')
-  if (legacy.key === 'health_state_half-open') return of('degraded', 'QUALITY_HALF_OPEN', 'health_main_degraded', 'warn')
+  const of = (state: HealthMainState, reason: HealthMainReason, key: HealthStateKey, tone: HealthTone): HealthMainResult => ({ state, reason, key, tone })
+  const offReason = item.offReason
+  if (offReason === 'USER_OFF') return of('off', 'USER_OFF', 'health_main_off', 'muted')
+  if (offReason === 'DEFAULT_OFF') return of('off', 'DEFAULT_OFF', 'health_main_off', 'muted')
+  if (offReason === 'AUTO_OFF_PROBE' || item.autoOff === true) return of('paused', 'AUTO_OFF_PROBE', 'health_main_paused', 'muted')
+  if (offReason === 'SLEEPING') return of('paused', 'SOURCE_SLEEPING', 'health_main_paused', 'muted')
+  if (offReason === 'PLAY_DEAD' || item.playDead === true) return of('paused', 'PLAYBACK_FAILED', 'health_main_paused', 'muted')
+  if (item.resolveDead === true) return of('paused', 'RESOLVE_FAILED', 'health_main_paused', 'muted')
+  if (!sampled) return of('available', 'PENDING_SAMPLE', 'health_main_available', 'ok')
+  if (item.rateLimitActive === true || item.rateLimited === true) return of('degraded', 'RATE_LIMITED', 'health_main_degraded', 'warn')
+  if (item.state === 'open') return of('degraded', 'QUALITY_OPEN', 'health_main_degraded', 'warn')
+  if (item.state === 'half-open') return of('degraded', 'QUALITY_HALF_OPEN', 'health_main_degraded', 'warn')
+  if (item.successRate === 0 && item.healthScore < 0) return of('degraded', 'DEGRADED', 'health_main_degraded', 'warn')
   return of('available', 'ELIGIBLE', 'health_main_available', 'ok')
 }
 
-export type HealthSummary = Record<HealthBucket, number>
+export type HealthSummary = Record<HealthMainState, number>
 
-export const emptyHealthSummary = (): HealthSummary => ({
-  ok: 0,
-  bad: 0,
-  open: 0,
-  half: 0,
-  idle: 0,
-  sleep: 0,
-  off: 0,
-  removed: 0,
-  rate: 0,
-})
+export const emptyHealthSummary = (): HealthSummary => ({ available: 0, degraded: 0, paused: 0, off: 0 })
 
-/** 摘要按 9 个桶统计；每个源只会落入一个桶，合计等于源数。 */
-export const summarizeHealthItems = (items: HealthStatusItem[]): HealthSummary => {
+/** 摘要按 4 主状态统计；每个源只落一个状态，合计等于源数。 */
+export const buildHealthSummary = (items: HealthStatusItem[]): HealthSummary => {
   const summary = emptyHealthSummary()
-  for (const item of items) {
-    const result = classifyHealthState(item, hasHealthSample(item))
-    summary[result.bucket]++
-  }
-  return summary
-}
-
-export interface HealthSummaryV2 {
-  main: Record<HealthMainState, number>
-  buckets: HealthSummary
-}
-
-export const emptyHealthSummaryV2 = (): HealthSummaryV2 => ({
-  main: { available: 0, degraded: 0, paused: 0, off: 0 },
-  buckets: emptyHealthSummary(),
-})
-
-/** F52：主状态计数 + 旧 9 桶明细；两份合计都等于源数。 */
-export const buildHealthSummaryV2 = (items: HealthStatusItem[]): HealthSummaryV2 => {
-  const summary = emptyHealthSummaryV2()
-  for (const item of items) {
-    const sampled = hasHealthSample(item)
-    summary.main[classifyHealthMainState(item, sampled).state]++
-    summary.buckets[classifyHealthState(item, sampled).bucket]++
-  }
+  for (const item of items) summary[classifyHealthMainState(item, hasHealthSample(item)).state]++
   return summary
 }
 

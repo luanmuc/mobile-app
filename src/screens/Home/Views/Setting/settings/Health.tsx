@@ -18,7 +18,7 @@ import {
   configLabelKey,
   msToDisplay,
 } from '@/core/sourceConfig'
-import { buildHealthSummaryV2, buildQualityMatrixRows, classifyHealthMainState, hasHealthSample } from '@/core/healthStatus'
+import { buildHealthSummary, buildQualityMatrixRows, classifyHealthMainState, hasHealthSample } from '@/core/healthStatus'
 import { bindHealthSource } from '@/core/healthSourceBinding'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
@@ -98,7 +98,6 @@ export default memo(() => {
   const [error, setError] = useState('')
   const [togglingId, setTogglingId] = useState('')
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null)
-  const [summaryDetailOpen, setSummaryDetailOpen] = useState(false)
   const [probeInfo, setProbeInfo] = useState('')
   const [probingId, setProbingId] = useState('')
   // v8.0：配置编辑相关 state
@@ -428,8 +427,8 @@ export default memo(() => {
       return g !== 0 ? g : b.healthScore - a.healthScore
     }) : []
 
-  // F52：摘要先给 4 主状态，旧 9 桶降为可展开明细；两份合计都等于源数
-  const summary = buildHealthSummaryV2(items)
+  // 单一状态模型：4 主状态计数，不再维护旧 9 桶明细。
+  const summary = buildHealthSummary(items)
 
   // 窗口展示逻辑收敛到纯函数视图模型，页面只负责文案与样式
   const diagView = diagnostics ? buildHealthDiagnosticsView(diagnostics) : null
@@ -610,29 +609,11 @@ export default memo(() => {
             <View style={[styles.summary, { backgroundColor: theme['c-primary-background-active'] }]}>
               <Text size={12} color={theme['c-font-label']}>{t('health_summary')}</Text>
               <View style={styles.summaryItems}>
-                <Text size={12} color="#52c41a">● {summary.main.available}{t('health_main_available')}</Text>
-                <Text size={12} color="#faad14">● {summary.main.degraded}{t('health_main_degraded')}</Text>
-                <Text size={12} color="#8c8c8c">○ {summary.main.paused}{t('health_main_paused')}</Text>
-                <Text size={12} color={theme['c-font-label']}>○ {summary.main.off}{t('health_main_off')}</Text>
+                <Text size={12} color="#52c41a">● {summary.available}{t('health_main_available')}</Text>
+                <Text size={12} color="#faad14">● {summary.degraded}{t('health_main_degraded')}</Text>
+                <Text size={12} color="#8c8c8c">○ {summary.paused}{t('health_main_paused')}</Text>
+                <Text size={12} color={theme['c-font-label']}>○ {summary.off}{t('health_main_off')}</Text>
               </View>
-              <Pressable onPress={() => { setSummaryDetailOpen(!summaryDetailOpen) }} style={{ marginTop: 6 }}>
-                <Text size={11} color={theme['c-font-label']}>{t('health_main_detail')} {summaryDetailOpen ? '▾' : '▸'}</Text>
-              </Pressable>
-              {
-                summaryDetailOpen ? (
-                  <View style={styles.summaryItems}>
-                    <Text size={11} color="#52c41a">● {summary.buckets.ok}{t('health_sum_ok')}</Text>
-                    <Text size={11} color="#ff4d4f">● {summary.buckets.bad}{t('health_sum_bad')}</Text>
-                    <Text size={11} color="#ff4d4f">● {summary.buckets.removed}{t('health_sum_removed')}</Text>
-                    <Text size={11} color="#faad14">● {summary.buckets.rate}{t('health_sum_rate')}</Text>
-                    <Text size={11} color="#faad14">● {summary.buckets.open}{t('health_sum_open')}</Text>
-                    <Text size={11} color="#faad14">● {summary.buckets.half}{t('health_sum_half')}</Text>
-                    <Text size={11} color={theme['c-font-label']}>○ {summary.buckets.idle}{t('health_sum_idle')}</Text>
-                    <Text size={11} color="#8c8c8c">○ {summary.buckets.sleep}{t('health_sum_sleep')}</Text>
-                    <Text size={11} color={theme['c-font-label']}>○ {summary.buckets.off}{t('health_sum_off')}</Text>
-                  </View>
-                ) : null
-              }
             </View>
           ) : null
         }

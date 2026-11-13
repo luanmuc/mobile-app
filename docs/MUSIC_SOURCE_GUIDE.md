@@ -84,7 +84,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 - 全局「手动探测」保留整轮 `runHealthCheck` 并应用结果，但 App 先弹确认，文案明确“通过可能解除自动关闭、失败可能触发自动关闭”；用户取消则不发起探测。
 - 行内单源探测仍是 `probeSource` 默认 `apply:false` 只读；结果返回后再弹确认，确认才 `apply:true` 落账。
-- 快照新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs` 只读裁决，与源侧 `computeEligibility` 同源；App 不再用旧 9 桶自行推断某源是否可用。
+- 快照新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs` 只读裁决，与源侧 `computeEligibility` 同源；App 不再维护旧 9 桶，也不自行推断某源是否可用。
 - 快照新增 `offReason/offAt`：`USER_OFF` 取手动关闭时间、`AUTO_OFF_PROBE` 取自动关闭时间、`SLEEPING` 取休眠时间、`DEFAULT_OFF` 为 0；App 不把 `enabled=false` 当唯一原因。控制态 `manualOffAt` 独立持久化，重启后 offAt 不丢。
 - 快照新增 `qualityShortCircuit: {128k,320k,flac,flac24bit}` 只读布尔；健康页行内在源名下方显示“档位短路：FLAC/320K”，不再只把短路藏在链构建内部。
 - 链项携带 `eligibility`；`wrapExecute` 发请求前重取一次结构资格，建链后用户关源/自动关闭/休眠/摘除的旧链项会被拦截。
@@ -179,9 +179,9 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 | `coldStartWarmEnabled` | 冷启动预热 | true |
 | `crossPlatformEnabled` | 跨平台兜底总开关 | true |
 
-### 4 主状态 + reason（旧 11 态与 9 桶保留为明细）
+### 4 主状态 + reason（单一路径）
 
-状态判定优先级：**手动关闭 → 探测自动关闭 → 休眠/默认关闭 → 待采样 → 已摘除 → 异常 → 限流 → 熔断/半开/正常**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 手动关闭**；旧 11 态全部降为 `reason`，表格胶囊下方直接显示 reason 码。底部摘要先给 4 主状态计数，点“旧状态明细”再展开 9 桶；主状态与旧桶两份合计都等于音源数，不丢旧信息。
+状态判定优先级：**USER_OFF / DEFAULT_OFF → AUTO_OFF_PROBE → SOURCE_SLEEPING → PLAYBACK_FAILED / RESOLVE_FAILED → 待采样 → 限流/熔断/半开/异常 → 可用**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 已关闭**；reason 码在胶囊第二行显示。摘要只统计 4 主状态，合计等于音源数；旧 11 态 / 9 桶已删除，不再有第二套口径。
 
 ### 质量档矩阵（F16）
 

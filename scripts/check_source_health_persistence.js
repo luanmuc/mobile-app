@@ -25,7 +25,7 @@ const assert = (c, m) => { if (!c) throw new Error(m) }
 const mod = loadTs('src/core/sourceHealthPersistence.ts')
 const NOW = Date.now()
 const mkState = () => ({
-  v: 1,
+  v: 2,
   sourceVersion: '8.13.0',
   savedAt: NOW,
   sources: { suyinKuwo: { breaker: { state: 'closed', totalRequests: 2 }, byQuality: { '128k': { req: 2, success: 1 } }, playDead: { streak: 0, deadline: 0 } } },
@@ -201,7 +201,7 @@ check('B3 control 态不绑定 sourceVersion，TTL 与容量仍校验', async() 
   assert(!old.ok, '过期 control 应拒绝')
 })
 
-check('B4 v1 旧合并态仍兼容：controls 随健康态恢复', async() => {
+check('B4 健康态携带 controls 时不走合并恢复', async() => {
   const st = fakeStorage()
   const state = mkState()
   state.controls = { suyinQQ: { enabled: false, manualOff: true } }
@@ -209,7 +209,7 @@ check('B4 v1 旧合并态仍兼容：controls 随健康态恢复', async() => {
   let called = null
   const apis = { kw: { restoreHealth: s => ({ promise: Promise.resolve().then(() => { called = s; return { ok: true, restored: 1 } }) }) } }
   const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
-  assert(r.restored === 1 && called && called.controls && called.controls.suyinQQ, 'v1 合并态应原样恢复')
+  assert(r.restored === 1 && called && !called.controls, 'v2 健康态必须剥离 controls')
 })
 
 setTimeout(() => {

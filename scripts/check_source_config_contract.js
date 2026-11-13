@@ -175,38 +175,38 @@ section('status', () => {
     probeCount: 0,
   }
   run('已摘除状态', () => {
-    const r = h.classifyHealthState({ ...base, playDead: true }, true)
-    assert.strictEqual(r.key, 'health_state_removed')
-    assert.strictEqual(r.bucket, 'removed')
+    const r = h.classifyHealthMainState({ ...base, playDead: true }, true)
+    assert.strictEqual(r.state, 'paused')
+    assert.strictEqual(r.reason, 'PLAYBACK_FAILED')
   })
-  run('限流中 / 被限流状态', () => {
-    const a = h.classifyHealthState({ ...base, rateLimitActive: true }, true)
-    assert.strictEqual(a.key, 'health_state_rate_limiting')
-    assert.strictEqual(a.bucket, 'rate')
-    const b = h.classifyHealthState({ ...base, rateLimited: true }, true)
-    assert.strictEqual(b.key, 'health_state_rate_limited')
-    assert.strictEqual(b.bucket, 'rate')
+  run('限流状态', () => {
+    const a = h.classifyHealthMainState({ ...base, rateLimitActive: true }, true)
+    assert.strictEqual(a.state, 'degraded')
+    assert.strictEqual(a.reason, 'RATE_LIMITED')
+    const b = h.classifyHealthMainState({ ...base, rateLimited: true }, true)
+    assert.strictEqual(b.state, 'degraded')
+    assert.strictEqual(b.reason, 'RATE_LIMITED')
   })
-  run('已关闭 / 休眠优先于其它标记', () => {
-    const off = h.classifyHealthState({ ...base, enabled: false }, true)
-    assert.strictEqual(off.key, 'health_state_disabled')
-    assert.strictEqual(off.bucket, 'off')
-    const sleep = h.classifyHealthState({ ...base, enabled: false, sleeping: true }, true)
-    assert.strictEqual(sleep.key, 'health_state_sleeping')
-    assert.strictEqual(sleep.bucket, 'sleep')
+  run('已关闭 / 休眠由 offReason 单一来源判定', () => {
+    const off = h.classifyHealthMainState({ ...base, offReason: 'DEFAULT_OFF' }, true)
+    assert.strictEqual(off.state, 'off')
+    assert.strictEqual(off.reason, 'DEFAULT_OFF')
+    const sleep = h.classifyHealthMainState({ ...base, offReason: 'SLEEPING' }, true)
+    assert.strictEqual(sleep.state, 'paused')
+    assert.strictEqual(sleep.reason, 'SOURCE_SLEEPING')
   })
-  run('摘要按 9 桶统计，已摘除不落入正常', () => {
-    const s = h.summarizeHealthItems([
+  run('摘要按 4 主状态统计，已摘除不落入可用', () => {
+    const s = h.buildHealthSummary([
       { ...base, playDead: true },
       { ...base, rateLimitActive: true },
       base,
-      { ...base, enabled: false },
+      { ...base, offReason: 'DEFAULT_OFF' },
     ])
-    assert.strictEqual(s.removed, 1)
-    assert.strictEqual(s.rate, 1)
-    assert.strictEqual(s.ok, 1)
+    assert.strictEqual(s.paused, 1)
+    assert.strictEqual(s.degraded, 1)
+    assert.strictEqual(s.available, 1)
     assert.strictEqual(s.off, 1)
-    assert.strictEqual(s.removed + s.rate + s.ok + s.off, 4)
+    assert.strictEqual(s.paused + s.degraded + s.available + s.off, 4)
   })
 })
 
@@ -288,10 +288,7 @@ section('i18n', () => {
       for (const k of sets[0]) assert(sets[i].has(k), `${langs[i]} 缺 ${k}`)
       for (const k of sets[i]) assert(sets[0].has(k), `zh-cn 缺 ${k}`)
     }
-    for (const k of [
-      'health_state_removed', 'health_state_rate_limiting', 'health_state_rate_limited',
-      'health_sum_removed', 'health_sum_rate',
-    ]) assert(sets[0].has(k), `缺 ${k}`)
+    for (const k of ['health_main_available', 'health_main_degraded', 'health_main_paused', 'health_main_off']) assert(sets[0].has(k), `缺 ${k}`)
   })
   run('37 个配置名/说明/8 个单位三语言齐全', () => {
     const c = CFG()

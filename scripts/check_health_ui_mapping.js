@@ -60,14 +60,14 @@ check('U3 表格胶囊显示主状态 + reason 两行', () => {
   assert(ui.includes('const stateText = tt(status.key)'), '主状态文案未走 i18n')
 })
 
-check('U4 摘要只以 4 主状态为主，旧 9 桶必须可展开', () => {
-  assert(ui.includes('summary.main.available'), '摘要缺可用计数')
-  assert(ui.includes('summary.main.degraded'), '摘要缺降级计数')
-  assert(ui.includes('summary.main.paused'), '摘要缺暂停计数')
-  assert(ui.includes('summary.main.off'), '摘要缺手动关闭计数')
-  assert(ui.includes('summaryDetailOpen'), '旧桶明细没有展开状态')
-  assert(ui.includes('summary.buckets.ok'), '旧桶明细未使用 buckets')
-  assert(ui.includes("t('health_main_detail')"), '缺旧状态明细入口')
+check('U4 摘要只显示 4 主状态，不再有旧 9 桶入口', () => {
+  assert(ui.includes('summary.available'), '摘要缺可用计数')
+  assert(ui.includes('summary.degraded'), '摘要缺降级计数')
+  assert(ui.includes('summary.paused'), '摘要缺暂停计数')
+  assert(ui.includes('summary.off'), '摘要缺手动关闭计数')
+  assert(!ui.includes('summary.buckets'), '仍残留旧桶明细')
+  assert(!ui.includes('summaryDetailOpen'), '仍残留旧桶展开状态')
+  assert(!ui.includes('health_main_detail'), '仍残留旧状态明细入口')
 })
 
 check('U5 质量矩阵七项字段齐全', () => {
@@ -100,11 +100,11 @@ check('U9 主状态与 reason 一一映射，无未知 reason', () => {
   }
 })
 
-check('U10 三语键数一致且 summary 旧键仍在', () => {
+check('U10 三语键数一致且旧状态/旧桶键已删除', () => {
   const counts = Object.values(langs).map(x => Object.keys(x).length)
   assert(new Set(counts).size === 1, `三语键数不一致：${counts.join('/')}`)
-  for (const k of ['health_sum_ok', 'health_sum_bad', 'health_sum_removed', 'health_sum_rate', 'health_sum_open', 'health_sum_half', 'health_sum_idle', 'health_sum_sleep', 'health_sum_off']) {
-    for (const l of ['zh-cn', 'zh-tw', 'en-us']) assert(langs[l][k], `${l} 缺旧桶键 ${k}`)
+  for (const k of ['health_sum_ok', 'health_sum_bad', 'health_sum_removed', 'health_sum_rate', 'health_sum_open', 'health_sum_half', 'health_sum_idle', 'health_sum_sleep', 'health_sum_off', 'health_state_removed', 'health_state_open']) {
+    for (const l of ['zh-cn', 'zh-tw', 'en-us']) assert(!langs[l][k], `${l} 仍残留旧键 ${k}`)
   }
 })
 

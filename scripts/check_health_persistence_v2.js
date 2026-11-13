@@ -3,7 +3,7 @@
  * F36/F57 App 持久化 v2 契约（Q1~Q9）
  *
  * 覆盖：v2 常量、control 独立 key、save 拆分、control 不受 sourceVersion 影响、
- * v1 合并态兼容、TTL/64KB、回滚/迁移口径。
+ * v1 合并态拒绝、TTL/64KB、单一路径口径。
  *
  * 用法：node scripts/check_health_persistence_v2.js
  */
@@ -50,7 +50,8 @@ const fakeStorage = () => {
 
 check('Q1 v2 常量与独立 control key', async() => {
   assert(mod.HEALTH_STATE_VERSION === 2, 'HEALTH_STATE_VERSION 应为 2')
-  assert(mod.HEALTH_STATE_ACCEPTED_VERSIONS.includes(1), '必须兼容 v1')
+  assert(!mod.HEALTH_STATE_ACCEPTED_VERSIONS.includes(1), '不得再接受 v1')
+  assert(mod.HEALTH_STATE_ACCEPTED_VERSIONS.length === 1, '版本表只应有 v2')
   assert(mod.HEALTH_CONTROL_VERSION === 2, 'control version 应为 2')
   assert(mod.HEALTH_CONTROL_KEY !== mod.HEALTH_STATE_CANONICAL_KEY, 'control key 必须独立')
   assert(mod.HEALTH_CONTROL_MAX_BYTES === 64 * 1024, 'control 上限应为 64KB')
@@ -82,7 +83,7 @@ check('Q3 control 独立恢复：健康 sourceVersion 不符仍恢复用户意�
   assert(calls.length === 1 && calls[0].sources && Object.keys(calls[0].sources).length === 0, '应只发控制态')
 })
 
-check('Q4 v1 旧合并态整包恢复', async() => {
+check('Q4 v1 旧合并态拒绝读取', async() => {
   const st = fakeStorage()
   const state = mkState(); state.v = 1
   state.controls = { suyinQQ: { enabled: false, manualOff: true } }
@@ -90,7 +91,7 @@ check('Q4 v1 旧合并态整包恢复', async() => {
   let called = null
   const apis = { kw: { restoreHealth: s => ({ promise: Promise.resolve().then(() => { called = s; return { ok: true, restored: 1 } }) }) } }
   const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
-  assert(r.restored === 1 && called && called.controls && called.controls.suyinQQ, 'v1 合并态应原样恢复')
+  assert(r.restored === 0 && called === null, 'v1 必须被拒绝，不能进入源恢复')
 })
 
 check('Q5 control TTL / 64KB / 禁止字段', async() => {
@@ -104,12 +105,12 @@ check('Q5 control TTL / 64KB / 禁止字段', async() => {
   assert(!bad.ok, '禁止字段应拒绝')
 })
 
-check('Q6 v1 读出后下一次 v2 save 完成迁移', async() => {
+check('Q6 v1 读出被拒绝，v2 save 仍可重建', async() => {
   const st = fakeStorage()
   const v1 = mkState(); v1.v = 1
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, v1)
   const read = await mod.readSourceHealthState(st, 'kw', '8.13.0', NOW)
-  assert(read && read.v === 1, 'v1 应可读')
+  assert(read === null, 'v1 应被拒绝')
   const v2 = mkState(); v2.controls = { suyinQQ: { enabled: false, manualOff: true } }
   const apis = { kw: { exportHealth: () => ({ promise: Promise.resolve(v2) }) } }
   assert(await mod.saveSourceHealth(apis, 'kw', st, NOW) === true, 'v2 save 应成功')
@@ -132,15 +133,15 @@ check('Q8 control 校验不读取 sourceVersion', async() => {
   assert(src.includes("HEALTH_CONTROL_KEY = '@___SOURCE_CONTROL___global'"), 'control key 不是独立常量')
 })
 
-check('Q9 源仓回滚开关存在', async() => {
+check('Q9 源仓已移除 v1 回滚开关', async() => {
   const legacy = path.join(ROOT, '..', 'lx-music-source', 'src/legacy.js')
   if (!fs.existsSync(legacy)) {
     console.log('  （跳过）源仓不在同一工作区')
     return
   }
   const src = fs.readFileSync(legacy, 'utf8')
-  assert(src.includes('healthV2Enabled'), '源仓缺少 healthV2Enabled 回滚开关')
-  assert(src.includes('HEALTH_STATE_ACCEPTED_VERSIONS'), '源仓缺少 v1/v2 兼容版本表')
+  assert(!src.includes('healthV2Enabled'), '源仓仍保留 healthV2Enabled 回滚开关')
+  assert(src.includes('HEALTH_STATE_ACCEPTED_VERSIONS'), '源仓缺少 v2 版本表')
 })
 
 setTimeout(() => {
