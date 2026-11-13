@@ -1,3 +1,13 @@
+## [音源健康：F16 质量档矩阵逐档可见] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- 源快照 `byQuality` 增加 `fail`，App `HealthStatusItem` 同步接收逐档 `req/success/fail/businessFail/rate/avgTime/state/rateLimited`。
+- `healthStatus.ts` 新增 `HEALTH_QUALITIES` 与 `buildQualityMatrixRows`：固定 128k/320k/flac/flac24bit 四档顺序，无样本档显式 `hasSample=false`，不把缺失样本算成 0% 失败。
+- 健康页表格的“音质”列变为可展开入口（`FLAC ▸/▾`）；展开后逐档显示请求数/成功/失败/业务失败/平均耗时/熔断/半开/限流，避免 flac 坏但 128k 好被源级平均值掩盖。
+- 三语新增 `health_quality_matrix_tip`，各 902 键对齐。
+- 验证：`check_health_status_refactor` HS9 通过，9/0；`npm run build-test` rc=0（产物已清理）；目标 eslint 0。
+
 ## [音源健康整功能重构：开关原因/真实播放回传/单源只读探测] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。

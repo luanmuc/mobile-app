@@ -18,7 +18,7 @@ import {
   configLabelKey,
   msToDisplay,
 } from '@/core/sourceConfig'
-import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
+import { buildQualityMatrixRows, classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
@@ -43,6 +43,17 @@ interface HealthItem {
   // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
   playDead?: boolean
   qualityShortCircuit?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', boolean>>
+  // F16：逐档质量矩阵（源快照 byQuality：req/success/fail/businessFail/rate/avgTime/state）
+  byQuality?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', {
+    req?: number
+    success?: number
+    fail?: number
+    businessFail?: number
+    rate?: number | null
+    avgTime?: number | null
+    state?: 'closed' | 'open' | 'half-open'
+    rateLimited?: boolean
+  }>>
   rateLimited?: boolean
   // 第五轮审计：429 退避期的"当前不可用"状态。
   // rateLimited 需要连续 3 次被上游真拒才置位，而第一次 429 就把该源退避 30s、
@@ -78,6 +89,7 @@ export default memo(() => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [togglingId, setTogglingId] = useState('')
+  const [expandedQuality, setExpandedQuality] = useState<string | null>(null)
   const [probeInfo, setProbeInfo] = useState('')
   const [probingId, setProbingId] = useState('')
   // v8.0：配置编辑相关 state
@@ -628,7 +640,8 @@ export default memo(() => {
                   const rateColor = !sampled || item.successRate == null ? theme['c-font-label']
                     : item.successRate >= 0.6 ? theme['c-font'] : '#ff4d4f'
                   return (
-                    <View key={id} style={[styles.row, { borderBottomColor: theme['c-border-background'] }]}>
+                    <View key={id}>
+                    <View style={[styles.row, { borderBottomColor: theme['c-border-background'] }]}>
                       <View style={styles.colName}>
                         <Text numberOfLines={1} size={12} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{sourceLabel(id, item.name)}</Text>
                         <Text size={9} color={theme['c-font-label']} onPress={() => { void probeOne(id, item.name) }}>{probingId === id ? '…' : t('health_probe_one')}</Text>
@@ -636,7 +649,12 @@ export default memo(() => {
                           ? <Text size={9} color="#faad14">{t('health_quality_short_circuit', { q: shortQualities.join('/') })}</Text>
                           : null}
                       </View>
-                      <Text size={12} style={styles.colSmall}>{item.maxQuality.toUpperCase()}</Text>
+                      <Pressable
+                        style={styles.colSmall}
+                        onPress={() => { setExpandedQuality(expandedQuality === id ? null : id) }}
+                      >
+                        <Text size={12}>{item.maxQuality.toUpperCase()}{expandedQuality === id ? ' ▾' : ' ▸'}</Text>
+                      </Pressable>
                       <Text size={12} style={styles.colSmall} color={rateColor}>{rateText}</Text>
                       <Text size={12} style={styles.colSmall} color={sampled ? theme['c-font'] : theme['c-font-label']}>{timeText}</Text>
                       <View style={styles.colSmall}>
@@ -648,6 +666,29 @@ export default memo(() => {
                         </View>
                       </View>
                       <Text size={12} style={styles.colSmall} color={scoreColor}>{scoreText}</Text>
+                    </View>
+                    {
+                      expandedQuality === id ? (
+                        <View style={styles.qualityMatrix}>
+                          <Text size={9} color={theme['c-font-label']}>{t('health_quality_matrix_tip')}</Text>
+                          <View style={styles.qualityMatrixRows}>
+                            {
+                              buildQualityMatrixRows(item).map(q => {
+                                const tone = q.rateLimited || q.state === 'open' ? '#ff4d4f'
+                                  : q.state === 'half-open' ? '#faad14'
+                                    : q.hasSample ? theme['c-font'] : theme['c-font-label']
+                                const avg = q.avgTime == null ? '-' : `${Math.round(q.avgTime)}ms`
+                                return (
+                                  <Text key={q.quality} size={10} style={styles.qualityMatrixCell} color={tone}>
+                                    {q.quality.toUpperCase()} · {q.req}次 · 成{q.success} · 败{q.fail}{q.businessFail ? ` · 业务${q.businessFail}` : ''} · {avg}{q.state !== 'closed' ? ` · ${q.state}` : ''}{q.rateLimited ? ' · 限流' : ''}
+                                  </Text>
+                                )
+                              })
+                            }
+                          </View>
+                        </View>
+                      ) : null
+                    }
                     </View>
                   )
                 })
@@ -1094,6 +1135,21 @@ const styles = StyleSheet.create({
   colSmall: {
     width: 58,
     alignItems: 'center',
+  },
+  qualityMatrix: {
+    paddingLeft: 8,
+    paddingRight: 8,
+    paddingBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  qualityMatrixRows: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
+  },
+  qualityMatrixCell: {
+    minWidth: 132,
   },
   stateChip: {
     borderRadius: 4,

@@ -114,3 +114,46 @@ export const summarizeHealthItems = (items: HealthStatusItem[]): HealthSummary =
   }
   return summary
 }
+
+// F16：质量档矩阵。旧表格只有源级成功率，flac 坏了但 128k 好会被平均掉。
+// 这里固定四档顺序，逐档展示请求/成功/失败/耗时/熔断/限流，页面只负责排版。
+export const HEALTH_QUALITIES = ['128k', '320k', 'flac', 'flac24bit'] as const
+export type HealthQuality = typeof HEALTH_QUALITIES[number]
+
+export interface HealthQualityCell {
+  quality: HealthQuality
+  req: number
+  success: number
+  fail: number
+  businessFail: number
+  rate: number | null
+  avgTime: number | null
+  state: 'closed' | 'open' | 'half-open'
+  rateLimited: boolean
+  hasSample: boolean
+}
+
+export const buildQualityMatrixRows = (item: { byQuality?: Partial<Record<string, unknown>> }): HealthQualityCell[] =>
+  HEALTH_QUALITIES.map(quality => {
+    const raw = item.byQuality?.[quality]
+    const q = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+    const req = Number(q.req) || 0
+    const success = Number(q.success) || 0
+    const fail = Number(q.fail) || 0
+    const businessFail = Number(q.businessFail) || 0
+    const rate = q.rate == null ? null : Number(q.rate)
+    const avgTime = q.avgTime == null ? null : Number(q.avgTime)
+    const state = q.state === 'open' || q.state === 'half-open' ? q.state : 'closed'
+    return {
+      quality,
+      req,
+      success,
+      fail,
+      businessFail,
+      rate: Number.isFinite(rate) ? rate : null,
+      avgTime: Number.isFinite(avgTime) ? avgTime : null,
+      state,
+      rateLimited: q.rateLimited === true,
+      hasSample: req > 0 || success > 0 || fail > 0,
+    }
+  })

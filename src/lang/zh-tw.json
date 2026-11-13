@@ -899,5 +899,6 @@
   "health_probe_apply_tip": "單源探測結果：{outcome}。是否套用本次結果？失敗可能觸發該源自動關閉。",
   "health_probe_all_apply_tip": "全域探測會實際套用結果：通過可能解除自動關閉，失敗可能觸發自動關閉。是否繼續？",
   "health_quality_short_circuit": "檔位短路：{q}",
-  "health_probe_apply_button": "套用結果"
+  "health_probe_apply_button": "套用結果",
+  "health_quality_matrix_tip": "質量檔明細（點音質展開）：每檔獨立統計請求/成功/失敗/耗時與熔斷"
 }

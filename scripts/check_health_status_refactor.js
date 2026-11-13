@@ -13,7 +13,7 @@ const out = ts.transpileModule(fs.readFileSync(file, 'utf-8'), {
 }).outputText
 const mod = { exports: {} }
 new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
-const { classifyHealthState, summarizeHealthItems } = mod.exports
+const { buildQualityMatrixRows, classifyHealthState, summarizeHealthItems } = mod.exports
 let pass = 0
 let fail = 0
 const check = (id, name, fn) => {
@@ -64,6 +64,21 @@ check('HS8', '9 桶只落一桶且合计等于源数', () => {
   ])
   const total = Object.values(r).reduce((a, b) => a + b, 0)
   if (total !== 4 || r.off !== 2 || r.removed !== 1 || r.ok !== 1) throw new Error(JSON.stringify(r))
+})
+check('HS9', '质量矩阵固定四档，逐档展示 success/fail/state（F16）', () => {
+  const rows = buildQualityMatrixRows({
+    byQuality: {
+      flac: { req: 10, success: 3, fail: 7, rate: 0.3, avgTime: 1200, state: 'open' },
+      '128k': { req: 5, success: 5, fail: 0, rate: 1, avgTime: 400, state: 'closed' },
+    },
+  })
+  if (rows.length !== 4) throw new Error(`rows=${rows.length}`)
+  const flac = rows.find(r => r.quality === 'flac')
+  if (!flac || flac.success !== 3 || flac.fail !== 7 || flac.state !== 'open') throw new Error(JSON.stringify(flac))
+  const low = rows.find(r => r.quality === '128k')
+  if (!low || low.success !== 5 || low.fail !== 0 || low.hasSample !== true) throw new Error(JSON.stringify(low))
+  const empty = rows.find(r => r.quality === '320k')
+  if (!empty || empty.req !== 0 || empty.hasSample !== false) throw new Error(JSON.stringify(empty))
 })
 console.log(`\nHealth status refactor: ${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
