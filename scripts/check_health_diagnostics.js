@@ -131,6 +131,24 @@ if (diag) {
     assert(agg.windows.d7.total === events.filter(e => e.event === 'source_result' || e.event === 'play_result').length, '7d 样本数不符')
   })
 
+  check('H7b 取链/播放/探测三块分开，不混成功率（F53/F10）', () => {
+    const mixed = [
+      { traceId: 'c1', event: 'source_result', sourceId: 's', ok: true, latencyMs: 100, ts: NOW - MIN },
+      { traceId: 'c2', event: 'source_result', sourceId: 's', ok: false, code: 'CHAIN_FAIL', latencyMs: 200, ts: NOW - 2 * MIN },
+      { traceId: 'p1', event: 'play_result', sourceId: 's', ok: true, latencyMs: 300, ts: NOW - 3 * MIN },
+      { traceId: 'p2', event: 'play_result', sourceId: 's', ok: true, latencyMs: 400, ts: NOW - 4 * MIN },
+      { traceId: 'p3', event: 'play_result', sourceId: 's', ok: true, latencyMs: 500, ts: NOW - 5 * MIN },
+      { traceId: 'r1', event: 'probe_result', sourceId: 's', ok: false, code: 'PROBE_FAIL', latencyMs: 600, ts: NOW - 6 * MIN },
+      { traceId: 'r2', event: 'probe_result', sourceId: 's', ok: false, code: 'PROBE_FAIL', latencyMs: 700, ts: NOW - 7 * MIN },
+    ]
+    const agg = diag.aggregateHealthEvents(mixed, NOW)
+    assert(agg.windows.h24.total === 2 && agg.windows.h24.ok === 1, `取链块被播放/探测污染：${JSON.stringify(agg.windows.h24)}`)
+    assert(agg.kinds.play.windows.h24.total === 3 && agg.kinds.play.windows.h24.successRate === 1, '播放块混入其他结果')
+    assert(agg.kinds.probe.windows.h24.total === 2 && agg.kinds.probe.windows.h24.successRate === 0, '探测块混入其他结果')
+    const rep = diag.buildHealthReport({ events: mixed, now: NOW })
+    assert(rep.windows.h24.total === 2 && rep.playWindows.h24.total === 3 && rep.probeWindows.h24.total === 2, '报告三块窗口未分开')
+  })
+
   check('H7 Top 错误码', () => {
     const agg = diag.aggregateHealthEvents(events, NOW)
     assert(Array.isArray(agg.topCodes) && agg.topCodes.length >= 2, '缺少 topCodes')
@@ -548,8 +566,9 @@ check('H29 缓存命中单独计数，不进入取链成功率', () => {
   ]
   const report = diag.buildHealthReport({ events, now: NOW })
   assert(report.cacheHits.h24 === 2, `24h 缓存命中应为 2，实际 ${report.cacheHits.h24}`)
-  assert(report.windows.h24.total === 5 && report.windows.h24.ok === 5, `缓存命中污染取链窗口：${JSON.stringify(report.windows.h24)}`)
-  assert(report.windows.h24.successRate === 1, `缓存命中污染成功率：${report.windows.h24.successRate}`)
+  assert(report.windows.h24.total === 0, `缓存/播放污染取链窗口：${JSON.stringify(report.windows.h24)}`)
+  assert(report.playWindows.h24.total === 5 && report.playWindows.h24.ok === 5, `播放窗口被缓存污染：${JSON.stringify(report.playWindows.h24)}`)
+  assert(report.playWindows.h24.successRate === 1, `播放成功率被缓存污染：${report.playWindows.h24.successRate}`)
   assert(read('src/core/healthLog.ts').includes('recordCacheHit'), 'healthLog 缺少缓存命中写入入口')
   assert(read('src/core/healthLog.ts').includes("event: 'cache_hit'"), '缓存命中事件名不是 cache_hit')
   assert(read('src/core/music/online.ts').includes('recordCacheHit({'), '缓存命中分支未接线')

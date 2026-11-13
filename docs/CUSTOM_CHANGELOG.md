@@ -1,3 +1,12 @@
+## [音源健康：F53/F10 取链/播放/探测三块分算] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- `aggregateHealthEvents` 新增 `kinds.chain/play/probe` 三块独立聚合；`windows/topCodes/breakdown` 固定为取链块，播放/探测各带自己的窗口、错误码与分组。
+- `buildHealthReport` 新增 `playWindows/probeWindows/playBreakdown/probeBreakdown`；摘要分别写“取链 / 播放 / 探测”近 24h 次数与成功率，不再把播放成功混进取链成功率。
+- 缓存命中仍单独计数；`play_result` 只进播放块，`probe_result` 只进探测块。
+- 验证：`check_health_diagnostics` 54/0（新增 H7b，修正 H29）；deep 51/0；stress 14/0；view 22/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）。
+
 ## [音源健康：F08/F58 证据包 v2 manifest/上限/脱敏] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。
