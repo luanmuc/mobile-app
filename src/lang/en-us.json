@@ -891,5 +891,13 @@
   "health_source_changqingVip": "Changqing (Kuwo)",
   "health_source_nianxinVip": "Nianxin (Kuwo)",
   "health_source_xinghaiBackup": "Xinghai Backup",
-  "health_source_xinghaiBackend": "Xinghai Backend"
+  "health_source_xinghaiBackend": "Xinghai Backend",
+  "health_state_user_off": "Off (manual)",
+  "health_state_auto_off": "Off (auto)",
+  "health_probe_failed": "Single-source probe failed",
+  "health_probe_one": "Probe",
+  "health_probe_apply_tip": "Single-source probe result: {outcome}. Apply this result? A failure may auto-disable this source.",
+  "health_probe_all_apply_tip": "A global probe applies its results: a pass may clear auto-off, and a failure may trigger auto-off. Continue?",
+  "health_quality_short_circuit": "Quality short-circuit: {q}",
+  "health_probe_apply_button": "Apply"
 }

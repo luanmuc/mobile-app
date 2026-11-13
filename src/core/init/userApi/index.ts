@@ -11,6 +11,7 @@ import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
+import { recordProbeEvents } from '@/core/healthLog'
 
 
 export default async(setting: LX.AppSetting) => {
@@ -220,6 +221,11 @@ export default async(setting: LX.AppSetting) => {
                       return unwrapSourceResult(res.data)
                     }).then(snapshot => {
                       void saveSourceHealth(apis as Record<string, SourceHealthApi>, source, healthStorage)
+                      // v8.14：把源侧探测/健康迁移事件并入本地诊断时间线（只读、去重、不上传）。
+                      try {
+                        const ev = apis[source].healthEvents
+                        if (ev) void ev({ limit: 50 }).promise.then(async(res: { events?: unknown[] }) => await recordProbeEvents(Array.isArray(res?.events) ? res.events : [])).catch(() => {})
+                      } catch {}
                       return snapshot
                     }).catch(async err => {
                       console.log(err.message)
@@ -264,6 +270,50 @@ export default async(setting: LX.AppSetting) => {
                         source,
                         action: 'probe',
                         info: {},
+                      },
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
+                      console.log(err.message)
+                      return Promise.reject(err)
+                    }),
+                  }
+                }
+                break
+              case 'probeSource':
+                // v8.14：单源探测。默认只读（apply=false），不改变健康状态；显式 apply=true 才落账。
+                apis[source].probeSource = (id: string, options?: { apply?: boolean }) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() {
+                      // userApiRequestCancel(requestKey)
+                    },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: {
+                        source,
+                        action: 'probeSource',
+                        info: { id, apply: options?.apply === true },
+                      },
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => {
+                      console.log(err.message)
+                      return Promise.reject(err)
+                    }),
+                  }
+                }
+                break
+              case 'reportPlayback':
+                // v8.14：真实播放回传（playDead 的唯一真实播放入口）。App 播放成功/失败时调用。
+                apis[source].reportPlayback = (id: string, info?: { ok?: boolean, quality?: string, latencyMs?: number, code?: string }) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() {
+                      // userApiRequestCancel(requestKey)
+                    },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: {
+                        source,
+                        action: 'reportPlayback',
+                        info: { sourceId: id, ...(info ?? {}) },
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
                       console.log(err.message)

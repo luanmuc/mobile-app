@@ -14,6 +14,8 @@ export const SOURCE_ACTIONS = [
   'health',
   'toggle',
   'probe',
+  'probeSource',
+  'reportPlayback',
   'config',
   'trend',
   'healthEvents',

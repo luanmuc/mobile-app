@@ -362,6 +362,35 @@ export const recordPlayResult = async(input: PlayResultInput): Promise<void> => 
   }
 }
 
+
+const seenProbeEventKeys = new Set<string>()
+export const recordProbeEvents = async(events: unknown[]): Promise<number> => {
+  let written = 0
+  for (const raw of events) {
+    if (!raw || typeof raw !== 'object') continue
+    const e = raw as Record<string, unknown>
+    const event = String(e.event || '')
+    if (event !== 'probe_result' && event !== 'health_transition') continue
+    const key = `${String(e.ts || '')}|${String(e.traceId || '')}|${String(e.sourceId || '')}|${String(e.quality || '')}|${event}|${String(e.code || '')}`
+    if (seenProbeEventKeys.has(key)) continue
+    seenProbeEventKeys.add(key)
+    if (seenProbeEventKeys.size > 1000) seenProbeEventKeys.delete(seenProbeEventKeys.values().next().value!)
+    const entry: HealthLogEntry = {
+      ts: Number(e.ts) || Date.now(),
+      traceId: typeof e.traceId === 'string' ? e.traceId : undefined,
+      event,
+      sourceId: typeof e.sourceId === 'string' ? e.sourceId : undefined,
+      quality: typeof e.quality === 'string' ? e.quality : undefined,
+      ok: typeof e.ok === 'boolean' ? e.ok : undefined,
+      code: typeof e.code === 'string' ? e.code : undefined,
+      latencyMs: typeof e.latencyMs === 'number' ? e.latencyMs : undefined,
+    }
+    await appendHealthEvent(entry)
+    written++
+  }
+  return written
+}
+
 export const exportDiagnostics = async(payload: unknown, now: Date = new Date()): Promise<string | null> => {
   try {
     const fs = getFs()

@@ -12,8 +12,30 @@ import settingState from '@/store/setting/state'
 import { MUSIC_TOGGLE_MODE_LIST, MUSIC_TOGGLE_MODE } from '@/config/constant'
 import { syncNotificationRepeatMode } from '@/core/player/repeatMode'
 import { toast } from '@/utils/tools'
+import playerState from '@/store/player/state'
 
 let isInitialized = false
+// v8.14：同曲同源同结果只回传一次。Playing 会在缓冲/跳转后重复触发，
+// 不去重会把同一首歌的成功样本重复放大，污染成功率与健康分。
+let lastPlaybackReportKey = ''
+
+// v8.14：真实播放回传。源侧 playDead 只认这个入口，不再把取链失败当播放失败。
+const reportPlayback = (ok: boolean, code?: string) => {
+  try {
+    const ps = playerState.playSource
+    if (!ps?.id) return
+    const platform = ps.platform
+    if (!platform) return
+    const key = `${String(global.lx.playerTrackId || '')}|${ps.id}|${platform}|${String(playerState.playQuality || '128k')}|${ok ? 'ok' : 'fail'}|${code ?? ''}`
+    if (key === lastPlaybackReportKey) return
+    lastPlaybackReportKey = key
+    const api = (global.lx.apis as any)?.[platform]?.reportPlayback
+    if (!api) return
+    const res = api(ps.id, { ok, quality: playerState.playQuality || '128k', code })
+    void res?.promise?.catch?.(() => {})
+  } catch {}
+}
+
 
 // let retryTrack: LX.Player.Track | null = null
 // let retryGetUrlId: string | null = null
@@ -115,6 +137,7 @@ const registerPlaybackService = async() => {
       const { log } = require('@/utils/log')
       log.diagnose(`[播放诊断] 播放器错误: ${JSON.stringify(err?.message ?? err)?.slice(0, 300)}`)
     } catch {}
+    reportPlayback(false, 'PLAYBACK_ERROR')
     global.app_event.error()
     global.app_event.playerError()
   })
@@ -138,6 +161,7 @@ const registerPlaybackService = async() => {
         global.app_event.pause()
         break
       case TPState.Playing:
+        reportPlayback(true)
         global.app_event.playerPlaying()
         global.app_event.play()
         break

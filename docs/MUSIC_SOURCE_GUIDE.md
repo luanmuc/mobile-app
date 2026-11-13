@@ -34,7 +34,7 @@ musicSdk（内置官方源）  ──┐
 |---|---|
 | `name` | 音源名称（含「豆包定制」会被内置导入逻辑识别/清理） |
 | `version` | 版本号（`vX.Y` 格式，用于启动时版本比对） |
-| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/手动探测，v4.0 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起）、`healthEvents`（只读事件环形缓冲，2.4 方案） |
+| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/整轮手动探测，v4.0 起；全局探测 App 先确认再应用）、`probeSource`（单源探测，默认只读；用户确认后可 `apply:true` 落账，v8.14 起）、`reportPlayback`（App 真实播放回传，v8.14 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起）、`healthEvents`（只读事件环形缓冲，2.4 方案）、`exportHealthState`/`restoreHealthState`（健康持久化，v8.13.0 起） |
 | `qualitys` | 该源支持的音质列表（映射到 App 的 `FULL_QUALITYS_LIST`） |
 | `onScriptAction` | 处理 App 请求，返回 Promise 结果 |
 
@@ -80,10 +80,17 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 **数据流**：音源脚本（backend-api v4.0 起）注册 `health` action → 返回 `getHealthSnapshot()` 全源快照 → App 设置页「音源健康」子页（`src/screens/Home/Views/Setting/settings/Health.tsx`）消费展示，可刷新/单源开关/手动探测。
 
+**v8.14 探测语义（2026-11-13）**：
+
+- 全局「手动探测」保留整轮 `runHealthCheck` 并应用结果，但 App 先弹确认，文案明确“通过可能解除自动关闭、失败可能触发自动关闭”；用户取消则不发起探测。
+- 行内单源探测仍是 `probeSource` 默认 `apply:false` 只读；结果返回后再弹确认，确认才 `apply:true` 落账。
+- 快照新增 `qualityShortCircuit: {128k,320k,flac,flac24bit}` 只读布尔；健康页行内在源名下方显示“档位短路：FLAC/320K”，不再只把短路藏在链构建内部。
+- 链项携带 `eligibility`；`wrapExecute` 发请求前重取一次结构资格，建链后用户关源/自动关闭/休眠/摘除的旧链项会被拦截。
+
 **本地诊断闭环（2.4 方案，只本地不上传）**：
 
 - 音源侧新增只读 `healthEvents` action：容量 500 的环形缓冲，返回 `{schema, capacity, dropped, events}`；事件只含 `traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason`，不记歌名、URL、搜索词、账号、设备 ID、位置。
-- **action 透传（P0 起）**：`user-api-preload.js` 不再维护按 source 的 `supportActions` 白名单，直接把源脚本声明的 `actions` 透传给 App；App 的 `normalizeSourceInfo` 只保留 `sourceContract.ts` 中 11 个合法 action（含 `exportHealthState/restoreHealthState`），未知 action 不注册。契约 H10 看护。preload 同时透传 `fallbackOwner`，缺省由 `normalizeFallbackOwner` 归为 `host`。
+- **action 透传（P0 起）**：`user-api-preload.js` 不再维护按 source 的 `supportActions` 白名单，直接把源脚本声明的 `actions` 透传给 App；App 的 `normalizeSourceInfo` 只保留 `sourceContract.ts` 中 13 个合法 action（含 `probeSource/reportPlayback/exportHealthState/restoreHealthState`），未知 action 不注册。契约 H10 看护。preload 同时透传 `fallbackOwner`，缺省由 `normalizeFallbackOwner` 归为 `host`。
 - App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
 - 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/5 采样；缓存命中单独记 `cache_hit`，只说明本地已有 URL，不计入取链成功率；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。报告里的成功率按采样权重还原（成功 weight=5、失败 weight=1），是本地估算而非服务端真值。
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。
@@ -166,17 +173,18 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 | `coldStartWarmEnabled` | 冷启动预热 | true |
 | `crossPlatformEnabled` | 跨平台兜底总开关 | true |
 
-### 11 态与 9 桶（表格与摘要同口径）
+### 11 态与 9 桶（表格与摘要同口径，v8.14 起 4 主状态 + reason）
 
-状态判定优先级：已关/休眠 → 待采样 → 异常 → 已摘除 → 限流 → 熔断/半开/正常。摘要固定 9 桶，每个源只落一桶，合计等于音源数。
+状态判定优先级：**手动关闭 → 探测自动关闭 → 休眠/默认关闭 → 待采样 → 已摘除 → 异常 → 限流 → 熔断/半开/正常**。手动关闭与自动关闭不再共用“已关闭”，App 分别显示“已关闭·手动 / 已关闭·自动”，避免把系统判定误读成用户操作。旧 11 态不删除，信息降为 `offReason`/明细保留。摘要固定 9 桶，每个源只落一桶，合计等于音源数。
 
 | 状态 | 含义 | 摘要桶 |
 |---|---|---|
-| 已关闭 | 手动关闭或探测失败自动关闭；不竞速也不探测 | `off` |
+| 已关闭·手动 | 用户手动关闭；`manualOff` 永久锁定，不竞速、不探测，只能由用户再打开 | `off` |
+| 已关闭·自动 | 探测连续失败自动关闭；不竞速，但**保留恢复探测**，探测通过自动开启；真实播放成功也可提前解除 | `off` |
 | 休眠中 | 健康探测连续失败 3 轮，暂停探测、每 10 轮复活试探 | `sleep` |
 | 待采样 | 已启用但没有任何成功/失败/探测样本；不知道好坏，不是坏源 | `idle` |
 | 异常 | 断路器闭合但成功率 0% 且健康分 <0，看着正常实际上游不可用 | `bad` |
-| 已摘除 | 真实播放连续失败 3 次，从竞速链摘出；默认约 5 分钟后半开试探复活 | `removed` |
+| 已摘除 | App 回传的真实播放连续失败 3 次，从竞速链摘出；默认约 5 分钟后只放一个半开试探请求，成功才复活，失败重新计时 | `removed` |
 | 限流中 | 正在 429 退避期，当前不参与竞速，退避结束自恢复 | `rate` |
 | 被限流 | 连续多次 429，上游明显在限，比“限流中”更重 | `rate` |
 | 熔断 | 某源某音质档连续失败达阈值，冷却期不接请求 | `open` |

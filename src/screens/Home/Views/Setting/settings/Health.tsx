@@ -22,7 +22,7 @@ import { classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/co
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
-import { clipboardWriteText } from '@/utils/tools'
+import { clipboardWriteText, confirmDialog } from '@/utils/tools'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
@@ -42,6 +42,7 @@ interface HealthItem {
   lastUsedAt?: number
   // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
   playDead?: boolean
+  qualityShortCircuit?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', boolean>>
   rateLimited?: boolean
   // 第五轮审计：429 退避期的"当前不可用"状态。
   // rateLimited 需要连续 3 次被上游真拒才置位，而第一次 429 就把该源退避 30s、
@@ -58,7 +59,7 @@ type HealthSnapshot = Record<string, HealthItem>
 // 配置名/说明、源名、单位、弹窗文案全部走 i18n，中文硬编码不再保留。
 
 // 获取当前音源的健康查询器（任一声明对应 action 的源均可，聚合结果与源无关）
-const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'config' | 'trend'): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
+const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend'): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
   const apis = (global as any).lx?.apis as Record<string, any> | undefined
   if (!apis) return null
   const sourceId = Object.keys(apis).find(id => typeof apis[id]?.[fn] === 'function')
@@ -78,6 +79,7 @@ export default memo(() => {
   const [error, setError] = useState('')
   const [togglingId, setTogglingId] = useState('')
   const [probeInfo, setProbeInfo] = useState('')
+  const [probingId, setProbingId] = useState('')
   // v8.0：配置编辑相关 state
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configData, setConfigData] = useState<Record<string, any> | null>(null)
@@ -197,7 +199,7 @@ export default memo(() => {
     }
   }, [loadHealth])
 
-  // 手动探测：触发一轮健康探测（并发 ~6s）
+  // 手动探测：触发一轮健康探测（并发 ~6s）；全局探测会应用结果，必须先确认
   const runProbe = useCallback(async() => {
     setError('')
     const querier = getQuerier('probe')
@@ -205,6 +207,11 @@ export default memo(() => {
       setError(t('health_no_source'))
       return
     }
+    const apply = await confirmDialog({
+      message: t('health_probe_all_apply_tip'),
+      confirmButtonText: t('health_probe'),
+    })
+    if (!apply) return
     setProbeInfo(t('health_probing'))
     try {
       const { promise } = querier()
@@ -305,6 +312,33 @@ export default memo(() => {
       setError(String(e?.message || t('health_load_failed')))
     }
   }, [t])
+
+  // v8.14：行内单源探测——只读（apply=false），不关闭/启用/休眠任何源，不改全局健康状态。
+  const probeOne = useCallback(async(id: string, name?: string) => {
+    if (probingId) return
+    setError('')
+    const querier = getQuerier('probeSource')
+    if (!querier) { setError(t('health_no_source')); return }
+    setProbingId(id)
+    try {
+      const { promise } = querier(id, { apply: false })
+      const res: any = await promise
+      const outcome = res?.outcome || 'UNKNOWN'
+      setProbeInfo(`${name ?? id}: ${outcome}`)
+      const apply = await confirmDialog({
+        message: t('health_probe_apply_tip').replace('{outcome}', String(outcome)),
+        confirmButtonText: t('health_probe_apply_button'),
+      })
+      if (apply) {
+        const applied: any = await querier(id, { apply: true }).promise
+        setProbeInfo(`${name ?? id}: ${applied?.outcome || outcome} · ${t('health_probe_apply_button')}`)
+      }
+    } catch (e: any) {
+      setError(String(e?.message || t('health_probe_failed')))
+    } finally {
+      setProbingId('')
+    }
+  }, [t, probingId])
 
   // v4.0：行内开关——点击状态胶囊切换该源启用/停用（停用带 manualOff 锁定，探测不自动复活）
   const toggleSource = useCallback(async(item: HealthItem, id: string) => {
@@ -580,6 +614,9 @@ export default memo(() => {
                   const timeText = item.avgTime == null ? '-' : `${Math.round(item.avgTime)}ms`
                   const status = classifyHealthState(item, sampled)
                   const stateText = tt(status.key)
+                  const shortQualities = item.qualityShortCircuit
+                    ? Object.entries(item.qualityShortCircuit).filter(([, v]) => v).map(([q]) => q.toUpperCase())
+                    : []
                   const stateColor = status.tone === 'ok' ? '#52c41a'
                     : status.tone === 'warn' ? '#faad14'
                       : status.tone === 'bad' ? '#ff4d4f'
@@ -592,7 +629,13 @@ export default memo(() => {
                     : item.successRate >= 0.6 ? theme['c-font'] : '#ff4d4f'
                   return (
                     <View key={id} style={[styles.row, { borderBottomColor: theme['c-border-background'] }]}>
-                      <Text numberOfLines={1} size={12} style={styles.colName} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{sourceLabel(id, item.name)}</Text>
+                      <View style={styles.colName}>
+                        <Text numberOfLines={1} size={12} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{sourceLabel(id, item.name)}</Text>
+                        <Text size={9} color={theme['c-font-label']} onPress={() => { void probeOne(id, item.name) }}>{probingId === id ? '…' : t('health_probe_one')}</Text>
+                        {shortQualities.length
+                          ? <Text size={9} color="#faad14">{t('health_quality_short_circuit', { q: shortQualities.join('/') })}</Text>
+                          : null}
+                      </View>
                       <Text size={12} style={styles.colSmall}>{item.maxQuality.toUpperCase()}</Text>
                       <Text size={12} style={styles.colSmall} color={rateColor}>{rateText}</Text>
                       <Text size={12} style={styles.colSmall} color={sampled ? theme['c-font'] : theme['c-font-label']}>{timeText}</Text>

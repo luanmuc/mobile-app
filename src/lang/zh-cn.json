@@ -891,5 +891,13 @@
   "health_source_changqingVip": "长青（酷我）",
   "health_source_nianxinVip": "念心（酷我）",
   "health_source_xinghaiBackup": "星海备",
-  "health_source_xinghaiBackend": "星海后端"
+  "health_source_xinghaiBackend": "星海后端",
+  "health_state_user_off": "已关闭·手动",
+  "health_state_auto_off": "已关闭·自动",
+  "health_probe_failed": "单源探测失败",
+  "health_probe_one": "探测",
+  "health_probe_apply_tip": "单源探测结果：{outcome}。是否应用本次结果？失败可能触发该源自动关闭。",
+  "health_probe_all_apply_tip": "全局探测会实际应用结果：通过可能解除自动关闭，失败可能触发自动关闭。是否继续？",
+  "health_quality_short_circuit": "档位短路：{q}",
+  "health_probe_apply_button": "应用结果"
 }

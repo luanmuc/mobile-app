@@ -37,6 +37,8 @@ export interface HealthState {
   savedAt: number
   sources: Record<string, HealthStateSource>
   qualityShortCircuit: Record<string, number>
+  // v8.14：源侧开关权威（用户意图 + autoOff 短 TTL）。白名单不删字段，原样透传。
+  controls?: Record<string, { enabled: boolean, manualOff?: boolean, autoOff?: boolean, autoOffAt?: number, autoOffReason?: string }>
 }
 export interface SanitizeResult {
   ok: boolean

@@ -8,6 +8,8 @@
 export type HealthStateKey =
   | 'health_state_sleeping'
   | 'health_state_disabled'
+  | 'health_state_user_off'
+  | 'health_state_auto_off'
   | 'health_state_idle'
   | 'health_state_abnormal'
   | 'health_state_removed'
@@ -31,6 +33,10 @@ export interface HealthStatusItem {
   playDead?: boolean
   rateLimited?: boolean
   rateLimitActive?: boolean
+  // v8.14：开关权威拆分（源快照提供）。旧快照没有这些字段时回退到 enabled/sleeping。
+  userEnabled?: boolean
+  autoOff?: boolean
+  offReason?: 'USER_OFF' | 'AUTO_OFF_PROBE' | 'SLEEPING' | 'PLAY_DEAD' | 'DEFAULT_OFF' | null
 }
 
 export interface HealthStateResult {
@@ -51,17 +57,26 @@ export const classifyHealthState = (
   item: HealthStatusItem,
   sampled: boolean,
 ): HealthStateResult => {
+  // v8.14：用户关闭/系统自动关闭必须优先于休眠与播放摘除；
+  // 旧快照没有 offReason 时回退到 enabled/sleeping，不改变旧行为。
+  if (item.offReason === 'USER_OFF' || (item.userEnabled === false && item.offReason == null)) {
+    return { key: 'health_state_user_off', bucket: 'off', tone: 'muted' }
+  }
+  if (item.offReason === 'AUTO_OFF_PROBE' || item.autoOff === true) {
+    return { key: 'health_state_auto_off', bucket: 'off', tone: 'warn' }
+  }
   if (!item.enabled) {
     return item.sleeping
       ? { key: 'health_state_sleeping', bucket: 'sleep', tone: 'muted' }
       : { key: 'health_state_disabled', bucket: 'off', tone: 'muted' }
   }
   if (!sampled) return { key: 'health_state_idle', bucket: 'idle', tone: 'muted' }
+  // v8.14：真实播放摘除优先于“异常”，否则成功率 0/负健康分会把“已摘除”盖成“异常”。
+  if (item.playDead === true || item.offReason === 'PLAY_DEAD') {
+    return { key: 'health_state_removed', bucket: 'removed', tone: 'bad' }
+  }
   if (item.state === 'closed' && item.successRate === 0 && item.healthScore < 0) {
     return { key: 'health_state_abnormal', bucket: 'bad', tone: 'bad' }
-  }
-  if (item.playDead) {
-    return { key: 'health_state_removed', bucket: 'removed', tone: 'bad' }
   }
   // 熔断 open 优先于限流标签：熔断更严重，不能被“限流中”降级显示
   if (item.state !== 'open' && (item.rateLimitActive === true || item.rateLimited === true)) {

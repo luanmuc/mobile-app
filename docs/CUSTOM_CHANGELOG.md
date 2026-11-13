@@ -1,3 +1,17 @@
+## [音源健康整功能重构：开关原因/真实播放回传/单源只读探测] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- **状态分类**：`healthStatus.ts` 新增 `USER_OFF/AUTO_OFF_PROBE` 两个状态键；优先级改为手动关闭 → 探测自动关闭 → 休眠/默认关闭 → 待采样 → 播放摘除 → 异常 → 限流 → 熔断/半开/正常。修两个旧缺陷：自动关闭被显示成“异常/已摘除”、休眠把“已关闭”盖掉。旧 11 态信息降为 `offReason`，不删除。
+- **reason 透传**：`HealthStatusItem` 接收 `userEnabled/autoOff/offReason`；旧快照无字段时回退 `enabled/sleeping`，不改变旧行为。`DEFAULT_OFF` 与 `USER_OFF` 分开，观察源默认关闭不再冒充用户关闭。
+- **单源探测**：`Health.tsx` 每行名称下新增“探测”，先以 `probeSource apply:false` 只读探测；结果返回后弹确认，用户确认才 `apply:true` 落账（失败可能触发该源自动关闭）。全局“手动探测”仍走整轮 `probe`，但 App 先确认“会应用结果：通过可能解除自动关闭，失败可能触发自动关闭”，取消则不发起。
+- **F43 质量档短路可见**：健康快照新增 `qualityShortCircuit: {128k,320k,flac,flac24bit}`；健康页行内在源名下方显示“档位短路：FLAC/320K”，不再只把短路藏在链构建内部。
+- **F61/F64 链资格**：源仓链项携带 `eligibility`；`wrapExecute` 发请求前重取一次结构资格，建链后用户关源/自动关闭/休眠/摘除的旧链项会被拦截。
+- **真实播放回传**：新增 `reportPlayback` API 与源 action 白名单；播放器 `PlaybackError` 回传失败、`PlaybackState.Playing` 回传成功，`playDead` 不再由取链失败触发；同一曲/源/档/结果只回传一次，防重复 Playing 放大成功样本。
+- **探测进本地时间线**：`health` 刷新后拉取源侧 `healthEvents`，仅把 `probe_result/health_transition` 去重写入 `source_health_*.jsonl`，不落歌名/URL。
+- **配置与契约**：`SOURCE_ACTIONS` 增 `probeSource/reportPlayback`，`user_api.d.ts` 同步；三语补 `health_state_user_off/auto_off`、`health_probe_failed`、`health_probe_all_apply_tip`、`health_quality_short_circuit` 键，三语各 901 键对齐。
+- **验证**：`tsc --noEmit` 0；全仓 `npm run lint` 0；`npm run build-test` 成功（产物已清理）；健康脚本 13/52/51/22/14 + HS8 全 0 失败（`check_health_diagnostics` 新增 H10）。
+
 ## [P3：宿主持久化 canonical key + 跨平台目标收敛 + 契约白名单修复] - 2026-11-13
 
 > 已推送；b116 已发布（5 个 APK，内置源 v8.13.0）。

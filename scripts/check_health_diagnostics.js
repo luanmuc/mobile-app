@@ -610,6 +610,23 @@ const memoryFs = () => {
     global.lx = prevLx
   })
 
+  await checkAsync('H10 recordProbeEvents 只落探测/迁移事件且跨批去重', async() => {
+    mem.files.clear()
+    const events = [
+      { ts: Date.now(), traceId: 'p1', event: 'probe_result', sourceId: 'suyinKuwo', quality: 'flac', ok: false, code: 'PROBE_FAIL', latencyMs: 3, name: '不落歌名' },
+      { ts: Date.now(), traceId: 'p1', event: 'health_transition', sourceId: 'suyinKuwo', from: 'ELIGIBLE', to: 'AUTO_OFF' },
+      { ts: Date.now(), traceId: 'p1', event: 'play_result', sourceId: 'suyinKuwo' },
+    ]
+    const first = await runtime.recordProbeEvents(events)
+    const again = await runtime.recordProbeEvents(events)
+    assert(first === 2, `首轮应写 2 条，实际 ${first}`)
+    assert(again === 0, `重复批次应 0 条，实际 ${again}`)
+    const text = Array.from(mem.files.keys()).filter(k => k.startsWith('/logs/source_health_')).sort().map(k => mem.files.get(k)).join('')
+    const lines = text.trim().split('\n').filter(Boolean).map(l => JSON.parse(l))
+    assert(lines.length === 2 && lines[0].event === 'probe_result' && lines[1].event === 'health_transition', `实际 ${text}`)
+    assert(!('name' in lines[0]), '不得落歌名/非白名单字段')
+  })
+
   await checkAsync('H8 exportDiagnostics 写诊断包并返回路径', async() => {
     const p = await runtime.exportDiagnostics({ ok: true }, new Date(2026, 10, 11, 12, 0, 0))
     assert(p === '/logs/source_health_diag_20261111_120000.json', `实际 ${p}`)
