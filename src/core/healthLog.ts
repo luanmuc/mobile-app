@@ -340,6 +340,34 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
   }
 }
 
+// F56：源事件落盘前再过一遍白名单。源侧本身已裁剪，但旧版本/异常源仍可能带 URL、
+// 歌名或任意字段；App 不能把“源侧应该干净”当成安全边界。
+const SOURCE_EVENT_FIELDS = ['ts', 'seq', 'traceId', 'event', 'sourceId', 'platform', 'quality', 'ok', 'code', 'latencyMs', 'reason', 'from', 'to']
+const clipHealthText = (v: unknown, max = 64): string => String(v ?? '').slice(0, max)
+export const sanitizeSourceEvents = (events: unknown): unknown[] => {
+  if (!Array.isArray(events)) return []
+  return events.flatMap(raw => {
+    if (!raw || typeof raw !== 'object') return []
+    const e = raw as Record<string, unknown>
+    const out: Record<string, unknown> = {}
+    for (const k of SOURCE_EVENT_FIELDS) {
+      if (e[k] === undefined) continue
+      if (k === 'ok') {
+        if (typeof e[k] === 'boolean') out[k] = e[k]
+      } else if (k === 'ts' || k === 'seq') {
+        const n = Number(e[k])
+        if (Number.isFinite(n)) out[k] = n
+      } else if (k === 'latencyMs') {
+        const n = Number(e[k])
+        if (Number.isFinite(n) && n >= 0) out[k] = Math.round(n)
+      } else {
+        out[k] = clipHealthText(e[k], k === 'reason' ? 48 : 64)
+      }
+    }
+    return Object.keys(out).length ? [out] : []
+  }).slice(-200)
+}
+
 export const recordCacheHit = async(input: CacheHitInput): Promise<void> => {
   await appendHealthEvent(buildCacheHitEntry(input))
 }
@@ -350,7 +378,7 @@ export const recordPlayResult = async(input: PlayResultInput): Promise<void> => 
   const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
   await appendHealthEvent(entry)
   if (!input.ok && input.traceId) {
-    const sourceEvents = await fetchSourceEvents(String(input.traceId))
+    const sourceEvents = sanitizeSourceEvents(await fetchSourceEvents(String(input.traceId)))
     if (sourceEvents.length) {
       await appendHealthEvent({
         ts: Date.now(),

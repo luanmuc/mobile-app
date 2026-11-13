@@ -1,3 +1,11 @@
+## [音源健康：方案 6.3 事件流水线审计 + sourceEvents 落盘脱敏] - 2026-11-13
+
+> 本地提交，未推送；对应方案 F32/F33/F56 与 6.3 必跑命令。
+
+- 新增 `scripts/check_health_event_pipeline.js`（E1~E10 10/0）：白名单入库、eventId 去重、失败抓同 trace 源事件、1/5 成功采样权重、chain/play/probe 三块隔离、cache_hit 单列、报告摘要、source_events 不计样本、本地-only 契约。
+- 修复 `healthLog`：`recordPlayResult` 拉回的 `sourceEvents` 不再原样落盘，新增 `sanitizeSourceEvents` 按源事件白名单裁剪（ts/seq/traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason/from/to），URL/歌名/账号等字段在写入前丢弃。
+- `tsc` 0、目标 eslint 0、`check_health_event_pipeline` 10/0、`build-test` rc=0（产物已清理）、docs 18/0。
+
 ## [音源健康：方案 6.3 持久化 v2 审计脚本补齐] - 2026-11-13
 
 > 本地提交，未推送；对应方案 6.3 必跑命令清单。

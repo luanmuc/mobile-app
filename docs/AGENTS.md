@@ -106,7 +106,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 八条只读契约 `check_ts_syntax.js`（525 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（19 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（51 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（15 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 八条只读契约 `check_ts_syntax.js`（525 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）+ `check_health_event_pipeline.js`（10 条，源事件白名单、去重、三块隔离、落盘脱敏）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（19 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（51 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（15 条）。
 
 ### 任务类型分流
 

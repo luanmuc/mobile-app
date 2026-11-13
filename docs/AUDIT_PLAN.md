@@ -480,6 +480,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_source_contract.js` | 14/0 | 11 action；preload 两 case |
 | `check_source_health_persistence.js` | 17/0 | canonical key、旧键迁移、v2 拆分、G5 动态源/版本 |
 | `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
+| `check_health_event_pipeline.js` | 10/0 | 事件白名单、去重、sourceEvents 脱敏、三块隔离 |
 | `check_source_platform_label.js` | 9/9 | 实际平台标签 |
 | `check_source_config_contract.js` | 25/0 | 配置键/三语 |
 | `check_playback_budget.js` | 20/0 | 24s 预算 |
