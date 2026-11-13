@@ -1,6 +1,6 @@
 ## [P3：宿主持久化 canonical key + 跨平台目标收敛 + 契约白名单修复] - 2026-11-13
 
-> 本地提交，未推送；本轮只提交源码与门禁，未重新打包 APK。
+> 已推送；b116 已发布（5 个 APK，内置源 v8.13.0）。
 
 - 2026-11-13 发布前收口：新增 `docs/STRESS_PLAN.md`（压力/深度/视图/日志四组 102 条）；`scripts/check_source_ci_gate_offline.js` 作为本地 403 限流时的 CI 闸门旁路复核；`AUDIT_PLAN`/`RELEASE_SOP`/`AGENTS`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS` 同步当前 HEAD、G5/G7/G8 边界；四组压力实跑 14/51/22/15 = 102/0，T 组审计与 tsc/eslint/docs 全 rc=0。
 - 源仓 `69b07ee`：新增 `exportHealthState/restoreHealthState`（schema v1、源版本 8.13.0、7 天 TTL、256KB 白名单），只恢复 `breaker/byQuality/playDead/qualityShortCircuit`，不恢复 success URL/歌名/账号；跨平台目标收敛为 `tx→wy→kw`；mg/kg 不再作为跨平台目标，直连仍保留但 `suyinKuwo` 实际交付酷我 CDN 时 `sourcePlatform` 回填 `kw`。
