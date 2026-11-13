@@ -328,6 +328,24 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
               data: response,
             }
             break
+          case 'exportHealthState':
+            // P3：健康元数据导出（{v, sourceVersion, savedAt, sources, qualityShortCircuit}）
+            if (typeof response != 'object' || response === null || response.v !== 1 || typeof response.sources != 'object') throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
+          case 'restoreHealthState':
+            // P3：健康元数据恢复结果（{ok, reason?}）
+            if (typeof response != 'object' || response === null || typeof response.ok != 'boolean') throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
         }
         nativeCall(NATIVE_EVENTS_NAMES.response, { requestKey, status: true, result })
       }).catch(err => {

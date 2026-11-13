@@ -17,6 +17,8 @@ export const SOURCE_ACTIONS = [
   'config',
   'trend',
   'healthEvents',
+  'exportHealthState',
+  'restoreHealthState',
 ] as const
 
 export type SourceAction = typeof SOURCE_ACTIONS[number]

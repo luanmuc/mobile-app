@@ -24,7 +24,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error，`.github/workflows/release.yml`）：与语法检查互补，失败即停在构建前
       ├─ ESLint 全仓检查（0 error / 0 warning，`.github/workflows/release.yml`）：格式/类型断言/空值语义等静态约束，失败即停在构建前
-      ├─ 音源标签/配置/语法/action 契约门禁（标签 9 + 配置 24 + 音源契约 13 + 播放预算 20 + 播放所有权运行时 5 + 桥媒体 6 + TS 语法 524，`.github/workflows/release.yml`）：`sourcePlatform` 全链路透传 / 配置键表 / 9 个 action 权威表、v2 envelope 与 fallbackOwner / 播放 24s 预算、attempts（含 owner 归因）、play_result 落盘与候选缓存 / mock 外呼计数与候选竞速逻辑取消 / 桥媒体 base64 信封与 256KB 分片 / TS 语法；失败即停在构建前
+      ├─ 音源标签/配置/语法/action/持久化契约门禁（标签 9 + 配置 25 + 音源契约 14 + 持久化 13 + 播放预算 20 + 播放所有权运行时 19 + 桥媒体 6 + TS 语法 525，`.github/workflows/release.yml`）：`sourcePlatform` 全链路透传 / 配置键表 / 11 个 action 权威表、v2 envelope 与 fallbackOwner / canonical 健康持久化、旧键迁移、动态 provider-id 快照与源版本 / 播放 24s 预算、attempts（含 owner 归因）、play_result 落盘与候选缓存 / mock 外呼计数与候选竞速逻辑取消 / 桥媒体 base64 信封与 256KB 分片 / TS 语法；失败即停在构建前
       ├─ 健康诊断契约门禁（51 条 + 视图 22 条 + 日志目录 15 条，`.github/workflows/release.yml`）：action 透传/分发 case/traceId/本地日志/聚合脱敏，以及折叠态/错误码分组/空态视图模型；失败即停在构建前
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
       ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
@@ -39,12 +39,13 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 
 ## 三、发布前测试清单（改动核心代码时必做）
 
-> 健康契约与音源标签/配置/语法契约、全仓 `tsc --noEmit`、全仓 `eslint` 由 `.github/workflows/release.yml` 在 `Setup Env` 后自动阻塞；压力测试 14 条不在发版阻塞链，挂 `.github/workflows/health-stress.yml`（每周一 UTC 周日 18:45 / 手动 dispatch）。
+> 健康契约与音源标签/配置/语法契约、全仓 `tsc --noEmit`、全仓 `eslint` 由 `.github/workflows/release.yml` 在 `Setup Env` 后自动阻塞；压力/深度/视图/日志目录共 **14 + 51 + 22 + 15 = 102 条**不在发版阻塞链，挂 `.github/workflows/health-stress.yml`（每周一 UTC 周日 18:45 / 手动 dispatch）。
 
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 
-1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（524 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
-2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。
+0. **压力测试计划**：先读 `docs/STRESS_PLAN.md`；四组命令全部 rc=0 后，才进入发布预检。
+1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（525 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
+2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。本地匿名 API 被 403 限流时，可用 `node scripts/check_source_ci_gate_offline.js` 做发布预检旁路证据（不得替代 runner 内的正式闸门）。
 3. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
 4. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮
 5. **下载**：并发任务、暂停/恢复、失败自动重试、仅 WiFi 开关、音质降级链、标签写入、下载目录权限

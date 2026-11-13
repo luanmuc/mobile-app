@@ -28,7 +28,7 @@ publish/                    CI 生成的版本信息（勿手改，构建时自�
 ## 常用命令
 
 ```bash
-# 语法检查（524 个 TS/TSX，每次改动后必跑）
+# 语法检查（525 个 TS/TSX，每次改动后必跑）
 node scripts/check_ts_syntax.js
 
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
@@ -46,6 +46,8 @@ node scripts/check_health_diagnostics_view.js
 # 门禁归属：健康契约 51 + 视图 22 + 日志目录 15 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 22 + 日志目录 15 条在 health-stress.yml（每周/手动）
 # 源仓 HEAD CI 闸门（构建前硬阻断；源仓最近一次 push CI 必须 success，且绿提交是当前 HEAD 祖先）
 node scripts/check_source_ci_gate.js
+# 本地 API 被 403 限流时的离线旁路复核（Actions 页面内嵌 JSON + 本地 merge-base）
+node scripts/check_source_ci_gate_offline.js
 
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_docs_consistency.js
@@ -98,13 +100,13 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 
 | 层级 | 验证内容 | 方法 | 能发现 |
 |---|---|---|---|
-| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（524 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
+| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（525 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
 | L1 逻辑 | 行为/状态流 | 代码走查、必要时补单测 | 逻辑缺陷、状态机错误 |
 | L2 接口 | 依赖/音源 | curl/实测（音源接口、上游 API、npm 包） | 接口失效、协议不匹配 |
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 七条只读契约 `check_ts_syntax.js`（524 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（13 条，含 P1 fallbackOwner）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（19 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（51 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（15 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 八条只读契约 `check_ts_syntax.js`（525 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_health_persistence.js`（13 条，canonical key、旧键迁移、存储异常降级、五平台并发、G5 动态源/版本）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（19 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（51 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（15 条）。
 
 ### 任务类型分流
 

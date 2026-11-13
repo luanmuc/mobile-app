@@ -1,3 +1,16 @@
+## [P3：宿主持久化 canonical key + 跨平台目标收敛 + 契约白名单修复] - 2026-11-13
+
+> 本地提交，未推送；本轮只提交源码与门禁，未重新打包 APK。
+
+- 2026-11-13 发布前收口：新增 `docs/STRESS_PLAN.md`（压力/深度/视图/日志四组 102 条）；`scripts/check_source_ci_gate_offline.js` 作为本地 403 限流时的 CI 闸门旁路复核；`AUDIT_PLAN`/`RELEASE_SOP`/`AGENTS`/`AUDIT_PLAN_HEALTH_DIAGNOSTICS` 同步当前 HEAD、G5/G7/G8 边界；四组压力实跑 14/51/22/15 = 102/0，T 组审计与 tsc/eslint/docs 全 rc=0。
+- 源仓 `69b07ee`：新增 `exportHealthState/restoreHealthState`（schema v1、源版本 8.13.0、7 天 TTL、256KB 白名单），只恢复 `breaker/byQuality/playDead/qualityShortCircuit`，不恢复 success URL/歌名/账号；跨平台目标收敛为 `tx→wy→kw`；mg/kg 不再作为跨平台目标，直连仍保留但 `suyinKuwo` 实际交付酷我 CDN 时 `sourcePlatform` 回填 `kw`。
+- App 仓本轮 P3 提交：新增 `src/core/sourceHealthPersistence.ts`，健康快照统一写单一 canonical key `@___SOURCE_HEALTH___global`（状态内部仍按 provider id）；旧平台键只在首次读取时迁移并清理；`userApi` 首请求前等待 restore，`getHealth` 后异步 save。
+- 审计补漏（本轮新增）：`SOURCE_ACTIONS` 仍为 9 个，导致 `exportHealthState/restoreHealthState` 在 `normalizeSourceInfo` 被过滤；preload `handleRequest` 也没有这两个 case。已补为 11 个 action + 两个 preload 分支，契约测试 13→14 条，并加 `P0-A7` 回归。
+- 审计补漏（二次复核）：App 的 `source` 是平台键 `kw/wy/tx/mg/kg`，而健康快照 `state.sources` 的键是 provider id `suyinKuwo/...`；原 `sanitize` 强制要求 `state.sources[sourceId]`，导致真实 App 的 `kw/wy` 槽位保存/恢复全部因“缺少源 kw”失败。已移除该错误前提，并新增平台键 `A7b/A9b` 回归，持久化自检 6→8 条；本轮再补 canonical key A12/A13，最终 12/0。
+- G5 关闭：`KNOWN_SOURCE_IDS` 12 源硬编码已删除，`HEALTH_STATE_SOURCE_VERSION` 固定版本已删除；写入以源快照自带 `sourceVersion` 为准，源 ID 按 `sources` 实际键校验形态；新增 G5-A1（新源 `newProvider` + 新版本 `9.1.0` 无需改常量即可往返），持久化 13/0。
+- 验证：源仓 `aa-p3-persist` 6/0、`u-cross-platform` 15/15、审计 403/0、冒烟 67/0、压测 12/14/133、变异 22 killed/0 survived、verify-bundle 8/0；App `tsc` 0、目标 eslint 0、语法 525/0、契约 14/0、配置 25/0、持久化自检 13/0、docs-consistency 17 文档 0 过时。
+- 边界：APK b115 仍内置 v8.12.5；P3 恢复/保存只有静态与纯模块断言，尚未真机验证。
+
 ## [App TS 行为覆盖补证：83/83] - 2026-11-12
 
 > 只补测试与文档，不改 App 生产代码；目标是把“门禁加载了但没真正执行”的纯函数覆盖补上。

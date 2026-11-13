@@ -8,7 +8,7 @@
  *   P0-A3 源侧未知 action 不注册到 App
  *   P0-A4 结果兼容旧 raw 与 v2 envelope
  *   P0-A5 失败码 retryable 语义稳定
- *   P0-A6 现有 9 个 action 全部仍有 handler
+ *   P0-A6 现有 11 个 action 全部仍有 handler
  *
  * 用法：node20 scripts/check_source_contract.js
  */
@@ -66,13 +66,13 @@ const SECTION = (name) => console.log(`\n[${name}]`)
 SECTION('contract')
 const CONTRACT = () => loadTs('src/core/init/userApi/sourceContract.ts')
 
-run('P0-A1 SOURCE_ACTIONS 恰好 9 个且集合稳定', () => {
+run('P0-A1 SOURCE_ACTIONS 恰好 11 个且集合稳定', () => {
   const { SOURCE_ACTIONS } = CONTRACT()
   assert.ok(Array.isArray(SOURCE_ACTIONS), 'SOURCE_ACTIONS 必须是数组')
-  assert.strictEqual(SOURCE_ACTIONS.length, 9, `期望 9 个，实际 ${SOURCE_ACTIONS.length}`)
+  assert.strictEqual(SOURCE_ACTIONS.length, 11, `期望 11 个，实际 ${SOURCE_ACTIONS.length}`)
   assert.deepStrictEqual(
     [...SOURCE_ACTIONS].sort(),
-    ['config', 'health', 'healthEvents', 'lyric', 'musicUrl', 'pic', 'probe', 'toggle', 'trend'].sort(),
+    ['config', 'exportHealthState', 'health', 'healthEvents', 'lyric', 'musicUrl', 'pic', 'probe', 'restoreHealthState', 'toggle', 'trend'].sort(),
   )
 })
 
@@ -81,13 +81,15 @@ run('P0-A3 未知 action 被过滤、合法 action 保留', () => {
   const info = normalizeSourceInfo({
     kw: {
       type: 'music',
-      actions: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents', 'foo'],
+      actions: ['musicUrl', 'lyric', 'pic', 'health', 'toggle', 'probe', 'config', 'trend', 'healthEvents', 'exportHealthState', 'restoreHealthState', 'foo'],
       qualitys: ['128k', 'bogus'],
     },
     bad: { type: 'video', actions: ['musicUrl'], qualitys: ['128k'] },
   })
   assert.deepStrictEqual(Object.keys(info), ['kw'], '非 music 源必须被丢弃')
   assert.ok(info.kw.actions.includes('lyric'), '合法 lyric 必须保留')
+  assert.ok(info.kw.actions.includes('exportHealthState'), '合法 exportHealthState 必须保留')
+  assert.ok(info.kw.actions.includes('restoreHealthState'), '合法 restoreHealthState 必须保留')
   assert.ok(!info.kw.actions.includes('foo'), '未知 foo 必须被过滤')
   assert.deepStrictEqual(info.kw.qualitys, ['128k'], '非法音质必须被过滤')
 })
@@ -169,6 +171,13 @@ run('P1-A3 App 保存 fallbackOwners 映射并在换源前判断', () => {
   const source = read('src/core/init/userApi/index.ts')
   assert.ok(source.includes('global.lx.fallbackOwners'), 'index.ts 未写入 fallbackOwners')
   assert.ok(read('src/core/music/utils.ts').includes('shouldHostFallback'), 'utils.ts 换源前缺少 host gate')
+})
+
+run('P0-A7 preload 透传 export/restore 两个宿主持久化 action', () => {
+  const preload = read('android/app/src/main/assets/script/user-api-preload.js')
+  for (const action of ['exportHealthState', 'restoreHealthState']) {
+    assert.ok(preload.includes(`case '${action}'`), `preload handleRequest 缺少 case '${action}'`)
+  }
 })
 
 run('P0-A6 App switch 覆盖全部 SOURCE_ACTIONS', () => {

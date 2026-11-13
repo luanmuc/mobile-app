@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b115**（tag `8f53b502`，Release `442636986`；上一发布 b114；原审计轮为 b74 / `20ac0519`）
-> 最近更新：2026-11-12（v8.12.5 内置源；b115 已发布；TS 行为模块导出函数 83/83=100%；全量门禁复跑）
+> 最近更新：2026-11-13（源仓 v8.13.0 已本地提交 源仓当前单提交；App 本地提交 当前单提交，ahead 1；b115 仍为最近构建且内置 v8.12.5，b116 未构建；TS/TSX 525；全量门禁复跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值**：三语各 **893 键**、TS/TSX **524 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓内置音源 **v8.12.5**、App HEAD **`2a749d31`**、行为模块导出函数 **83/83**。
+> **当前真值**：三语各 **893 键**、TS/TSX **525 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（本地提交，未 push；b115 内置 v8.12.5）**、App HEAD **当前单提交（ahead 1）**、11 个 action、持久化 **13/0**、行为模块导出函数 **83/83**。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -57,7 +57,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | B2 | 自定义音源导入 | ⚠️ | **R4**：`importUserApi` 无返回值，`Source.tsx` 读 `.id` 必抛 TypeError，「一键更新」失效 |
 | B3 | 音源标签 UI | ✅ | `PlayQualityTag` 渲染正常（但文案硬编码见 L 组 R10） |
 | B4 | 音源日志 | ✅ | 竞速打点与失败明细完整 |
-| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 9 个 action（含 healthEvents）与 `userApi` switch 同步 |
+| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 11 个 action（含 healthEvents/exportHealthState/restoreHealthState）与 `userApi` switch 同步 |
 | B6 | 健康面板新增功能 | ⚠️ | 功能存在，配色缺陷同 R5 |
 | B7 | 配置热更新校验 | ✅ | 音源侧白名单校验 |
 
@@ -410,7 +410,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T4 | 全链路枚举闭合 | 7 个已知平台（all/bd/kg/kw/mg/tx/wy）都有 i18n key；`local` 不显示平台；未知值回退原 id 而不是空串 | `getPlatformNameKey` / `resolvePlatformName` 断言 | L1 |
 | T5 | 成功缓存保留实际平台 | 二次播放命中缓存时 `sourcePlatform` 不丢，标签不退回主平台 | 同上 L2 链路 + 源仓 U5 | L2 |
 | T6 | 关闭目标源后的标签一致性 | 目标源被关闭后不得继续用其旧缓存显示该平台；重开后可恢复 | 源仓 U10 + App 侧只消费返回值 | L2 |
-| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的 v8.12.5 与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败 | `release.yml`「Download latest music source」 | L3 |
+| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的当前工作区版本（v8.13.0）与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败；源仓未推送时 Release 拉到远端 v8.12.5，会按设计阻断 | `release.yml`「Download latest music source」 | L3 |
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
@@ -427,7 +427,7 @@ node scripts/check_health_diagnostics.js           # 51/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_health_diagnostics_view.js      # 22/0
 node scripts/check_log_directory.js                # 15/0
-node scripts/check_ts_syntax.js                    # 524/0
+node scripts/check_ts_syntax.js                    # 525/0
 node scripts/check_docs_consistency.js             # 17 文档
 node scripts/docs-audit.js --dry-run               # 待处理 0
 node node_modules/typescript/bin/tsc --noEmit      # 0 error
@@ -458,7 +458,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_health_diagnostics_view.js` | **22/0** | 0 |
 | `check_log_directory.js` | **15/0**（公共优先/私有回迁/四类补齐/并发/压力） | 0 |
-| `check_ts_syntax.js` | **524 文件 0 错误** | 0 |
+| `check_ts_syntax.js` | **525 文件 0 错误** | 0 |
 | `check_docs_consistency.js` | **17 文档无过时引用** | 0 |
 | `tsc --noEmit` | **0 error** | 0 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
@@ -466,3 +466,29 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | Build `43177750140` | Android success / Release success / 跨仓版本 v8.12.5 一致（b115 / `8f53b502`） | — |
 
 > 结论：T 组 12 维中 T1~T6、T11~T12 有本次本地实跑证据；T7~T10 以 Build `43177750140` 为产物级证据。S 组设备级（真机横竖屏/通知栏/批量下载）仍未做，按用户要求不列入本轮待办。
+
+---
+
+## 2026-11-13 发布前复核口径（b116 之前）
+
+> 本节只记录当前本地提交的复核结果；b115/Build `43177750140` 的产物级证据仍是历史基线，不能替代 b116。
+
+| 检查 | 当前结果 | 说明 |
+|---|---|---|
+| `tsc --noEmit` | 0 error | 全仓 |
+| `eslint . --ext .js,.jsx,.ts,.tsx` | 0 error / 0 warning | 全仓 |
+| `check_source_contract.js` | 14/0 | 11 action；preload 两 case |
+| `check_source_health_persistence.js` | 13/0 | canonical key、旧键迁移、G5 动态源/版本 |
+| `check_source_platform_label.js` | 9/9 | 实际平台标签 |
+| `check_source_config_contract.js` | 25/0 | 配置键/三语 |
+| `check_playback_budget.js` | 20/0 | 24s 预算 |
+| `check_playback_ownership_runtime.js` | 19/0 | fallbackOwner |
+| `check_media_body.js` | 6/0 | `__lxMedia:2` |
+| `check_ts_syntax.js` | 525/0 | TS/TSX |
+| `check_docs_consistency.js` | **18 文档 0 过时** | 本轮实跑 |
+| `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 本轮实跑 |
+
+**G5 关闭**：`KNOWN_SOURCE_IDS`/固定 `HEALTH_STATE_SOURCE_VERSION` 已删除；写入取快照 `sourceVersion`，源 ID 按 `sources` 实际键校验；新源新版本往返 13/0。
+
+**G7/G8 边界**：wy 原生链成立；tx 只有 60 秒试听（vkeys `quality=6` 503，直连 `200` 但 ffprobe `60.029s`），源侧 5/5 `NOT_FOUND`，不算完整原生交付。G8 官方 API 本地仍可能 403；新增 `scripts/check_source_ci_gate_offline.js` 离线复核 Actions 页面内嵌 JSON，rc0 可作为本地补充证据；构建 runner 仍用 `check_source_ci_gate.js` + `GITHUB_TOKEN`。
+

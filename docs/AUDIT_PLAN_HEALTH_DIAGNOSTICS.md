@@ -1,7 +1,7 @@
 # 音源健康 · 本地诊断深度审计计划与压力测试口径
 
 > 审计对象：App 仓 `lx-music-mobile`，本地诊断闭环（`healthLog.ts` / `healthDiagnostics.ts` / `online.ts` 失败归因 / `Health.tsx` / 三语文案 / 文档与 workflow）。
-> 本轮基线：提交 `a02db1af`（本地诊断采样加权、失败归因、证据展开、趋势下降），审计修复另见文末「审计发现」。
+> 本轮基线：历史起点 `a02db1af`；2026-11-13 当前复核提交 当前单提交（ahead 1），`check_health_diagnostics` 51/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 22/0、`check_log_directory` 15/0。
 > 原则：不是「跑一遍不崩」，而是逐分支验证统计口径、窗口语义、异常规则、隐私边界和大数据行为。
 
 ## 1. 审计目标
@@ -209,7 +209,7 @@ node scripts/check_health_diagnostics_view.js     # 22/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 524 文件 0 错误
+node scripts/check_ts_syntax.js                   # 525 文件 0 错误
 node scripts/check_source_config_contract.js      # 25/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0
@@ -218,4 +218,4 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；健康契约 51/0；深度审计 51/0；诊断压力 14/0；视图 22/0；日志目录 15/0；配置契约 25/0；音源契约 13/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；健康契约 51/0；深度审计 51/0；诊断压力 14/0；视图 22/0；日志目录 15/0；配置契约 25/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。

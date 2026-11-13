@@ -5,7 +5,8 @@ import BackgroundTimer from 'react-native-background-timer'
 import RNFS from 'react-native-fs'
 import { fetchData } from './request'
 import { getUserApiList, addUserApi, removeUserApi } from '@/utils/data'
-import { getData, saveData } from '@/plugins/storage'
+import { getData, saveData, removeData } from '@/plugins/storage'
+import { restoreSourceHealth, saveSourceHealth, type HealthStorage, type SourceHealthApi } from '@/core/sourceHealthPersistence'
 import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
@@ -13,6 +14,8 @@ import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
 
 
 export default async(setting: LX.AppSetting) => {
+  const healthStorage: HealthStorage = { getData, saveData, removeData }
+  const healthRestoreMap = new Map<string, ReturnType<typeof restoreSourceHealth>>()
   const userApiRequestMap = new Map<string, { resolve: (value: ResponseParams['result']) => void, reject: (error: Error) => void, timeout: number }>()
   const scriptRequestMap = new Map<string, { request: Promise<any>, abort: () => void }>()
 
@@ -102,7 +105,7 @@ export default async(setting: LX.AppSetting) => {
                     canceleFn() {
                       // userApiRequestCancel(requestKey)
                     },
-                    promise: sendUserApiRequest({
+                    promise: (healthRestoreMap.get(source) ?? Promise.resolve()).then(async() => sendUserApiRequest({
                       requestKey,
                       data: {
                         source,
@@ -136,7 +139,7 @@ export default async(setting: LX.AppSetting) => {
                     }).catch(err => {
                       console.log(err.message)
                       throw err
-                    }),
+                    })),
                   }
                 }
                 break
@@ -204,7 +207,7 @@ export default async(setting: LX.AppSetting) => {
                     canceleFn() {
                       // userApiRequestCancel(requestKey)
                     },
-                    promise: sendUserApiRequest({
+                    promise: (healthRestoreMap.get(source) ?? Promise.resolve()).then(async() => sendUserApiRequest({
                       requestKey,
                       data: {
                         source,
@@ -212,9 +215,12 @@ export default async(setting: LX.AppSetting) => {
                         info: {},
                       },
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
-                    }).then(res => {
+                    })).then(res => {
                       // console.log(res)
                       return unwrapSourceResult(res.data)
+                    }).then(snapshot => {
+                      void saveSourceHealth(apis as Record<string, SourceHealthApi>, source, healthStorage)
+                      return snapshot
                     }).catch(async err => {
                       console.log(err.message)
                       return Promise.reject(err)
@@ -333,11 +339,41 @@ export default async(setting: LX.AppSetting) => {
                   }
                 }
                 break
+              case 'exportHealthState':
+                apis[source].exportHealth = () => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() { /* 只读导出无独立取消 */ },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: { source, action: 'exportHealthState', info: {} },
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => Promise.reject(err)),
+                  }
+                }
+                break
+              case 'restoreHealthState':
+                apis[source].restoreHealth = (state: unknown) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() { /* 恢复为启动期一次性动作 */ },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: { source, action: 'restoreHealthState', info: state },
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => ({ ok: false, reason: String(err?.message || err) })),
+                  }
+                }
+                break
               default:
                 break
             }
           }
           qualitys[source as LX.Source] = sourceQualitys
+        }
+        for (const source of Object.keys(apis as Record<string, unknown>)) {
+          const sourceId = String(source)
+          const restore = restoreSourceHealth(apis as Record<string, SourceHealthApi>, sourceId, String(info.version || ''), healthStorage)
+          healthRestoreMap.set(sourceId, restore)
+          void restore
         }
         global.lx.qualityList = qualitys
         global.lx.apis = apis
