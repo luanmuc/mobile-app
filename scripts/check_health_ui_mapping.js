@@ -108,6 +108,13 @@ check('U10 三语键数一致且 summary 旧键仍在', () => {
   }
 })
 
+check('U11 诊断取链/播放/探测三块独立可见', () => {
+  assert(ui.includes('diagView.blocks.play') && ui.includes('diagView.blocks.probe'), '诊断 UI 未消费播放/探测块')
+  for (const k of ['health_diag_chain', 'health_diag_play', 'health_diag_probe', 'health_diag_block']) {
+    for (const l of ['zh-cn', 'zh-tw', 'en-us']) assert(langs[l][k], `${l} 缺 ${k}`)
+  }
+})
+
 console.log(`\n${passed} passed, ${failures.length} failed`)
 if (failures.length) process.exit(1)
 process.exit(0)

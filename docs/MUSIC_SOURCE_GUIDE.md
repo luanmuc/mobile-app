@@ -97,7 +97,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。
 - 健康页「最近异常」默认折叠，点标题展开为四层：数据可信度（覆盖时长/是否截断）、近 24h 总体（取链/成功/失败/本地成功率）、错误码、其他线索；展开后仍展示异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码（仅在有前 24h 基线时判定）、最近 4 次快照成功率连续下降且累计 ≥15pp）；页面顶部趋势预警与报告共用同一条 `trend_decline` finding，不再维护第二套健康分阈值；同一错误码不会同时以“新错误码”和“近期失败”重复出现；窗口覆盖不足时标记 `covered=false` 并提示实际覆盖时长，7 天结论仅供参考。健康页的行内开关/单源探测会按源快照的 `platforms` 绑定到对应音源 API；不再对所有源统一取第一个声明 action 的 API。
 
-诊断聚合按取链（`source_result`）/ 播放（`play_result`）/ 探测（`probe_result`）三块独立算成功率，`windows` 只代表取链；报告同时给出 `playWindows/probeWindows`，缓存命中单独计数。
+诊断聚合按取链（`source_result`）/ 播放（`play_result`）/ 探测（`probe_result`）三块独立算成功率，`windows` 只代表取链；报告同时给出 `playWindows/probeWindows`，缓存命中单独计数。健康页展开后按“取链 / 播放 / 探测”三行分别展示近 24h 次数、成功数与成功率，禁止把播放成功混入取链口径。
 
 「导出诊断包」生成 `schema:2` 证据包：`manifest + report + events + snapshot + trend + logTail`；manifest 记录版本/计数/上限/截断标记/估算字节，事件最近 1000 条、趋势最近 200 条、日志尾部 UTF-8 64KB、总量 2MB 上限；快照与日志均递归脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动上传、不自动关源。
 

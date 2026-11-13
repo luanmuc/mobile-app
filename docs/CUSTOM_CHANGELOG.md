@@ -60,6 +60,13 @@
 - 音质展开区显示「绑定 API：<id>」，三语新增 `health_source_binding`（各 903 键）。
 - 验证：`check_health_status_refactor` HS10 10/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）；docs 18/0。
 
+## [音源健康：F53 三块诊断 UI 收口] - 2026-11-13
+
+- `healthDiagnosticsView` 新增 `blocks.chain/play/probe` 三块视图模型，分别透出近 1h/24h 总数、成功、失败与成功率；缺失 `playWindows/probeWindows` 的旧报告按 0 降级，不抛错。
+- 健康页诊断展开区新增“取链 / 播放 / 探测”三行，各自显示 24h 次数、成功数与成功率；取链旧字段 `stats/h1/codes/others` 保留，避免旧 UI 与导出失效。
+- 三语新增 `health_diag_chain/play/probe/block`，各 917 键；`check_health_ui_mapping` U11 校验 UI 实际消费播放/探测块且三语键齐全。
+- 验证：`check_health_diagnostics_view` 23/0（新增 V23）、`check_health_ui_mapping` 11/0（新增 U11）、状态/绑定/持久化/事件 8/0、10/0、17/0、9/0、10/0，`tsc` 0，目标 eslint 0，`build-test` rc=0（产物已清理），docs 18/0。
+
 ## [音源健康：F53/F10 取链/播放/探测三块分算] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。

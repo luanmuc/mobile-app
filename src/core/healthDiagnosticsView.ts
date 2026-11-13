@@ -12,7 +12,18 @@ export const isCodeFinding = (finding: HealthFinding): boolean => (
   (CODE_FINDING_IDS as readonly string[]).includes(finding.id)
 )
 
+export interface HealthBlockStats {
+  h1: { total: number, ok: number, empty: boolean }
+  h24: { total: number, ok: number, failed: number, rateText: string, rateWarn: boolean }
+}
+
 export interface HealthDiagnosticsView {
+  // F53：诊断三块独立展示，取链块历史字段保留，播放/探测不再混进取链成功率。
+  blocks: {
+    chain: HealthBlockStats
+    play: HealthBlockStats
+    probe: HealthBlockStats
+  }
   stats: {
     total: number
     ok: number
@@ -62,7 +73,26 @@ export const buildHealthDiagnosticsView = (report: HealthReport): HealthDiagnost
   const codes = findings.filter(isCodeFinding)
   const others = findings.filter(f => !isCodeFinding(f))
   const rateText = percentText(h24.successRate)
+  const blockOf = (ws?: { h1?: typeof h1, h24?: typeof h24 }): HealthBlockStats => {
+    const b1 = ws?.h1 ?? h1
+    const b24 = ws?.h24 ?? h24
+    return {
+      h1: { total: b1.total, ok: b1.ok, empty: b1.total === 0 },
+      h24: {
+        total: b24.total,
+        ok: b24.ok,
+        failed: b24.failed,
+        rateText: percentText(b24.successRate),
+        rateWarn: b24.successRate != null && b24.successRate < 0.6,
+      },
+    }
+  }
   return {
+    blocks: {
+      chain: blockOf({ h1: report.windows.h1, h24: report.windows.h24 }),
+      play: blockOf(report.playWindows),
+      probe: blockOf(report.probeWindows),
+    },
     stats: {
       total: h24.total,
       ok: h24.ok,

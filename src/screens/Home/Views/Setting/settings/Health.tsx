@@ -564,6 +564,15 @@ export default memo(() => {
                         : t('health_diag_h1', { n: diagView.h1.total, ok: diagView.h1.ok })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_block', { label: t('health_diag_chain'), total: diagView.blocks.chain.h24.total, ok: diagView.blocks.chain.h24.ok, rate: diagView.blocks.chain.h24.rateText })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
                       {t('health_diag_cache_hits', { n: diagView.cacheHits.h24 })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>

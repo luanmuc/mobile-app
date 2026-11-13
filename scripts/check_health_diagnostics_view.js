@@ -267,6 +267,17 @@ check('V21 缓存命中计数独立透出', () => {
   assert(v.stats.total === 0, '缓存命中不应进入取链统计')
 })
 
+check('V23 取链/播放/探测三块视图独立，不混成功率', () => {
+  const v = view.buildHealthDiagnosticsView(report({
+    windows: { h1: win(), h24: win({ total: 9, ok: 2, failed: 7, successRate: 0.22 }), d7: win() },
+    playWindows: { h1: win(), h24: win({ total: 4, ok: 3, failed: 1, successRate: 0.75 }), d7: win() },
+    probeWindows: { h1: win(), h24: win({ total: 2, ok: 2, failed: 0, successRate: 1 }), d7: win() },
+  }))
+  assert(v.blocks.chain.h24.total === 9 && v.blocks.chain.h24.rateText === '22%', JSON.stringify(v.blocks.chain))
+  assert(v.blocks.play.h24.total === 4 && v.blocks.play.h24.rateText === '75%', JSON.stringify(v.blocks.play))
+  assert(v.blocks.probe.h24.total === 2 && v.blocks.probe.h24.rateText === '100%', JSON.stringify(v.blocks.probe))
+})
+
 check('V22 旧报告缺 cacheHits 时按 0 处理', () => {
   const v = view.buildHealthDiagnosticsView(report({ cacheHits: undefined }))
   assert(v.cacheHits.h1 === 0 && v.cacheHits.h24 === 0, JSON.stringify(v.cacheHits))
