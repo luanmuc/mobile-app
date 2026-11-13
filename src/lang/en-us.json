@@ -900,5 +900,6 @@
   "health_probe_all_apply_tip": "A global probe applies its results: a pass may clear auto-off, and a failure may trigger auto-off. Continue?",
   "health_quality_short_circuit": "Quality short-circuit: {q}",
   "health_probe_apply_button": "Apply",
-  "health_quality_matrix_tip": "Quality matrix (tap quality to expand): per-tier requests/success/fail/latency/breaker"
+  "health_quality_matrix_tip": "Quality matrix (tap quality to expand): per-tier requests/success/fail/latency/breaker",
+  "health_source_binding": "Bound API: {id}"
 }

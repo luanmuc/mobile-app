@@ -1,3 +1,12 @@
+## [音源健康：F19/F60 健康页 API 绑定] - 2026-11-13
+
+> 本地提交，未推送；与源仓健康重构配套。
+
+- 新增 `src/core/healthSourceBinding.ts`：`bindHealthSource` 按显式 sourceId → provider `platforms` → 首个声明 action 的顺序绑定，返回 `matched` 来源。
+- `Health.tsx` 的 `getQuerier` 不再直接 `find` 第一个 API；行内 `toggle` / `probeSource` 传入当前源 `platforms`，多源时不会打到不相干 API。
+- 音质展开区显示「绑定 API：<id>」，三语新增 `health_source_binding`（各 903 键）。
+- 验证：`check_health_status_refactor` HS10 10/0；`tsc` 0；目标 eslint 0；`build-test` rc=0（产物已清理）；docs 18/0。
+
 ## [音源健康：F53/F10 取链/播放/探测三块分算] - 2026-11-13
 
 > 本地提交，未推送；与源仓健康重构配套。

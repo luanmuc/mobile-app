@@ -19,6 +19,7 @@ import {
   msToDisplay,
 } from '@/core/sourceConfig'
 import { buildQualityMatrixRows, classifyHealthState, hasHealthSample, summarizeHealthItems } from '@/core/healthStatus'
+import { bindHealthSource } from '@/core/healthSourceBinding'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
@@ -43,6 +44,8 @@ interface HealthItem {
   // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
   playDead?: boolean
   qualityShortCircuit?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', boolean>>
+  // F19/F60：源快照携带的平台列表，用于把 toggle/probeSource 绑定到对应 API。
+  platforms?: string[]
   // F16：逐档质量矩阵（源快照 byQuality：req/success/fail/businessFail/rate/avgTime/state）
   byQuality?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', {
     req?: number
@@ -70,11 +73,16 @@ type HealthSnapshot = Record<string, HealthItem>
 // 配置名/说明、源名、单位、弹窗文案全部走 i18n，中文硬编码不再保留。
 
 // 获取当前音源的健康查询器（任一声明对应 action 的源均可，聚合结果与源无关）
-const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend'): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
+// F19/F60：按 provider 的 platforms 绑定 API；没有匹配才回退第一个声明者，避免多源时打错 API。
+const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend', item?: Pick<HealthItem, 'id' | 'platforms'>): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
   const apis = (global as any).lx?.apis as Record<string, any> | undefined
   if (!apis) return null
-  const sourceId = Object.keys(apis).find(id => typeof apis[id]?.[fn] === 'function')
-  return sourceId ? apis[sourceId][fn] : null
+  const binding = bindHealthSource(apis, fn, item?.id, item?.platforms)
+  return binding ? apis[binding.sourceId][fn] : null
+}
+const boundSourceId = (item: HealthItem): string => {
+  const apis = (global as any).lx?.apis as Record<string, any> | undefined
+  return bindHealthSource(apis, 'toggle', item.id, item.platforms)?.sourceId ?? ''
 }
 
 // 无样本（未产生任何请求/探测）判定
@@ -326,10 +334,10 @@ export default memo(() => {
   }, [t])
 
   // v8.14：行内单源探测——只读（apply=false），不关闭/启用/休眠任何源，不改全局健康状态。
-  const probeOne = useCallback(async(id: string, name?: string) => {
+  const probeOne = useCallback(async(id: string, name?: string, platforms?: string[]) => {
     if (probingId) return
     setError('')
-    const querier = getQuerier('probeSource')
+    const querier = getQuerier('probeSource', { id, platforms })
     if (!querier) { setError(t('health_no_source')); return }
     setProbingId(id)
     try {
@@ -356,7 +364,7 @@ export default memo(() => {
   const toggleSource = useCallback(async(item: HealthItem, id: string) => {
     if (togglingId) return
     setError('')
-    const querier = getQuerier('toggle')
+    const querier = getQuerier('toggle', item)
     if (!querier) {
       setError(t('health_no_source'))
       return
@@ -644,7 +652,7 @@ export default memo(() => {
                     <View style={[styles.row, { borderBottomColor: theme['c-border-background'] }]}>
                       <View style={styles.colName}>
                         <Text numberOfLines={1} size={12} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{sourceLabel(id, item.name)}</Text>
-                        <Text size={9} color={theme['c-font-label']} onPress={() => { void probeOne(id, item.name) }}>{probingId === id ? '…' : t('health_probe_one')}</Text>
+                        <Text size={9} color={theme['c-font-label']} onPress={() => { void probeOne(id, item.name, item.platforms) }}>{probingId === id ? '…' : t('health_probe_one')}</Text>
                         {shortQualities.length
                           ? <Text size={9} color="#faad14">{t('health_quality_short_circuit', { q: shortQualities.join('/') })}</Text>
                           : null}
@@ -670,7 +678,7 @@ export default memo(() => {
                     {
                       expandedQuality === id ? (
                         <View style={styles.qualityMatrix}>
-                          <Text size={9} color={theme['c-font-label']}>{t('health_quality_matrix_tip')}</Text>
+                          <Text size={9} color={theme['c-font-label']}>{t('health_quality_matrix_tip')}{boundSourceId(item) ? ` · ${t('health_source_binding', { id: boundSourceId(item) })}` : ''}</Text>
                           <View style={styles.qualityMatrixRows}>
                             {
                               buildQualityMatrixRows(item).map(q => {

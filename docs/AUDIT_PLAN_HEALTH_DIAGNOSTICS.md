@@ -212,7 +212,7 @@ node scripts/check_health_diagnostics_view.js     # 22/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 525 文件 0 错误
+node scripts/check_ts_syntax.js                   # 526 文件 0 错误
 node scripts/check_source_config_contract.js      # 25/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0

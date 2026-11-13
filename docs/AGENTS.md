@@ -28,7 +28,7 @@ publish/                    CI 生成的版本信息（勿手改，构建时自�
 ## 常用命令
 
 ```bash
-# 语法检查（525 个 TS/TSX，每次改动后必跑）
+# 语法检查（526 个 TS/TSX，每次改动后必跑）
 node scripts/check_ts_syntax.js
 
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
@@ -100,7 +100,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 
 | 层级 | 验证内容 | 方法 | 能发现 |
 |---|---|---|---|
-| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（525 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
+| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（526 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
 | L1 逻辑 | 行为/状态流 | 代码走查、必要时补单测 | 逻辑缺陷、状态机错误 |
 | L2 接口 | 依赖/音源 | curl/实测（音源接口、上游 API、npm 包） | 接口失效、协议不匹配 |
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |

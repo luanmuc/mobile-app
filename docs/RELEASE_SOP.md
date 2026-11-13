@@ -44,7 +44,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 
 0. **压力测试计划**：先读 `docs/STRESS_PLAN.md`；四组命令全部 rc=0 后，才进入发布预检。
-1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（525 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
+1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（526 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
 2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。本地匿名 API 被 403 限流时，可用 `node scripts/check_source_ci_gate_offline.js` 做发布预检旁路证据（不得替代 runner 内的正式闸门）。
 3. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
 4. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮

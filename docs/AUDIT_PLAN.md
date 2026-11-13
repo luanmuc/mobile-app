@@ -1,7 +1,7 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；当前发布 **v1.9.2-b115**（tag `8f53b502`，Release `442636986`；上一发布 b114；原审计轮为 b74 / `20ac0519`）
-> 最近更新：2026-11-13（源仓 v8.13.0 已本地提交 源仓当前单提交；App 本地提交 当前单提交，ahead 1；b115 仍为最近构建且内置 v8.12.5，b116 已发布；TS/TSX 525；全量门禁复跑）
+> 最近更新：2026-11-13（源仓 v8.13.0 已本地提交 源仓当前单提交；App 本地提交 当前单提交，ahead 1；b115 仍为最近构建且内置 v8.12.5，b116 已发布；TS/TSX 526；全量门禁复跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
 > **当前真值**：三语各 **893 键**、TS/TSX **525 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（已 push；b116 内置 v8.13.0）**、App HEAD **`e41d0d15`（已 push；b116 已发布）**、11 个 action、持久化 **13/0**、行为模块导出函数 **83/83**。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
@@ -427,7 +427,7 @@ node scripts/check_health_diagnostics.js           # 51/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_health_diagnostics_view.js      # 22/0
 node scripts/check_log_directory.js                # 15/0
-node scripts/check_ts_syntax.js                    # 525/0
+node scripts/check_ts_syntax.js                    # 526/0
 node scripts/check_docs_consistency.js             # 17 文档
 node scripts/docs-audit.js --dry-run               # 待处理 0
 node node_modules/typescript/bin/tsc --noEmit      # 0 error
@@ -458,7 +458,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_health_diagnostics_view.js` | **22/0** | 0 |
 | `check_log_directory.js` | **15/0**（公共优先/私有回迁/四类补齐/并发/压力） | 0 |
-| `check_ts_syntax.js` | **525 文件 0 错误** | 0 |
+| `check_ts_syntax.js` | **526 文件 0 错误** | 0 |
 | `check_docs_consistency.js` | **17 文档无过时引用** | 0 |
 | `tsc --noEmit` | **0 error** | 0 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
@@ -484,7 +484,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_playback_budget.js` | 20/0 | 24s 预算 |
 | `check_playback_ownership_runtime.js` | 19/0 | fallbackOwner |
 | `check_media_body.js` | 6/0 | `__lxMedia:2` |
-| `check_ts_syntax.js` | 525/0 | TS/TSX |
+| `check_ts_syntax.js` | 526/0 | TS/TSX |
 | `check_docs_consistency.js` | **18 文档 0 过时** | 本轮实跑 |
 | `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 本轮实跑 |
 

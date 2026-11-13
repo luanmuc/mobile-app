@@ -14,6 +14,14 @@ const out = ts.transpileModule(fs.readFileSync(file, 'utf-8'), {
 const mod = { exports: {} }
 new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
 const { buildQualityMatrixRows, classifyHealthState, summarizeHealthItems } = mod.exports
+const bindFile = path.join(ROOT, 'src/core/healthSourceBinding.ts')
+const bindOut = ts.transpileModule(fs.readFileSync(bindFile, 'utf-8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  fileName: bindFile,
+}).outputText
+const bindMod = { exports: {} }
+new Function('exports', 'module', 'require', bindOut)(bindMod.exports, bindMod, require)
+const { bindHealthSource } = bindMod.exports
 let pass = 0
 let fail = 0
 const check = (id, name, fn) => {
@@ -79,6 +87,16 @@ check('HS9', '质量矩阵固定四档，逐档展示 success/fail/state（F16�
   if (!low || low.success !== 5 || low.fail !== 0 || low.hasSample !== true) throw new Error(JSON.stringify(low))
   const empty = rows.find(r => r.quality === '320k')
   if (!empty || empty.req !== 0 || empty.hasSample !== false) throw new Error(JSON.stringify(empty))
+})
+check('HS10', '健康 API 按 provider platforms 绑定，多源时不取第一个（F19/F60）', () => {
+  const apis = { kw: { toggle() {} }, suyin: { toggle() {} }, wy: { toggle() {} }, noAction: {} }
+  const platform = bindHealthSource(apis, 'toggle', 'suyinKuwo', ['wy', 'kw'])
+  if (!platform || platform.sourceId !== 'wy' || platform.matched !== 'platform') throw new Error(JSON.stringify(platform))
+  const explicit = bindHealthSource(apis, 'toggle', 'suyin', ['kw'])
+  if (!explicit || explicit.sourceId !== 'suyin' || explicit.matched !== 'explicit') throw new Error(JSON.stringify(explicit))
+  const fallback = bindHealthSource(apis, 'toggle', 'missing', ['zz'])
+  if (!fallback || fallback.sourceId !== 'kw' || fallback.matched !== 'fallback') throw new Error(JSON.stringify(fallback))
+  if (bindHealthSource(apis, 'probeSource', undefined, ['kw']) !== null) throw new Error('不应绑定缺 action 的 API')
 })
 console.log(`\nHealth status refactor: ${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
