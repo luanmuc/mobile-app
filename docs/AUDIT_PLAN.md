@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b116**（Release tag `e41d0d15`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交（本地未推送）（当前 HEAD，master，未推送）
-> 最近更新：2026-11-13（最终审计轮：源仓 `5d62195` / App `a87d3f3a` 均为本地未推送干净工作区；源 v8.13.0 / App 1.9.2；TS/TSX 526；22 个 check 脚本逐项实跑）
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b116**（Release tag `e41d0d15`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（当前 HEAD，master，未推送）
+> 最近更新：2026-11-14（最终审计收口：源仓 `7e78e63` 已推送，`lx-source CI` run `43514977949` success；App `785af658` 本地待推送；源 v8.13.0 / App 1.9.2；TS/TSX 526；22 个 check 脚本逐项实跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-13 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（本地 `5d62195`，未推送）**、App 审计基线 **`a87d3f3a`**、本轮修复提交（本地未推送）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@5f9b01f` 基于绿提交 `7631325`，compare=ahead）。
+> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（`7e78e63`，已推送；CI 绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、本轮修复提交 **`785af658`**（本地待推送）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@03fe893`，当前 HEAD `7e78e63` 为 docs-only 后继，compare=ahead）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -11,7 +11,7 @@
 
 ## 2026-11-13 最终审计计划（当前代码量身定制）
 
-> 适用基线：App `a87d3f3a`、源仓 `5d62195`。两仓均干净、本地未推送；本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
+> 适用基线：App `785af658`（本地待推送，工作区干净）、源仓 `7e78e63`（已推送，CI 绿提交 `03fe893`）。本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
 
 ### 0. 审计目标与边界
 
@@ -70,9 +70,9 @@ rg -n "SOURCE_ACTIONS|11 个 action|13 个 action" src scripts docs
 |---|---|---|---|---|
 | A-F01 | `check_source_contract` 仍按 11 action 断言，实际 13（漏 `probeSource`/`reportPlayback`） | 中 | 首跑 13/1，`期望 11 个，实际 13` | 已改为 13 并补集合；复跑 14/0 |
 | A-F02 | 三语保留未被消费的 `health_diag_codes_disabled`，与 `health_diag_conclusions_disabled` 语义重复 | 低 | `rg` 仅 lang 命中；键数 905 但唯一语义 904 | 已删旧键，三语 904；相关检查复跑通过 |
-| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 904/526/13/`a87d3f3a` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
+| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 904/526/13/`785af658` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
 | A-F04 | G2 真机、G7 tx 完整链、Batch 5 版本拍板外部阻塞 | — | `health_device_acceptance.sh --dry-run` rc=3；上游约 60s 试听 | 标 blocked，不写入通过 |
-| A-F05 | `check_source_ci_gate` 本地环境变量 `GITHUB_TOKEN` 无效导致 403 | 低 | 环境变量返回 `Bad credentials`；Git 凭据库令牌有效 | 已用 `git credential fill` 取有效令牌复跑 **rc0**；CI runner 仍用其自带 `GITHUB_TOKEN` |
+| A-F05 | `check_source_ci_gate` 本地环境变量 `GITHUB_TOKEN` 无效导致 403 | 低 | 环境变量返回 `Bad credentials`；Git 凭据库令牌有效 | 已用 `git credential fill` 取有效令牌复跑 **rc0**（源仓 `03fe893` 为绿提交，当前 `7e78e63` compare=ahead）；CI runner 仍用其自带 `GITHUB_TOKEN` |
 
 
 

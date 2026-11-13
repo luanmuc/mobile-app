@@ -1,6 +1,6 @@
 # App 压力测试计划（2026-11-13 最终版）
 
-> 适用基线：App `a87d3f3a`（master，本地未推送，工作区干净）；源仓 `5d62195`（v8.13.0，本地未推送）。
+> 适用基线：App `785af658`（master，本地待推送，工作区干净）；源仓 `7e78e63`（v8.13.0，已推送；CI 绿提交 `03fe893`）。
 > 目标：在推送/发布前，用可重复的纯 Node/内存 FS 压力用例证明「大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约」不会崩、不会越界、不会泄露，也不会把失败伪装成通过。
 > 范围：本计划覆盖 `scripts/check_*.js` 中可直接本地执行的压力/深度/契约检查；`health-stress.yml` 仍是周级兜底，`release.yml` 仍以正式门禁为准。
 > 纪律：所有结论必须带本轮 HEAD 的 rc 与通过/失败计数；禁止沿用历史绿；`blocked` 不等于通过。
@@ -65,7 +65,7 @@ node scripts/docs-audit.js --dry-run
 | 项 | 结果 | 证据 |
 |---|---|---|
 | 13 个压力/诊断/契约脚本 | 全部 rc0，合计 214/0 | 逐脚本输出见 `docs/reports/两仓最终审计报告-2026-11-13.md` |
-| 其余门禁 | 22/22 rc0；`check_source_ci_gate` 用 Git 凭据库有效令牌复跑 rc0（源仓 `5f9b01f` 基于绿提交 `7631325`） | 离线旁路仅补充 |
+| 其余门禁 | 22/22 rc0；`check_source_ci_gate` 用 Git 凭据库有效令牌复跑 rc0（源仓 `03fe893` 绿，当前 `7e78e63` 为 docs-only 后继，compare=ahead） | 离线旁路仅补充 |
 | `tsc --noEmit` | rc0 | 0 error |
 | `eslint .` | rc0 | 0 error / 0 warning |
 | `npm run build-test` | rc0 | `index.android.bundle` 重建 |
@@ -75,7 +75,7 @@ node scripts/docs-audit.js --dry-run
 ## 4. 失败处置与外部阻塞
 
 1. `check_source_contract` 首跑 13/1：断言仍按旧 11 action，实际 13；已更新为 13 并补齐 `probeSource`/`reportPlayback`。
-2. `check_source_ci_gate` 已复跑 **rc0**：环境变量 `GITHUB_TOKEN` 无效，改用 Git 凭据库令牌；注意它校验的是远端 `backend-api@5f9b01f`，本地未推送的源修复提交仍不被远端闸门覆盖。
+2. `check_source_ci_gate` 已复跑 **rc0**：环境变量 `GITHUB_TOKEN` 无效，改用 Git 凭据库令牌；它校验远端 `backend-api@03fe893` 的绿 CI，当前源 HEAD `7e78e63` 仅文档提交，compare=ahead。
 3. G2 真机验收仍 blocked：云主机无 `adb`、无 `/dev/kvm`、`ANDROID_HOME` 未设置，`health_device_acceptance.sh --dry-run` rc=3。
 4. G7 tx 完整曲目仍 blocked：上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`。
 5. 真机持久化/RN 桥/分享 Intent 仍无设备级证据；本计划只对纯 Node/内存 FS 结论负责。
