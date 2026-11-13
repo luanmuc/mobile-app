@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b116**（Release tag `e41d0d15`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（当前 HEAD，master，未推送）
-> 最近更新：2026-11-14（最终审计收口：源仓 `7e78e63` 已推送，`lx-source CI` run `43514977949` success；App `785af658` 本地待推送；源 v8.13.0 / App 1.9.2；TS/TSX 526；22 个 check 脚本逐项实跑）
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b117**（CI 自动回写 `1124ac91`，versionCode 276）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（已推送）；文档回填 **`8adce795`**（已推送，App CI run `43520302282` success）
+> 最近更新：2026-11-14（最终审计收口：源仓 `7e78e63` 已推送，`lx-source CI` run `43514977949` success；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；源 v8.13.0 / App 1.9.2-b117（versionCode 276）；TS/TSX 526；22 个 check 脚本逐项实跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（`7e78e63`，已推送；CI 绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、本轮修复提交 **`785af658`**（本地待推送）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@03fe893`，当前 HEAD `7e78e63` 为 docs-only 后继，compare=ahead）。
+> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.0（`7e78e63`，已推送；CI 绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、本轮修复提交 **`785af658`**（已推送）、文档回填 **`8adce795`**（已推送，App CI `43520302282` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@03fe893`，当前 HEAD `7e78e63` 为 docs-only 后继，compare=ahead）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -11,7 +11,7 @@
 
 ## 2026-11-13 最终审计计划（当前代码量身定制）
 
-> 适用基线：App `785af658`（本地待推送，工作区干净）、源仓 `7e78e63`（已推送，CI 绿提交 `03fe893`）。本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
+> 适用基线：App `785af658` + 文档回填 `8adce795`（均已推送，工作区干净；App CI `43520302282` success）、源仓 `7e78e63`（已推送，CI 绿提交 `03fe893`）。本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
 
 ### 0. 审计目标与边界
 

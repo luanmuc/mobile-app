@@ -1,6 +1,6 @@
 # App 压力测试计划（2026-11-13 最终版）
 
-> 适用基线：App `785af658`（master，本地待推送，工作区干净）；源仓 `7e78e63`（v8.13.0，已推送；CI 绿提交 `03fe893`）。
+> 适用基线：App `785af658` + 文档回填 `8adce795`（master，已推送，工作区干净；App CI `43520302282` success）；源仓 `7e78e63`（v8.13.0，已推送；CI 绿提交 `03fe893`）。
 > 目标：在推送/发布前，用可重复的纯 Node/内存 FS 压力用例证明「大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约」不会崩、不会越界、不会泄露，也不会把失败伪装成通过。
 > 范围：本计划覆盖 `scripts/check_*.js` 中可直接本地执行的压力/深度/契约检查；`health-stress.yml` 仍是周级兜底，`release.yml` 仍以正式门禁为准。
 > 纪律：所有结论必须带本轮 HEAD 的 rc 与通过/失败计数；禁止沿用历史绿；`blocked` 不等于通过。
@@ -65,7 +65,7 @@ node scripts/docs-audit.js --dry-run
 | 项 | 结果 | 证据 |
 |---|---|---|
 | 13 个压力/诊断/契约脚本 | 全部 rc0，合计 214/0 | 逐脚本输出见 `docs/reports/两仓最终审计报告-2026-11-13.md` |
-| 其余门禁 | 22/22 rc0；`check_source_ci_gate` 用 Git 凭据库有效令牌复跑 rc0（源仓 `03fe893` 绿，当前 `7e78e63` 为 docs-only 后继，compare=ahead） | 离线旁路仅补充 |
+| 其余门禁 | 22/22 rc0；`check_source_ci_gate` 用 Git 凭据库有效令牌复跑 rc0（源仓 `03fe893` 绿，当前 `7e78e63` 为 docs-only 后继，compare=ahead）；App CI `43520302282` success | 离线旁路仅补充 |
 | `tsc --noEmit` | rc0 | 0 error |
 | `eslint .` | rc0 | 0 error / 0 warning |
 | `npm run build-test` | rc0 | `index.android.bundle` 重建 |
