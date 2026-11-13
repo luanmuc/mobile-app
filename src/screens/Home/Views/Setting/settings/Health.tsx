@@ -703,7 +703,16 @@ export default memo(() => {
                                 const avg = q.avgTime == null ? '-' : `${Math.round(q.avgTime)}ms`
                                 return (
                                   <Text key={q.quality} size={10} style={styles.qualityMatrixCell} color={tone}>
-                                    {q.quality.toUpperCase()} · {q.req}次 · 成{q.success} · 败{q.fail}{q.businessFail ? ` · 业务${q.businessFail}` : ''} · {avg}{q.state !== 'closed' ? ` · ${q.state}` : ''}{q.rateLimited ? ' · 限流' : ''}
+                                    {[
+                                      q.quality.toUpperCase(),
+                                      t('health_q_req', { n: q.req }),
+                                      t('health_q_ok', { n: q.success }),
+                                      t('health_q_fail', { n: q.fail }),
+                                      q.businessFail ? t('health_q_biz', { n: q.businessFail }) : '',
+                                      avg,
+                                      q.state !== 'closed' ? q.state : '',
+                                      q.rateLimited ? t('health_q_limited') : '',
+                                    ].filter(Boolean).join(' · ')}
                                   </Text>
                                 )
                               })

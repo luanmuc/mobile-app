@@ -1,3 +1,11 @@
+## [音源健康：方案 6.3 UI 映射审计 + 质量矩阵三语化] - 2026-11-13
+
+> 本地提交，未推送；补齐方案 6.3 App 侧最后一个健康审计脚本。
+
+- 新增 `scripts/check_health_ui_mapping.js`（U1~U10 10/0）：4 主状态文案/颜色/reason 两行、主状态摘要与旧 9 桶展开、质量矩阵七项字段、多源绑定与质量提示、全局/单源探测应用确认、reason 枚举、三语键数一致。
+- 修复审计发现的 UI 偏差：质量矩阵单元格原先把“次/成/败/业务/限流”硬编码为中文，英文/繁体界面会中英混排；改用 `health_q_req`/`health_q_ok`/`health_q_fail`/`health_q_biz`/`health_q_limited` 五键（三语各 913 键）。
+- 验证：`check_health_ui_mapping` 10/0、`check_health_state_v2` 8/0、`tsc` 0、目标 eslint 0、`build-test` rc=0（产物已清理）、docs 18/0。
+
 ## [音源健康：F15/F51/F52 4 主状态 + reason / 旧 9 桶可展开] - 2026-11-13
 
 > 本地提交，未推送；对应方案 3.1 状态映射与 F52 汇总 v2。

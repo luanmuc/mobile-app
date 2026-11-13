@@ -14,6 +14,7 @@
 | S4 | 日志目录审计 | `scripts/check_log_directory.js` | 15 | 公共优先、私有回迁、四类补齐、父目录重建、500 文件回迁、1 万次补齐、并发、幂等 | 15/0，路径合法、不丢文件 |
 | S5 | 状态分类重构 | `scripts/check_health_status_refactor.js` | 10 | 手动/自动/默认关闭、休眠、播放摘除、异常优先级、旧快照回退、9 桶唯一归属、多源绑定 | 10/0，优先级不回退 |
 | S6 | 4 主状态 + reason | `scripts/check_health_state_v2.js` | 8 | 4 主状态、12 条映射、旧 11 态不丢、双汇总合计、UI 消费、三语键 | 8/0，状态不丢信息 |
+| S7 | UI 映射 | `scripts/check_health_ui_mapping.js` | 10 | 主状态文案/颜色、reason、双摘要、质量矩阵、绑定、探测确认、三语 | 10/0，无硬编码 |
 
 **合计：14 + 52 + 22 + 15 + 8 = 111 条。**
 
@@ -37,6 +38,7 @@ node scripts/check_source_health_persistence.js
 node scripts/check_health_persistence_v2.js
 node scripts/check_health_event_pipeline.js
 node scripts/check_health_state_v2.js          # S6 8/0
+node scripts/check_health_ui_mapping.js        # S7 10/0
 node scripts/check_source_platform_label.js
 node scripts/check_source_config_contract.js
 node scripts/check_playback_budget.js

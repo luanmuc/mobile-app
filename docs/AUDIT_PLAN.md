@@ -482,6 +482,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
 | `check_health_event_pipeline.js` | 10/0 | 事件白名单、去重、sourceEvents 脱敏、三块隔离 |
 | `check_health_state_v2.js` | 8/0 | 4 主状态 + reason、旧 11 态不丢、主/旧桶双汇总、UI 消费 |
+| `check_health_ui_mapping.js` | 10/0 | 主状态文案/颜色、reason、双摘要、质量矩阵七项、绑定、三语无硬编码 |
 | `check_source_platform_label.js` | 9/9 | 实际平台标签 |
 | `check_source_config_contract.js` | 25/0 | 配置键/三语 |
 | `check_playback_budget.js` | 20/0 | 24s 预算 |
