@@ -1,3 +1,11 @@
+## [音源健康：源快照只读资格字段同步] - 2026-11-13
+
+> 本地提交，未推送；源仓 `b3d6275` 新增快照字段，App 文档同步。
+
+- `getHealthSnapshot` 每源新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs`，与 `computeEligibility` 同源；快照只读不写状态。
+- 源仓新增 `health-state-machine-v2.js`（M1~M10 10/0）与 `health-probe-fidelity.js`（F1~F10 10/0），`npm test` 14 脚本 rc0；方案 6.3 源仓缺失脚本清零。
+- App 4 主状态 + reason 继续消费旧字段兼容；`check_health_state_v2` 8/0、`check_health_ui_mapping` 10/0。
+
 ## [音源健康：方案 6.3 UI 映射审计 + 质量矩阵三语化] - 2026-11-13
 
 > 本地提交，未推送；补齐方案 6.3 App 侧最后一个健康审计脚本。
