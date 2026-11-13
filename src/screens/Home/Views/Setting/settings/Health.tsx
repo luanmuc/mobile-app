@@ -44,6 +44,9 @@ interface HealthItem {
   // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
   playDead?: boolean
   qualityShortCircuit?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', boolean>>
+  // F35/F15：快照最近探测/下次探测 ETA，用于行内展示“下一次什么时候探”。
+  lastProbe?: number
+  probeEtaMs?: number
   // F19/F60：源快照携带的平台列表，用于把 toggle/probeSource 绑定到对应 API。
   platforms?: string[]
   // F16：逐档质量矩阵（源快照 byQuality：req/success/fail/businessFail/rate/avgTime/state）
@@ -110,6 +113,7 @@ export default memo(() => {
   const [configErrors, setConfigErrors] = useState<Record<string, string>>({})
   // v8.0：趋势图相关 state
   const [trendData, setTrendData] = useState<Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>>([])
+  const [trendWindow, setTrendWindow] = useState<'1h' | '24h' | '7d'>('24h')
   const [showTrendModal, setShowTrendModal] = useState(false)
   // 2.4：本地诊断报告（最近异常 + 一键导出）
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
@@ -432,6 +436,9 @@ export default memo(() => {
 
   // 窗口展示逻辑收敛到纯函数视图模型，页面只负责文案与样式
   const diagView = diagnostics ? buildHealthDiagnosticsView(diagnostics) : null
+  // F07：1h/24h/7d 窗口按本地历史时间戳过滤；数据不足时显示空态，不拿旧点冒充 7d。
+  const trendWindowMs = trendWindow === '1h' ? 60 * 60 * 1000 : (trendWindow === '7d' ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
+  const trendDataView = trendData.filter(entry => entry.timestamp >= Date.now() - trendWindowMs)
 
   const renderFinding = (f: HealthReport['findings'][number], idx: number) => {
     const key = `${f.id}-${idx}`
@@ -580,7 +587,7 @@ export default memo(() => {
                         : t('health_diag_weighted')}
                     </Text>
                     {
-                      diagView.codes.length ? (
+                      diagView.coverage.full && diagView.codes.length ? (
                         <View>
                           <Text size={11} style={styles.diagSection}>{t('health_diag_codes')}</Text>
                           {diagView.codes.map(renderFinding)}
@@ -588,7 +595,12 @@ export default memo(() => {
                       ) : null
                     }
                     {
-                      diagView.others.length ? (
+                      !diagView.coverage.full && (diagView.codes.length || diagView.others.length) ? (
+                        <Text size={11} color={theme['c-font-label']} style={{ marginTop: 8 }}>{t('health_diag_conclusions_disabled')}</Text>
+                      ) : null
+                    }
+                    {
+                      diagView.coverage.full && diagView.others.length ? (
                         <View>
                           <Text size={11} style={styles.diagSection}>{t('health_diag_other')}</Text>
                           {diagView.others.map(renderFinding)}
@@ -657,6 +669,9 @@ export default memo(() => {
                       <View style={styles.colName}>
                         <Text numberOfLines={1} size={12} color={item.enabled ? theme['c-font'] : theme['c-font-label']}>{sourceLabel(id, item.name)}</Text>
                         <Text size={9} color={theme['c-font-label']} onPress={() => { void probeOne(id, item.name, item.platforms) }}>{probingId === id ? '…' : t('health_probe_one')}</Text>
+                        {item.enabled && Number(item.probeEtaMs) > 0
+                          ? <Text size={8} color={theme['c-font-label']}>{t('health_probe_eta', { m: Math.max(1, Math.ceil(Number(item.probeEtaMs) / 60000)) })}</Text>
+                          : null}
                         {shortQualities.length
                           ? <Text size={9} color="#faad14">{t('health_quality_short_circuit', { q: shortQualities.join('/') })}</Text>
                           : null}
@@ -848,7 +863,30 @@ export default memo(() => {
     <Modal visible={showTrendModal} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text size={16} color={theme['c-font']} style={styles.modalTitle}>{t('health_trend_title', { n: trendData.length })}</Text>
+          <Text size={16} color={theme['c-font']} style={styles.modalTitle}>{t('health_trend_title', { n: trendDataView.length })}</Text>
+          {diagView ? (
+            <View style={styles.trendBlockRow}>
+              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
+              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
+            </View>
+          ) : null}
+          <View style={styles.trendWindowRow}>
+            {(['1h', '24h', '7d'] as const).map(w => (
+              <Text
+                key={w}
+                size={11}
+                color={trendWindow === w ? theme['c-primary'] : theme['c-font-label']}
+                style={[styles.trendWindowBtn, trendWindow === w && styles.trendWindowActive]}
+                onPress={() => { setTrendWindow(w) }}
+              >{t(`health_trend_window_${w}`)}</Text>
+            ))}
+          </View>
+          {diagView ? (
+            <View style={{ marginTop: 4 }}>
+              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
+              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
+            </View>
+          ) : null}
           {/* 图例说明 */}
           <View style={styles.trendLegend}>
             <View style={styles.trendLegendItem}>
@@ -869,18 +907,18 @@ export default memo(() => {
             </View>
           </View>
           <ScrollView style={styles.modalScroll}>
-            {trendData.length === 0 ? (
+            {trendDataView.length === 0 ? (
               <Text size={13} color={theme['c-font-label']}>{t('health_trend_empty')}</Text>
             ) : (
               (() => {
                 // 收集所有源 ID（跨所有历史快照）
                 const allSourceIds = Array.from(new Set(
-                  trendData.flatMap(entry => Object.keys(entry.sources)),
+                  trendDataView.flatMap(entry => Object.keys(entry.sources)),
                 ))
                 // v8.1：按最新健康分从低到高排序（异常排前面，一眼看到问题源）
                 // 排序权重：异常(红) < 一般(黄) < 无样本(灰) < 健康(绿)
                 const getSortWeight = (id: string) => {
-                  const latestScore = trendData[trendData.length - 1]?.sources[id]?.score ?? null
+                  const latestScore = trendDataView[trendDataView.length - 1]?.sources[id]?.score ?? null
                   if (latestScore === null) return 2 // 无样本排中间
                   if (latestScore < -5) return 0 // 异常排最前
                   if (latestScore < 3) return 1 // 一般排第二
@@ -890,15 +928,15 @@ export default memo(() => {
                 return allSourceIds.map(id => {
                   // 源名优先用实时快照的中文名（音源侧历史快照不含 name，仅 score/successRate）；
                   // 再回退历史快照 name（兼容旧数据），最后回退 id
-                  const sourceName = sourceLabel(id, snapshot?.[id]?.name ?? (trendData[0]?.sources[id] as { name?: string } | undefined)?.name)
+                  const sourceName = sourceLabel(id, snapshot?.[id]?.name ?? (trendDataView[0]?.sources[id] as { name?: string } | undefined)?.name)
                   // 最新一次探测的分数
-                  const latestScore = trendData[trendData.length - 1]?.sources[id]?.score ?? null
+                  const latestScore = trendDataView[trendDataView.length - 1]?.sources[id]?.score ?? null
                   const latestColor = latestScore === null ? '#9e9e9e' : latestScore >= 3 ? '#4caf50' : latestScore >= -5 ? '#ff9800' : '#f44336'
                   return (
                   <View key={id} style={styles.trendSourceRow}>
                     <Text size={11} color={theme['c-font-label']} style={styles.trendSourceName} numberOfLines={1}>{sourceName}</Text>
                     <View style={styles.trendBlocks}>
-                      {trendData.map((entry, idx) => {
+                      {trendDataView.map((entry, idx) => {
                         const data = entry.sources[id]
                         const score = data?.score ?? null
                         // status page 经典方块：绿=正常、黄=降级、红=异常、灰=无数据
@@ -1102,6 +1140,28 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  trendBlockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    gap: 8,
+  },
+  trendWindowRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 2,
+    gap: 8,
+  },
+  trendWindowBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(128,128,128,0.12)',
+  },
+  trendWindowActive: {
+    backgroundColor: 'rgba(84,169,255,0.22)',
   },
   // v8.0：方块时间线趋势图样式（status page 经典风格）
   trendBlocks: {

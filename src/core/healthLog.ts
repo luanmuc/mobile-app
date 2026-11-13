@@ -399,7 +399,8 @@ export const recordProbeEvents = async(events: unknown[]): Promise<number> => {
     const e = raw as Record<string, unknown>
     const event = String(e.event || '')
     if (event !== 'probe_result' && event !== 'health_transition') continue
-    const key = `${String(e.ts || '')}|${String(e.traceId || '')}|${String(e.sourceId || '')}|${String(e.quality || '')}|${event}|${String(e.code || '')}`
+    // F32：源仓已给 eventId；旧源没有时退回复合键，保证升级期不重复落盘。
+    const key = String(e.eventId || `${String(e.ts || '')}|${String(e.traceId || '')}|${String(e.sourceId || '')}|${String(e.quality || '')}|${event}|${String(e.code || '')}`)
     if (seenProbeEventKeys.has(key)) continue
     seenProbeEventKeys.add(key)
     if (seenProbeEventKeys.size > 1000) seenProbeEventKeys.delete(seenProbeEventKeys.values().next().value!)

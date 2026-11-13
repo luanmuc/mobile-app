@@ -379,7 +379,7 @@ export const detectHealthAnomalies = (input: {
       id: 'new_code',
       level: 'info',
       title: `出现新错误码 ${code}`,
-      detail: '该错误码在前 7 天未出现过，可能是上游策略变化或新链路问题。',
+      detail: `该错误码在此前基线（${baselineText}）未出现过，可能是上游策略变化或新链路问题；不能仅凭本地窗口推断 7 天结论。`,
       evidence: `近 24h ${hit.length} 次 ${code}，此前 ${baselineText}未见`,
       suggestion: '把该错误码与同 traceId 的事件一起看；若是持续出现，再考虑临时降权该源。',
       traceIds: trimTrace(hit.map(e => String(e.traceId ?? ''))),

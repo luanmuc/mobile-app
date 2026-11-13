@@ -1,10 +1,21 @@
+## [音源健康：F06/F07/F12/F17/F32 缺口补齐] - 2026-11-13
+
+> 本地提交，未推送；承接 v2 审计第八节，单一路径继续收口。
+
+- F06：`sourceConfig` 新增 `healthCheckJitterRatio`（0~0.5，默认 0.1）与 `healthCheckPauseRetryMs`（1s~5min，默认 60s），三语配置名/说明齐全；三语各 903 键，`doc-sync-map` 基线同步 903。
+- F07：`Health.tsx` 趋势弹窗新增 1h/24h/7d 窗口切换，按时间戳过滤，数据不足显示空态；弹窗顶部补播放/探测 24h 分块；源仓历史上限同步到 1008（约 7d）。
+- F12：`healthDiagnostics` 的 `new_code` 详情改为“此前基线（实际跨度）未见”，不再写死“前 7 天”；覆盖不足时 UI 直接隐藏错误码结论，改为提示先看其他线索。
+- F17：消费源快照新增的 `offCount/blockedCount/degradedCount/totalCount`，不再把 off/blocked 混为 dead。
+- F32：`healthLog` 优先按源事件 `eventId` 去重，旧源回退复合键。
+- 验证：`tsc` 0、`lint` 0、`build-test` rc0、`check_source_config_contract` 25/0、11 个健康脚本全绿、`check_docs_consistency` 18/0。
+
 ## [音源健康：单一路径收口（删除旧 11 态/9 桶与 v1 持久化）] - 2026-11-13
 
 > 本地提交，未推送；按用户要求删除新旧双轨，正常运行时只保留新架构。
 
 - `healthStatus.ts` 只保留 4 主状态 + reason；删除旧 `classifyHealthState`、`HealthBucket`、`summarizeHealthItems`、`buildHealthSummaryV2` 与旧 11/9 类型。
 - `Health.tsx` 摘要只渲染 4 主状态，删除“旧状态明细”9 桶展开及 `health_main_detail` 入口。
-- 三语删除 22 个旧键（11 个 `health_state_*` + 9 个 `health_sum_*` + `health_main_detail`），各语言 895 键；`health_footnote` 改为 4 主状态 + reason 口径。
+- 三语删除 22 个旧键（11 个 `health_state_*` + 9 个 `health_sum_*` + `health_main_detail`），各语言 902 键；`health_footnote` 改为 4 主状态 + reason 口径。
 - `sourceHealthPersistence.ts` 只接受 v2；`restoreSourceHealth` 强制从健康态剥离 controls，控制意图只从独立 control key 恢复；删除 v1 合并态恢复路径。
 - 审计：`check_health_status_refactor` 10/0、`check_health_state_v2` 7/0、`check_source_config_contract` 25/0、`check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0、`check_health_ui_mapping` 11/0、`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 23/0、`check_health_anomaly_v2` 8/0、`check_health_event_pipeline` 10/0；tsc 0。
 
