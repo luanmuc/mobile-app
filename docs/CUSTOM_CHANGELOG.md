@@ -1,3 +1,13 @@
+## [音源健康：F15/F51/F52 4 主状态 + reason / 旧 9 桶可展开] - 2026-11-13
+
+> 本地提交，未推送；对应方案 3.1 状态映射与 F52 汇总 v2。
+
+- `healthStatus.ts` 新增 `HealthMainState`（available/degraded/paused/off）、`HEALTH_MAIN_STATES`、`classifyHealthMainState` 与 `buildHealthSummaryV2`；旧 `classifyHealthState` 11 态/9 桶原样保留，作为 reason 与明细来源。
+- 映射：正常→可用 `ELIGIBLE`；待采样→可用 `PENDING_SAMPLE`；异常→降级 `DEGRADED`；熔断/半开/限流→降级 `QUALITY_OPEN`/`QUALITY_HALF_OPEN`/`RATE_LIMITED`；已摘除→暂停 `PLAYBACK_FAILED`/`RESOLVE_FAILED`；休眠→暂停 `SOURCE_SLEEPING`；自动关闭→暂停 `AUTO_OFF_PROBE`；手动/默认关闭→手动关闭 `USER_OFF`/`DEFAULT_OFF`。
+- `Health.tsx` 摘要改为主状态 4 计数，新增“旧状态明细”展开 9 桶；表格胶囊改为主状态 + reason 两行显示。三语新增 5 键（各 908 键）。
+- 新增 `scripts/check_health_state_v2.js`（S1~S8 8/0）：4 主状态枚举、12 条映射、旧 11 态不丢信息、双汇总合计、UI 消费、三语键。
+- 验证：`check_health_state_v2` 8/0、`check_health_status_refactor` 10/0、`check_source_health_persistence` 17/0、`check_health_persistence_v2` 9/0、`check_health_event_pipeline` 10/0、`tsc` 0、目标 eslint 0、`build-test` rc=0（产物已清理）、docs 18/0。
+
 ## [音源健康：方案 6.3 事件流水线审计 + sourceEvents 落盘脱敏] - 2026-11-13
 
 > 本地提交，未推送；对应方案 F32/F33/F56 与 6.3 必跑命令。

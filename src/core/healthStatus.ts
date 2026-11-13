@@ -18,6 +18,10 @@ export type HealthStateKey =
   | 'health_state_open'
   | 'health_state_half-open'
   | 'health_state_closed'
+  | 'health_main_available'
+  | 'health_main_degraded'
+  | 'health_main_paused'
+  | 'health_main_off'
 
 export type HealthTone = 'ok' | 'warn' | 'bad' | 'muted'
 export type HealthBucket = 'ok' | 'bad' | 'open' | 'half' | 'idle' | 'sleep' | 'off' | 'removed' | 'rate'
@@ -31,6 +35,7 @@ export interface HealthStatusItem {
   reqCount?: number
   probeCount?: number
   playDead?: boolean
+  resolveDead?: boolean
   rateLimited?: boolean
   rateLimitActive?: boolean
   // v8.14：开关权威拆分（源快照提供）。旧快照没有这些字段时回退到 enabled/sleeping。
@@ -72,7 +77,7 @@ export const classifyHealthState = (
   }
   if (!sampled) return { key: 'health_state_idle', bucket: 'idle', tone: 'muted' }
   // v8.14：真实播放摘除优先于“异常”，否则成功率 0/负健康分会把“已摘除”盖成“异常”。
-  if (item.playDead === true || item.offReason === 'PLAY_DEAD') {
+  if (item.playDead === true || item.resolveDead === true || item.offReason === 'PLAY_DEAD') {
     return { key: 'health_state_removed', bucket: 'removed', tone: 'bad' }
   }
   if (item.state === 'closed' && item.successRate === 0 && item.healthScore < 0) {
@@ -89,6 +94,59 @@ export const classifyHealthState = (
   if (item.state === 'open') return { key: 'health_state_open', bucket: 'open', tone: 'bad' }
   if (item.state === 'half-open') return { key: 'health_state_half-open', bucket: 'half', tone: 'warn' }
   return { key: 'health_state_closed', bucket: 'ok', tone: 'ok' }
+}
+
+// F15/F51：UI 4 主状态。旧 11 态不删除，降为 reason + 旧桶明细。
+export type HealthMainState = 'available' | 'degraded' | 'paused' | 'off'
+export const HEALTH_MAIN_STATES: HealthMainState[] = ['available', 'degraded', 'paused', 'off']
+export type HealthMainReason =
+  | 'ELIGIBLE'
+  | 'PENDING_SAMPLE'
+  | 'DEGRADED'
+  | 'PLAYBACK_FAILED'
+  | 'RESOLVE_FAILED'
+  | 'RATE_LIMITED'
+  | 'QUALITY_OPEN'
+  | 'QUALITY_HALF_OPEN'
+  | 'SOURCE_SLEEPING'
+  | 'AUTO_OFF_PROBE'
+  | 'USER_OFF'
+  | 'DEFAULT_OFF'
+
+export interface HealthMainResult {
+  state: HealthMainState
+  reason: HealthMainReason
+  tone: HealthTone
+  key: HealthStateKey
+  legacyKey: HealthStateKey
+  legacyBucket: HealthBucket
+}
+
+/**
+ * F51：旧 classifyHealthState 的 11 态映射到 4 主状态 + reason。
+ * 这里只做映射，不改变旧函数；旧 9 桶仍由 classifyHealthState 产出供明细展开。
+ */
+export const classifyHealthMainState = (
+  item: HealthStatusItem,
+  sampled: boolean,
+): HealthMainResult => {
+  const legacy = classifyHealthState(item, sampled)
+  const of = (state: HealthMainState, reason: HealthMainReason, key: HealthStateKey, tone: HealthTone): HealthMainResult => ({
+    state, reason, key, tone, legacyKey: legacy.key, legacyBucket: legacy.bucket,
+  })
+  if (legacy.key === 'health_state_user_off') return of('off', 'USER_OFF', 'health_main_off', 'muted')
+  if (legacy.key === 'health_state_auto_off') return of('paused', 'AUTO_OFF_PROBE', 'health_main_paused', 'muted')
+  if (legacy.key === 'health_state_sleeping') return of('paused', 'SOURCE_SLEEPING', 'health_main_paused', 'muted')
+  if (legacy.key === 'health_state_disabled') return of('off', 'DEFAULT_OFF', 'health_main_off', 'muted')
+  if (legacy.key === 'health_state_idle') return of('available', 'PENDING_SAMPLE', 'health_main_available', 'ok')
+  if (legacy.key === 'health_state_removed') {
+    return of('paused', item.resolveDead === true && item.playDead !== true ? 'RESOLVE_FAILED' : 'PLAYBACK_FAILED', 'health_main_paused', 'muted')
+  }
+  if (legacy.key === 'health_state_abnormal') return of('degraded', 'DEGRADED', 'health_main_degraded', 'warn')
+  if (legacy.key === 'health_state_rate_limiting' || legacy.key === 'health_state_rate_limited') return of('degraded', 'RATE_LIMITED', 'health_main_degraded', 'warn')
+  if (legacy.key === 'health_state_open') return of('degraded', 'QUALITY_OPEN', 'health_main_degraded', 'warn')
+  if (legacy.key === 'health_state_half-open') return of('degraded', 'QUALITY_HALF_OPEN', 'health_main_degraded', 'warn')
+  return of('available', 'ELIGIBLE', 'health_main_available', 'ok')
 }
 
 export type HealthSummary = Record<HealthBucket, number>
@@ -111,6 +169,27 @@ export const summarizeHealthItems = (items: HealthStatusItem[]): HealthSummary =
   for (const item of items) {
     const result = classifyHealthState(item, hasHealthSample(item))
     summary[result.bucket]++
+  }
+  return summary
+}
+
+export interface HealthSummaryV2 {
+  main: Record<HealthMainState, number>
+  buckets: HealthSummary
+}
+
+export const emptyHealthSummaryV2 = (): HealthSummaryV2 => ({
+  main: { available: 0, degraded: 0, paused: 0, off: 0 },
+  buckets: emptyHealthSummary(),
+})
+
+/** F52：主状态计数 + 旧 9 桶明细；两份合计都等于源数。 */
+export const buildHealthSummaryV2 = (items: HealthStatusItem[]): HealthSummaryV2 => {
+  const summary = emptyHealthSummaryV2()
+  for (const item of items) {
+    const sampled = hasHealthSample(item)
+    summary.main[classifyHealthMainState(item, sampled).state]++
+    summary.buckets[classifyHealthState(item, sampled).bucket]++
   }
   return summary
 }

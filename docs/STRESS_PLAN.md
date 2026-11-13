@@ -12,7 +12,8 @@
 | S2 | 健康诊断深度审计 | `scripts/check_health_diagnostics_deep.js` | 51 | 统计口径、1h/24h/7d 窗口、异常正反例、隐私、多字节、10 万条聚合 | 51/0，数值可复算、窗口不冒充 |
 | S3 | 诊断视图模型 | `scripts/check_health_diagnostics_view.js` | 22 | 折叠态、四层分组、覆盖降级、缓存命中、错误码分组、空态、1 万次构建 | 22/0，无空串/undefined/越界 |
 | S4 | 日志目录审计 | `scripts/check_log_directory.js` | 15 | 公共优先、私有回迁、四类补齐、父目录重建、500 文件回迁、1 万次补齐、并发、幂等 | 15/0，路径合法、不丢文件 |
-| S5 | 状态分类重构 | `scripts/check_health_status_refactor.js` | 8 | 手动/自动/默认关闭、休眠、播放摘除、异常优先级、旧快照回退、9 桶唯一归属 | 8/0，优先级不回退 |
+| S5 | 状态分类重构 | `scripts/check_health_status_refactor.js` | 10 | 手动/自动/默认关闭、休眠、播放摘除、异常优先级、旧快照回退、9 桶唯一归属、多源绑定 | 10/0，优先级不回退 |
+| S6 | 4 主状态 + reason | `scripts/check_health_state_v2.js` | 8 | 4 主状态、12 条映射、旧 11 态不丢、双汇总合计、UI 消费、三语键 | 8/0，状态不丢信息 |
 
 **合计：14 + 52 + 22 + 15 + 8 = 111 条。**
 
@@ -23,7 +24,7 @@ node scripts/check_health_diagnostics_stress.js   # S1 14/0
 node scripts/check_health_diagnostics_deep.js     # S2 51/0
 node scripts/check_health_diagnostics_view.js     # S3 22/0
 node scripts/check_log_directory.js               # S4 15/0
-node scripts/check_health_status_refactor.js     # S5 8/0
+node scripts/check_health_status_refactor.js     # S5 10/0
 ```
 
 四组全部 `rc=0` 后，再跑发布门禁：
@@ -35,6 +36,7 @@ node scripts/check_source_contract.js
 node scripts/check_source_health_persistence.js
 node scripts/check_health_persistence_v2.js
 node scripts/check_health_event_pipeline.js
+node scripts/check_health_state_v2.js          # S6 8/0
 node scripts/check_source_platform_label.js
 node scripts/check_source_config_contract.js
 node scripts/check_playback_budget.js
