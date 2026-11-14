@@ -2,15 +2,16 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- a107014d fix: close R-01 release state and user-visible i18n gaps
+- 83f80c6d ci: make release state commit rebase-safe
+- 122a55b5 chore: 回写 b120 发布状态 v1.9.2-b120 / 279
 
 ### File MD5
 ```
-a351bb5082bc8ff1dda98b6bf370c7bb  mobile-app-v1.9.2-b120-arm64-v8a.apk
-ebc4362ee33d14c5bb69d524c1a14b4f  mobile-app-v1.9.2-b120-armeabi-v7a.apk
-997743f01b1d36b2ce42a426169d99a9  mobile-app-v1.9.2-b120-universal.apk
-3c5fdb0e5a9e40b09cd7dddc795a8cd6  mobile-app-v1.9.2-b120-x86.apk
-78d38cec68bb71f0db599efe88f26053  mobile-app-v1.9.2-b120-x86_64.apk
+30f6a951b07a8dbdbe90f82e73b7e313  mobile-app-v1.9.2-b121-arm64-v8a.apk
+39c74985340ff490ba775c87c8fd7e8d  mobile-app-v1.9.2-b121-armeabi-v7a.apk
+8767093e056c4622e9a65a7af637e468  mobile-app-v1.9.2-b121-universal.apk
+31c2b973f2c9061866b2c5575d9394bc  mobile-app-v1.9.2-b121-x86.apk
+e9c6fc0c4a82eb3e6b3926eef9c94797  mobile-app-v1.9.2-b121-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
