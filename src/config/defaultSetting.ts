@@ -69,7 +69,7 @@ const defaultSetting: LX.AppSetting = {
   'list.isShowInterval': true,
   'list.addMusicLocationType': 'top',
 
-  'download.fileName': '歌名 - 歌手',
+  'download.fileName': '{title} - {artist}',
   'download.onlyWifi': false,
   'download.maxTask': 2,
   'download.autoRetry': true,

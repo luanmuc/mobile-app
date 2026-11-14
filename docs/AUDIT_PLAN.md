@@ -3,7 +3,7 @@
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b121**（CI 自动回写 `085d008d`，versionCode 280；tag `83f80c6d`，Build `43561230482` success）；本轮修复提交 **`83f80c6d`**（已推送）；文档回填随本文档提交
 > 最近更新：2026-11-14（临时审计交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。当前改动**未提交、未推送、未触发新构建**）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **992 键**（本轮新增 54 个：P1 1 + N1 32 + N2 12 + N3 9）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**26 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
+> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**26 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -44,7 +44,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0；eventId 优先 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0；拒绝 v1 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 25/0；37 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 992 键、无重复、无未消费键、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 997 键、无重复、无未消费键、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory`、诊断包 | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性；自定义功能无未完成项 |
@@ -70,7 +70,7 @@ rg -n "SOURCE_ACTIONS|11 个 action|13 个 action" src scripts docs
 |---|---|---|---|---|
 | A-F01 | `check_source_contract` 仍按 11 action 断言，实际 13（漏 `probeSource`/`reportPlayback`） | 中 | 首跑 13/1，`期望 11 个，实际 13` | 已改为 13 并补集合；复跑 14/0 |
 | A-F02 | 三语保留未被消费的 `health_diag_codes_disabled`，与 `health_diag_conclusions_disabled` 语义重复 | 低 | `rg` 仅 lang 命中；键数 905 但唯一语义 904 | 已删旧键，三语 904；相关检查复跑通过 |
-| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 904/526/13/`785af658` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
+| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 997/527/13/`785af658` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
 | A-F04 | G2 真机、G7 tx 完整链、Batch 5 版本拍板外部阻塞 | — | `health_device_acceptance.sh --dry-run` rc=3；上游约 60s 试听 | 标 blocked，不写入通过 |
 | A-F05 | `check_source_ci_gate` 本地环境变量 `GITHUB_TOKEN` 无效导致 403 | 低 | 环境变量返回 `Bad credentials`；Git 凭据库令牌有效 | 已用 `git credential fill` 取有效令牌复跑 **rc0**（源仓 `03fe893` 为绿提交，当前 `7e78e63` compare=ahead）；CI runner 仍用其自带 `GITHUB_TOKEN` |
 
@@ -143,7 +143,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | D2 | 播放页 | ⚠️ | **R2**：`PlayDetail/Horizontal/Player/PlayInfo.tsx:61` 组件内 `theme` 未定义，横屏播放页渲染即 ReferenceError |
 | D3 | 弹窗 | ⚠️ | **R5**：健康面板弹窗配色；**R9** 管理器层弹窗中文硬编码 |
 | D4 | 主题适配 | ⚠️ | 除 R5 两个非法键外，其余 `theme[...]` 引用合法 |
-| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 992×3）；`Health.tsx` 参数面板、诊断 finding、reason 短标签均已接三语，无遗留 |
+| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 997×3）；`Health.tsx` 参数面板、诊断 finding、reason 短标签均已接三语，无遗留 |
 | D6 | 组件复用 | ✅ | common/ 公共组件 |
 
 ## E 组：文档与工程
@@ -479,7 +479,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
-| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 992 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
+| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 997 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
 | T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
 
 ### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
@@ -492,7 +492,7 @@ node scripts/check_health_diagnostics.js           # 51/0
 node scripts/check_health_diagnostics_stress.js    # 14/0
 node scripts/check_health_diagnostics_view.js      # 22/0
 node scripts/check_log_directory.js                # 15/0
-node scripts/check_ts_syntax.js                    # 526/0
+node scripts/check_ts_syntax.js                    # 527/0
 node scripts/check_docs_consistency.js             # 17 文档
 node scripts/docs-audit.js --dry-run               # 待处理 0
 node node_modules/typescript/bin/tsc --noEmit      # 0 error
@@ -523,7 +523,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
 | `check_health_diagnostics_view.js` | **22/0** | 0 |
 | `check_log_directory.js` | **15/0**（公共优先/私有回迁/四类补齐/并发/压力） | 0 |
-| `check_ts_syntax.js` | **526 文件 0 错误** | 0 |
+| `check_ts_syntax.js` | **527 文件 0 错误** | 0 |
 | `check_docs_consistency.js` | **17 文档无过时引用** | 0 |
 | `tsc --noEmit` | **0 error** | 0 |
 | `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
@@ -557,7 +557,7 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_media_body.js` | 6/0 | `__lxMedia:2` |
 | `check_download_persistence.js` | 3/0 | 下载落盘剥离 `statusText` |
 | `check_download_restore_runtime.js` | 3/0 | run→waiting、完成保留、空存储不写 |
-| `check_ts_syntax.js` | 526/0 | TS/TSX |
+| `check_ts_syntax.js` | 527/0 | TS/TSX |
 | `check_docs_consistency.js` | **18 文档 0 过时** | 本轮实跑 |
 | `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 本轮实跑 |
 

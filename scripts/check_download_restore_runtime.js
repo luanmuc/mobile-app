@@ -85,6 +85,7 @@ const setup = () => {
       checkStoragePermissions: async() => true,
     },
     '@/utils/fs': { existsFile: async() => true, moveFile: async() => {}, unlink: async() => {} },
+    '@/utils/fileNameTemplate': { formatFileNameTemplate: () => 'song' },
     '@/core/player/player': { playList: async() => {} },
     '@/utils/nativeModules/utils': {
       shareFile: async() => {},

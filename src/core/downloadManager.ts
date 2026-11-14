@@ -7,7 +7,8 @@ import downloadState from '@/store/download/state'
 import settingState from '@/store/setting/state'
 import { getMusicUrl as getOnlineMusicUrl } from '@/core/music/online'
 import { getDownloadQuality, FULL_QUALITYS_LIST } from '@/core/music/utils'
-import { toast, requestStoragePermission, formatMusicName, checkStoragePermissions } from '@/utils/tools'
+import { toast, requestStoragePermission, checkStoragePermissions } from '@/utils/tools'
+import { formatFileNameTemplate } from '@/utils/fileNameTemplate'
 import { existsFile, moveFile, unlink } from '@/utils/fs'
 import { playList } from '@/core/player/player'
 import { shareFile as nativeShareFile, getWIFIIPV4Address, openFileInFileManager, writeAudioTag, isExternalStorageManager } from '@/utils/nativeModules/utils'
@@ -54,16 +55,6 @@ const getFailReasonText = (reason: LX.Download.DownloadErrorReason): string => {
   }
 }
 
-// 失败原因中文提示（保留给旧数据兜底 / 日志）
-const FAIL_REASON_TEXT: Record<LX.Download.DownloadErrorReason, string> = {
-  network: '网络错误',
-  cellular: '非 WiFi 环境',
-  noSource: '获取下载链接失败',
-  noWrite: '无写入权限（请在系统设置中允许存储权限后重试）',
-  noSpace: '存储空间不足',
-  unknown: '未知错误',
-}
-
 const failTask = (task: LX.Download.ListItem, err: any, failReason: LX.Download.DownloadErrorReason = 'unknown') => {
   // error 只存原始信息（HTTP 码 / 异常文本），中文部分交给 UI 按语言渲染，
   // 否则切到英文/繁体后这条失败原因仍然是简体
@@ -71,7 +62,7 @@ const failTask = (task: LX.Download.ListItem, err: any, failReason: LX.Download.
   updateItem({
     ...task,
     status: 'error',
-    statusText: FAIL_REASON_TEXT[failReason] ?? '未知错误',
+    statusText: global.i18n.t('dl_status_error'),
     statusKey: 'dl_status_error',
     error: errMsg,
     errorCode: failReason,
@@ -79,7 +70,8 @@ const failTask = (task: LX.Download.ListItem, err: any, failReason: LX.Download.
   save()
   // 下载失败立即提示原因（含"权限/链接/空间"等具体原因），避免只显示"重试"让用户无从下手
   const reasonText = getFailReasonText(failReason)
-  toast(`${global.i18n.t('dl_status_error')}：${reasonText}${errMsg ? `（${errMsg}）` : ''}`, 'long')
+  const status = global.i18n.t('dl_status_error')
+  toast(errMsg ? global.i18n.t('dl_error_status_detail', { status, reason: reasonText, detail: errMsg }) : global.i18n.t('dl_error_status', { status, reason: reasonText }), 'long')
 }
 
 // 格式化下载速度
@@ -196,9 +188,8 @@ const trimToBytes = (text: string, maxBytes: number): string => {
   return out
 }
 const buildFileName = (musicInfo: LX.Music.MusicInfoOnline, url: string, quality: LX.Quality): string => {
-  // 遵循「下载设置 - 文件命名」模板（歌名/歌手 两个占位符），默认值与旧行为一致
-  const format = settingState.setting['download.fileName'] || '歌名 - 歌手'
-  const name = trimToBytes(formatMusicName(format, musicInfo.name, musicInfo.singer).replace(invalidFileNameChars, '_').trim(), 100).trim() || 'untitled'
+  // 遵循「下载设置 - 文件命名」模板（{title}/{artist} 占位符，旧「歌名/歌手」自动迁移）
+  const name = trimToBytes(formatFileNameTemplate(settingState.setting['download.fileName'], musicInfo).replace(invalidFileNameChars, '_').trim(), 100).trim() || 'untitled'
   const extMatch = url.match(/\.(flac|mp3|m4a|aac|wav|ogg)(?:\?|$)/i)
   const ext = extMatch ? extMatch[1].toLowerCase() : 'mp3'
   // 文件名带音质标识，避免同一首歌不同音质互相覆盖

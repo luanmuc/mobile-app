@@ -69,8 +69,8 @@ node scripts/docs-audit.js --dry-run
 | `tsc --noEmit` | rc0 | 0 error |
 | `eslint .` | rc0 | 0 error / 0 warning |
 | `npm run build-test` | rc0 | `index.android.bundle` 重建 |
-| `check_ts_syntax` | 526 个 TS/TSX，0 错误 | rc0 |
-| 三语 | 各 958 键 | 删除未消费旧键后复跑 |
+| `check_ts_syntax` | 527 个 TS/TSX，0 错误 | rc0 |
+| 三语 | 各 997 键 | 删除未消费旧键后复跑 |
 
 ## 4. 失败处置与外部阻塞
 

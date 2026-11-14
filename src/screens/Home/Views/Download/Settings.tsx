@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { View, TouchableOpacity, TextInput, ScrollView } from 'react-native'
 import RNFS from 'react-native-fs'
 import { AndroidScoped, getExternalStoragePaths } from 'react-native-file-system'
@@ -11,10 +11,15 @@ import { updateSetting } from '@/core/common'
 import { useTheme } from '@/store/theme/hook'
 import { createStyle, toast } from '@/utils/tools'
 import { isExternalStorageManager } from '@/utils/nativeModules/utils'
+import { normalizeFileNameTemplate, hasFileNameToken } from '@/utils/fileNameTemplate'
 
 const DEFAULT_DIR = `${RNFS.DownloadDirectoryPath}/lx-music/music`
 const PRIVATE_DIR = `${RNFS.DocumentDirectoryPath}/downloads`
-const NAME_PRESETS = ['歌名 - 歌手', '歌名', '歌手 - 歌名']
+const NAME_PRESETS = [
+  { value: '{title} - {artist}', labelKey: 'dl_file_name_preset_title_artist' },
+  { value: '{title}', labelKey: 'dl_file_name_preset_title' },
+  { value: '{artist} - {title}', labelKey: 'dl_file_name_preset_artist_title' },
+] as const
 const MAX_TASK_LIMIT = 5
 
 // SAF 选择器返回的是 content:// 树 URI，而下载走 RNFS 需要真实文件系统路径。
@@ -78,11 +83,23 @@ export default memo(({ defaultExpanded = false }: DownloadSettingsProps) => {
   const fileName = useSettingValue('download.fileName')
   const notifyComplete = useSettingValue('download.notifyComplete')
 
+  const presetLabel = (value: string) => {
+    const preset = NAME_PRESETS.find(p => p.value === value)
+    return preset ? t(preset.labelKey) : value
+  }
+
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [showDirOptions, setShowDirOptions] = useState(false)
   const [showNameOptions, setShowNameOptions] = useState(false)
   const [customDir, setCustomDir] = useState('')
   const [customName, setCustomName] = useState('')
+
+  // 旧版本存的是中文模板；打开设置时一次性迁移为 {title}/{artist}，
+  // 之后构建、校验、显示都只认 token。
+  useEffect(() => {
+    const normalized = normalizeFileNameTemplate(fileName)
+    if (normalized !== fileName) updateSetting({ 'download.fileName': normalized })
+  }, [fileName])
 
   const summary = [
     dir ? t('dl_summary_dir_custom') : t('dl_summary_dir_default'),
@@ -136,11 +153,11 @@ export default memo(({ defaultExpanded = false }: DownloadSettingsProps) => {
       toast(t('dl_toast_name_empty'))
       return
     }
-    if (!v.includes('歌名') && !v.includes('歌手')) {
+    if (!hasFileNameToken(v)) {
       toast(t('dl_toast_name_invalid'))
       return
     }
-    updateSetting({ 'download.fileName': v })
+    updateSetting({ 'download.fileName': normalizeFileNameTemplate(v) })
     setShowNameOptions(false)
     setCustomName('')
     toast(t('dl_toast_name_updated'))
@@ -250,7 +267,7 @@ export default memo(({ defaultExpanded = false }: DownloadSettingsProps) => {
                   >
                     <View style={styles.rowLabel}>
                       <Text size={13}>{t('dl_file_name')}</Text>
-                      <Text size={11} color={theme['c-font-label']} numberOfLines={1} style={styles.rowDesc}>{fileName}</Text>
+                      <Text size={11} color={theme['c-font-label']} numberOfLines={1} style={styles.rowDesc}>{presetLabel(normalizeFileNameTemplate(fileName))}</Text>
                     </View>
                     <Text size={12} color={theme['c-primary']}>{showNameOptions ? t('dl_action_collapse') : t('dl_action_change')}</Text>
                   </TouchableOpacity>
@@ -262,11 +279,11 @@ export default memo(({ defaultExpanded = false }: DownloadSettingsProps) => {
                               {
                                 NAME_PRESETS.map(preset => (
                                   <TouchableOpacity
-                                    key={preset}
-                                    onPress={() => { applyName(preset) }}
-                                    style={{ ...styles.preset, borderColor: fileName === preset ? theme['c-primary'] : theme['c-font-label'] }}
+                                    key={preset.value}
+                                    onPress={() => { applyName(preset.value) }}
+                                    style={{ ...styles.preset, borderColor: normalizeFileNameTemplate(fileName) === preset.value ? theme['c-primary'] : theme['c-font-label'] }}
                                   >
-                                    <Text size={12} color={fileName === preset ? theme['c-primary'] : theme['c-font']}>{preset}</Text>
+                                    <Text size={12} color={normalizeFileNameTemplate(fileName) === preset.value ? theme['c-primary'] : theme['c-font']}>{t(preset.labelKey)}</Text>
                                   </TouchableOpacity>
                                 ))
                               }

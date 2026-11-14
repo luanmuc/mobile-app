@@ -124,6 +124,12 @@ jobs:
           node scripts/check_download_persistence.js
           node scripts/check_download_restore_runtime.js
           node scripts/check_docs_consistency.js
+      - name: 热点行为断言（播放器/同步/文件名/错误标点）
+        run: |
+          node scripts/check_player_utils_runtime.js
+          node scripts/check_sync_client_runtime.js
+          node scripts/check_file_name_template_runtime.js
+          node scripts/check_download_error_i18n.js
 
       - name: Compute build number
         # 构建序号与 versionCode 统一由 publish/build-state.json 状态文件驱动：

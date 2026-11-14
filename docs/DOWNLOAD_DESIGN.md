@@ -6,7 +6,7 @@
 
 | 代码 | 职责 |
 |---|---|
-| `src/core/downloadManager.ts`（931 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
+| `src/core/downloadManager.ts`（922 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
 | `src/store/download/{state,action,hook}.ts` | Redux 风格状态管理（任务列表、进度、UI 联动） |
 | `src/screens/Home/Views/Download/index.tsx` | 下载页 UI（进行中/已完成/未完成分组） |
 | `src/components/OnlineList/QualitySelect.tsx` | 音质选择弹窗（只显示歌曲实际支持音质） |
@@ -96,21 +96,21 @@ waiting ──→ run ──→ completed
 | `download.maxTask` | 步进 1–5 | 同上 |
 | `download.autoRetry` | 开关 | 同上 |
 | `download.dir` | 默认 / 应用私有 / SAF 目录选择 / 手输路径 | 同上 → `getDownloadDir()` |
-| `download.fileName` | 3 预设 + 自定义模板 | 同上 → `buildFileName()`（`formatMusicName` 占位符：歌名 / 歌手） |
+| `download.fileName` | 3 预设 + 自定义模板 | 同上 → `buildFileName()`（`{title}` / `{artist}` 占位符；旧「歌名/歌手」自动迁移） |
 | `download.notifyComplete` | 开关（原在基础设置，已迁移） | 同上 |
 
 注意：SAF 选出来的是 `content://` 树 URI，下载走 RNFS 需要真实路径，`treeUriToPath()` 只认 `com.android.externalstorage.documents`（手机存储）；网盘/云端 provider 会被拒绝。写入 `/storage/...` 仍需「所有文件访问」权限，失败时提示去开启。
 
 ## 十一、国际化（b72）
 
-下载页、下载设置、下载管理器层（弹窗/toast/异常文案）不再有硬编码中文，全部走 `useI18n()`，键前缀 `dl_`（b75 起支持下载页；当前三语各 992 键，`dl_*` 共 97 键）。
+下载页、下载设置、下载管理器层（弹窗/toast/异常文案）不再有硬编码中文，全部走 `useI18n()`，键前缀 `dl_`（b75 起支持下载页；当前三语各 997 键，`dl_*` 共 102 键）。
 
 两类文字刻意保持中文原样，不做翻译：
 
 | 文字 | 位置 | 原因 |
 |---|---|---|
-| `歌名 - 歌手` / `歌名` / `歌手 - 歌名` 三个预设 | `NAME_PRESETS` | 是写入文件名模板的占位符字面量，翻译后 `formatMusicName()` 匹配不到「歌名」「歌手」，已有命名规则会失效 |
-| 占位符校验用的「歌名」「歌手」 | `applyName()` | 同上，校验的是模板内容而非界面文案 |
+| `{title} - {artist}` / `{title}` / `{artist} - {title}` 三个预设 | `NAME_PRESETS` | 结构化占位符，界面文案三语化；旧的「歌名 - 歌手」在打开设置或构建文件名时迁移为 token |
+| 占位符校验用的 `{title}` / `{artist}` | `applyName()` | 校验的是 token；旧「歌名/歌手」先归一化再校验，界面文案不再参与匹配 |
 
 ## 十二、破坏性操作约定（b75）
 

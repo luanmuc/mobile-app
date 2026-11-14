@@ -45,9 +45,16 @@ const getStatusInfo = (item: LX.Download.ListItem, t: TFn): { text: string, isPr
   if (item.status === 'error') {
     // 失败原因由 errorCode 翻译，error 里只保留原始信息（HTTP 码/异常文本）
     const reason = failReasonText(item.errorCode, t)
-    // 已知原因已翻译，只在原因是 unknown 时才附原始报错（避免英文界面里冒出中文报错文本）
-    const detail = item.errorCode && item.errorCode !== 'unknown' && item.error ? `（${item.error}）` : ''
-    return { text: `${t('dl_status_error')}${reason ? `：${reason}` : ''}${detail}`, isProgress: false }
+    // 已知原因只显示本地化标签；只有未知原因才附原始报错，避免英文界面冒出中文异常文本。
+    // 冒号/括号交给三语模板，英文用半角、中文用全角，不在代码里拼标点。
+    const detail = item.errorCode === 'unknown' && item.error ? item.error : ''
+    const status = t('dl_status_error')
+    const text = detail
+      ? t('dl_error_status_detail', { status, reason, detail })
+      : reason
+        ? t('dl_error_status', { status, reason })
+        : status
+    return { text, isProgress: false }
   }
   // 原生层写入的状态键优先（获取信息中 / 非WiFi已暂停 / 等待重试），避免展示存储里的中文
   if (item.statusKey) {
