@@ -1,3 +1,11 @@
+## [b126 发布：音源 v8.14.0 + 音质优先跨仓联动 + 审计计划重构] - 2026-11-15
+
+- **发布**：App `v1.9.2-b126` / versionCode 285（tag `59ab63bd`，Build `43619278134` success，Android 4m38s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64）；内置源 `8.14.0`（源仓 tag `v8.14.0` @ `f3a3e75`，资产 `lx-source-v8.14.0.js`，297753 bytes）。
+- **App 跨仓联动 `85d316ce`**：QP-L1 补齐第 14 个 action `forceQualityProbe`（`sourceContract.ts` / `check_source_contract.js` / `SYNC_POINTS.md` 14 个对齐）；QP-L2 消费源侧 `qualityCeilingApplied` 并在能力备档压制时给出可见原因；QP-L3 健康快照消费 `definitiveFail` / `linkExpired`；三语补 2 键。
+- **源仓 v8.14.0**：音质优先播放 + 真实交付档回填（`fragment` / `qualityConfidence` / `qualityCeilingApplied`）+ K08 唯一高质源 10min 探路 + K07 `forceQualityProbe` + CI `test-fast`/`stress-long`/`stress-short` 并行；`lx-source.js` 5707 行 / 297753 bytes。
+- **审计/文档**：`docs/AUDIT_PLAN.md` 重构为 v3.0、`docs/STRESS_PLAN.md` 重构为 v2.0；补 QP 跨仓联动审计面；`docs-audit.js` 规则 12 跨仓基准优先读 `mobile-app-latest`，并修复数组尾逗号 Lint 红。
+- **验证**：源仓 `npm test` rc0、40 audit 40/40、`verify-bundle` 8/0、mutation 22 killed/0 survived；App Checks/Lint/Android/Release 四 job 全绿；`docs-audit` 0 红、`check_docs_consistency` 18 文档通过。
+
 ## [音质优先播放 P0–P4：请求档/真实标签/下载档/缓存版本] - 2026-11-14
 
 > 本轮修复「设置 flac、自定义源实际只给 128k」的请求档错配；App 与源仓各一个本地提交，不推送。

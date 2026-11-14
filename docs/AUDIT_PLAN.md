@@ -3,7 +3,7 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-15）**：
-> - App：`luanmuc/mobile-app` @ `a4e0e4d1`（已推送），v1.9.2-b125 / versionCode 284；**b126 本次发布构建**
+> - App：`luanmuc/mobile-app` @ `59ab63bd`（已推送），v1.9.2-b126 / versionCode 285（Build `43619278134` success）
 > - 源仓：`luanmuc/backend-api` @ `f3a3e75`（已推送），v8.14.0（5707 行 / 297753 bytes）
 > - track-player：`88b062b`（v2 分支）
 > - 硬数字：三语各 **999 键**、TS/TSX **527 文件**、`scripts/check_*.js` **34 个**（release.yml 引 30，另 4 个在 health-stress.yml 或离线）
