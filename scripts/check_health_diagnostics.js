@@ -234,11 +234,9 @@ if (healthLog) {
     assert(healthLog.healthFileName(d) === 'source_health_20261111.jsonl', `实际 ${healthLog.healthFileName(d)}`)
   })
 
-  check('H5 成功 1/5 采样', () => {
-    assert(healthLog.shouldSampleSuccess(() => 0.01) === true, '0.01 应采样')
-    assert(healthLog.shouldSampleSuccess(() => 0.19) === true, '0.19 应采样')
-    assert(healthLog.shouldSampleSuccess(() => 0.2) === false, '0.2 不应采样')
-    assert(healthLog.shouldSampleSuccess(() => 0.999) === false, '0.999 不应采样')
+  check('H5 成功 1/1 全量记录', () => {
+    assert(healthLog.shouldSampleSuccess(() => 0.01) === true, '0.01 应记录')
+    assert(healthLog.shouldSampleSuccess(() => 0.999) === true, '0.999 应记录')
   })
 
   check('H6 2MB 封顶保留尾部并落在行边界', () => {

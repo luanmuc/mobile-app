@@ -133,7 +133,7 @@ const DAY = 24 * HOUR;
   rec('U8', '1000 个 traceId 唯一且格式正确', formatOk && ids.size === 1000, `unique=${ids.size}`)
 
   // U9
-  rec('U9', '成功采样边界 0.19→采 / 0.2→不采', log.shouldSampleSuccess(() => 0.19) === true && log.shouldSampleSuccess(() => 0.2) === false, 'floor(r*5)===0')
+  rec('U9', '成功 1/1 全量记录：0.19 与 0.2 均保留', log.shouldSampleSuccess(() => 0.19) === true && log.shouldSampleSuccess(() => 0.2) === true, 'SUCCESS_SAMPLE_RATE=1')
 
   // U10
   const entry = log.buildPlayResultEntry({ traceId: 't', platform: 'kw', quality: '128k', ok: true, latencyMs: 12 })

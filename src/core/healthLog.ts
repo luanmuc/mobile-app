@@ -5,7 +5,7 @@
  * - `source_health_YYYYMMDD.jsonl` 按天滚动
  * - 单文件 2MB 封顶，超限保留尾部
  * - 保留 7 天，启动/写入时清理
- * - 失败 100% 记；成功 1/5 采样；缓存命中单独记 cache_hit
+ * - 失败 100% 记；成功 1/1 记；缓存命中单独记 cache_hit
  * - 失败时抓同 traceId 的音源事件一起落盘
  *
  * 纯函数与运行时函数放在同一模块，运行时依赖全部惰性 require，
@@ -36,6 +36,7 @@ export interface PlayResultInput {
   sourceId?: string
   sampleWeight?: number
   attempts?: PlayAttempt[]
+  recordPlay?: boolean
 }
 
 export interface HealthLogEntry {
@@ -56,9 +57,10 @@ export interface HealthLogEntry {
 const DAY = 24 * 60 * 60 * 1000
 export const HEALTH_FILE_MAX_BYTES = 2 * 1024 * 1024
 export const HEALTH_KEEP_DAYS = 7
-// 成功按 1/5 采样落盘；聚合时用 5 作为权重，估算未采样成功量（对齐 OTel adjusted count）。
-// 本地诊断是单机低频场景，1/20 会让“听几首歌仍为 0”，因此放宽到 1/5。
-export const SUCCESS_SAMPLE_RATE = 5
+// 本地诊断是单机低频场景，旧版 1/5 采样会让“听几首歌仍为 0”。
+// 2026-11-15：成功播放改为 1/1 全量落盘，保证健康页能反映真实播放；旧日志的
+// sampleWeight=5 仍由聚合端按权重还原，兼容历史数据。
+export const SUCCESS_SAMPLE_RATE = 1
 // 报告读取上限：约覆盖 7 天中等流量；超过时报告标 truncated，不把截断数据叫 7 天。
 export const REPORT_EVENT_LIMIT = 20000
 const HEALTH_FILE_RE = /^source_health_(\d{8})\.jsonl$/
@@ -68,7 +70,7 @@ const dateKey = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.
 
 export const healthFileName = (now: Date = new Date()): string => `source_health_${dateKey(now)}.jsonl`
 
-export const shouldSampleSuccess = (random: () => number = Math.random): boolean => Math.floor(random() * 5) === 0
+export const shouldSampleSuccess = (random: () => number = Math.random): boolean => SUCCESS_SAMPLE_RATE <= 1 || Math.floor(random() * SUCCESS_SAMPLE_RATE) === 0
 
 export const isExpiredHealthFileName = (name: string, today: string, keepDays: number = HEALTH_KEEP_DAYS): boolean => {
   const m = HEALTH_FILE_RE.exec(name)
@@ -169,6 +171,45 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   const attempts = normalizePlayAttempts(input.attempts)
   if (attempts) entry.attempts = attempts
   return entry
+}
+
+/**
+ * App 侧取链账本：源仓的 `source_result` 只在失败时被 App 拉取，且落成嵌套
+ * `source_events`，不会进入 `windows` 取链窗口。这里把真实的 attempts 直接落成
+ * 顶层 `chain_result`，保证成功播放也能被健康页统计；缓存命中不在此列。
+ */
+export const buildChainResultEntries = (input: PlayResultInput): HealthLogEntry[] => {
+  const base: HealthLogEntry = {
+    ts: Date.now(),
+    event: 'chain_result',
+    sampleWeight: 1,
+  }
+  if (input.traceId) base.traceId = String(input.traceId)
+  if (input.platform) base.platform = String(input.platform)
+  if (input.quality) base.quality = String(input.quality)
+
+  const attempts = normalizePlayAttempts(input.attempts)
+  if (attempts) {
+    const rows: HealthLogEntry[] = []
+    for (const attempt of attempts) {
+      if (typeof attempt.ok !== 'boolean') continue
+      const entry: HealthLogEntry = {
+        ...base,
+        sourceId: attempt.source,
+        ok: attempt.ok,
+      }
+      if (attempt.code) entry.code = attempt.code
+      if (Number.isFinite(attempt.latencyMs)) entry.latencyMs = Math.round(Number(attempt.latencyMs))
+      rows.push(entry)
+    }
+    if (rows.length) return rows
+  }
+
+  const fallback: HealthLogEntry = { ...base, ok: input.ok }
+  if (input.sourceId) fallback.sourceId = String(input.sourceId)
+  if (input.code) fallback.code = String(input.code)
+  if (Number.isFinite(input.latencyMs)) fallback.latencyMs = Math.round(Number(input.latencyMs))
+  return [fallback]
 }
 
 /** 逐行解析 JSONL；坏行/空行跳过，绝不因一行损坏丢整份日志 */
@@ -377,10 +418,13 @@ export const recordCacheHit = async(input: CacheHitInput): Promise<void> => {
 }
 
 export const recordPlayResult = async(input: PlayResultInput): Promise<void> => {
-  // 失败 100% 落盘；成功只落 1/5，但落盘时带权重 5，聚合端才能还原真实成功率。
-  if (input.ok && !shouldSampleSuccess()) return
-  const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
-  await appendHealthEvent(entry)
+  // 失败 100% 落盘；成功按 SUCCESS_SAMPLE_RATE 采样（当前 1/1）。取链账本必须
+  // 独立于播放采样：否则成功播放没被采中时，chain 也会一起丢失。
+  if (input.recordPlay !== false && (!input.ok || shouldSampleSuccess())) {
+    const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
+    await appendHealthEvent(entry)
+  }
+  for (const entry of buildChainResultEntries(input)) await appendHealthEvent(entry)
   if (!input.ok && input.traceId) {
     const sourceEvents = sanitizeSourceEvents(await fetchSourceEvents(String(input.traceId)))
     if (sourceEvents.length) {

@@ -44,7 +44,7 @@ export const setPic = (datas: {
  */
 
 
-export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, onQuality = () => {}, onSource = () => {}, onFragment = () => {} }: {
+export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, onQuality = () => {}, onSource = () => {}, onFragment = () => {}, recordPlay = true }: {
   musicInfo: LX.Music.MusicInfoOnline
   quality?: LX.Quality
   isRefresh: boolean
@@ -53,6 +53,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   onQuality?: (quality: LX.Quality) => void
   onSource?: (source: { id: string, name: string, platform?: string, fragment?: boolean } | null) => void
   onFragment?: (fragment: boolean) => void
+  recordPlay?: boolean
 }): Promise<string> => {
   // if (!musicInfo._types[type]) {
   //   // 兼容旧版酷我源搜索列表过滤128k音质的bug
@@ -107,6 +108,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       latencyMs: Date.now() - startTs,
       sourceId: subSource,
       attempts,
+      recordPlay,
     })
     log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 请求档=${requestedQuality} 实际档=${targetQuality} 子源=${subSourceName || subSource || '无'} 片段=${fragment === true ? '是' : '否'} 置信=${qualityConfidence} 起跑档压制=${qualityCeilingApplied ? '是' : '否'} trace=${traceId} attempts=${attempts ? JSON.stringify(attempts) : '无'}`)
     return url
@@ -130,6 +132,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       latencyMs: Date.now() - startTs,
       sourceId: failureSourceId,
       attempts: errAttempts,
+      recordPlay,
     })
     log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message} trace=${traceId} attempts=${errAttempts ? JSON.stringify(errAttempts) : '无'}`)
     throw err

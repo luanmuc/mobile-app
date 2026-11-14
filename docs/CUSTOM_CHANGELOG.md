@@ -1,3 +1,13 @@
+## [健康页取链/播放统计修复（本地提交，待发布）] - 2026-11-15
+
+> 复现：真实 `recordPlayResult` 成功只写 `play_result`，健康报告取链窗口为 0；失败时源侧 `source_result` 被存成嵌套 `source_events`，取链窗口仍为 0。根因是 App 无顶层取链事件写入，且成功播放 1/5 采样会让一小时随机播放仍显示 0。
+
+- **App 取链账本**：`healthLog.ts` 新增 `buildChainResultEntries`，成功/失败都按真实 `attempts` 落顶层 `chain_result`；无 attempts 时用结果本身一条。`healthDiagnostics.ts` 的 `isChainOutcome` 同时接受 `chain_result` 与历史 `source_result`。
+- **成功播放全量记录**：`SUCCESS_SAMPLE_RATE` 由 5 改为 1；新日志 `sampleWeight=1`，历史 1/5 样本仍按 weight=5 还原。健康页“成功按 1/5 采样加权”文案三语改为“成功按 1/1 全量记录，数值为实测”。
+- **预加载不伪造播放**：`getMusicUrl` 增加 `recordPlay?: boolean`；`preloadNextMusic.ts` 两处取链传 `false`，预加载只写 `chain_result`，不写 `play_result`。
+- **回归**：新增 `scripts/check_health_real_playback.js`（R1~R4）用生产函数验证成功/失败/预加载/缓存命中；更新 `check_health_event_pipeline` E5、`check_health_diagnostics` H5、`check_health_diagnostics_deep` D9/F7、`check_health_diagnostics_stress` U9 的 1/1 口径。
+- **边界**：源仓不改；旧日志仍可统计；本轮仅本地提交，未 push、未发版。
+
 ## [b126 发布：音源 v8.14.0 + 音质优先跨仓联动 + 审计计划重构] - 2026-11-15
 
 - **发布**：App `v1.9.2-b126` / versionCode 285（tag `59ab63bd`，Build `43619278134` success，Android 4m38s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64）；内置源 `8.14.0`（源仓 tag `v8.14.0` @ `f3a3e75`，资产 `lx-source-v8.14.0.js`，297753 bytes）。

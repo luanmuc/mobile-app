@@ -122,17 +122,12 @@ check('E4 失败播放拉同 trace 源事件，且 sourceEvents 先脱敏', asyn
   assert(text.includes('NOT_FOUND') && text.includes('suyinKuwo'), '白名单字段丢失')
 })
 
-check('E5 成功播放按 1/5 采样并带权重 5', async() => {
+check('E5 成功播放 1/1 全量落盘并带权重 1', async() => {
   reset()
-  const oldRandom = Math.random
-  let seq = [0.05, 0.5]
-  Math.random = () => seq.shift() ?? 0.5
-  try {
-    await hlog.recordPlayResult({ traceId: 't-ok1', ok: true, latencyMs: 50 })
-    await hlog.recordPlayResult({ traceId: 't-ok2', ok: true, latencyMs: 60 })
-  } finally { Math.random = oldRandom }
+  await hlog.recordPlayResult({ traceId: 't-ok1', ok: true, latencyMs: 50 })
+  await hlog.recordPlayResult({ traceId: 't-ok2', ok: true, latencyMs: 60 })
   const entries = allEntries().filter(e => e.event === 'play_result')
-  assert(entries.length === 1 && entries[0].sampleWeight === 5, `采样/权重错误：${JSON.stringify(entries)}`)
+  assert(entries.length === 2 && entries.every(e => e.sampleWeight === 1), `采样/权重错误：${JSON.stringify(entries)}`)
 })
 
 check('E6 三块隔离：play 失败不污染 chain，probe 失败不污染 play', async() => {

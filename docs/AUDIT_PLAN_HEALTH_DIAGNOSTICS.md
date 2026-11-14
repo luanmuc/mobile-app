@@ -13,7 +13,7 @@
 
 本地诊断回答的是「这个音源到底坏没坏」。它必须同时满足：
 
-1. **数值可信**：成功按 1/5 采样落盘，聚合必须还原真实成功率；任何派生的趋势/异常比较也不得回到原始条数。
+1. **数值可信**：成功 1/1 全量落盘（历史 1/5 样本仍按权重还原），聚合必须还原真实成功率；任何派生的趋势/异常比较也不得回到原始条数。
 2. **归因正确**：失败必须绑定真实 `sourceId`；没有归因证据时宁可少报，不得把 `platform` 冒充成源。
 3. **窗口诚实**：`1h/24h/7d` 是否覆盖由全量事件最早时间戳判定；覆盖不足必须降级文案，不能把 2 小时说成 7 天。
 4. **异常可复核**：每条 finding 有 evidence、traceId、最多 5 条 samples，且总条数有上限。
@@ -49,13 +49,13 @@
 | `buildPlayResultEntry` | 空串省略 / NaN 省略 / 负权重省略 / 延迟取整 / 权重 1 | F3、F4 |
 | `parseHealthLines` | 坏 JSON / 数组 / null / event 非字符串 / CRLF | F5 |
 | `isExpiredHealthFileName` | 非法文件名 / 7 天边界 / 8 天前 | F6 |
-| `shouldSampleSuccess` | 0 / 0.049 / 0.05 / 0.999 | F7 |
+| `shouldSampleSuccess` | 0 / 0.19 / 0.999 均 true（1/1） | F7 |
 | `createHealthTraceId` | 格式 / 2000 次唯一性 | F8 |
 | `healthFileName` / `buildExportFileName` | 日期、时分秒、无设备/账号 | F10 |
 | `trimTailByBytes` | 纯中文 / 代理对 / 超字节上限 | F11 |
 | `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失；父目录整体删除后逐级重建 | 既有压力 U2、U3、U5；契约 H28 |
 | `ensureHealthLogsDir` | 打开诊断页确保目录存在，不依赖下一次播放 | H28 |
-| `recordPlayResult` | 失败 100% / 成功 1/5 / 失败抓 sourceEvents；缓存命中单独 `cache_hit` | 契约 H11、H15 + 压力 U9~U12 |
+| `recordPlayResult` | 失败 100% / 成功 1/1 / 失败抓 sourceEvents；App attempts 落顶层 `chain_result`；缓存命中单独 `cache_hit` | 契约 H11、H15 + 压力 U9~U12 |
 
 ### 2.3 其它改动面
 
@@ -80,7 +80,7 @@
 | D6 | 1h 窗口内 2 条 + 2h 基准 | total 2、covered true |
 | D7 | 3h 数据 / 30min 数据 | 3h 覆盖 1h 不覆盖 24h；30min 不覆盖 1h |
 | D8 | 空报告 | coverage 空、findings 0、summary 引导 |
-| D9 | 30min + truncated | d7 false；summary 含“仅覆盖最近”和“1/5” |
+| D9 | 30min + truncated | d7 false；summary 含“仅覆盖最近”和“1/1” |
 | D10 | 恰好 7 天前基准 | d7 covered true、total 20（权重 20） |
 | D11 | 全失败 | rate 0、有 findings/recommendations |
 | D12 | 非法事件 | 不抛，只保留合法 ts |
@@ -114,7 +114,7 @@
 | F4 | 延迟/权重 | 延迟四舍五入，失败权重 1 保留 |
 | F5 | 脏行 | 数组/null/无 event 跳过，合法行保留 |
 | F6 | 文件名过期 | 非法名不判过期，7 天边界准确 |
-| F7 | 采样边界 | 0/0.19 采，0.2/0.999 不采 |
+| F7 | 记录边界 | 0/0.19/0.2/0.999 全部记录 |
 | F8 | traceId | 2000 个唯一且格式稳定 |
 | F9 | 恰好上限 | 完整行不被丢弃 |
 | F10 | 文件名 | 日期/时分秒正确，无账号设备 |

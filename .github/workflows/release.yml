@@ -70,11 +70,12 @@ jobs:
           node scripts/check_release_state_contract.js
           node scripts/check_media_body.js
 
-      - name: 健康诊断契约门禁（51 条 + 视图 22 条 + 日志目录 15 条）
+      - name: 健康诊断契约门禁（51 条 + 真实播放 4 条 + 视图 22 条 + 日志目录 15 条）
         # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
         # 视图模型锁折叠态、错误码/其他线索分组与空态。
         run: |
           node scripts/check_health_diagnostics.js
+          node scripts/check_health_real_playback.js
           node scripts/check_health_diagnostics_view.js
           node scripts/check_log_directory.js
 

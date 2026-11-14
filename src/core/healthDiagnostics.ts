@@ -176,7 +176,7 @@ export interface HealthEvidencePackage {
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
-const isChainOutcome = (e: HealthEventLike) => e.event === 'source_result' && typeof e.ok === 'boolean'
+const isChainOutcome = (e: HealthEventLike) => (e.event === 'chain_result' || e.event === 'source_result') && typeof e.ok === 'boolean'
 const isPlayOutcome = (e: HealthEventLike) => e.event === 'play_result' && typeof e.ok === 'boolean'
 const isProbeOutcome = (e: HealthEventLike) => e.event === 'probe_result' && typeof e.ok === 'boolean'
 const isOutcome = (e: HealthEventLike) => isChainOutcome(e) || isPlayOutcome(e)
@@ -190,7 +190,7 @@ const p95 = (values: number[]): number | null => {
   return Math.round(sorted[idx])
 }
 
-// 成功按 1/5 采样落盘，落盘时带 sampleWeight=5；历史事件没有权重，按 1 处理。
+// 成功按 1/1 全量落盘（历史 1/5 样本仍带 sampleWeight=5）；无权重历史事件按 1 处理。
 const weightOf = (e: HealthEventLike): number => {
   const w = Number(e.sampleWeight)
   return Number.isFinite(w) && w > 0 ? w : 1
@@ -333,7 +333,7 @@ export const detectHealthAnomalies = (input: {
     const recent = outcomes.filter(e => sourceOf(e) === sourceId && inWindow(e, now, DAY))
     const prev = outcomes.filter(e => sourceOf(e) === sourceId && e.ts <= now - DAY && e.ts > now - 2 * DAY)
     if (recent.length >= 5 && prev.length >= 5) {
-      // 与窗口统计同一口径：成功样本按 1/5 采样，必须用 sampleWeight 还原，
+      // 与窗口统计同一口径：历史成功样本可能按 1/5 采样，必须用 sampleWeight 还原，
       // 否则采样比例变化会被误读成成功率变化。
       const recentStats = statsOf(recent, true)
       const prevStats = statsOf(prev, true)
@@ -600,8 +600,8 @@ export const buildHealthReport = (input: {
   }
   const cacheNote = cacheHits.h24 ? `近 24 小时缓存命中 ${cacheHits.h24} 次（不计入取链）。` : ''
   const weightingNote = coverage.unweightedSuccesses
-    ? `成功按 1/5 采样加权；其中 ${coverage.unweightedSuccesses} 条成功为升级前未加权样本，成功率仅供参考。`
-    : '成功按 1/5 采样加权，数值为估算。'
+    ? `成功按 1/1 全量记录；其中 ${coverage.unweightedSuccesses} 条成功为升级前未加权样本，成功率仅供参考。`
+    : '成功按 1/1 全量记录，数值为实测。'
   const coverageNote = agg.windows.d7.covered
     ? ''
     : ` 本地日志仅覆盖最近 ${spanText(coverage.coveredMs)}，7 天结论仅供参考。`
