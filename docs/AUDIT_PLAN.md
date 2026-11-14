@@ -177,6 +177,7 @@ node scripts/docs-audit.js --dry-run            # 待处理 0
 | S1~S5 | 设备级：首装/升级、权限流、横竖屏、批量下载、长文件名 | 真机 | 标 🧪，待实机 |
 | X-L1~L3 | 音质政策 App 消费面（见 §4） | App 侧跟进 | 见 §4 处置 |
 | 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
+| 健康诊断·未闭环 4 项 | ①真实播放回传去重（同歌多次 Playing 每次成功回传会抬高样本数）②`probeSource` 只读语义 ③自动关闭 TTL 6h 重启复验 ④真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 / 宿主模拟 | 见 `AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` §6；未闭环前不宣称「健康判定完全正确」 |
 
 ---
 

@@ -1,5 +1,7 @@
 # 音源健康 · 本地诊断深度审计计划与压力测试口径
 
+> **定位**：本文件是主计划 [`AUDIT_PLAN.md`](./AUDIT_PLAN.md) §3b「音源健康本地诊断」一行的**深度子纲**（85 条断言口径：深度 52 / 视图 20 / 日志目录 13），不是并列的第二份审计计划。主计划管「审什么 / 缺口在哪」，本文件管「健康诊断这一域的逐分支断言怎么验」。
+>
 > 审计对象：App 仓 `lx-music-mobile`，本地诊断闭环（`healthLog.ts` / `healthDiagnostics.ts` / `online.ts` 失败归因 / `Health.tsx` / 三语文案 / 文档与 workflow）。
 > 本轮基线：历史起点 `a02db1af`；2026-11-14 当前复核提交 `785af658` + 文档回填 `8adce795`（均已推送，App CI `43520302282` success），`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 23/0、`check_log_directory` 15/0。
 > 原则：不是「跑一遍不崩」，而是逐分支验证统计口径、窗口语义、异常规则、隐私边界和大数据行为。

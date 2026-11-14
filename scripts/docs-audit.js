@@ -178,8 +178,10 @@ function ruleAudioOffload() {
 // ── 规则 9：跨仓 · 内置音源版本 ↔ 音源仓 lx-source.js @version ───────────
 function ruleBuiltinSourceVersion() {
   try {
-    const sib = path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js')
-    if (!fs.existsSync(sib)) { report.push('⚪ 规则9 跳过：本地无 ../lx-music-source（CI 请先 clone 兄弟仓）'); return }
+    const sib = ['../backend-api-latest', '../lx-music-source']
+      .map((d) => path.resolve(ROOT, d, 'lx-source.js'))
+      .find((p) => fs.existsSync(p))
+    if (!sib) { report.push('⚪ 规则9 跳过：本地无相邻音源仓（backend-api-latest / lx-music-source）'); return }
     const m = fs.readFileSync(sib, 'utf8').match(/@version[: \t]+([\d.]+)/)
     if (!m) { report.push('⚠️ 规则9：兄弟仓 lx-source.js 未找到 @version'); return }
     const v = m[1]; const p = 'docs/MUSIC_SOURCE_GUIDE.md'
