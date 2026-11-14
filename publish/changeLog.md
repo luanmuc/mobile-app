@@ -2,16 +2,16 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 921737f2 test(player): 补齐核心/服务/Hook 运行时断言
-- 794f498b docs: finalize b123 release state and S-01 source baseline
+- ff9647cc feat(music): 按源能力请求音质并回填真实交付档
+- 420f87a1 docs: 同步 b124 发布事实与 N2/S-01 收口记录
 
 ### File MD5
 ```
-7d6d36b5315571a36b6eb1417bdcae13  mobile-app-v1.9.2-b124-arm64-v8a.apk
-8b25564392acadb43a58da4344874d5e  mobile-app-v1.9.2-b124-armeabi-v7a.apk
-8006f5fd75ab67ce9e623ae937af0f29  mobile-app-v1.9.2-b124-universal.apk
-2b5a24363f51ea053f67707927e5078f  mobile-app-v1.9.2-b124-x86.apk
-a748309e1a7973c61423e46cc2fb141d  mobile-app-v1.9.2-b124-x86_64.apk
+51621439b27e4881dbdb9e8bec84ecf5  mobile-app-v1.9.2-b125-arm64-v8a.apk
+27e2cb1a6117b2b16c6dd72cb37a4b9e  mobile-app-v1.9.2-b125-armeabi-v7a.apk
+9226a3c287fffcdae088d569dbd066c7  mobile-app-v1.9.2-b125-universal.apk
+3e474c649217a63f17d0a8bf6e261c44  mobile-app-v1.9.2-b125-x86.apk
+2e6e3eaf46d2d74a9420e8583e1ea803  mobile-app-v1.9.2-b125-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
