@@ -1,15 +1,16 @@
 ### 更新内容
 
-- 设置页改版：手机竖屏按类型分组，点击进入再展开，不再整页长滚动
-- 新增独立「清理缓存」设置页：支持一键清理全部缓存，也可分项清理
-- 播放页音质、音源改为纯显示（展示当前实际音质与当前音乐平台）
-- 下载歌曲强制获取最新播放链接，修复缓存过期导致下载失败的问题
-- 播放页「拖拽歌词调整进度」默认开启（老版本升级后自动勾选）
-- 内置豆包定制聚合音源（lx-source.js 最新版）
+基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
+
+- a107014d fix: close R-01 release state and user-visible i18n gaps
 
 ### File MD5
 ```
-<!-- CI 构建时自动生成各架构 APK 的 MD5 列表 -->
+a351bb5082bc8ff1dda98b6bf370c7bb  mobile-app-v1.9.2-b120-arm64-v8a.apk
+ebc4362ee33d14c5bb69d524c1a14b4f  mobile-app-v1.9.2-b120-armeabi-v7a.apk
+997743f01b1d36b2ce42a426169d99a9  mobile-app-v1.9.2-b120-universal.apk
+3c5fdb0e5a9e40b09cd7dddc795a8cd6  mobile-app-v1.9.2-b120-x86.apk
+78d38cec68bb71f0db599efe88f26053  mobile-app-v1.9.2-b120-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
