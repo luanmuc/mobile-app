@@ -1,7 +1,23 @@
+## [R-01 发布状态闭环 + 错误/进度/用户可见文案收口] - 2026-11-14
+
+> 最终发布 **v1.9.2-b121 / versionCode 280**（tag `83f80c6d`，Build `43561230482`，5 个 APK）。b120 为同一 App 代码的首次构建，Android 成功但 Release 的 `Commit version info` 因 `publish/changeLog.md` 未入提交、`git rebase` 拒绝 unstaged changes 而失败；修复 workflow 后 b121 的 Android 与 Release 双绿，版本状态已自动回写。
+
+- **R-01 发布状态回写/门禁**：`release.yml` 增加 `target_commitish` 固定 tag 到构建提交（修复 b119 tag 指向 docs 提交 `86018973`）；Release 提交前 `git fetch origin master` + `git rebase --autostash origin/master`，`git add` 纳入 `publish/changeLog.md`；`git push` 去掉 `|| echo`，失败必须 job 红。新增 `check_release_state_contract.js` 5 条断言。
+- **N1 错误提示国际化**：删除 `FAIL_CODE_ZH`，改为 `FAIL_CODE_I18N_KEY`（21 源错误码映射 18 个 key，`TIMEOUT`/`TOO_MANY_REQUESTS`/`MISMATCH` 复用别名）；`formatPlayError` 不再拼接源侧 detail，未知码只显示 code。`check_playback_ownership_runtime.js` 扩到 21 条并新增英文界面无中文断言。
+- **N3 播放进度分母**：`setProgress` 由 `currentTime` 改为 `totalTime`；`0/0=0`。新增 `check_player_progress_runtime.js` 4 条。
+- **I-01 音质名/按钮**：`QualitySelect` 7 个音质 key + 下载取消/开始按钮 key；下载页音质展示同步走 key。
+- **I-02 扫描菜单/本地歌单名**：`list_scan_download_dir` 与 `list_local_music` 三语化，本地歌单创建时按当前语言取值。
+- **I-03 切源/选目录错误**：源切换失败保留旧源、目录读取失败均走 `t()`，不再暴露英文/中文裸串。
+- **I-04 健康页原始错误与听歌统计**：Health 8 处 `String(e.message)` 改为本地化摘要，原始错误只进 `logger.warn`；听歌统计整句与时长格式三语化；`downloadManager` 的 `statusText`（下载中/已完成/获取歌曲信息/非 WiFi 暂停/已暂停/等待中）全部改 `global.i18n.t()`，落盘仍由 `stripStatusText` 剥离。
+- **N2 测试覆盖**：新增 `check_download_restore_runtime.js` 3 条（run→waiting、已完成保留、空存储不写），补下载恢复热点。
+- **文案台账**：三语各 992 键，`dl_*` 97 键；本轮新增 34（N1 18 + I-01 9 + I-02 2 + I-03 2 + I-04 3）。
+- **验证**：b121 CI 的 `tsc`、ESLint、音源/健康/状态三组契约门禁、Build Release APK、Release 全部 success；本地 `check_release_state_contract` 5/0、`check_playback_ownership_runtime` 21/0、`check_player_progress_runtime` 4/0、`check_download_restore_runtime` 3/0、`check_docs_consistency` 18 文档 0 过时。
+
 ## [审计交接单 P1–P5 + 同类扫描修复] - 2026-11-14
 
 > 本轮为代码/文案/测试/CI/文档修复；临时审计交接单已删除，构建由收口后的 push 触发。
 
+- **发布**：App `v1.9.2-b119` / versionCode 278（tag `86018973`，Build `43554924635` success，5 个 APK）。
 - **P1 错误码文案**：`FAIL_CODE_ZH` 由 15 键扩到 21 键，覆盖源仓 16 个 `ERROR_CODES` 实际值（含 `SONG_MISMATCH`、`TRUNCATED_MEDIA`、`BAD_ENVELOPE`、`CONTRACT_ERROR`、`CANCELED`），并补 App 自有 `BUDGET_EXHAUSTED`；`source init failed` 走 `player__source_init_failed`；预算/取消不再拼接内部中文明细。
 - **P2 下载落盘**：新增 `stripStatusText`，`save()` 与 `migrateDownloadDir()` 二次保存都在落盘前剥离旧 `statusText`；显示层未知状态回退 `dl_status_error`，不再回退存储中文。
 - **P3 假阳性留档**：源仓当前 HEAD `4f47868` 复跑 `test/audit/f-repo.js` 为 52/0；`docs/STRESS_PLAN_v8.13.1.md` 在所有分支/历史不存在，不改门禁。

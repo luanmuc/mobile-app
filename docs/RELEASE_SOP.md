@@ -24,18 +24,18 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error，`.github/workflows/release.yml`）：与语法检查互补，失败即停在构建前
       ├─ ESLint 全仓检查（0 error / 0 warning，`.github/workflows/release.yml`）：格式/类型断言/空值语义等静态约束，失败即停在构建前
-      ├─ 音源标签/配置/语法/action/持久化契约门禁（标签 9 + 配置 25 + 音源契约 14 + 持久化 17 + 播放预算 20 + 播放所有权运行时 20 + 桥媒体 6 + TS 语法 526，`.github/workflows/release.yml`）：`sourcePlatform` 全链路透传 / 配置键表 / 13 个 action 权威表、v2 envelope 与 fallbackOwner / canonical 健康持久化、旧键迁移、动态 provider-id 快照与源版本 / 播放 24s 预算、attempts（含 owner 归因）、play_result 落盘与候选缓存 / mock 外呼计数、16 源错误码全覆盖与候选竞速逻辑取消 / 桥媒体 base64 信封与 256KB 分片 / TS 语法；失败即停在构建前
+      ├─ 音源标签/配置/语法/action/持久化契约门禁（标签 9 + 配置 25 + 音源契约 14 + 持久化 17 + 播放预算 20 + 播放所有权运行时 21 + 播放进度 4 + 发布状态 5 + 桥媒体 6 + TS 语法 526，`.github/workflows/release.yml`）：`sourcePlatform` 全链路透传 / 配置键表 / 13 个 action 权威表、v2 envelope 与 fallbackOwner / canonical 健康持久化、旧键迁移、动态 provider-id 快照与源版本 / 播放 24s 预算、attempts（含 owner 归因）、play_result 落盘与候选缓存 / mock 外呼计数、16 源错误码全覆盖与候选竞速逻辑取消 / 桥媒体 base64 信封与 256KB 分片 / TS 语法；失败即停在构建前
       ├─ 健康诊断契约门禁（54 条 + 视图 24 条 + 日志目录 15 条，`.github/workflows/release.yml`）：action 透传/分发 case/traceId/本地日志/聚合脱敏，以及折叠态/错误码分组/空态视图模型；失败即停在构建前
-      ├─ 健康状态/文案/文档一致性门禁（anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 11 + download 3 + docs 18，`.github/workflows/release.yml`）：主状态/reason 本地化、质量矩阵、下载落盘字段与三语/文档台账；失败即停在构建前
+      ├─ 健康状态/文案/文档一致性门禁（anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 11 + download 3 + download-restore 3 + docs 18，`.github/workflows/release.yml`）：主状态/reason 本地化、质量矩阵、下载落盘字段与三语/文档台账；失败即停在构建前
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
       ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
       └─ ./gradlew assembleRelease → 5 个 ABI APK → upload-artifact
   └─ Job Release（needs: Android）
       ├─ 生成发布说明（scripts/gen_change_log.py：git log 自动生成本次变更 + APK MD5）
-      ├─ softprops/action-gh-release：创建 tag v1.9.2-b<build>，上传 APK
+      ├─ softprops/action-gh-release：创建 tag v1.9.2-b<build>（target_commitish 固定到本次构建提交），上传 APK
       ├─ 更新 publish/version.json（版本+描述+最近历史）
       ├─ 更新并发布 npm 版本信息包（luanmuc-lx-music-version-info）
-      └─ 提交 version.json + build-state.json + npm-version-info/package.json + README.md（底座 bN 同步）回 master（不再触发构建）
+      └─ 提交 version.json + build-state.json + npm-version-info/package.json + README.md（底座 bN 同步）回 master（不再触发构建）；push 前先 fetch/rebase，push 失败必须让 job 红，不再用 `|| echo` 吞错
 ```
 
 ## 三、发布前测试清单（改动核心代码时必做）
