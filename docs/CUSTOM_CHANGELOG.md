@@ -5,11 +5,14 @@
 - **I-05 文件名模板结构化**：新增 `src/utils/fileNameTemplate.ts`，默认 `{title} - {artist}`；旧「歌名/歌手」在打开设置或构建文件名时自动迁移；`hasFileNameToken()` 严格校验原始输入，空模板/无 token 回退默认，避免自定义内容被静默重置。`Download/Settings.tsx` 预设改为 token、显示文案走三语 key，`downloadManager.buildFileName()` 统一走 `formatFileNameTemplate()`。
 - **I-05 回归补修**：`formatMusicName()` 仍只替换中文「歌名/歌手」，而默认值已改为 token，导致播放页标题/分享文案原样显示 `{title} - {artist}`；改为复用 `formatFileNameTemplate()`，并补 I05-11 静态断言守住播放页/分享链路。b122 因此作废，最终以 b123 收口。
 - **I-07 下载失败标点**：新增三语 `dl_error_status` / `dl_error_status_detail`（英文半角、中文全角）；`failTask()` 与 `Download/index.tsx` 不再用模板字符串拼 `：`/`（）`；`statusText` 走 `dl_status_error`，删除仅存中文的 `FAIL_REASON_TEXT` 兜底。
-- **N2 热点行为断言**：新增 `check_file_name_template_runtime.js` 11 条、`check_download_error_i18n.js` 7 条、`check_player_utils_runtime.js` 7 条（未初始化不调原生、临时 trackId、setResource 透传）、`check_sync_client_runtime.js` 4 条（状态广播/未连接 disconnect）；`check_download_restore_runtime.js` 补 `@/utils/fileNameTemplate` stub，恢复 3/0。`release.yml` 新增“热点行为断言”步骤，26 个业务 check 脚本全部阻塞构建。
+- **N2 热点行为断言**：新增 `check_file_name_template_runtime.js` 11 条、`check_download_error_i18n.js` 7 条、`check_player_utils_runtime.js` 7 条（未初始化不调原生、临时 trackId、setResource 透传）、`check_sync_client_runtime.js` 4 条（状态广播/未连接 disconnect）；`check_download_restore_runtime.js` 补 `@/utils/fileNameTemplate` stub，恢复 3/0。`release.yml` 新增“热点行为断言”步骤，29 个业务 check 脚本全部阻塞构建。
+- **N2 播放器核心/服务/Hook 补齐**：新增 `check_player_core_runtime.js` 15 条（播控入口、收藏/取消收藏、不喜欢、稍后播放、listLoop/list/singleLoop/random、已播放列表清理）、`check_player_service_runtime.js` 10 条（注册幂等、远程按键、通知栏歌词/播放模式、Playing 去重回传、TrackChanged 空 track）、`check_player_hook_runtime.js` 7 条（状态订阅、进度轮询开关、缓冲进度、卸载清理）；`release.yml` 热点步骤接入，业务 check 脚本 26→29。
+- **S-01 真实失败注入**：源仓 `test/audit/f-repo.js` 新增 Z9：抽取健康表写回 step 的完整 run 块，用假 git 让 push 返回 1，断言退出码 1、`::error` 与 step summary 均留痕；f-repo 53→54 条，54/0。
+- **源仓台账 HEAD**：`docs/READTHROUGH.md` HEAD 追到 `e0a4590`；`docs-audit` 规则对本次台账提交产生的 lag=1 自指差按同步处理，lag>1 仍 🟡；实跑 0 🟡。
 - **S-01 源仓巡检 push fail-closed**：源仓 `.github/workflows/ci.yml` 的健康表写回由 `git push || { warning }` 改为 `if ! git push ...; then ::error + exit 1; fi`；push 失败不再静默绿，`test/audit/f-repo.js` 增加 Z8 静态断言（53/0）。
 - **文案台账**：三语各 997 键，`dl_*` 102 键；本轮新增 5（I-05 3 + I-07 2）。
 - **发布**：`v1.9.2-b123` / versionCode 282（tag `b5bd0770`，Build `43566246972`，Android/Release 双绿，5 个 APK；状态回写 `3956d295`）。b122（`e5a49c6d` / 281 / Build `43564774952`）因上述回归作废，不再作为最终版本。
-- **验证**：`tsc --noEmit` 0；全仓 ESLint 0 error / 0 warning；26 个 check 脚本全部 rc0（`check_source_ci_gate` 用有效 token 复跑源仓 HEAD `aafeb3c` / CI `43564788961` success）；`check_docs_consistency` 18 文档通过；源仓 `test/audit/f-repo.js` 53/0、`docs-audit` rc0。
+- **验证**：`tsc --noEmit` 0；全仓 ESLint 0 error / 0 warning；29 个 check 脚本全部 rc0（`check_source_ci_gate` 用有效 token 复跑源仓 HEAD `e0a4590` / CI `43568304962` success）；`check_docs_consistency` 18 文档通过；源仓 `test/audit/f-repo.js` 54/0、`docs-audit` rc0。
 
 ## [R-01 发布状态闭环 + 错误/进度/用户可见文案收口] - 2026-11-14
 

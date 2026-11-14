@@ -127,6 +127,9 @@ jobs:
       - name: 热点行为断言（播放器/同步/文件名/错误标点）
         run: |
           node scripts/check_player_utils_runtime.js
+          node scripts/check_player_core_runtime.js
+          node scripts/check_player_service_runtime.js
+          node scripts/check_player_hook_runtime.js
           node scripts/check_sync_client_runtime.js
           node scripts/check_file_name_template_runtime.js
           node scripts/check_download_error_i18n.js
