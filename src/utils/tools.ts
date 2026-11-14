@@ -11,6 +11,7 @@ import { scaleSizeH, scaleSizeW, setSpText } from './pixelRatio'
 import { toOldMusicInfo } from './index'
 import { stringMd5 } from 'react-native-quick-md5'
 import { windowSizeTools } from '@/utils/windowSizeTools'
+import { formatFileNameTemplate } from '@/utils/fileNameTemplate'
 
 
 // https://stackoverflow.com/a/47349998
@@ -333,11 +334,9 @@ export const resetIgnoringBatteryOptimizationCheck = async() => {
 }
 
 export const formatMusicName = (format: string, name?: string, singer?: string) => {
-  // 全局替换：模板里出现多次占位符时，旧实现只替换第一处，剩下会漏替换
-  // 空值兜底：歌手/歌名为空时替换成空串，避免文件里出现字面量 "undefined"
-  return format
-    .replace(/歌手/g, singer ?? '')
-    .replace(/歌名/g, name ?? '')
+  // 下载文件名模板已从「歌名/歌手」迁移到 {title}/{artist}；这里继续兼容旧中文模板，
+  // 同时保证播放页标题、分享文案不会把 token 原样显示出来。
+  return formatFileNameTemplate(format, { name, singer })
 }
 
 export const shareMusic = (shareType: LX.ShareType, downloadFileName: LX.AppSetting['download.fileName'], musicInfo: LX.Music.MusicInfo) => {

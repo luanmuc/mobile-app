@@ -3,8 +3,9 @@
 > 本轮为审计交接单剩余真实问题的代码/文案/测试/CI 收口；I-06（PactModal/About 法律全文翻译）因涉及法律与产品口径，未做机器翻译，等待产品或法务确认。
 
 - **I-05 文件名模板结构化**：新增 `src/utils/fileNameTemplate.ts`，默认 `{title} - {artist}`；旧「歌名/歌手」在打开设置或构建文件名时自动迁移；`hasFileNameToken()` 严格校验原始输入，空模板/无 token 回退默认，避免自定义内容被静默重置。`Download/Settings.tsx` 预设改为 token、显示文案走三语 key，`downloadManager.buildFileName()` 统一走 `formatFileNameTemplate()`。
+- **I-05 回归补修**：`formatMusicName()` 仍只替换中文「歌名/歌手」，而默认值已改为 token，导致播放页标题/分享文案原样显示 `{title} - {artist}`；改为复用 `formatFileNameTemplate()`，并补 I05-11 静态断言守住播放页/分享链路。b122 因此作废，最终以 b123 收口。
 - **I-07 下载失败标点**：新增三语 `dl_error_status` / `dl_error_status_detail`（英文半角、中文全角）；`failTask()` 与 `Download/index.tsx` 不再用模板字符串拼 `：`/`（）`；`statusText` 走 `dl_status_error`，删除仅存中文的 `FAIL_REASON_TEXT` 兜底。
-- **N2 热点行为断言**：新增 `check_file_name_template_runtime.js` 10 条、`check_download_error_i18n.js` 7 条、`check_player_utils_runtime.js` 7 条（未初始化不调原生、临时 trackId、setResource 透传）、`check_sync_client_runtime.js` 4 条（状态广播/未连接 disconnect）；`check_download_restore_runtime.js` 补 `@/utils/fileNameTemplate` stub，恢复 3/0。`release.yml` 新增“热点行为断言”步骤，26 个业务 check 脚本全部阻塞构建。
+- **N2 热点行为断言**：新增 `check_file_name_template_runtime.js` 11 条、`check_download_error_i18n.js` 7 条、`check_player_utils_runtime.js` 7 条（未初始化不调原生、临时 trackId、setResource 透传）、`check_sync_client_runtime.js` 4 条（状态广播/未连接 disconnect）；`check_download_restore_runtime.js` 补 `@/utils/fileNameTemplate` stub，恢复 3/0。`release.yml` 新增“热点行为断言”步骤，26 个业务 check 脚本全部阻塞构建。
 - **S-01 源仓巡检 push fail-closed**：源仓 `.github/workflows/ci.yml` 的健康表写回由 `git push || { warning }` 改为 `if ! git push ...; then ::error + exit 1; fi`；push 失败不再静默绿，`test/audit/f-repo.js` 增加 Z8 静态断言（53/0）。
 - **文案台账**：三语各 997 键，`dl_*` 102 键；本轮新增 5（I-05 3 + I-07 2）。
 - **发布**：`v1.9.2-b122` / versionCode 281（tag `e5a49c6d`，Build `43564774952`，Android/Release 双绿，5 个 APK；状态回写 `0cf5dbe9`）。

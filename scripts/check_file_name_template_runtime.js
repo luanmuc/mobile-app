@@ -83,6 +83,12 @@ run('I05-10 默认设置已改为 token', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/config/defaultSetting.ts'), 'utf8')
   assert.ok(src.includes("'download.fileName': '{title} - {artist}'"))
 })
+run('I05-11 播放页/分享文案与下载共用 token 模板', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src/utils/tools.ts'), 'utf8')
+  const title = fs.readFileSync(path.join(ROOT, 'src/components/player/PlayerBar/components/Title.tsx'), 'utf8')
+  assert.ok(src.includes('formatFileNameTemplate(format, { name, singer })'))
+  assert.ok(title.includes('formatMusicName(downloadFileName'))
+})
 
 console.log(`\n===== I-05 文件名模板：${checks} 通过 / ${failures} 失败 =====`)
 if (failures) process.exit(1)
