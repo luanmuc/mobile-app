@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b117**（CI 自动回写 `1124ac91`，versionCode 276）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（已推送）；文档回填 **`8adce795`**（已推送，App CI run `43520302282` success）
-> 最近更新：2026-11-14（最终审计收口：源仓 `a25cd8a`（v8.13.1）已推送，`lx-source CI` run `43528623570` success；源仓上一绿 run `43514977949`；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；本轮健康页文案/夹具提交 `bffaf281`（待推送）；源 v8.13.1 / App 1.9.2-b117（versionCode 276）；TS/TSX 526；22 个 check 脚本逐项实跑）
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b118**（CI 自动回写 `ad8ba1d0`，versionCode 277；tag `ae823b88`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（已推送）；文档回填 **`8adce795`**（已推送，App CI run `43520302282` success）
+> 最近更新：2026-11-14（最终审计收口：源仓 `a25cd8a`（v8.13.1）已推送，`lx-source CI` run `43528623570` success；源仓上一绿 run `43514977949`；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；本轮健康页文案/夹具提交 `bffaf281` + 文档回填 `ae823b88` 已推送，App Build `43531794187` success，自动发布 `v1.9.2-b118`（versionCode 277，5 APK）；源 v8.13.1 / App 1.9.2-b118；TS/TSX 526；22 个 check 脚本逐项实跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（待推送）、文档回填 **`8adce795`**（已推送，App CI `43520302282` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical）。
+> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`** 与 **`ae823b88`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -475,7 +475,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T4 | 全链路枚举闭合 | 7 个已知平台（all/bd/kg/kw/mg/tx/wy）都有 i18n key；`local` 不显示平台；未知值回退原 id 而不是空串 | `getPlatformNameKey` / `resolvePlatformName` 断言 | L1 |
 | T5 | 成功缓存保留实际平台 | 二次播放命中缓存时 `sourcePlatform` 不丢，标签不退回主平台 | 同上 L2 链路 + 源仓 U5 | L2 |
 | T6 | 关闭目标源后的标签一致性 | 目标源被关闭后不得继续用其旧缓存显示该平台；重开后可恢复 | 源仓 U10 + App 侧只消费返回值 | L2 |
-| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的当前工作区版本（v8.13.1）与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败；源仓未推送时 Release 拉到远端 v8.12.5，会按设计阻断 | `release.yml`「Download latest music source」 | L3 |
+| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的当前工作区版本（v8.13.1）与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败；源仓 master 当前 v8.13.1；若 App 指南版本与远端产物不一致，Release 会按设计阻断 | `release.yml`「Download latest music source」 | L3 |
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
