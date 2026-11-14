@@ -714,10 +714,9 @@ export const getPlayQualityLabel = (quality: string): string => {
 // 音源聚合失败 message 格式（v3.0+）：`CODE: 所有源均失败 [[q] 源: 原因 | ...]`
 // 或 `CODE: 单源原因`；内置源错误为 requestMsg 中文文案（原样截断返回）
 // ============================================================
-// 音源侧 ERROR_CODES 共 12 个（v8.11.1）。此前这里只映射了 6 个，且其中两个码名
-// 与音源对不上：音源抛 NETWORK_TIMEOUT / RATE_LIMIT，这里写的是 TIMEOUT / TOO_MANY_REQUESTS，
-// 于是 `FAIL_CODE_ZH[code] || code` 直接兜底显示英文码给用户。
-// 两个旧码名保留（其他源/历史路径在用），音源 12 个码全部补齐。
+// 音源侧 ERROR_CODES 共 16 个（v8.13）。此前只映射了 11 个，且 `MISMATCH` 的实际值
+// 已经是 `SONG_MISMATCH`；`FAIL_CODE_ZH[code] || code` 会把这些码原样显示给用户。
+// 两个历史码名（TIMEOUT / TOO_MANY_REQUESTS）保留，兼容其他源/旧路径。
 const FAIL_CODE_ZH: Record<string, string> = {
   NOT_FOUND: '歌曲不可用',
   NETWORK_ERROR: '网络错误',
@@ -728,11 +727,17 @@ const FAIL_CODE_ZH: Record<string, string> = {
   RATE_LIMIT: '请求过于频繁，请稍后再试',
   TOO_MANY_REQUESTS: '请求过于频繁，请稍后再试', // 历史码名，保留兼容
   SERVER_ERROR: '音源服务异常',
-  MISMATCH: '歌曲信息不匹配',
+  MISMATCH: '歌曲信息不匹配', // 历史码名，保留兼容
+  SONG_MISMATCH: '歌曲信息不匹配',
   LINK_EXPIRED: '音源链接已失效',
   PREVIEW_FRAGMENT: '仅提供试听片段',
   NOT_AUDIO: '返回的不是有效音频',
   STREAM_PLAYLIST: '返回的是播放列表，播放器不支持',
+  TRUNCATED_MEDIA: '音频数据不完整',
+  BAD_ENVELOPE: '音源返回格式异常',
+  CONTRACT_ERROR: '音源数据校验失败',
+  CANCELED: '播放已取消',
+  BUDGET_EXHAUSTED: '取链超时，请重试',
   UNKNOWN: '未知错误',
 }
 
@@ -742,9 +747,15 @@ export const formatPlayError = (err: any): string => {
   if (!msg) return fallback
   const m = msg.match(/^([A-Z_]+):\s*(.*)$/)
   const trim = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n)}…` : s)
-  if (!m) return msg.length > 40 ? `${msg.slice(0, 40)}…` : msg
+  if (!m) {
+    // 少数 App 侧抛错没有 `CODE:` 前缀；可用 i18n 的走文案，避免英文直出。
+    if (msg.startsWith('source init failed')) return global.i18n.t('player__source_init_failed')
+    return msg.length > 40 ? `${msg.slice(0, 40)}…` : msg
+  }
   const [, code, rest] = m
   const zh = FAIL_CODE_ZH[code] || code
+  // 这两个码的 rest 是内部说明，不是需要展示给用户的明细；只给友好文案。
+  if (code === 'BUDGET_EXHAUSTED' || code === 'CANCELED') return zh
   // 聚合失败：取前两个明细摘要（去掉 [音质] 前缀）
   if (rest.startsWith('所有源均失败')) {
     const detailMatch = rest.match(/\[(.*)\]/)

@@ -6,7 +6,7 @@
 
 | 代码 | 职责 |
 |---|---|
-| `src/core/downloadManager.ts`（922 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
+| `src/core/downloadManager.ts`（931 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
 | `src/store/download/{state,action,hook}.ts` | Redux 风格状态管理（任务列表、进度、UI 联动） |
 | `src/screens/Home/Views/Download/index.tsx` | 下载页 UI（进行中/已完成/未完成分组） |
 | `src/components/OnlineList/QualitySelect.tsx` | 音质选择弹窗（只显示歌曲实际支持音质） |
@@ -103,7 +103,7 @@ waiting ──→ run ──→ completed
 
 ## 十一、国际化（b72）
 
-下载页、下载设置、下载管理器层（弹窗/toast/异常文案）不再有硬编码中文，全部走 `useI18n()`，键前缀 `dl_`（b75 起支持下载页；当前三语各 901 键，`dl_*` 共 93 键）。
+下载页、下载设置、下载管理器层（弹窗/toast/异常文案）不再有硬编码中文，全部走 `useI18n()`，键前缀 `dl_`（b75 起支持下载页；当前三语各 901 键，`dl_*` 共 95 键）。
 
 两类文字刻意保持中文原样，不做翻译：
 

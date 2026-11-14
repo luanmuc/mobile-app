@@ -217,9 +217,18 @@ const run = async(name, fn) => {
 
   await run('P1U-E1 formatPlayError 错误码中文化', () => {
     const h = setup()
-    global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
+    global.i18n.t = (key) => key === 'player__error'
+      ? '播放失败'
+      : key === 'player__source_init_failed' ? '音源初始化失败' : key
     assert.strictEqual(h.utils.formatPlayError(fail('NOT_FOUND')), '歌曲不可用：mock')
     assert.strictEqual(h.utils.formatPlayError(new Error('PREVIEW_FRAGMENT: 该曲目只提供试听片段')), '仅提供试听片段：该曲目只提供试听片段')
+    assert.strictEqual(h.utils.formatPlayError(new Error('SONG_MISMATCH: 歌曲信息不一致')), '歌曲信息不匹配：歌曲信息不一致')
+    assert.strictEqual(h.utils.formatPlayError(new Error('TRUNCATED_MEDIA: 分片缺失')), '音频数据不完整：分片缺失')
+    assert.strictEqual(h.utils.formatPlayError(new Error('BAD_ENVELOPE: base64 损坏')), '音源返回格式异常：base64 损坏')
+    assert.strictEqual(h.utils.formatPlayError(new Error('CONTRACT_ERROR: Provider 校验失败')), '音源数据校验失败：Provider 校验失败')
+    assert.strictEqual(h.utils.formatPlayError(new Error('CANCELED: 已有候选先成功')), '播放已取消')
+    assert.strictEqual(h.utils.formatPlayError(new Error('BUDGET_EXHAUSTED: 取链预算耗尽(24s)')), '取链超时，请重试')
+    assert.strictEqual(h.utils.formatPlayError(new Error('source init failed')), '音源初始化失败')
     assert.strictEqual(h.utils.formatPlayError(new Error('WEIRD_CODE: x')), 'WEIRD_CODE：x')
   })
 
@@ -233,6 +242,20 @@ const run = async(name, fn) => {
     const long = h.utils.formatPlayError(new Error('x'.repeat(60)))
     assert.strictEqual(long.length, 41, `无码长文本应截断到 40+省略号，实际 ${long.length}`)
     assert.strictEqual(h.utils.formatPlayError({}), '播放失败', '空错误回退 i18n 兜底文案')
+  })
+
+  await run('P1U-E3 源仓 16 个 ERROR_CODES 全部有中文文案', () => {
+    const h = setup()
+    global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
+    const sourceCodes = [
+      'NETWORK_TIMEOUT', 'NETWORK_ERROR', 'PARAM_ERROR', 'RATE_LIMIT', 'SERVER_ERROR', 'NOT_FOUND',
+      'SONG_MISMATCH', 'CONFIG_ERROR', 'LINK_EXPIRED', 'PREVIEW_FRAGMENT', 'NOT_AUDIO', 'STREAM_PLAYLIST',
+      'TRUNCATED_MEDIA', 'BAD_ENVELOPE', 'CONTRACT_ERROR', 'CANCELED',
+    ]
+    for (const code of sourceCodes) {
+      const text = h.utils.formatPlayError(new Error(`${code}: mock`))
+      assert(!text.startsWith(code), `${code} 未映射中文，实际：${text}`)
+    }
   })
 
   console.log('\n[歌词/封面获取行为]')

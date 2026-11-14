@@ -21,7 +21,7 @@ const RULES = [
     match: 'src/lang/',
     docs: [
       'docs:docs/CUSTOM_CHANGELOG.md（顶部补记）',
-      'action:三语言同步核对：zh-cn / zh-tw / en-us 键数一致（当前基线 904 键），新增词条三语言都要加',
+      'action:三语言同步核对：zh-cn / zh-tw / en-us 键数一致（当前基线 958 键），新增词条三语言都要加',
       'action:若涉及音源相关文案 → 核对 docs/SYNC_POINTS.md lang 行',
     ],
   },

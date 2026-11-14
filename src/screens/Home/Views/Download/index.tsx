@@ -60,7 +60,7 @@ const getStatusInfo = (item: LX.Download.ListItem, t: TFn): { text: string, isPr
     case 'run': return { text: t('dl_status_running'), isProgress: true }
     case 'pause': return { text: t('dl_status_paused'), isProgress: false }
     case 'completed': return { text: t('dl_status_completed'), isProgress: false }
-    default: return { text: item.statusText, isProgress: false }
+    default: return { text: t('dl_status_error'), isProgress: false }
   }
 }
 

@@ -181,7 +181,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 ### 4 主状态 + reason（单一路径）
 
-状态判定优先级：**USER_OFF / DEFAULT_OFF → AUTO_OFF_PROBE → SOURCE_SLEEPING → PLAYBACK_FAILED / RESOLVE_FAILED → 待采样 → 限流/熔断/半开/异常 → 可用**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 已关闭**；reason 码在胶囊第二行显示。摘要只统计 4 主状态，合计等于音源数；页面不再展示旧状态桶，也不再维护第二套状态口径。
+状态判定优先级：**USER_OFF / DEFAULT_OFF → AUTO_OFF_PROBE → SOURCE_SLEEPING → PLAYBACK_FAILED / RESOLVE_FAILED → 待采样 → 限流/熔断/半开/异常 → 可用**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 已关闭**；reason 以本地化短标签显示在胶囊第二行，完整 reason 码保留在无障碍标签、诊断导出与本地日志中，排障时用 raw code 追溯。摘要只统计 4 主状态，合计等于音源数；页面不再展示旧状态桶，也不再维护第二套状态口径。
 
 ### 质量档矩阵（F16）
 

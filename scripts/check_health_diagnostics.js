@@ -605,6 +605,7 @@ const memoryFs = () => {
 ;(async() => {
   const mem = memoryFs()
   const shared = []
+  global.i18n = { t: key => ({ health_share_file_title: '分享音源诊断包', health_share_title: '音源健康诊断' })[key] ?? key }
   const now = new Date(2026, 10, 11, 12, 0, 0)
   const todayFile = '/logs/source_health_20261111.jsonl'
   mem.files.set(todayFile, [

@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b118**（CI 自动回写 `ad8ba1d0`，versionCode 277；tag `ae823b88`）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（已推送）；文档回填 **`8adce795`**（已推送，App CI run `43520302282` success）
-> 最近更新：2026-11-14（最终审计收口：源仓 `a25cd8a`（v8.13.1）已推送，`lx-source CI` run `43528623570` success；源仓上一绿 run `43514977949`；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；本轮健康页文案/夹具提交 `bffaf281` + 文档回填 `ae823b88`/`43beb654` 已推送，App Build `43531794187` success，自动发布 `v1.9.2-b118`（versionCode 277，5 APK）；源 v8.13.1 / App 1.9.2-b118；TS/TSX 526；22 个 check 脚本逐项实跑）
+> 最近更新：2026-11-14（临时审计交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。当前改动**未提交、未推送、未触发新构建**）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical）。
+> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **958 键**（本轮新增 54 个：P1 1 + N1 32 + N2 12 + N3 9）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**23 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
@@ -40,12 +40,12 @@
 | A-A01 | 13 action 权威表 | `src/core/init/userApi/sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 14/0；每个 action 有 case |
 | A-A02 | 健康 4 主状态 | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0；4 主状态唯一归属 |
 | A-A03 | 诊断窗口/覆盖 | `healthDiagnostics.ts`、`Health.tsx` | `check_health_diagnostics` 54/0；`coverage.full=false` 隐藏 codes+others |
-| A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 23/0；无 undefined/空串 |
+| A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 24/0；无 undefined/空串；finding 三语化 |
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0；eventId 优先 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0；拒绝 v1 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 25/0；37 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 904 键、无重复、无未消费键、无缺占位符 |
-| A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、19/0、6/0 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 958 键、无重复、无未消费键、无缺占位符 |
+| A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory`、诊断包 | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性；自定义功能无未完成项 |
 | A-A12 | 文档真值 | 本文件、`STRESS_PLAN.md`、`SYNC_POINTS.md` | 版本/键数/action/HEAD 与代码一致 |
@@ -62,7 +62,7 @@ rg -n "SOURCE_ACTIONS|11 个 action|13 个 action" src scripts docs
 
 ### 4. 压力测试计划
 
-见 [`STRESS_PLAN.md`](./STRESS_PLAN.md) 当前版；本轮至少执行 S1~S13 共 214 条诊断/状态/契约断言，再跑 `tsc`、`eslint`、`build-test` 与 22 个 check 脚本。
+见 [`STRESS_PLAN.md`](./STRESS_PLAN.md) 当前版；本轮至少执行 S1~S13 共 214 条诊断/状态/契约断言，再跑 `tsc`、`eslint`、`build-test` 与 23 个 check 脚本。
 
 ### 5. 本轮发现与处置
 
@@ -143,7 +143,7 @@ v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴�
 | D2 | 播放页 | ⚠️ | **R2**：`PlayDetail/Horizontal/Player/PlayInfo.tsx:61` 组件内 `theme` 未定义，横屏播放页渲染即 ReferenceError |
 | D3 | 弹窗 | ⚠️ | **R5**：健康面板弹窗配色；**R9** 管理器层弹窗中文硬编码 |
 | D4 | 主题适配 | ⚠️ | 除 R5 两个非法键外，其余 `theme[...]` 引用合法 |
-| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 904×3）；`Health.tsx` 参数面板已接三语（37 键，v8.12.1），无遗留 |
+| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 958×3）；`Health.tsx` 参数面板、诊断 finding、reason 短标签均已接三语，无遗留 |
 | D6 | 组件复用 | ✅ | common/ 公共组件 |
 
 ## E 组：文档与工程
@@ -479,7 +479,7 @@ App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L
 | T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
 | T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
 | T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
-| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 904 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
+| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 958 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
 | T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
 
 ### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
@@ -546,13 +546,14 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 | `check_source_health_persistence.js` | 17/0 | canonical key、旧键迁移、v2 拆分、G5 动态源/版本 |
 | `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
 | `check_health_event_pipeline.js` | 10/0 | 事件白名单、去重、sourceEvents 脱敏、三块隔离 |
-| `check_health_state_v2.js` | 8/0 | 4 主状态 + reason、4 主状态唯一归属、主状态摘要、UI 消费 |
-| `check_health_ui_mapping.js` | 10/0 | 主状态文案/颜色、reason、双摘要、质量矩阵七项、绑定、三语无硬编码 |
+| `check_health_state_v2.js` | 7/0 | 4 主状态 + reason、4 主状态唯一归属、主状态摘要、UI 消费 |
+| `check_health_ui_mapping.js` | 11/0 | 主状态文案/颜色、reason 本地化、双摘要、质量矩阵七项、绑定、三语无硬编码 |
 | `check_source_platform_label.js` | 9/9 | 实际平台标签 |
 | `check_source_config_contract.js` | 25/0 | 配置键/三语 |
 | `check_playback_budget.js` | 20/0 | 24s 预算 |
-| `check_playback_ownership_runtime.js` | 19/0 | fallbackOwner |
+| `check_playback_ownership_runtime.js` | 20/0 | fallbackOwner + 16 源错误码全覆盖 |
 | `check_media_body.js` | 6/0 | `__lxMedia:2` |
+| `check_download_persistence.js` | 3/0 | 下载落盘剥离 `statusText` |
 | `check_ts_syntax.js` | 526/0 | TS/TSX |
 | `check_docs_consistency.js` | **18 文档 0 过时** | 本轮实跑 |
 | `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 本轮实跑 |

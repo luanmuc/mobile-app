@@ -26,8 +26,16 @@ const MAX_RETRY_COUNT = 3
 const makeError = (message: string, code: 'PERMISSION' | 'NO_SPACE' | 'NO_SOURCE' | 'NO_URL') =>
   Object.assign(new Error(message), { code })
 
+const stripStatusText = (item: LX.Download.ListItem): LX.Download.ListItem => {
+  // statusText 是旧版持久化字段；新版 UI 以 statusKey 为准。落盘前剥离，
+  // 避免切到英文/繁体后旧中文从存储里漏到界面。
+  const copy: Partial<LX.Download.ListItem> = { ...item }
+  delete copy.statusText
+  return copy as LX.Download.ListItem
+}
+
 const save = () => {
-  void saveData(DOWNLOAD_STORAGE_KEY, downloadState.list)
+  void saveData(DOWNLOAD_STORAGE_KEY, downloadState.list.map(stripStatusText))
 }
 
 const updateItem = (item: LX.Download.ListItem) => {
@@ -372,7 +380,7 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
       // 下载完成提醒（可在设置里开关）
       const showNotify = settingState.setting['download.notifyComplete'] ?? true
       if (showNotify) {
-        toast(`下载完成：${task.metadata.musicInfo.name}`)
+        toast(global.i18n.t('dl_toast_downloaded', { name: task.metadata.musicInfo.name }))
         safeVibrate()
       }
       resolve()
@@ -611,7 +619,7 @@ export const startBatchDownload = async(musicList: LX.Music.MusicInfoOnline[], q
   }
   save()
   void startNext()
-  if (added > 0) toast(`已添加 ${added} 首歌曲到下载队列`)
+  if (added > 0) toast(global.i18n.t('dl_toast_added_count', { count: added }))
 }
 
 /**
@@ -718,7 +726,8 @@ export const migrateDownloadDir = async() => {
           return t
         })
         if (changed) {
-          await saveData(DOWNLOAD_STORAGE_KEY, updated)
+          // 迁移写回同样剥离 statusText，否则旧中文会从这条旁路继续留在存储里
+          await saveData(DOWNLOAD_STORAGE_KEY, updated.map(stripStatusText))
           // 若内存列表已加载，同步更新
           if (downloadState.list.length) downloadState.list = updated
         }

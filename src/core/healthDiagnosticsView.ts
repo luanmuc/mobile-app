@@ -12,6 +12,28 @@ export const isCodeFinding = (finding: HealthFinding): boolean => (
   (CODE_FINDING_IDS as readonly string[]).includes(finding.id)
 )
 
+type Translate = (key: string, params?: Record<string, string | number>) => string
+
+/**
+ * 诊断 finding 的三语化：原始 title/detail/evidence/suggestion 保留中文语义，
+ * 展示层统一按 i18n key 格式化；页面与导出共用这一处，避免各写一套。
+ */
+export const localizeHealthFinding = (finding: HealthFinding, t: Translate): HealthFinding => {
+  const i18n = finding.i18n
+  if (!i18n) return finding
+  const text = (key: string, params: Record<string, string | number> | undefined, fallback: string) => {
+    const value = t(key, params)
+    return value === key ? fallback : value
+  }
+  return {
+    ...finding,
+    title: text(i18n.titleKey, i18n.titleParams, finding.title),
+    detail: text(i18n.detailKey, i18n.detailParams, finding.detail),
+    evidence: text(i18n.evidenceKey, i18n.evidenceParams, finding.evidence),
+    suggestion: text(i18n.suggestionKey, undefined, finding.suggestion),
+  }
+}
+
 export interface HealthBlockStats {
   h1: { total: number, ok: number, empty: boolean }
   h24: { total: number, ok: number, failed: number, rateText: string, rateWarn: boolean }

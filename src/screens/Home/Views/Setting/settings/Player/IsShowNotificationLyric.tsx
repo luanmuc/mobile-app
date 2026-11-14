@@ -20,7 +20,7 @@ export default memo(() => {
 
   return (
     <View style={styles.content}>
-      <CheckBoxItem check={isShowNotificationLyric} onChange={setShowNotificationLyric} label={t('setting_play_show_notification_lyric')} helpDesc="开启后通知栏标题显示当前歌词，关闭时显示歌名" />
+      <CheckBoxItem check={isShowNotificationLyric} onChange={setShowNotificationLyric} label={t('setting_play_show_notification_lyric')} helpDesc={t('setting_play_show_notification_lyric_tip')} />
     </View>
   )
 })

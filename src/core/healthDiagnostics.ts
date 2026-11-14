@@ -80,6 +80,16 @@ export interface HealthFindingSample {
   latencyMs?: number
 }
 
+export interface HealthFindingI18n {
+  titleKey: string
+  titleParams?: Record<string, string | number>
+  detailKey: string
+  detailParams?: Record<string, string | number>
+  evidenceKey: string
+  evidenceParams?: Record<string, string | number>
+  suggestionKey: string
+}
+
 export interface HealthFinding {
   id: string
   level: 'warn' | 'info'
@@ -89,6 +99,8 @@ export interface HealthFinding {
   suggestion: string
   traceIds: string[]
   samples?: HealthFindingSample[]
+  // 原始字段保留中文语义（测试/日志兼容）；展示层用这组 key 做三语格式化。
+  i18n?: HealthFindingI18n
 }
 
 export interface HealthTrendPoint {
@@ -300,6 +312,14 @@ export const detectHealthAnomalies = (input: {
         detail: '本地记录与音源自评冲突，可能是端内取链失败、缓存命中失败或音源上报时间窗不同。',
         evidence: `近 24h 本地 0/${recent.length}，音源快照成功率 ${pct(snapRate)}`,
         suggestion: '先看同 traceId 的 source_attempt/source_skip，确认是取链失败还是被熔断/限速跳过；不要直接关闭音源。',
+        i18n: {
+          titleKey: 'health_finding_local_zero_title',
+          titleParams: { source: sourceId, rate: pct(snapRate) },
+          detailKey: 'health_finding_local_zero_detail',
+          evidenceKey: 'health_finding_local_zero_evidence',
+          evidenceParams: { total: recent.length, rate: pct(snapRate) },
+          suggestionKey: 'health_finding_local_zero_suggestion',
+        },
         traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
         samples: samplesOf(recent.filter(e => e.ok === false)),
       })
@@ -327,6 +347,19 @@ export const detectHealthAnomalies = (input: {
           detail: '近 24h 与前 24h 对比出现明显下滑。',
           evidence: `前 24h ${pct(prevRate)}（约 ${prevStats.total} 次）→ 近 24h ${pct(recentRate)}（约 ${recentStats.total} 次）`,
           suggestion: '看近期失败码是否集中在同一类；若伴随 P95 翻倍，优先怀疑上游变慢或风控。',
+          i18n: {
+            titleKey: 'health_finding_rate_drop_title',
+            titleParams: { source: sourceId, drop: Math.round((prevRate - recentRate) * 100) },
+            detailKey: 'health_finding_rate_drop_detail',
+            evidenceKey: 'health_finding_rate_drop_evidence',
+            evidenceParams: {
+              prevRate: pct(prevRate),
+              prevTotal: prevStats.total,
+              recentRate: pct(recentRate),
+              recentTotal: recentStats.total,
+            },
+            suggestionKey: 'health_finding_rate_drop_suggestion',
+          },
           traceIds: trimTrace(recent.filter(e => e.ok === false).map(e => String(e.traceId ?? ''))),
           samples: samplesOf(recent.filter(e => e.ok === false)),
         })
@@ -349,6 +382,14 @@ export const detectHealthAnomalies = (input: {
           detail: '近 24h 取链尾延迟明显高于前 24h。',
           evidence: `P95 ${prevP95}ms → ${recentP95}ms（${Math.round(recentP95 / prevP95)} 倍）`,
           suggestion: '结合 source_result 的 latencyMs 分布看是否某一子源拖尾；必要时在音源配置里降低该源并发或缩短预算。',
+          i18n: {
+            titleKey: 'health_finding_p95_spike_title',
+            titleParams: { source: sourceId },
+            detailKey: 'health_finding_p95_spike_detail',
+            evidenceKey: 'health_finding_p95_spike_evidence',
+            evidenceParams: { prev: prevP95, recent: recentP95, ratio: Math.round(recentP95 / prevP95) },
+            suggestionKey: 'health_finding_p95_spike_suggestion',
+          },
           traceIds: trimTrace(recent.map(e => String(e.traceId ?? ''))),
           samples: samplesOf(recent),
         })
@@ -382,6 +423,15 @@ export const detectHealthAnomalies = (input: {
       detail: `该错误码在此前基线（${baselineText}）未出现过，可能是上游策略变化或新链路问题；不能仅凭本地窗口推断 7 天结论。`,
       evidence: `近 24h ${hit.length} 次 ${code}，此前 ${baselineText}未见`,
       suggestion: '把该错误码与同 traceId 的事件一起看；若是持续出现，再考虑临时降权该源。',
+      i18n: {
+        titleKey: 'health_finding_new_code_title',
+        titleParams: { code },
+        detailKey: 'health_finding_new_code_detail',
+        detailParams: { baseline: baselineText },
+        evidenceKey: 'health_finding_new_code_evidence',
+        evidenceParams: { count: hit.length, code, baseline: baselineText },
+        suggestionKey: 'health_finding_new_code_suggestion',
+      },
       traceIds: trimTrace(hit.map(e => String(e.traceId ?? ''))),
       samples: samplesOf(hit),
     })
@@ -407,6 +457,14 @@ export const detectHealthAnomalies = (input: {
       detail: '近期失败样本，按错误码聚合。',
       evidence: `涉及 ${Array.from(new Set(list.map(sourceOf))).join('、')}`,
       suggestion: '点开对应 traceId 看第几次尝试、哪一步失败；若集中在同一源再考虑换源。',
+      i18n: {
+        titleKey: 'health_finding_recent_failure_title',
+        titleParams: { count: list.length, code },
+        detailKey: 'health_finding_recent_failure_detail',
+        evidenceKey: 'health_finding_recent_failure_evidence',
+        evidenceParams: { sources: Array.from(new Set(list.map(sourceOf))).join(', ') },
+        suggestionKey: 'health_finding_recent_failure_suggestion',
+      },
       traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
       samples: samplesOf(list),
     })
@@ -435,6 +493,23 @@ export const detectHealthAnomalies = (input: {
         suggestion: block.id === 'play_failure'
           ? '看同 traceId 的取链结果与播放器日志，区分上游链失效和端内播放失败。'
           : '探测失败只代表探测目标不可达；本地断网会记 UNKNOWN，不据此关闭音源。',
+        i18n: block.id === 'play_failure'
+          ? {
+              titleKey: 'health_finding_play_title',
+              titleParams: { count: list.length, code },
+              detailKey: 'health_finding_play_detail',
+              evidenceKey: 'health_finding_play_evidence',
+              evidenceParams: { sources: Array.from(new Set(list.map(sourceOf))).join(', ') },
+              suggestionKey: 'health_finding_play_suggestion',
+            }
+          : {
+              titleKey: 'health_finding_probe_title',
+              titleParams: { count: list.length, code },
+              detailKey: 'health_finding_probe_detail',
+              evidenceKey: 'health_finding_probe_evidence',
+              evidenceParams: { sources: Array.from(new Set(list.map(sourceOf))).join(', ') },
+              suggestionKey: 'health_finding_probe_suggestion',
+            },
         traceIds: trimTrace(list.map(e => String(e.traceId ?? ''))),
         samples: samplesOf(list),
       })
@@ -463,6 +538,14 @@ export const detectHealthAnomalies = (input: {
         detail: '最近 4 次音源快照的成功率逐次下降，可能是上游变慢/风控或本地网络变化。',
         evidence: `最近 4 次探测：${nums.map(v => pct(v)).join(' → ')}`,
         suggestion: '结合近 24h 本地日志与失败码确认；单看一次探测不下结论，也不要直接关闭音源。',
+        i18n: {
+          titleKey: 'health_finding_trend_decline_title',
+          titleParams: { source: sourceId, drop: Math.round(drop * 100) },
+          detailKey: 'health_finding_trend_decline_detail',
+          evidenceKey: 'health_finding_trend_decline_evidence',
+          evidenceParams: { rates: nums.map(v => pct(v)).join(' → ') },
+          suggestionKey: 'health_finding_trend_decline_suggestion',
+        },
         traceIds: trimTrace(local.map(e => String(e.traceId ?? ''))),
         samples: samplesOf(local.filter(e => e.ok === false)),
       })

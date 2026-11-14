@@ -81,7 +81,7 @@ export default forwardRef<NewFolderType, { onRefreshDir: (dir: string) => Promis
       })
       nameInputRef.current?.setName('')
     }).catch((err: any) => {
-      toast('Create failed: ' + (err.message as string))
+      toast(global.i18n.t('choose_path_create_failed', { msg: err.message as string }))
     })
     confirmAlertRef.current?.setVisible(false)
   }

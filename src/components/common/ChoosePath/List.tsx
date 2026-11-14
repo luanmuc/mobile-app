@@ -161,7 +161,7 @@ export default forwardRef<ListType, ListProps>(({
     if (parentPath) {
       void readDir(parentPath, readOptions.current.dirOnly, readOptions.current.filter)
     } else {
-      toast('Permission denied')
+      toast(global.i18n.t('choose_path_permission_denied'))
     }
   }
 

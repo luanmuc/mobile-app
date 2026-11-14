@@ -34,16 +34,17 @@ node scripts/check_ts_syntax.js
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
 node scripts/check_source_platform_label.js
 
-# 音源健康本地诊断契约（51 条，含 action 透传/日志回迁/缓存命中）
+# 音源健康本地诊断契约（54 条，含 action 透传/日志回迁/缓存命中）
 node scripts/check_health_diagnostics.js
 # 音源健康本地诊断压力（10000 条聚合/5MB 日志/脏行容错/异常依赖不抛）
 node scripts/check_health_diagnostics_stress.js
 # 音源健康本地诊断深度审计（51 条：统计口径/窗口覆盖/异常正反例/隐私/多字节/10 万条）
 node scripts/check_health_diagnostics_deep.js
-# 本地诊断视图模型审计（22 条：折叠态/四层分组/缓存命中/空态/1 万次构建）
+# 本地诊断视图模型审计（24 条：折叠态/四层分组/缓存命中/空态/1 万次构建）
 node scripts/check_health_diagnostics_view.js
 
-# 门禁归属：健康契约 51 + 视图 22 + 日志目录 15 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 22 + 日志目录 15 条在 health-stress.yml（每周/手动）
+# 门禁归属：健康契约 54 + 视图 24 + 日志目录 15 条在 release.yml 构建前阻塞；压力 14 + 深度 51 + 视图 24 + 日志目录 15 条在 health-stress.yml（每周/手动）
+# 健康状态/文案/文档一致性：anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 11 + download 3 + docs 18 已在 release.yml 构建前阻塞
 # 源仓 HEAD CI 闸门（构建前硬阻断；源仓最近一次 push CI 必须 success，且绿提交是当前 HEAD 祖先）
 node scripts/check_source_ci_gate.js
 # 本地 API 被 403 限流时的离线旁路复核（Actions 页面内嵌 JSON + 本地 merge-base）
@@ -106,7 +107,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 八条只读契约 `check_ts_syntax.js`（525 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）+ `check_health_event_pipeline.js`（10 条，源事件白名单、去重、三块隔离、落盘脱敏）+ `check_health_state_v2.js`（8 条，4 主状态 + reason）+ `check_health_ui_mapping.js`（10 条，主状态 UI、质量矩阵三语）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（19 条，mock 外呼计数与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（51 条）+ 视图模型 `check_health_diagnostics_view.js`（22 条）+ 日志目录 `check_log_directory.js`（15 条）。
+> 发布构建（`release.yml` 的 `Setup Env` 之后）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 八条只读契约 `check_ts_syntax.js`（526 文件）、`check_source_config_contract.js`（25 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）+ `check_health_event_pipeline.js`（10 条，源事件白名单、去重、三块隔离、落盘脱敏）+ `check_health_state_v2.js`（7 条，4 主状态 + 本地化 reason）+ `check_health_ui_mapping.js`（11 条，主状态 UI、reason 本地化、质量矩阵三语）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（20 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_playback_ownership_runtime.js`（20 条，mock 外呼计数、16 源错误码全覆盖与候选竞速取消）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（54 条）+ 视图模型 `check_health_diagnostics_view.js`（24 条）+ 日志目录 `check_log_directory.js`（15 条）+ 健康状态/文案/文档一致性 8 条（`check_health_anomaly_v2` 8、`check_health_event_pipeline` 10、`check_health_persistence_v2` 9、`check_health_state_v2` 7、`check_health_status_refactor` 10、`check_health_ui_mapping` 11、`check_download_persistence` 3、`check_docs_consistency` 18 文档）。
 
 ### 任务类型分流
 

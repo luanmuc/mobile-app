@@ -159,7 +159,7 @@ export const connect = (urlInfo: LX.Sync.UrlInfo, keyInfo: LX.Sync.KeyInfo) => {
     funcsObj: {
       ...callObj,
       finished() {
-        toast('Sync connected')
+        toast(global.i18n.t('sync_connected'))
         client!.isReady = true
         sendSyncStatus({
           status: true,

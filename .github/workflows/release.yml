@@ -108,6 +108,19 @@ jobs:
           node scripts/check_health_diagnostics_view.js
           node scripts/check_log_directory.js
 
+      - name: 健康状态/文案/文档一致性门禁
+        # 这些检查此前只在本机手动跑，导致健康页文案/映射回退可以绕过 CI。
+        # check_source_ci_gate_offline 依赖本地源仓与 Actions 页面，保留离线/手动，不在此处。
+        run: |
+          node scripts/check_health_anomaly_v2.js
+          node scripts/check_health_event_pipeline.js
+          node scripts/check_health_persistence_v2.js
+          node scripts/check_health_state_v2.js
+          node scripts/check_health_status_refactor.js
+          node scripts/check_health_ui_mapping.js
+          node scripts/check_download_persistence.js
+          node scripts/check_docs_consistency.js
+
       - name: Compute build number
         # 构建序号与 versionCode 统一由 publish/build-state.json 状态文件驱动：
         # 底座版本（package.json version）变化时 bN 从 1 重新计数（如 1.9.2-b1），

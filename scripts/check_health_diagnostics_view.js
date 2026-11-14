@@ -283,6 +283,39 @@ check('V22 旧报告缺 cacheHits 时按 0 处理', () => {
   assert(v.cacheHits.h1 === 0 && v.cacheHits.h24 === 0, JSON.stringify(v.cacheHits))
 })
 
+check('V24 诊断 finding 三语键齐全，en-us 格式化不残留中文', () => {
+  const langs = {}
+  for (const l of ['zh-cn', 'zh-tw', 'en-us']) langs[l] = JSON.parse(fs.readFileSync(path.join(ROOT, `src/lang/${l}.json`), 'utf8'))
+  const ids = ['local_zero', 'rate_drop', 'p95_spike', 'new_code', 'recent_failure', 'play', 'probe', 'trend_decline']
+  for (const id of ids) {
+    for (const l of ['zh-cn', 'zh-tw', 'en-us']) {
+      for (const field of ['title', 'detail', 'evidence', 'suggestion']) {
+        const key = `health_finding_${id}_${field}`
+        assert(typeof langs[l][key] === 'string' && langs[l][key], `${l} 缺 ${key}`)
+      }
+    }
+  }
+  const makeT = (lang) => (key, params = {}) => {
+    const value = langs[lang][key]
+    if (!value) throw new Error(`${lang} 缺 ${key}`)
+    return value.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`))
+  }
+  const f = finding('rate_drop', {
+    title: '中文标题', detail: '中文详情', evidence: '中文证据', suggestion: '中文建议',
+    i18n: {
+      titleKey: 'health_finding_rate_drop_title', titleParams: { source: 'kw', drop: 30 },
+      detailKey: 'health_finding_rate_drop_detail',
+      evidenceKey: 'health_finding_rate_drop_evidence', evidenceParams: { prevRate: '80%', prevTotal: 10, recentRate: '50%', recentTotal: 12 },
+      suggestionKey: 'health_finding_rate_drop_suggestion',
+    },
+  })
+  const en = view.localizeHealthFinding(f, makeT('en-us'))
+  assert(!/[\u4e00-\u9fff]/.test(`${en.title} ${en.detail} ${en.evidence} ${en.suggestion}`), `en-us 仍含中文：${JSON.stringify(en)}`)
+  assert(en.title.includes('kw') && en.title.includes('30pp'), `en-us 标题参数丢失：${en.title}`)
+  const zh = view.localizeHealthFinding(f, makeT('zh-cn'))
+  assert(zh.title.includes('成功率下跌') && zh.title.includes('30pp'), `zh-cn 标题参数丢失：${zh.title}`)
+})
+
 console.log(`\n===== 本地诊断视图模型审计：${passed} 通过 / ${failures.length} 失败 =====`)
 if (failures.length) {
   console.log('\n失败明细：')

@@ -93,7 +93,9 @@ check('S8 UI 消费主状态汇总且显示 reason；三语键齐备', () => {
   const ui = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Health.tsx'), 'utf8')
   assert(ui.includes('buildHealthSummary'), 'Health.tsx 未消费主状态汇总')
   assert(ui.includes('classifyHealthMainState'), 'Health.tsx 未消费主状态分类')
-  assert(ui.includes('status.reason'), 'Health.tsx 未显示 reason')
+  assert(ui.includes('status.reason'), 'Health.tsx 未保留 raw reason（诊断追溯）')
+  assert(ui.includes('const reasonText = tt(`health_reason_${status.reason}`)'), 'Health.tsx 未本地化 reason')
+  assert(ui.includes('{reasonText}'), 'Health.tsx 未显示本地化 reason')
   assert(!ui.includes('summary.buckets'), 'Health.tsx 仍渲染旧 9 桶')
   for (const lang of ['zh-cn', 'zh-tw', 'en-us']) {
     const json = JSON.parse(fs.readFileSync(path.join(ROOT, `src/lang/${lang}.json`), 'utf8'))

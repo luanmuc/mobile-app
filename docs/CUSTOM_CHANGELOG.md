@@ -1,3 +1,18 @@
+## [审计交接单 P1–P5 + 同类扫描修复] - 2026-11-14
+
+> 本轮为代码/文案/测试/CI/文档修复；临时审计交接单已删除，构建由收口后的 push 触发。
+
+- **P1 错误码文案**：`FAIL_CODE_ZH` 由 15 键扩到 21 键，覆盖源仓 16 个 `ERROR_CODES` 实际值（含 `SONG_MISMATCH`、`TRUNCATED_MEDIA`、`BAD_ENVELOPE`、`CONTRACT_ERROR`、`CANCELED`），并补 App 自有 `BUDGET_EXHAUSTED`；`source init failed` 走 `player__source_init_failed`；预算/取消不再拼接内部中文明细。
+- **P2 下载落盘**：新增 `stripStatusText`，`save()` 与 `migrateDownloadDir()` 二次保存都在落盘前剥离旧 `statusText`；显示层未知状态回退 `dl_status_error`，不再回退存储中文。
+- **P3 假阳性留档**：源仓当前 HEAD `4f47868` 复跑 `test/audit/f-repo.js` 为 52/0；`docs/STRESS_PLAN_v8.13.1.md` 在所有分支/历史不存在，不改门禁。
+- **P4 源仓变异测试**：`ci.yml` 的 `mutation` job 补 `npm ci`；`test/mutation/run.js` 缺 esbuild 直接退出 2、单门禁超时 180s、strict 对 `SURVIVED/UNCERTAIN/BUILD_FAILED/SKIPPED` 全部判失败，消除“0 killed / 0 survived”假绿。
+- **N1 诊断 finding 三语化**：8 类 finding 全部补 `i18n` 元数据，`localizeHealthFinding` 统一格式化；页面与复制摘要共用，原始中文保留给日志。
+- **N2 reason 本地化**：胶囊第二行显示 12 个 `health_reason_*` 短标签，raw code 保留在无障碍标签与诊断导出/快照。
+- **N3 硬编码 UI 文案**：通知歌词帮助、下载完成/入队 toast、诊断包分享标题、路径选择权限/打开/创建失败、同步连接共 9 处接三语。
+- **B2 CI 覆盖**：`release.yml` 接入 anomaly/event/persistence/state/status/ui/download/docs 8 个检查；`check_source_ci_gate_offline` 仍保留离线/手动。
+- **B4 台账回填**：三语各 958 键；`AUDIT_PLAN`/`AGENTS`/`STRESS_PLAN`/`RELEASE_SOP`/`SYNC_POINTS`/`MUSIC_SOURCE_GUIDE` 计数与 reason 口径同步。
+- 验证：`tsc --noEmit` 0；`check_health_diagnostics` 54/0、`check_health_diagnostics_view` 24/0、`check_health_ui_mapping` 11/0、`check_health_state_v2` 7/0、`check_playback_ownership_runtime` 20/0、`check_download_persistence` 3/0、`check_docs_consistency` 18 文档。
+
 ## [音源健康文案适配 4 主状态 + 源 v8.13.1 版本同步] - 2026-11-14
 
 > 已随本轮 App 提交 `bffaf281`；旧健康页文案不再保留，三语同步适配新版 4 主状态 + 逐档质量矩阵。

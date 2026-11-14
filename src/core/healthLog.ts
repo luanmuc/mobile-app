@@ -438,9 +438,9 @@ export const shareDiagnosticsFile = async(path: string): Promise<void> => {
     const { Platform, Share } = require('react-native')
     if (Platform.OS === 'android') {
       const mod = require('../utils/nativeModules/utils')
-      await mod.shareFile(path, '分享音源诊断包', 'source_health_diag')
+      await mod.shareFile(path, global.i18n.t('health_share_file_title'), 'source_health_diag')
     } else {
-      await Share.share({ url: 'file://' + path, title: '音源健康诊断' })
+      await Share.share({ url: 'file://' + path, title: global.i18n.t('health_share_title') })
     }
   } catch {}
 }

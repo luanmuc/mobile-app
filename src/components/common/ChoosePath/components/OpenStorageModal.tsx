@@ -91,11 +91,11 @@ export default forwardRef<OpenDirModalType, { onOpenDir: (dir: string) => Promis
       }
       try {
         if (!(await stat(text)).canRead) {
-          toast('Permission denied', 'long')
+          toast(global.i18n.t('choose_path_permission_denied'), 'long')
           return
         }
       } catch (err: any) {
-        toast('Open failed: ' + err.message, 'long')
+        toast(global.i18n.t('choose_path_open_failed', { msg: err.message }), 'long')
         return
       }
       void onOpenDir(text)

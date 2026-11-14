@@ -11,7 +11,7 @@
 |---|---|---:|---|---|---:|
 | S1 | 诊断压力 | `check_health_diagnostics_stress.js` | 14 | 10000 条事件、5MB 日志截尾、脏行、RN 依赖缺失、200 错误码、证据包脱敏、traceId 唯一、采样边界 | 14/0，不崩、不越界、无隐私字段 |
 | S2 | 诊断深度 | `check_health_diagnostics_deep.js` | 51 | 统计口径、1h/24h/7d 窗口、异常正反例、隐私、多字节、10 万条聚合 | 51/0，数值可复算、窗口不冒充 |
-| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 23 | 折叠态、四层分组、覆盖降级、缓存命中、错误码分组、空态、1 万次构建、三块隔离 | 23/0，无空串/undefined/越界 |
+| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 24 | 折叠态、四层分组、覆盖降级、缓存命中、错误码分组、空态、1 万次构建、三块隔离、finding 三语 | 24/0，无空串/undefined/越界 |
 | S4 | 日志目录 | `check_log_directory.js` | 15 | 公共优先、私有回迁、四类补齐、父目录重建、500 文件回迁、1 万次补齐、并发、幂等 | 15/0，路径合法、不丢文件 |
 | S5 | 状态分类重构 | `check_health_status_refactor.js` | 10 | 手动/自动/默认关闭、休眠、播放摘除、异常优先级、无旧快照回退、4 主状态唯一归属、多源绑定 | 10/0，优先级不回退 |
 | S6 | 4 主状态 + reason | `check_health_state_v2.js` | 7 | 4 主状态、reason 映射、单一汇总、UI 消费、三语键 | 7/0，状态不丢信息 |
@@ -70,7 +70,7 @@ node scripts/docs-audit.js --dry-run
 | `eslint .` | rc0 | 0 error / 0 warning |
 | `npm run build-test` | rc0 | `index.android.bundle` 重建 |
 | `check_ts_syntax` | 526 个 TS/TSX，0 错误 | rc0 |
-| 三语 | 各 904 键 | 删除未消费旧键后复跑 |
+| 三语 | 各 958 键 | 删除未消费旧键后复跑 |
 
 ## 4. 失败处置与外部阻塞
 

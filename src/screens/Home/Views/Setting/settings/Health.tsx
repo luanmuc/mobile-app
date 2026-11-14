@@ -21,7 +21,7 @@ import {
 import { buildHealthSummary, buildQualityMatrixRows, classifyHealthMainState, hasHealthSample } from '@/core/healthStatus'
 import { bindHealthSource } from '@/core/healthSourceBinding'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
-import { buildHealthDiagnosticsView } from '@/core/healthDiagnosticsView'
+import { buildHealthDiagnosticsView, localizeHealthFinding } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 import { clipboardWriteText, confirmDialog } from '@/utils/tools'
 
@@ -94,7 +94,7 @@ const hasSample = hasHealthSample
 export default memo(() => {
   const t = useI18n()
   const theme = useTheme()
-  const tt = (key: string) => t(key as Parameters<typeof t>[0])
+  const tt = useCallback((key: string) => t(key as Parameters<typeof t>[0]), [t])
   const ignored = (promise: Promise<unknown>) => { promise.catch(e => { logger.warn('Health', String(e)) }) }
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null)
   const [loading, setLoading] = useState(false)
@@ -118,7 +118,8 @@ export default memo(() => {
   // 2.4：本地诊断报告（最近异常 + 一键导出）
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
   // 趋势预警只保留报告一套判定，页面不再维护第二套阈值
-  const trendDeclineFindings = diagnostics?.findings.filter(f => f.id === 'trend_decline') ?? []
+  const trendDeclineFindings = (diagnostics?.findings.filter(f => f.id === 'trend_decline') ?? [])
+    .map(f => localizeHealthFinding(f, tt))
   // 诊断窗口默认折叠，点标题展开；避免首屏被一大段统计和线索占满
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
@@ -137,8 +138,11 @@ export default memo(() => {
 
   const reportToText = useCallback((report: HealthReport) => [
     report.summary,
-    ...report.findings.slice(0, 5).map(f => `- ${f.title}：${f.evidence}；建议：${f.suggestion}`),
-  ].join('\n'), [])
+    ...report.findings.slice(0, 5).map(f => {
+      const localized = localizeHealthFinding(f, tt)
+      return `- ${localized.title}: ${localized.evidence}; ${t('health_anomaly_suggestion')}: ${localized.suggestion}`
+    }),
+  ].join('\n'), [t, tt])
 
   const copyDiagnosticsReport = useCallback(() => {
     if (!diagnostics) return
@@ -442,15 +446,16 @@ export default memo(() => {
   const renderFinding = (f: HealthReport['findings'][number], idx: number) => {
     const key = `${f.id}-${idx}`
     const expanded = expandedFinding === key
+    const localized = localizeHealthFinding(f, tt)
     return (
       <View key={key} style={{ marginTop: 6 }}>
         <Pressable onPress={() => { setExpandedFinding(expanded ? null : key) }}>
           <Text size={12} color={f.level === 'warn' ? '#fa541c' : theme['c-font']}>
-            {f.title}{f.samples?.length ? (expanded ? ' ▾' : ' ▸') : ''}
+            {localized.title}{f.samples?.length ? (expanded ? ' ▾' : ' ▸') : ''}
           </Text>
         </Pressable>
-        <Text size={11} color={theme['c-font-label']}>{f.evidence}</Text>
-        <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}：{f.suggestion}</Text>
+        <Text size={11} color={theme['c-font-label']}>{localized.evidence}</Text>
+        <Text size={11} color={theme['c-font-label']}>{t('health_anomaly_suggestion')}: {localized.suggestion}</Text>
         {
           expanded && f.samples?.length ? (
             <View style={{ marginTop: 4 }}>
@@ -649,6 +654,8 @@ export default memo(() => {
                   const timeText = item.avgTime == null ? '-' : `${Math.round(item.avgTime)}ms`
                   const status = classifyHealthMainState(item, sampled)
                   const stateText = tt(status.key)
+                  // reason 本地化展示；原始技术码保留在无障碍标签/诊断包，排障时可追溯。
+                  const reasonText = tt(`health_reason_${status.reason}`) || status.reason
                   const shortQualities = item.qualityShortCircuit
                     ? Object.entries(item.qualityShortCircuit).filter(([, v]) => v).map(([q]) => q.toUpperCase())
                     : []
@@ -690,7 +697,7 @@ export default memo(() => {
                         >
                           <Text size={10} color={stateColor}>{togglingId === id ? '…' : stateText}</Text>
                         </View>
-                        <Text size={8} color={theme['c-font-label']} numberOfLines={1}>{status.reason}</Text>
+                        <Text size={8} color={theme['c-font-label']} numberOfLines={1} accessibilityLabel={`${reasonText} (${status.reason})`}>{reasonText}</Text>
                       </View>
                       <Text size={12} style={styles.colSmall} color={scoreColor}>{scoreText}</Text>
                     </View>

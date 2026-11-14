@@ -54,9 +54,11 @@ check('U2 每个主状态都有 tone，页面四色分支完整', () => {
   for (const c of ["status.tone === 'ok'", "status.tone === 'warn'", "status.tone === 'bad'"]) assert(ui.includes(c), `缺颜色分支 ${c}`)
 })
 
-check('U3 表格胶囊显示主状态 + reason 两行', () => {
+check('U3 表格胶囊显示主状态 + 本地化 reason 两行', () => {
   assert(ui.includes('classifyHealthMainState(item, sampled)'), '行内未用主状态分类')
-  assert(ui.includes('{status.reason}'), '未显示 reason')
+  assert(ui.includes('const reasonText = tt(`health_reason_${status.reason}`)'), 'reason 未走 i18n')
+  assert(ui.includes('{reasonText}'), '未显示本地化 reason')
+  assert(ui.includes('accessibilityLabel={`${reasonText} (${status.reason})`}'), 'raw reason 未保留在无障碍标签')
   assert(ui.includes('const stateText = tt(status.key)'), '主状态文案未走 i18n')
 })
 
@@ -97,6 +99,11 @@ check('U9 主状态与 reason 一一映射，无未知 reason', () => {
     const r = st.classifyHealthMainState({ ...base, ...c }, !(c.reqCount === 0 && c.probeCount === 0))
     assert(known.has(r.reason), `未知 reason ${r.reason}`)
     assert(st.HEALTH_MAIN_STATES.includes(r.state), `未知主状态 ${r.state}`)
+  }
+  for (const reason of known) {
+    for (const l of ['zh-cn', 'zh-tw', 'en-us']) {
+      assert(typeof langs[l][`health_reason_${reason}`] === 'string' && langs[l][`health_reason_${reason}`], `${l} 缺 health_reason_${reason}`)
+    }
   }
 })
 
