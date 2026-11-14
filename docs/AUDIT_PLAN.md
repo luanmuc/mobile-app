@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
 > 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b117**（CI 自动回写 `1124ac91`，versionCode 276）；本地待推送审计提交 **`a87d3f3a`**；本轮修复提交 **`785af658`**（已推送）；文档回填 **`8adce795`**（已推送，App CI run `43520302282` success）
-> 最近更新：2026-11-14（最终审计收口：源仓 `a25cd8a`（v8.13.1）已推送，`lx-source CI` run `43528623570` success；源仓上一绿 run `43514977949`；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；本轮健康页文案/夹具/文档改动待提交；源 v8.13.1 / App 1.9.2-b117（versionCode 276）；TS/TSX 526；22 个 check 脚本逐项实跑）
+> 最近更新：2026-11-14（最终审计收口：源仓 `a25cd8a`（v8.13.1）已推送，`lx-source CI` run `43528623570` success；源仓上一绿 run `43514977949`；App `785af658` + 文档回填 `8adce795` 均已推送，App CI run `43520302282` success；本轮健康页文案/夹具提交 `bffaf281`（待推送）；源 v8.13.1 / App 1.9.2-b117（versionCode 276）；TS/TSX 526；22 个 check 脚本逐项实跑）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、本轮修复提交 **`785af658`**（已推送）、文档回填 **`8adce795`**（已推送，App CI `43520302282` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical）。
+> **当前真值（2026-11-14 最终审计）**：三语各 **904 键**（删除未消费的 `health_diag_codes_disabled` 后）、TS/TSX **526 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（待推送）、文档回填 **`8adce795`**（已推送，App CI `43520302282` success）、**13 个 action**、`check_source_contract` **14/0**、22 个 check 脚本全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 
