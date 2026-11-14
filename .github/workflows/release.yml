@@ -98,6 +98,8 @@ jobs:
           node scripts/check_source_platform_label.js
           node scripts/check_playback_budget.js
           node scripts/check_playback_ownership_runtime.js
+          node scripts/check_player_progress_runtime.js
+          node scripts/check_release_state_contract.js
           node scripts/check_media_body.js
 
       - name: 健康诊断契约门禁（51 条 + 视图 22 条 + 日志目录 15 条）
@@ -120,6 +122,7 @@ jobs:
           node scripts/check_health_status_refactor.js
           node scripts/check_health_ui_mapping.js
           node scripts/check_download_persistence.js
+          node scripts/check_download_restore_runtime.js
           node scripts/check_docs_consistency.js
 
       - name: Compute build number
@@ -210,6 +213,9 @@ jobs:
           draft: false
           # 每次构建唯一 tag（版本号+构建序号），避免同一版本重复构建时 tag 冲突
           tag_name: v${{ env.PACKAGE_VERSION }}-b${{ env.RUN_NUMBER }}
+          # tag 必须指向实际构建的提交；否则 tag 不存在时 action 会取默认分支最新 HEAD，
+          # 构建期间推进的 docs 提交会被误标成发布提交（b119 已出现该问题）
+          target_commitish: ${{ github.sha }}
           files: |
             artifacts/*.apk
         env:
@@ -257,5 +263,13 @@ jobs:
           git config user.name "luanmuc"
           git config user.email "luanmuc@users.noreply.github.com"
           git add publish/version.json publish/build-state.json npm-version-info/package.json README.md
-          git commit -m "chore: 更新版本信息 v${VER}" || echo "无改动，跳过提交"
-          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master || echo "推送失败（后续发布不影响已完成的 Release）"
+          # 只把“无改动”当作可跳过；commit 本身失败必须让 job 红
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 更新版本信息 v${VER}"
+          fi
+          # Release job 可能在构建期间落后于远端（例如 docs 提交先落 master）。
+          # 先 fetch/rebase 再 push，避免非快进被拒后状态永远不落盘。
+          git fetch origin master
+          git rebase origin/master
+          # push 失败不得用 `|| echo` 吞掉：状态没回写，下一次构建会重复 bN/tag。
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master

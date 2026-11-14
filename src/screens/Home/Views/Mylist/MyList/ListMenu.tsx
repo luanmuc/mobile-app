@@ -91,7 +91,7 @@ export default forwardRef<ListMenuType, ListMenuProps>(({
     setMenus([
       { action: 'new', label: t('list_create') },
       { action: 'rename', disabled: !rename, label: t('list_rename') },
-      { action: 'scanLocal', label: '扫描下载目录' },
+      { action: 'scanLocal', label: t('list_scan_download_dir') },
       { action: 'sort', label: t('list_sort') },
       { action: 'duplicateMusic', label: t('lists__duplicate') },
       { action: 'local_file', disabled: !local_file, label: t('list_select_local_file') },

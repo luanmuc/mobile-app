@@ -215,36 +215,47 @@ const run = async(name, fn) => {
     assert.strictEqual(h.utils.getPlayQualityLabel(''), '')
   })
 
-  await run('P1U-E1 formatPlayError 错误码中文化', () => {
+  await run('P1U-E1 formatPlayError 错误码只显示本地化标签', () => {
     const h = setup()
-    global.i18n.t = (key) => key === 'player__error'
-      ? '播放失败'
-      : key === 'player__source_init_failed' ? '音源初始化失败' : key
-    assert.strictEqual(h.utils.formatPlayError(fail('NOT_FOUND')), '歌曲不可用：mock')
-    assert.strictEqual(h.utils.formatPlayError(new Error('PREVIEW_FRAGMENT: 该曲目只提供试听片段')), '仅提供试听片段：该曲目只提供试听片段')
-    assert.strictEqual(h.utils.formatPlayError(new Error('SONG_MISMATCH: 歌曲信息不一致')), '歌曲信息不匹配：歌曲信息不一致')
-    assert.strictEqual(h.utils.formatPlayError(new Error('TRUNCATED_MEDIA: 分片缺失')), '音频数据不完整：分片缺失')
-    assert.strictEqual(h.utils.formatPlayError(new Error('BAD_ENVELOPE: base64 损坏')), '音源返回格式异常：base64 损坏')
-    assert.strictEqual(h.utils.formatPlayError(new Error('CONTRACT_ERROR: Provider 校验失败')), '音源数据校验失败：Provider 校验失败')
+    const labels = {
+      player_error_not_found: '歌曲不可用',
+      player_error_preview: '仅提供试听片段',
+      player_error_song_mismatch: '歌曲信息不匹配',
+      player_error_truncated: '音频数据不完整',
+      player_error_bad_envelope: '音源返回格式异常',
+      player_error_contract: '音源数据校验失败',
+      player_error_canceled: '播放已取消',
+      player_error_budget: '取链超时，请重试',
+    }
+    global.i18n.t = (key) => {
+      if (key === 'player__error') return '播放失败'
+      if (key === 'player__source_init_failed') return '音源初始化失败'
+      return labels[key] || key
+    }
+    assert.strictEqual(h.utils.formatPlayError(fail('NOT_FOUND')), '歌曲不可用')
+    assert.strictEqual(h.utils.formatPlayError(new Error('PREVIEW_FRAGMENT: 该曲目只提供试听片段')), '仅提供试听片段')
+    assert.strictEqual(h.utils.formatPlayError(new Error('SONG_MISMATCH: 歌曲信息不一致')), '歌曲信息不匹配')
+    assert.strictEqual(h.utils.formatPlayError(new Error('TRUNCATED_MEDIA: 分片缺失')), '音频数据不完整')
+    assert.strictEqual(h.utils.formatPlayError(new Error('BAD_ENVELOPE: base64 损坏')), '音源返回格式异常')
+    assert.strictEqual(h.utils.formatPlayError(new Error('CONTRACT_ERROR: Provider 校验失败')), '音源数据校验失败')
     assert.strictEqual(h.utils.formatPlayError(new Error('CANCELED: 已有候选先成功')), '播放已取消')
     assert.strictEqual(h.utils.formatPlayError(new Error('BUDGET_EXHAUSTED: 取链预算耗尽(24s)')), '取链超时，请重试')
     assert.strictEqual(h.utils.formatPlayError(new Error('source init failed')), '音源初始化失败')
-    assert.strictEqual(h.utils.formatPlayError(new Error('WEIRD_CODE: x')), 'WEIRD_CODE：x')
+    assert.strictEqual(h.utils.formatPlayError(new Error('WEIRD_CODE: x')), 'WEIRD_CODE')
   })
 
-  await run('P1U-E2 formatPlayError 聚合明细与兜底截断', () => {
+  await run('P1U-E2 formatPlayError 聚合明细不再透出中文 detail', () => {
     const h = setup()
-    global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
+    global.i18n.t = (key) => key === 'player__error' ? '播放失败'
+      : ({ player_error_not_audio: '返回的不是有效音频' }[key] || key)
     const agg = h.utils.formatPlayError(new Error('NOT_AUDIO: 所有源均失败 [[flac] wyOuter=NOT_AUDIO | [128k] kw=NOT_AUDIO]'))
-    assert(agg.startsWith('返回的不是有效音频：'), agg)
-    assert(agg.includes('wyOuter=NOT_AUDIO'), agg)
-    assert(agg.includes('kw=NOT_A'), agg)
+    assert.strictEqual(agg, '返回的不是有效音频', `聚合错误不应透出 reason/detail：${agg}`)
     const long = h.utils.formatPlayError(new Error('x'.repeat(60)))
-    assert.strictEqual(long.length, 41, `无码长文本应截断到 40+省略号，实际 ${long.length}`)
+    assert.strictEqual(long, '播放失败', `无码错误应回退本地化兜底，实际 ${long}`)
     assert.strictEqual(h.utils.formatPlayError({}), '播放失败', '空错误回退 i18n 兜底文案')
   })
 
-  await run('P1U-E3 源仓 16 个 ERROR_CODES 全部有中文文案', () => {
+  await run('P1U-E3 源仓 16 个 ERROR_CODES 全部有本地化标签', () => {
     const h = setup()
     global.i18n.t = (key) => key === 'player__error' ? '播放失败' : key
     const sourceCodes = [
@@ -254,7 +265,24 @@ const run = async(name, fn) => {
     ]
     for (const code of sourceCodes) {
       const text = h.utils.formatPlayError(new Error(`${code}: mock`))
-      assert(!text.startsWith(code), `${code} 未映射中文，实际：${text}`)
+      assert(!text.startsWith(code), `${code} 未映射本地化文案，实际：${text}`)
+    }
+  })
+
+  await run('P1U-E4 英文界面错误提示不得出现中文源 detail', () => {
+    const h = setup()
+    const en = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/lang/en-us.json'), 'utf8'))
+    global.i18n.t = (key) => en[key] || key
+    const cases = [
+      ['TRUNCATED_MEDIA: 音频被截断', 'Audio data is incomplete'],
+      ['NETWORK_TIMEOUT: 上游超时', 'Request timed out'],
+      ['CANCELED: 用户取消', 'Playback canceled'],
+      ['NOT_AUDIO: 所有源均失败 [[flac] kw=NOT_AUDIO]', 'Not valid audio'],
+    ]
+    for (const [msg, expected] of cases) {
+      const text = h.utils.formatPlayError(new Error(msg))
+      assert.strictEqual(text, expected, `${msg} -> ${text}`)
+      assert(!/[\u4e00-\u9fff]/.test(text), `英文界面仍含中文：${text}`)
     }
   })
 

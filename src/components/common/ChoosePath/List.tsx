@@ -10,6 +10,7 @@ import Main from './components/Main'
 import Footer from './components/Footer'
 import { sizeFormate } from '@/utils'
 import { useTheme } from '@/store/theme/hook'
+import { useI18n } from '@/lang'
 import { type PathItem } from './components/ListItem'
 // import { getSelectedManagedFolder } from '@/utils/data'
 // let prevPath = externalStorageDirectoryPath
@@ -94,6 +95,7 @@ export default forwardRef<ListType, ListProps>(({
   const [isReading, setIsReading] = useState(false)
   const modalRef = useRef<ModalType>(null)
   const theme = useTheme()
+  const t = useI18n()
 
   useImperativeHandle(ref, () => ({
     show(title, dir = '', dirOnly = false, filter) {
@@ -132,7 +134,7 @@ export default forwardRef<ListType, ListProps>(({
       setPath(newPath)
       return list
     }).catch((err: any) => {
-      toast(`Read dir error: ${err.message as string}`, 'long')
+      toast(t('choose_path_read_dir_failed', { msg: String(err?.message ?? '') }), 'long')
       // console.log('prevPath', prevPath)
       // if (isReadingDir.current) return
       // setPath(prevPath)

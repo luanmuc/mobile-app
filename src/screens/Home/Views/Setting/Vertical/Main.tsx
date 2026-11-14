@@ -19,14 +19,16 @@ import GroupAbout from '../settings/About'
 import Version from '../settings/Version'
 import { getPlayCount } from '@/core/player/playCount'
 
-const formatPlayTime = (seconds: number) => {
+type TFn = ReturnType<typeof useI18n>
+const formatPlayTime = (seconds: number, t: TFn) => {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h} 小时 ${m} 分钟`
-  return `${m} 分钟`
+  if (h > 0) return t('setting_play_count_time_hm', { h, m })
+  return t('setting_play_count_time_m', { m })
 }
 
 const PlayCountBlock = memo(() => {
+  const t = useI18n()
   const [playCount, setPlayCount] = useState(getPlayCount())
   useEffect(() => {
     // 组件可见期间定时刷新统计（与 core 结算周期 playCount.ts 的 10 秒对齐）
@@ -39,7 +41,11 @@ const PlayCountBlock = memo(() => {
   return (
     <View style={styles.playCountBlock}>
       <Text size={13} color={'#999'}>
-        听歌统计：累计播放 {playCount.playedCount} 次 · 今日 {playCount.dayCount} 次 · 累计播放时长约 {formatPlayTime(playCount.playTime)}
+        {t('setting_play_count_summary', {
+          count: playCount.playedCount,
+          day: playCount.dayCount,
+          time: formatPlayTime(playCount.playTime, t),
+        })}
       </Text>
     </View>
   )

@@ -166,7 +166,8 @@ export default memo(() => {
       }
       setError(t('health_export_failed'))
     } catch (e: any) {
-      setError(String(e?.message || t('health_export_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_export_failed'))
     }
     // 分享通道不可用（无文件管理器/分享取消/写盘失败）时，至少把摘要复制出来，
     // 避免用户点一次导出只得到一句“失败”而拿不到任何现场。
@@ -212,7 +213,10 @@ export default memo(() => {
       }
     } catch (e: any) {
       console.log(e)
-      if (!silent) setError(String(e?.message || t('health_load_failed')))
+      if (!silent) {
+        logger.warn('Health', String(e?.message ?? e))
+        setError(t('health_load_failed'))
+      }
     } finally {
       if (!silent) setLoading(false)
     }
@@ -254,7 +258,8 @@ export default memo(() => {
       }
     } catch (e: any) {
       setProbeInfo('')
-      setError(String(e?.message || t('health_load_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_load_failed'))
       return
     }
     void loadHealth(true)
@@ -289,7 +294,8 @@ export default memo(() => {
       ))
       setShowConfigModal(true)
     } catch (e: any) {
-      setError(String(e?.message || t('health_load_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_load_failed'))
     }
   }, [t])
 
@@ -319,7 +325,8 @@ export default memo(() => {
       setShowConfigModal(false)
       setProbeInfo(t('health_config_saved', { n: Object.keys(updates).length }))
     } catch (e: any) {
-      setError(String(e?.message || t('health_config_save_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_config_save_failed'))
     }
   }, [t, configInputs, configBools, configData])
 
@@ -337,7 +344,8 @@ export default memo(() => {
       setTrendData(res?.history ?? [])
       setShowTrendModal(true)
     } catch (e: any) {
-      setError(String(e?.message || t('health_load_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_load_failed'))
     }
   }, [t])
 
@@ -362,7 +370,8 @@ export default memo(() => {
         setProbeInfo(`${name ?? id}: ${applied?.outcome || outcome} · ${t('health_probe_apply_button')}`)
       }
     } catch (e: any) {
-      setError(String(e?.message || t('health_probe_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_probe_failed'))
     } finally {
       setProbingId('')
     }
@@ -383,7 +392,8 @@ export default memo(() => {
       await promise
       await loadHealth(true)
     } catch (e: any) {
-      setError(String(e?.message || t('health_toggle_failed')))
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_toggle_failed'))
     } finally {
       setTogglingId('')
     }

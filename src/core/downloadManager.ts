@@ -303,7 +303,7 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
           updateItem({
             ...current,
             status: 'run',
-            statusText: '下载中',
+            statusText: global.i18n.t('dl_status_running'),
             statusKey: 'dl_status_running',
             progress: progress > 0 ? progress : current.progress,
             downloaded: currentBytes,
@@ -330,7 +330,7 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
         updateItem({
           ...task,
           status: 'run',
-          statusText: '下载中',
+          statusText: global.i18n.t('dl_status_running'),
           statusKey: 'dl_status_running',
           progress,
           downloaded: currentBytes,
@@ -369,7 +369,7 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
         ...task,
         isComplate: true,
         status: 'completed',
-        statusText: '已完成',
+        statusText: global.i18n.t('dl_status_completed'),
         statusKey: 'dl_status_completed',
         progress: 1,
         downloaded: bytesWritten,
@@ -402,7 +402,7 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
 
 const runTask = async(task: LX.Download.ListItem) => {
   activeDownloadCount++
-  updateItem({ ...task, status: 'run', statusText: '获取歌曲信息...', statusKey: 'dl_status_fetching' })
+  updateItem({ ...task, status: 'run', statusText: global.i18n.t('dl_status_fetching'), statusKey: 'dl_status_fetching' })
 
   try {
     // 仅 WiFi 下载：非 WiFi 环境下暂停任务，等待用户切换网络后继续
@@ -411,7 +411,7 @@ const runTask = async(task: LX.Download.ListItem) => {
         updateItem({
           ...task,
           status: 'pause',
-          statusText: '非WiFi环境，已暂停',
+          statusText: global.i18n.t('dl_status_wifi_paused'),
           statusKey: 'dl_status_wifi_paused',
         })
         save()
@@ -469,7 +469,7 @@ const runTask = async(task: LX.Download.ListItem) => {
               ...task,
               isComplate: true,
               status: 'completed',
-              statusText: '已完成',
+              statusText: global.i18n.t('dl_status_completed'),
               statusKey: 'dl_status_completed',
               progress: 1,
               downloaded: stat.size,
@@ -563,7 +563,7 @@ export const startDownload = async(musicInfo: LX.Music.MusicInfoOnline, quality:
     id: taskId,
     isComplate: false,
     status: 'waiting',
-    statusText: '等待中',
+    statusText: global.i18n.t('dl_status_waiting'),
     statusKey: 'dl_status_waiting',
     downloaded: 0,
     total: 0,
@@ -599,7 +599,7 @@ export const startBatchDownload = async(musicList: LX.Music.MusicInfoOnline[], q
       id: taskId,
       isComplate: false,
       status: 'waiting',
-      statusText: '等待中',
+      statusText: global.i18n.t('dl_status_waiting'),
       statusKey: 'dl_status_waiting',
       downloaded: 0,
       total: 0,
@@ -633,7 +633,7 @@ export const retryDownload = async(taskId: string) => {
     ...task,
     retryCount: 0,
     status: 'waiting',
-    statusText: '等待中',
+    statusText: global.i18n.t('dl_status_waiting'),
     statusKey: 'dl_status_waiting',
     statusParams: undefined,
     error: '',
@@ -653,7 +653,7 @@ export const pauseDownload = async(taskId: string) => {
   updateItem({
     ...task,
     status: 'pause',
-    statusText: '已暂停',
+    statusText: global.i18n.t('dl_status_paused'),
     statusKey: 'dl_status_paused',
     speed: '',
   })
@@ -678,7 +678,7 @@ export const resumeDownload = async(taskId: string) => {
   updateItem({
     ...task,
     status: 'waiting',
-    statusText: '等待中',
+    statusText: global.i18n.t('dl_status_waiting'),
     statusKey: 'dl_status_waiting',
     statusParams: undefined,
   })
@@ -748,7 +748,7 @@ export const initDownloadList = async() => {
           status: 'waiting' as const,
           // statusKey 必须一起改：UI 优先读 statusKey，只改 status 会继续显示上一轮的
           // 「获取歌曲信息…」「等待重试 1/3」，看起来永远卡住
-          statusText: '等待中',
+          statusText: global.i18n.t('dl_status_waiting'),
           statusKey: 'dl_status_waiting',
           statusParams: undefined,
           progress: 0,
@@ -824,7 +824,7 @@ export const pauseAllDownload = async() => {
       updateItem({
         ...task,
         status: 'pause',
-        statusText: '已暂停',
+        statusText: global.i18n.t('dl_status_paused'),
         statusKey: 'dl_status_paused',
         speed: '',
       })
@@ -848,7 +848,7 @@ export const resumeAllDownload = async() => {
       updateItem({
         ...task,
         status: 'waiting',
-        statusText: '等待中',
+        statusText: global.i18n.t('dl_status_waiting'),
         statusKey: 'dl_status_waiting',
         statusParams: undefined,
       })

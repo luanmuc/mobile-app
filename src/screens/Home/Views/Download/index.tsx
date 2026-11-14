@@ -223,7 +223,7 @@ export default () => {
           isCompleted
             ? (
                 <>
-                  <Text numberOfLines={1} style={styles.filePathText} size={11} color={theme['c-font-label']}>{t('dl_quality', { quality: QUALITY_NAMES[item.metadata.quality] ?? item.metadata.quality })}</Text>
+                  <Text numberOfLines={1} style={styles.filePathText} size={11} color={theme['c-font-label']}>{t('dl_quality', { quality: QUALITY_NAMES[item.metadata.quality] ? t(QUALITY_NAMES[item.metadata.quality] as Parameters<typeof t>[0]) : item.metadata.quality })}</Text>
                   <Text numberOfLines={1} style={styles.filePathText} size={11} color={theme['c-font-label']}>{item.metadata.fileName}</Text>
                 </>
               )

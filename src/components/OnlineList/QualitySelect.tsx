@@ -9,13 +9,13 @@ import { FULL_QUALITYS_LIST } from '@/core/music/utils'
 import { useI18n } from '@/lang'
 
 export const QUALITY_NAMES: Record<string, string> = {
-  flac24bit: 'Hi-Res 无损',
-  flac: '无损',
-  '320k': '320K',
-  '128k': '128K',
-  '192k': '192K',
-  ape: 'APE',
-  wav: 'WAV',
+  flac24bit: 'quality_flac24bit',
+  flac: 'quality_flac',
+  '320k': 'quality_320k',
+  '128k': 'quality_128k',
+  '192k': 'quality_192k',
+  ape: 'quality_ape',
+  wav: 'quality_wav',
 }
 
 export interface QualitySelectType {
@@ -81,6 +81,7 @@ export default forwardRef<QualitySelectType, Props>(({ onConfirm }, ref) => {
                   const availableList = FULL_QUALITYS_LIST.filter(q => supported[q])
                   return availableList.map((q) => {
                     const isActive = quality == q
+                    const nameKey = QUALITY_NAMES[q]
                     return (
                       <TouchableOpacity
                         key={q}
@@ -91,7 +92,7 @@ export default forwardRef<QualitySelectType, Props>(({ onConfirm }, ref) => {
                           size={14}
                           style={styles.itemText}
                           color={isActive ? theme['c-primary'] : theme['c-font']}
-                        >{QUALITY_NAMES[q] ?? q}</Text>
+                        >{nameKey ? t(nameKey as Parameters<typeof t>[0]) : q}</Text>
                         {
                           isActive
                             ? <Text size={14} color={theme['c-primary']}>✓</Text>
@@ -110,10 +111,10 @@ export default forwardRef<QualitySelectType, Props>(({ onConfirm }, ref) => {
                     setVisible(false)
                   }}
                 >
-                  <Text color={theme['c-font-label']} size={14}>取消</Text>
+                  <Text color={theme['c-font-label']} size={14}>{t('dl_quality_cancel')}</Text>
                 </Button>
                 <Button style={styles.footerBtn} onPress={handleConfirm}>
-                  <Text color={theme['c-primary-font']} size={14}>开始下载</Text>
+                  <Text color={theme['c-primary-font']} size={14}>{t('dl_quality_start')}</Text>
                 </Button>
               </View>
             </View>

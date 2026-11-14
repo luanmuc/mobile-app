@@ -64,7 +64,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 ## 四、聚合源内部结构（豆包定制 v8.13.1）
 
 > 每次构建自动拉取音源仓库 master 最新版，以下为当前结构；随音源迭代会更新。
-> **产物状态**：v8.13.1 已随 App `v1.9.2-b118` 发布（内置源 `8.13.1`，versionCode 277）；v8.13.0 此前随 b117 发布。源仓 `a25cd8a` 已推送，源 CI `43528623570` success，App Build `43531794187` success，5 个 APK 已上传。
+> **产物状态**：v8.13.1 已随 App `v1.9.2-b119` 发布（内置源 `8.13.1`，versionCode 278）；v8.13.0 此前随 b117 发布。源仓 `a25cd8a` 已推送，源 CI `43528623570` success，App Build `43554924635` success，5 个 APK 已上传。
 >
 > **P3 持久化 v2（v8.13.0，2026-11-13）**：Redis 无关的宿主侧健康持久化。源侧 `exportHealthState`/`restoreHealthState` 升 schema v2：健康元数据（`breaker/byQuality/playDead/qualityShortCircuit`）与用户控制（`controls`）分离，仍接受 v1；controls-only（`sources:{}` + `controls`）不绑 `sourceVersion`，用户开关不因源升版丢失；`healthV2Enabled=false` 回旧 v1 导出。健康态仍 7 天 TTL、256KB，禁止 `url/successUrl/cache/name/singer/account/cookie/token/headers/body` 等键，**不恢复** `successCache/failCache/fragmentUrlMap/qualityCeilingMap`。App `src/core/sourceHealthPersistence.ts` 健康快照写单一 canonical key `@___SOURCE_HEALTH___global`，控制独立写 `@___SOURCE_CONTROL___global`（v2、64KB、7 天 TTL）；旧平台键 `kw/wy/tx/mg/kg` 首次读取迁移并清理。`getMusicUrl/getHealth` 首个请求前等待 restore，控制先于健康恢复；`getHealth` 成功后异步 save，失败只降级不阻断播放。跨平台目标收敛为 `tx→wy→kw`；mg/kg 保留直连，但 `suyinKuwo` 实际交付酷我 CDN 时 `sourcePlatform` 回填 `kw`。源仓 `aa-p3-persist` 10/0、`health-persistence-v2` 8/0、`u-cross-platform` 15/15（U15 先红后绿）；App `check_source_health_persistence` 17/0、`check_health_event_pipeline` 10/0（源事件白名单/去重/三块隔离，`sourceEvents` 落盘前脱敏）（canonical key A12/A13、v2 拆分 B1/B2、v1 兼容 B4、存储异常 A10、五平台并发 A11、G5 动态源/版本 G5-A1）、`check_health_persistence_v2` 9/0（Q1~Q9）。G5 已关闭：不再维护 12 个 provider 固定名单，`sourceVersion` 取源快照自带值，宿主只校验源 ID 形态；增源/升版不再需要改 App 常量。
 >

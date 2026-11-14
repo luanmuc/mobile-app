@@ -710,60 +710,51 @@ export const getPlayQualityLabel = (quality: string): string => {
 }
 
 // ============================================================
-// 音源失败原因友好化（v4.0：播放失败提示中文摘要）
+// 音源失败原因友好化（v4.0：播放失败提示本地化摘要）
 // 音源聚合失败 message 格式（v3.0+）：`CODE: 所有源均失败 [[q] 源: 原因 | ...]`
-// 或 `CODE: 单源原因`；内置源错误为 requestMsg 中文文案（原样截断返回）
+// 或 `CODE: 单源原因`；内置源错误为 requestMsg 文案（detail 可能为中文）
 // ============================================================
-// 音源侧 ERROR_CODES 共 16 个（v8.13）。此前只映射了 11 个，且 `MISMATCH` 的实际值
-// 已经是 `SONG_MISMATCH`；`FAIL_CODE_ZH[code] || code` 会把这些码原样显示给用户。
-// 两个历史码名（TIMEOUT / TOO_MANY_REQUESTS）保留，兼容其他源/旧路径。
-const FAIL_CODE_ZH: Record<string, string> = {
-  NOT_FOUND: '歌曲不可用',
-  NETWORK_ERROR: '网络错误',
-  NETWORK_TIMEOUT: '请求超时',
-  TIMEOUT: '请求超时', // 历史码名，保留兼容
-  PARAM_ERROR: '请求参数错误',
-  CONFIG_ERROR: '音源配置错误',
-  RATE_LIMIT: '请求过于频繁，请稍后再试',
-  TOO_MANY_REQUESTS: '请求过于频繁，请稍后再试', // 历史码名，保留兼容
-  SERVER_ERROR: '音源服务异常',
-  MISMATCH: '歌曲信息不匹配', // 历史码名，保留兼容
-  SONG_MISMATCH: '歌曲信息不匹配',
-  LINK_EXPIRED: '音源链接已失效',
-  PREVIEW_FRAGMENT: '仅提供试听片段',
-  NOT_AUDIO: '返回的不是有效音频',
-  STREAM_PLAYLIST: '返回的是播放列表，播放器不支持',
-  TRUNCATED_MEDIA: '音频数据不完整',
-  BAD_ENVELOPE: '音源返回格式异常',
-  CONTRACT_ERROR: '音源数据校验失败',
-  CANCELED: '播放已取消',
-  BUDGET_EXHAUSTED: '取链超时，请重试',
-  UNKNOWN: '未知错误',
-}
+// 音源侧 ERROR_CODES 共 16 个（v8.13）。每个码映射到三语 key；用户界面只显示标签，
+// 不拼接源侧 detail。两个历史码名（TIMEOUT / TOO_MANY_REQUESTS）保留，兼容其他源/旧路径。
+const FAIL_CODE_I18N_KEY = {
+  NOT_FOUND: 'player_error_not_found',
+  NETWORK_ERROR: 'player_error_network',
+  NETWORK_TIMEOUT: 'player_error_timeout',
+  TIMEOUT: 'player_error_timeout', // 历史码名，保留兼容
+  PARAM_ERROR: 'player_error_param',
+  CONFIG_ERROR: 'player_error_config',
+  RATE_LIMIT: 'player_error_rate_limit',
+  TOO_MANY_REQUESTS: 'player_error_rate_limit', // 历史码名，保留兼容
+  SERVER_ERROR: 'player_error_server',
+  MISMATCH: 'player_error_song_mismatch', // 历史码名，保留兼容
+  SONG_MISMATCH: 'player_error_song_mismatch',
+  LINK_EXPIRED: 'player_error_link_expired',
+  PREVIEW_FRAGMENT: 'player_error_preview',
+  NOT_AUDIO: 'player_error_not_audio',
+  STREAM_PLAYLIST: 'player_error_stream_playlist',
+  TRUNCATED_MEDIA: 'player_error_truncated',
+  BAD_ENVELOPE: 'player_error_bad_envelope',
+  CONTRACT_ERROR: 'player_error_contract',
+  CANCELED: 'player_error_canceled',
+  BUDGET_EXHAUSTED: 'player_error_budget',
+  UNKNOWN: 'player_error_unknown',
+} as const
+
+type PlayErrorCode = keyof typeof FAIL_CODE_I18N_KEY
 
 export const formatPlayError = (err: any): string => {
   const fallback = global.i18n.t('player__error')
   const msg = String(err?.message ?? '')
   if (!msg) return fallback
   const m = msg.match(/^([A-Z_]+):\s*(.*)$/)
-  const trim = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n)}…` : s)
   if (!m) {
-    // 少数 App 侧抛错没有 `CODE:` 前缀；可用 i18n 的走文案，避免英文直出。
+    // App 侧少数错误没有 CODE 前缀，不再把可能含中文的原始 message 直出；
+    // 仅保留已知的 source init failed，其余统一走本地化兜底，详细原因由诊断日志承接。
     if (msg.startsWith('source init failed')) return global.i18n.t('player__source_init_failed')
-    return msg.length > 40 ? `${msg.slice(0, 40)}…` : msg
+    return fallback
   }
-  const [, code, rest] = m
-  const zh = FAIL_CODE_ZH[code] || code
-  // 这两个码的 rest 是内部说明，不是需要展示给用户的明细；只给友好文案。
-  if (code === 'BUDGET_EXHAUSTED' || code === 'CANCELED') return zh
-  // 聚合失败：取前两个明细摘要（去掉 [音质] 前缀）
-  if (rest.startsWith('所有源均失败')) {
-    const detailMatch = rest.match(/\[(.*)\]/)
-    const details = detailMatch
-      ? detailMatch[1].split(' | ').filter(Boolean).slice(0, 2).map(d => d.replace(/^\[[^\]]+\]\s*/, ''))
-      : []
-    if (details.length) return `${zh}：${trim(details.join('；'))}`
-    return `${zh}：所有源均失败`
-  }
-  return `${zh}：${trim(rest.replace(/，跳过$/, '').replace(/\(可能需VIP\)/, ''))}`
+  const [, code] = m
+  const key = FAIL_CODE_I18N_KEY[code as PlayErrorCode]
+  // 源侧 detail（rest）可能是中文说明，用户界面不再拼接；诊断链仍保留原始 err。
+  return key ? global.i18n.t(key) : code
 }

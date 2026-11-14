@@ -163,7 +163,7 @@ export default memo(() => {
                   setApiSource(newApiInfo.id),
                   new Promise<boolean>(resolve => { setTimeout(() => { resolve(false) }, 8000) }),
                 ])
-                if (!switched) throw new Error('新音源未能加载，已保留旧音源')
+                if (!switched) throw new Error(t('source_switch_failed_keep_old'))
 
                 // 3) 切源成功后再删"豆包定制"旧音源（不删刚导入的那个）
                 const oldIds = userApiListRaw

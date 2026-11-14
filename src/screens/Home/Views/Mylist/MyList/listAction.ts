@@ -210,7 +210,7 @@ export const handleImportMediaFile = async(listInfo: LX.List.MyListInfo, path: s
 // 本地音乐管理（借鉴 MusicFree 本地音乐）：一键扫描下载目录并导入歌单
 // 若不存在「本地音乐」歌单则自动创建，之后重复扫描只补新文件
 const LOCAL_MUSIC_LIST_ID = 'local_music'
-const LOCAL_MUSIC_LIST_NAME = '本地音乐'
+const getLocalMusicListName = () => global.i18n.t('list_local_music')
 export const handleScanDownloadDir = async() => {
   try {
     let dir = settingState.setting['download.dir']
@@ -221,7 +221,7 @@ export const handleScanDownloadDir = async() => {
     }
     let targetList = listState.userList.find(l => l.id == LOCAL_MUSIC_LIST_ID)
     if (!targetList) {
-      await createList({ id: LOCAL_MUSIC_LIST_ID, name: LOCAL_MUSIC_LIST_NAME })
+      await createList({ id: LOCAL_MUSIC_LIST_ID, name: getLocalMusicListName() })
       targetList = listState.userList.find(l => l.id == LOCAL_MUSIC_LIST_ID)!
     }
     await handleImportMediaFile(targetList, dir)
