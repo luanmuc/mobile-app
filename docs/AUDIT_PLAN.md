@@ -1,9 +1,9 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b121**（CI 自动回写 `085d008d`，versionCode 280；tag `83f80c6d`，Build `43561230482` success）；本轮修复提交 **`83f80c6d`**（已推送）；文档回填随本文档提交
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b122**（CI 自动回写 `0cf5dbe9`，versionCode 281；tag `e5a49c6d`，Build `43564774952` success）；本轮修复提交 **`e5a49c6d`**（已推送）；文档回填随本文档提交
 > 最近更新：2026-11-14（临时审计交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。当前改动**未提交、未推送、未触发新构建**）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`a25cd8a`，已推送，CI `43528623570` success；上一绿提交 `03fe893`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**26 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@a25cd8a`，当前 HEAD 与绿提交相同，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
+> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`641e8dc`，已推送，CI `43552333512` success；S-01 push fail-closed `aafeb3c`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**26 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@641e8dc`，当前 HEAD 与绿提交相同，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
 > 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
 

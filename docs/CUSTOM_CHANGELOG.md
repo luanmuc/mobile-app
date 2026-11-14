@@ -7,6 +7,7 @@
 - **N2 热点行为断言**：新增 `check_file_name_template_runtime.js` 10 条、`check_download_error_i18n.js` 7 条、`check_player_utils_runtime.js` 7 条（未初始化不调原生、临时 trackId、setResource 透传）、`check_sync_client_runtime.js` 4 条（状态广播/未连接 disconnect）；`check_download_restore_runtime.js` 补 `@/utils/fileNameTemplate` stub，恢复 3/0。`release.yml` 新增“热点行为断言”步骤，26 个业务 check 脚本全部阻塞构建。
 - **S-01 源仓巡检 push fail-closed**：源仓 `.github/workflows/ci.yml` 的健康表写回由 `git push || { warning }` 改为 `if ! git push ...; then ::error + exit 1; fi`；push 失败不再静默绿，`test/audit/f-repo.js` 增加 Z8 静态断言（53/0）。
 - **文案台账**：三语各 997 键，`dl_*` 102 键；本轮新增 5（I-05 3 + I-07 2）。
+- **发布**：`v1.9.2-b122` / versionCode 281（tag `e5a49c6d`，Build `43564774952`，Android/Release 双绿，5 个 APK；状态回写 `0cf5dbe9`）。
 - **验证**：`tsc --noEmit` 0；全仓 ESLint 0 error / 0 warning；26 个 check 脚本全部 rc0（`check_source_ci_gate` 用有效 token 复跑源仓 HEAD `641e8dc` / CI `43552333512` success）；`check_docs_consistency` 18 文档通过；源仓 `test/audit/f-repo.js` 53/0、`docs-audit` rc0。
 
 ## [R-01 发布状态闭环 + 错误/进度/用户可见文案收口] - 2026-11-14
