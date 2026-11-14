@@ -39,9 +39,9 @@ interface HealthItem {
   probeCount: number
   sleeping: boolean
   healthScore: number
-  // v6.0：真实播放请求最后使用时间戳（音源快照提供；0=从未用过）——五级分区"使用中"判定
+  // v6.0：真实播放请求最后使用时间戳（音源快照提供；0=从未用过）——4 主状态排序"使用中"判定
   lastUsedAt?: number
-  // 音源快照 v26.1 / v17.2 提供：播放连续失败被摘除、连续 429 被限流
+  // 音源快照 v26.1 / v17.2 提供：播放连续失败进入暂停、连续 429 被限流
   playDead?: boolean
   qualityShortCircuit?: Partial<Record<'128k' | '320k' | 'flac' | 'flac24bit', boolean>>
   // F35/F15：快照最近探测/下次探测 ETA，用于行内展示“下一次什么时候探”。
@@ -337,7 +337,7 @@ export default memo(() => {
     }
   }, [t])
 
-  // v8.14：行内单源探测——只读（apply=false），不关闭/启用/休眠任何源，不改全局健康状态。
+  // v8.14：行内单源探测——只读（apply=false），不关闭/启用/暂停任何源，不改全局健康状态。
   const probeOne = useCallback(async(id: string, name?: string, platforms?: string[]) => {
     if (probingId) return
     setError('')
@@ -385,13 +385,12 @@ export default memo(() => {
     }
   }, [t, loadHealth, togglingId])
 
-  // v-b47：五级分区排序——使用中(最近10分钟有真实请求) → 正常 → 待采样 → 休眠 → 已关，
-  // 组内按健康分降序（同分保持定义顺序）；"异常"源(0%+负分)留在正常组内自然沉底
+  // 4 主状态排序：可用（使用中优先）→ 降级 → 暂停 → 已关闭；组内按健康分降序
   const isUsing = (it: HealthItem) => !!it.lastUsedAt && (Date.now() - it.lastUsedAt) < 10 * 60 * 1000
   const groupRank = (it: HealthItem) => {
-    if (!it.enabled) return it.sleeping ? 3 : 4
-    if (!hasSample(it)) return 2
-    return isUsing(it) ? 0 : 1
+    const status = classifyHealthMainState(it, hasSample(it))
+    const base = status.state === 'available' ? 0 : status.state === 'degraded' ? 2 : status.state === 'paused' ? 4 : 6
+    return base + (status.state === 'available' && isUsing(it) ? 0 : 1)
   }
   // v8.0：提取平台级降级聚合（_ 开头的特殊字段，不参与子源列表渲染）
   const sourceLabel = (id: string, fallback?: string) => {
@@ -431,7 +430,7 @@ export default memo(() => {
       return g !== 0 ? g : b.healthScore - a.healthScore
     }) : []
 
-  // 单一状态模型：4 主状态计数，不再维护旧 9 桶明细。
+  // 单一状态模型：4 主状态计数；旧状态桶不再参与 UI。
   const summary = buildHealthSummary(items)
 
   // 窗口展示逻辑收敛到纯函数视图模型，页面只负责文案与样式
@@ -916,13 +915,13 @@ export default memo(() => {
                   trendDataView.flatMap(entry => Object.keys(entry.sources)),
                 ))
                 // v8.1：按最新健康分从低到高排序（异常排前面，一眼看到问题源）
-                // 排序权重：异常(红) < 一般(黄) < 无样本(灰) < 健康(绿)
+                // 排序权重：低分(红) < 中分(黄) < 无样本(灰) < 高分(绿)
                 const getSortWeight = (id: string) => {
                   const latestScore = trendDataView[trendDataView.length - 1]?.sources[id]?.score ?? null
                   if (latestScore === null) return 2 // 无样本排中间
-                  if (latestScore < -5) return 0 // 异常排最前
-                  if (latestScore < 3) return 1 // 一般排第二
-                  return 3 // 健康排最后
+                  if (latestScore < -5) return 0 // 低分排最前
+                  if (latestScore < 3) return 1 // 中分排第二
+                  return 3 // 高分排最后
                 }
                 allSourceIds.sort((a, b) => getSortWeight(a) - getSortWeight(b))
                 return allSourceIds.map(id => {

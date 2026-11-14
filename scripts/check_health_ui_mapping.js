@@ -2,7 +2,7 @@
 /**
  * 方案 6.3 UI 映射契约（U1~U10）
  *
- * 覆盖：4 主状态文案/颜色、reason 可见、主+旧桶双摘要、质量矩阵七项、
+ * 覆盖：4 主状态文案/颜色、reason 可见、4 主状态摘要、质量矩阵七项、
  * API 绑定、全局探测确认、三语键齐备且无硬编码中文单位。
  *
  * 用法：node scripts/check_health_ui_mapping.js
@@ -64,7 +64,7 @@ check('U4 摘要只显示 4 主状态，不再有旧 9 桶入口', () => {
   assert(ui.includes('summary.available'), '摘要缺可用计数')
   assert(ui.includes('summary.degraded'), '摘要缺降级计数')
   assert(ui.includes('summary.paused'), '摘要缺暂停计数')
-  assert(ui.includes('summary.off'), '摘要缺手动关闭计数')
+  assert(ui.includes('summary.off'), '摘要缺已关闭计数')
   assert(!ui.includes('summary.buckets'), '仍残留旧桶明细')
   assert(!ui.includes('summaryDetailOpen'), '仍残留旧桶展开状态')
   assert(!ui.includes('health_main_detail'), '仍残留旧状态明细入口')
@@ -105,6 +105,12 @@ check('U10 三语键数一致且旧状态/旧桶键已删除', () => {
   assert(new Set(counts).size === 1, `三语键数不一致：${counts.join('/')}`)
   for (const k of ['health_sum_ok', 'health_sum_bad', 'health_sum_removed', 'health_sum_rate', 'health_sum_open', 'health_sum_half', 'health_sum_idle', 'health_sum_sleep', 'health_sum_off', 'health_state_removed', 'health_state_open']) {
     for (const l of ['zh-cn', 'zh-tw', 'en-us']) assert(!langs[l][k], `${l} 仍残留旧键 ${k}`)
+  }
+  for (const l of ['zh-cn', 'zh-tw', 'en-us']) {
+    const joined = `${langs[l].health_desc}\n${langs[l].health_footnote}`
+    for (const term of ['11 态', '9 桶', '11-state', '9-bucket', '11 態', '9 桶']) {
+      assert(!joined.includes(term), `${l} 用户文案仍保留旧模型：${term}`)
+    }
   }
 })
 

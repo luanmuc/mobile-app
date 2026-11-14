@@ -4,7 +4,7 @@
 > 本轮基线：历史起点 `a02db1af`；2026-11-14 当前复核提交 `785af658` + 文档回填 `8adce795`（均已推送，App CI `43520302282` success），`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 23/0、`check_log_directory` 15/0。
 > 原则：不是「跑一遍不崩」，而是逐分支验证统计口径、窗口语义、异常规则、隐私边界和大数据行为。
 
-> **2026-11-13 v8.14 健康整功能重构补审**：新增 `scripts/check_health_status_refactor.js`（HS1~HS8）专审状态优先级与 `offReason`，已 8/0。覆盖：手动关闭 > 自动关闭 > 默认关闭 > 休眠 > 待采样 > 播放摘除 > 异常；旧快照无 `offReason` 回退不回归；9 桶只落一桶。新增待审缺口：真实播放回传去重（同一首歌多次 Playing 目前每次成功回传，会抬高样本数）、`probeSource` 只读语义、自动关闭 TTL 6h 重启复验；这三项需真机或宿主模拟补证，未闭环前不得宣称“健康状态完全正确”。
+> **2026-11-13 v8.14 健康整功能重构补审**：新增 `scripts/check_health_status_refactor.js`（HS1~HS8）专审状态优先级与 `offReason`，已 8/0。覆盖：用户关闭 > 自动关闭 > 默认关闭 > 休眠 > 待采样 > 播放摘除 > 异常；旧快照无 `offReason` 回退不回归；4 主状态只落一态。新增待审缺口：真实播放回传去重（同一首歌多次 Playing 目前每次成功回传，会抬高样本数）、`probeSource` 只读语义、自动关闭 TTL 6h 重启复验；这三项需真机或宿主模拟补证，未闭环前不得宣称“健康状态完全正确”。
 
 
 ## 1. 审计目标

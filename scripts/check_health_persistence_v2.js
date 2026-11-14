@@ -33,7 +33,7 @@ const mod = loadTs('src/core/sourceHealthPersistence.ts')
 const NOW = Date.now()
 const mkState = () => ({
   v: 2,
-  sourceVersion: '8.13.0',
+  sourceVersion: '8.13.1',
   savedAt: NOW,
   sources: { suyinKuwo: { breaker: { state: 'closed', totalRequests: 2 }, byQuality: { '128k': { req: 2, success: 1 } }, playDead: { streak: 0, deadline: 0 } } },
   qualityShortCircuit: { 'suyinKuwo:flac': NOW + 1000 },
@@ -77,7 +77,7 @@ check('Q3 control 独立恢复：健康 sourceVersion 不符仍恢复用户意�
   await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinQQ: { enabled: false, manualOff: true }, suyinKuwo: { enabled: true } } })
   const calls = []
   const apis = { kw: { restoreHealth: state => ({ promise: Promise.resolve().then(() => { calls.push(state); return state.sources && Object.keys(state.sources).length ? { ok: true, restored: 1 } : { ok: true, restored: 0, controlsRestored: 2 } }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r.controlsRestored === 2, `控制恢复数不符：${JSON.stringify(r)}`)
   assert(r.restored === 0 && r.reason === undefined, '健康版本不符应丢弃元数据但不报失败')
   assert(calls.length === 1 && calls[0].sources && Object.keys(calls[0].sources).length === 0, '应只发控制态')
@@ -90,7 +90,7 @@ check('Q4 v1 旧合并态拒绝读取', async() => {
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, state)
   let called = null
   const apis = { kw: { restoreHealth: s => ({ promise: Promise.resolve().then(() => { called = s; return { ok: true, restored: 1 } }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r.restored === 0 && called === null, 'v1 必须被拒绝，不能进入源恢复')
 })
 
@@ -109,7 +109,7 @@ check('Q6 v1 读出被拒绝，v2 save 仍可重建', async() => {
   const st = fakeStorage()
   const v1 = mkState(); v1.v = 1
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, v1)
-  const read = await mod.readSourceHealthState(st, 'kw', '8.13.0', NOW)
+  const read = await mod.readSourceHealthState(st, 'kw', '8.13.1', NOW)
   assert(read === null, 'v1 应被拒绝')
   const v2 = mkState(); v2.controls = { suyinQQ: { enabled: false, manualOff: true } }
   const apis = { kw: { exportHealth: () => ({ promise: Promise.resolve(v2) }) } }
@@ -122,7 +122,7 @@ check('Q7 健康不存在时 controlsRestored 仍返回', async() => {
   const st = fakeStorage()
   await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: false, manualOff: true } } })
   const apis = { kw: { restoreHealth: () => ({ promise: Promise.resolve({ ok: true, restored: 0, controlsRestored: 1 }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r.controlsRestored === 1, 'control 恢复数应保留')
 })
 

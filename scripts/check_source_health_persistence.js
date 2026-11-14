@@ -26,7 +26,7 @@ const mod = loadTs('src/core/sourceHealthPersistence.ts')
 const NOW = Date.now()
 const mkState = () => ({
   v: 2,
-  sourceVersion: '8.13.0',
+  sourceVersion: '8.13.1',
   savedAt: NOW,
   sources: { suyinKuwo: { breaker: { state: 'closed', totalRequests: 2 }, byQuality: { '128k': { req: 2, success: 1 } }, playDead: { streak: 0, deadline: 0 } } },
   qualityShortCircuit: { 'suyinKuwo:flac': NOW + 1000 },
@@ -65,20 +65,20 @@ check('A8 TTL/版本不匹配拒绝并删除', async() => {
   const st = fakeStorage()
   const old = mkState(); old.savedAt = NOW - 8 * 24 * 3600 * 1000
   await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), old)
-  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.0', NOW) === null, '过期应拒绝')
+  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '过期应拒绝')
   assert(!st.map.has(mod.sourceHealthStateKey('suyinKuwo')), '过期键应删除')
   const bad = mkState(); bad.sourceVersion = '8.12.0'
   await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), bad)
-  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.0', NOW) === null, '版本不符应拒绝')
+  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '版本不符应拒绝')
 })
 check('A9 restore 先于读取完成，失败不阻断', async() => {
   const st = fakeStorage(); await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), mkState())
   let called = null
   const apis = { suyinKuwo: { restoreHealth: state => ({ promise: Promise.resolve().then(() => { called = state; return { ok: true, restored: 1 } }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'suyinKuwo', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'suyinKuwo', '8.13.1', st, NOW)
   assert(r.restored === 1 && called, '恢复应调用')
   const bad = { suyinKuwo: { restoreHealth: () => ({ promise: Promise.reject(new Error('boom')) }) } }
-  const r2 = await mod.restoreSourceHealth(bad, 'suyinKuwo', '8.13.0', st, NOW)
+  const r2 = await mod.restoreSourceHealth(bad, 'suyinKuwo', '8.13.1', st, NOW)
   assert(r2.restored === 0, '失败应返回 0 而不抛出')
 })
 check('A9b App 平台键 save/restore 全链路', async() => {
@@ -91,7 +91,7 @@ check('A9b App 平台键 save/restore 全链路', async() => {
   }
   assert(await mod.saveSourceHealth(apis, 'kw', st, NOW) === true, '平台键 save 应成功')
   assert(st.map.has(mod.HEALTH_STATE_CANONICAL_KEY), 'canonical 键应写入')
-  assert((await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)).restored === 1, '平台键 restore 应成功')
+  assert((await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)).restored === 1, '平台键 restore 应成功')
 })
 check('A9 userApi 首请求前等待 restore、health 后 save', async() => {
   const src = fs.readFileSync(path.join(ROOT, 'src/core/init/userApi/index.ts'), 'utf8')
@@ -105,7 +105,7 @@ check('A10 存储读写异常降级不阻断', async() => {
     saveData: async() => { throw new Error('io-write') },
     removeData: async() => { throw new Error('io-remove') },
   }
-  assert(await mod.readSourceHealthState(bad, 'kw', '8.13.0', NOW) === null, '读异常应返回 null')
+  assert(await mod.readSourceHealthState(bad, 'kw', '8.13.1', NOW) === null, '读异常应返回 null')
   const apis = { kw: { exportHealth: () => ({ promise: Promise.resolve(mkState()) }) } }
   assert(await mod.saveSourceHealth(apis, 'kw', bad, NOW) === false, '写异常应返回 false')
 })
@@ -122,7 +122,7 @@ check('A11 五平台并发 restore 全链路不抛错', async() => {
     assert(await mod.saveSourceHealth(apis, p, st, NOW) === true, `${p} save 应成功`)
     assert(st.map.has(mod.HEALTH_STATE_CANONICAL_KEY), `${p} save 后应写入 canonical`)
   }
-  const results = await Promise.all(platforms.map(p => mod.restoreSourceHealth(apis, p, '8.13.0', st, NOW)))
+  const results = await Promise.all(platforms.map(p => mod.restoreSourceHealth(apis, p, '8.13.1', st, NOW)))
   assert(results.every(r => r.restored === 1), '五平台 restore 应全成功')
   assert(calls.length === 5, '五平台 restore 应各调用一次')
 })
@@ -146,12 +146,12 @@ check('A13 旧平台键迁移到 canonical 后可跨平台恢复', async() => {
   const st = fakeStorage()
   await st.saveData(mod.sourceHealthStateKey('kw'), mkState())
   const apis = { kw: { restoreHealth: state => ({ promise: Promise.resolve({ ok: true, restored: 1, state }) }) } }
-  const r1 = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r1 = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r1.restored === 1, '旧键应可恢复')
   assert(st.map.has(mod.HEALTH_STATE_CANONICAL_KEY), '应提升为 canonical')
   assert(!st.map.has(mod.sourceHealthStateKey('kw')), '旧键应清理')
   const wyApi = { wy: { restoreHealth: state => ({ promise: Promise.resolve({ ok: true, restored: 1, state }) }) } }
-  const r2 = await mod.restoreSourceHealth(wyApi, 'wy', '8.13.0', st, NOW)
+  const r2 = await mod.restoreSourceHealth(wyApi, 'wy', '8.13.1', st, NOW)
   assert(r2.restored === 1, '其他平台应从 canonical 恢复')
 })
 check('G5-A1 新源/新版本无需改持久化白名单', async() => {
@@ -167,7 +167,7 @@ check('G5-A1 新源/新版本无需改持久化白名单', async() => {
   assert(await mod.saveSourceHealth(apis, 'newProvider', st, NOW) === true, '新源应写入成功')
   const back = await mod.readSourceHealthState(st, 'newProvider', '9.1.0', NOW)
   assert(back && back.sources.newProvider, '新源应可往返')
-  assert(await mod.readSourceHealthState(st, 'newProvider', '8.13.0', NOW) === null, '旧版本仍应拒绝')
+  assert(await mod.readSourceHealthState(st, 'newProvider', '8.13.1', NOW) === null, '旧版本仍应拒绝')
 })
 check('B1 v2 save 拆出独立 control key，健康态不带 controls', async() => {
   const st = fakeStorage()
@@ -188,7 +188,7 @@ check('B2 control 独立恢复：健康版本不符仍保留用户意图', async
   await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinQQ: { enabled: false, manualOff: true }, suyinKuwo: { enabled: true } } })
   const calls = []
   const apis = { kw: { restoreHealth: state => ({ promise: Promise.resolve().then(() => { calls.push(state); return state.sources && Object.keys(state.sources).length ? { ok: true, restored: 1 } : { ok: true, restored: 0, controlsRestored: 2 } }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r.controlsRestored === 2, `控制恢复数不符：${JSON.stringify(r)}`)
   assert(r.restored === 0 && r.reason === undefined, '健康元数据应按版本丢弃，但不能报失败')
   assert(calls.length === 1 && calls[0].sources && Object.keys(calls[0].sources).length === 0, '只应发控制态')
@@ -208,7 +208,7 @@ check('B4 健康态携带 controls 时不走合并恢复', async() => {
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, state)
   let called = null
   const apis = { kw: { restoreHealth: s => ({ promise: Promise.resolve().then(() => { called = s; return { ok: true, restored: 1 } }) }) } }
-  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.0', st, NOW)
+  const r = await mod.restoreSourceHealth(apis, 'kw', '8.13.1', st, NOW)
   assert(r.restored === 1 && called && !called.controls, 'v2 健康态必须剥离 controls')
 })
 

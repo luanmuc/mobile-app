@@ -61,14 +61,14 @@ musicSdk（内置官方源）  ──┐
 
 App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`android/app/src/main/java/cn/toside/music/mobile/userApi/`。
 
-## 四、聚合源内部结构（豆包定制 v8.13.0）
+## 四、聚合源内部结构（豆包定制 v8.13.1）
 
 > 每次构建自动拉取音源仓库 master 最新版，以下为当前结构；随音源迭代会更新。
-> **产物状态**：v8.13.0 目前只在源仓工作区；最近发布 b115 仍内置 v8.12.5，尚未重建带 v8.13.0 的 APK。
+> **产物状态**：v8.13.0 已随 App `v1.9.2-b117` 发布（内置源 `8.13.0`）；v8.13.1 为源仓当前审计修复版（补升版本串 + 链空/保护态收口），源仓已推送（`a25cd8a`），源 CI `43528623570` success（https://github.com/luanmuc/backend-api/actions/runs/43528623570），重新触发 App 构建后生效。
 >
 > **P3 持久化 v2（v8.13.0，2026-11-13）**：Redis 无关的宿主侧健康持久化。源侧 `exportHealthState`/`restoreHealthState` 升 schema v2：健康元数据（`breaker/byQuality/playDead/qualityShortCircuit`）与用户控制（`controls`）分离，仍接受 v1；controls-only（`sources:{}` + `controls`）不绑 `sourceVersion`，用户开关不因源升版丢失；`healthV2Enabled=false` 回旧 v1 导出。健康态仍 7 天 TTL、256KB，禁止 `url/successUrl/cache/name/singer/account/cookie/token/headers/body` 等键，**不恢复** `successCache/failCache/fragmentUrlMap/qualityCeilingMap`。App `src/core/sourceHealthPersistence.ts` 健康快照写单一 canonical key `@___SOURCE_HEALTH___global`，控制独立写 `@___SOURCE_CONTROL___global`（v2、64KB、7 天 TTL）；旧平台键 `kw/wy/tx/mg/kg` 首次读取迁移并清理。`getMusicUrl/getHealth` 首个请求前等待 restore，控制先于健康恢复；`getHealth` 成功后异步 save，失败只降级不阻断播放。跨平台目标收敛为 `tx→wy→kw`；mg/kg 保留直连，但 `suyinKuwo` 实际交付酷我 CDN 时 `sourcePlatform` 回填 `kw`。源仓 `aa-p3-persist` 10/0、`health-persistence-v2` 8/0、`u-cross-platform` 15/15（U15 先红后绿）；App `check_source_health_persistence` 17/0、`check_health_event_pipeline` 10/0（源事件白名单/去重/三块隔离，`sourceEvents` 落盘前脱敏）（canonical key A12/A13、v2 拆分 B1/B2、v1 兼容 B4、存储异常 A10、五平台并发 A11、G5 动态源/版本 G5-A1）、`check_health_persistence_v2` 9/0（Q1~Q9）。G5 已关闭：不再维护 12 个 provider 固定名单，`sourceVersion` 取源快照自带值，宿主只校验源 ID 形态；增源/升版不再需要改 App 常量。
 >
-> **注**：`v8.13.0` 为音源本体当前版本（2026-11-12 源完全体基线 + 2026-11-13 P3 持久化/矩阵）。此前 `v8.12.5`（2026-11-12 死代码清理：删除未被任何路径调用的 `getFailCached` 包装与 `safeConsole.error`，运行行为不变；源仓 25 个测试入口全量回归（核心 19 + 压测 3 + 专项 3））｜v8.12.4（P2 负向归因：缺片返回 `TRUNCATED_MEDIA`、`byteLength`/base64 不符返回 `BAD_ENVELOPE`，probe/admit 均保留错误码；`x-media-envelope` X1~X12 先红后绿）｜v8.12.3（P2 桥媒体信封：App 对声明 `inited.mediaEnvelope=2` 的脚本，把 binary 响应改为 `{__lxMedia:2,encoding:"base64",byteLength}`，>256KB 按 256KB 分片；源侧 `toBytes` 识别信封并按片独立解码，`byteLength` 不符返回 null；`x-media-envelope` X1~X8 先红后绿）｜v8.12.2（P1 降级所有权：5 个平台显式声明 `fallbackOwner="source"`，App 对声明源不再重复换源；v8.12.1 跨平台缓存失效 + 面板开关：`toggleSource` 关闭/开启子源时清 10min 跨平台结果缓存、成功缓存命中若来源已被手动关闭则丢弃重解析、`crossPlatformEnabled` 总开关已暴露到 App 配置面板、`u-cross-platform` 10 条；v8.12.0 跨平台兜底：主平台 `NOT_FOUND`/同名错歌/网络超时时按 `tx→wy→kw` 换平台，严格歌名归一 + 歌手分词 + 时长 ±5s，命中后用目标平台自己的 songmid/id/rid 走目标源链；确定性失败立即回退、`NETWORK_TIMEOUT` 等 6s grace；10min 跨平台缓存 + `cross_platform` 事件；`juheTx` 默认开启。跨平台 3 个配置键中，`crossPlatformEnabled` 已暴露到 App 配置面板（默认 true）；`crossPlatformGraceMs`/`crossPlatformSearchTimeoutMs` 仍只读（面板不可写））。此前的 `v8.11.7`（2026-11-10 健康面板配置可管：`config` 写模式开放 8 个布尔开关并严格校验类型，数字白名单补齐高音质缓存/验真/竞速批/冷启动/档位短路共 13 键，`verifyDurRatio`/`verifyDurGapSec` 允许 0；`e-extra` 94 条）。此前的 `v8.11.6`（2026-11-10 收尾加固：`buildSourceChain` 过滤改用无副作用 `structuralSkipReason`、`toggleSource` 开/关都清账、`fallbackRace` 改 `attempts+admit`（交付类码优先）、`probeByHeaders` HEAD 补证；`r-admission` 23 条）。此前的 `v8.11.5`（2026-11-10 **L4 裁决层落地**：把散在六处的「判定 + 记账」收成 `admit()` 单一入口 + `ADMISSION_POLICY` 策略表 + 三个调用点；新增 L0 归一层 `toBytes`/`kindOf`/`headerEvidence`，修 App 桥 `JSON.stringify(Buffer)` 导致的全源 `NOT_AUDIO`；代表码改为交付类优先，`NOT_AUDIO` 不再被 `NOT_FOUND` 吞成 1h 歌级锁；`clearSourceLedger` 统一清账治「关源/重开无效」；弱证据 TTL 一律 ≤60s；`r-admission` 18 条先红后绿）。此前的 `v8.11.4` 为 2026-11-10 云端真测 F-01 **错歌兜底修复**：`xinghaiBackend` 缺 `songmid` 时旧实现兜底成 1 号歌（该源只按 mid 出链、歌名不参与校验）→ 必交付别人的音频；片段兜底（B 方案）又只判「是不是 5 秒音频」不判「是不是这首歌」，不存在的歌会被标成「试听版」交付。现改为缺 id 直接 `PARAM_ERROR`，且 B 方案以「有 hash/mid 锚点」为前提，无锚点报错不猜歌；`q-dfix` Q5 先红后绿）。此前的 `v8.11.3`（源开关失败缓存失效：`toggle` 开启某源时按该源 `platforms` 前缀清 `fail_<平台>` 失败缓存，旧实现只重置熔断/探测状态、开启后仍命中「歌不存在 1h」；`v8.11.2` 通读缺陷修复：Juhe `code` 字符串/数字归一、303 重定向校验宽松比、`flac24bit` 起跑补齐 320k 档、`CONFIG_ERROR` 失败缓存按 5 分钟过期；`v8.11.1` **交付真实性闸门**：交付前 1KB 字节验真、标签按实交付音质回填、128k 保底、片段标「试听版」不缓存；`v8.11.1` 另修非法协议误报 `LINK_EXPIRED`、同歌同档并发合并、星海备按映射表过滤平台、审计脚本接入 CI）。此前巡检脚本侧迭代（`v8.10.5`~`v8.10.11`）已并入本版基线；`gdWy` 已于音源仓 `39a0fa8` 默认关闭。
+> **注**：`v8.13.1` 为音源本体当前版本（v8.13.0 代码修复 + 补升版本串，确保 App `Source.tsx` 能识别更新；2026-11-12 源完全体基线 + 2026-11-13 P3 持久化/矩阵）。此前 `v8.12.5`（2026-11-12 死代码清理：删除未被任何路径调用的 `getFailCached` 包装与 `safeConsole.error`，运行行为不变；源仓 25 个测试入口全量回归（核心 19 + 压测 3 + 专项 3））｜v8.12.4（P2 负向归因：缺片返回 `TRUNCATED_MEDIA`、`byteLength`/base64 不符返回 `BAD_ENVELOPE`，probe/admit 均保留错误码；`x-media-envelope` X1~X12 先红后绿）｜v8.12.3（P2 桥媒体信封：App 对声明 `inited.mediaEnvelope=2` 的脚本，把 binary 响应改为 `{__lxMedia:2,encoding:"base64",byteLength}`，>256KB 按 256KB 分片；源侧 `toBytes` 识别信封并按片独立解码，`byteLength` 不符返回 null；`x-media-envelope` X1~X8 先红后绿）｜v8.12.2（P1 降级所有权：5 个平台显式声明 `fallbackOwner="source"`，App 对声明源不再重复换源；v8.12.1 跨平台缓存失效 + 面板开关：`toggleSource` 关闭/开启子源时清 10min 跨平台结果缓存、成功缓存命中若来源已被手动关闭则丢弃重解析、`crossPlatformEnabled` 总开关已暴露到 App 配置面板、`u-cross-platform` 10 条；v8.12.0 跨平台兜底：主平台 `NOT_FOUND`/同名错歌/网络超时时按 `tx→wy→kw` 换平台，严格歌名归一 + 歌手分词 + 时长 ±5s，命中后用目标平台自己的 songmid/id/rid 走目标源链；确定性失败立即回退、`NETWORK_TIMEOUT` 等 6s grace；10min 跨平台缓存 + `cross_platform` 事件；`juheTx` 默认开启。跨平台 3 个配置键中，`crossPlatformEnabled` 已暴露到 App 配置面板（默认 true）；`crossPlatformGraceMs`/`crossPlatformSearchTimeoutMs` 仍只读（面板不可写））。此前的 `v8.11.7`（2026-11-10 健康面板配置可管：`config` 写模式开放 8 个布尔开关并严格校验类型，数字白名单补齐高音质缓存/验真/竞速批/冷启动/档位短路共 13 键，`verifyDurRatio`/`verifyDurGapSec` 允许 0；`e-extra` 94 条）。此前的 `v8.11.6`（2026-11-10 收尾加固：`buildSourceChain` 过滤改用无副作用 `structuralSkipReason`、`toggleSource` 开/关都清账、`fallbackRace` 改 `attempts+admit`（交付类码优先）、`probeByHeaders` HEAD 补证；`r-admission` 23 条）。此前的 `v8.11.5`（2026-11-10 **L4 裁决层落地**：把散在六处的「判定 + 记账」收成 `admit()` 单一入口 + `ADMISSION_POLICY` 策略表 + 三个调用点；新增 L0 归一层 `toBytes`/`kindOf`/`headerEvidence`，修 App 桥 `JSON.stringify(Buffer)` 导致的全源 `NOT_AUDIO`；代表码改为交付类优先，`NOT_AUDIO` 不再被 `NOT_FOUND` 吞成 1h 歌级锁；`clearSourceLedger` 统一清账治「关源/重开无效」；弱证据 TTL 一律 ≤60s；`r-admission` 18 条先红后绿）。此前的 `v8.11.4` 为 2026-11-10 云端真测 F-01 **错歌兜底修复**：`xinghaiBackend` 缺 `songmid` 时旧实现兜底成 1 号歌（该源只按 mid 出链、歌名不参与校验）→ 必交付别人的音频；片段兜底（B 方案）又只判「是不是 5 秒音频」不判「是不是这首歌」，不存在的歌会被标成「试听版」交付。现改为缺 id 直接 `PARAM_ERROR`，且 B 方案以「有 hash/mid 锚点」为前提，无锚点报错不猜歌；`q-dfix` Q5 先红后绿）。此前的 `v8.11.3`（源开关失败缓存失效：`toggle` 开启某源时按该源 `platforms` 前缀清 `fail_<平台>` 失败缓存，旧实现只重置熔断/探测状态、开启后仍命中「歌不存在 1h」；`v8.11.2` 通读缺陷修复：Juhe `code` 字符串/数字归一、303 重定向校验宽松比、`flac24bit` 起跑补齐 320k 档、`CONFIG_ERROR` 失败缓存按 5 分钟过期；`v8.11.1` **交付真实性闸门**：交付前 1KB 字节验真、标签按实交付音质回填、128k 保底、片段标「试听版」不缓存；`v8.11.1` 另修非法协议误报 `LINK_EXPIRED`、同歌同档并发合并、星海备按映射表过滤平台、审计脚本接入 CI）。此前巡检脚本侧迭代（`v8.10.5`~`v8.10.11`）已并入本版基线；`gdWy` 已于音源仓 `39a0fa8` 默认关闭。
 
 当前内置聚合源含多个后端，按需路由与降级：
 
@@ -84,7 +84,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 - 全局「手动探测」保留整轮 `runHealthCheck` 并应用结果，但 App 先弹确认，文案明确“通过可能解除自动关闭、失败可能触发自动关闭”；用户取消则不发起探测。
 - 行内单源探测仍是 `probeSource` 默认 `apply:false` 只读；结果返回后再弹确认，确认才 `apply:true` 落账。
-- 快照新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs` 只读裁决，与源侧 `computeEligibility` 同源；App 不再维护旧 9 桶，也不自行推断某源是否可用。
+- 快照新增 `eligible/eligibilityReason/eligibilityCode/eligibilityUntilMs` 只读裁决，与源侧 `computeEligibility` 同源；App 不再维护旧状态桶，也不自行推断某源是否可用。
 - 快照新增 `offReason/offAt`：`USER_OFF` 取手动关闭时间、`AUTO_OFF_PROBE` 取自动关闭时间、`SLEEPING` 取休眠时间、`DEFAULT_OFF` 为 0；App 不把 `enabled=false` 当唯一原因。控制态 `manualOffAt` 独立持久化，重启后 offAt 不丢。
 - 快照新增 `qualityShortCircuit: {128k,320k,flac,flac24bit}` 只读布尔；健康页行内在源名下方显示“档位短路：FLAC/320K”，不再只把短路藏在链构建内部。
 - 链项携带 `eligibility`；`wrapExecute` 发请求前重取一次结构资格，建链后用户关源/自动关闭/休眠/摘除的旧链项会被拦截。
@@ -181,26 +181,28 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 ### 4 主状态 + reason（单一路径）
 
-状态判定优先级：**USER_OFF / DEFAULT_OFF → AUTO_OFF_PROBE → SOURCE_SLEEPING → PLAYBACK_FAILED / RESOLVE_FAILED → 待采样 → 限流/熔断/半开/异常 → 可用**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 已关闭**；reason 码在胶囊第二行显示。摘要只统计 4 主状态，合计等于音源数；旧 11 态 / 9 桶已删除，不再有第二套口径。
+状态判定优先级：**USER_OFF / DEFAULT_OFF → AUTO_OFF_PROBE → SOURCE_SLEEPING → PLAYBACK_FAILED / RESOLVE_FAILED → 待采样 → 限流/熔断/半开/异常 → 可用**。页面只显示 4 个主状态：**可用 / 降级 / 暂停 / 已关闭**；reason 码在胶囊第二行显示。摘要只统计 4 主状态，合计等于音源数；页面不再展示旧状态桶，也不再维护第二套状态口径。
 
 ### 质量档矩阵（F16）
 
 表格“音质”列可展开，按 128k / 320k / flac / flac24bit 四档分别显示请求数、成功、失败、业务失败、平均耗时、档位熔断/半开/限流；单位与“限流”文案走三语键，不再中英混排。无样本档显示 0 次并标记无样本，不把“未请求”误读成“0% 失败”；档位熔断只影响该档，源级成功率不再平均掩盖单档故障。
 
-| 状态 | 含义 | 主状态 | 旧桶 |
-|---|---|---|---|
-| 已关闭·手动 | 用户手动关闭；`manualOff` 永久锁定，不竞速、不探测，只能由用户再打开 | `off` | `off` |
-| 已关闭·自动 | 探测连续失败自动关闭；不竞速，但**保留恢复探测**，探测通过自动开启；真实播放成功也可提前解除 | `paused` | `off` |
-| 休眠中 | 健康探测连续失败 3 轮，暂停探测、每 10 轮复活试探 | `paused` | `sleep` |
-| 待采样 | 已启用但没有任何成功/失败/探测样本；不知道好坏，不是坏源 | `available` | `idle` |
-| 异常 | 断路器闭合但成功率 0% 且健康分 <0，看着正常实际上游不可用 | `degraded` | `bad` |
-| 已摘除 | App 回传的真实播放连续失败 3 次，从竞速链摘出；默认约 5 分钟后只放一个半开试探请求，成功才复活，失败重新计时 | `paused` | `removed` |
-| 限流中 | 正在 429 退避期，当前不参与竞速，退避结束自恢复 | `degraded` | `rate` |
-| 被限流 | 连续多次 429，上游明显在限，比“限流中”更重 | `degraded` | `rate` |
-| 熔断 | 某源某音质档连续失败达阈值，冷却期不接请求 | `degraded` | `open` |
-| 半开 | 冷却后的试水态，只放一个请求；成功转正常，失败回熔断 | `degraded` | `half` |
-| 正常 | 已启用且有样本，断路器闭合，可参与竞速 | `available` | `ok` |
-| 使用中 | 最近 10 分钟有真实播放请求，排序置顶；仍归入其健康状态对应的桶 | `available` | 随状态 |
+| 状态 | 含义 | 主状态 |
+|---|---|---|
+| 已关闭·用户 | 用户在 App 中关闭；`manualOff` 永久锁定，不竞速、不探测，只能由用户再打开 | `off` |
+| 已关闭·默认 | 观察源或默认关闭源，未获得用户显式开启 | `off` |
+| 暂停·探测自动关闭 | 探测连续失败自动关闭；不竞速，但**保留恢复探测**，探测通过自动开启；真实播放成功也可提前解除 | `paused` |
+| 暂停·休眠 | 健康探测连续失败 3 轮，暂停探测、每 10 轮复活试探 | `paused` |
+| 暂停·播放连续失败 | App 回传的真实播放连续失败 3 次，移出竞速链；默认约 5 分钟后只放一个半开试探，成功才恢复 | `paused` |
+| 暂停·取链连续失败 | handler 连续返空/失败，进入恢复试探；不代表用户关闭 | `paused` |
+| 可用·待采样 | 已启用但没有任何成功/失败/探测样本；不知道好坏，不是坏源 | `available` |
+| 可用·正常 | 已启用且有样本，断路器闭合，可参与竞速 | `available` |
+| 可用·使用中 | 最近 10 分钟有真实播放请求，排序置顶；仍归入可用 | `available` |
+| 降级·连续异常 | 断路器闭合但成功率 0% 且健康分 <0，看着正常实际上游不可用 | `degraded` |
+| 降级·限流退避 | 正在 429 退避期，当前不参与竞速，退避结束自恢复 | `degraded` |
+| 降级·连续限流 | 连续多次 429，上游明显在限，比“限流退避”更重 | `degraded` |
+| 降级·档位熔断 | 某源某音质档连续失败达阈值，冷却期不接该档请求 | `degraded` |
+| 降级·半开试探 | 冷却后的试水态，只放一个请求；成功转正常，失败回熔断 | `degraded` |
 
 ## 五、如何测试音源
 
