@@ -1,4 +1,5 @@
 name: Build
+# retrigger after source CI green (2026-11-14)
 
 on:
   push:
