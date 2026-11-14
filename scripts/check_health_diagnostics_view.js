@@ -301,11 +301,16 @@ check('V24 诊断 finding 三语键齐全，en-us 格式化不残留中文', () 
     return value.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`))
   }
   const f = finding('rate_drop', {
-    title: '中文标题', detail: '中文详情', evidence: '中文证据', suggestion: '中文建议',
+    title: '中文标题',
+    detail: '中文详情',
+    evidence: '中文证据',
+    suggestion: '中文建议',
     i18n: {
-      titleKey: 'health_finding_rate_drop_title', titleParams: { source: 'kw', drop: 30 },
+      titleKey: 'health_finding_rate_drop_title',
+      titleParams: { source: 'kw', drop: 30 },
       detailKey: 'health_finding_rate_drop_detail',
-      evidenceKey: 'health_finding_rate_drop_evidence', evidenceParams: { prevRate: '80%', prevTotal: 10, recentRate: '50%', recentTotal: 12 },
+      evidenceKey: 'health_finding_rate_drop_evidence',
+      evidenceParams: { prevRate: '80%', prevTotal: 10, recentRate: '50%', recentTotal: 12 },
       suggestionKey: 'health_finding_rate_drop_suggestion',
     },
   })

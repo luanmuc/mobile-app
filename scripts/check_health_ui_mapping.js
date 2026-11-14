@@ -56,8 +56,10 @@ check('U2 每个主状态都有 tone，页面四色分支完整', () => {
 
 check('U3 表格胶囊显示主状态 + 本地化 reason 两行', () => {
   assert(ui.includes('classifyHealthMainState(item, sampled)'), '行内未用主状态分类')
+  // eslint-disable-next-line no-template-curly-in-string
   assert(ui.includes('const reasonText = tt(`health_reason_${status.reason}`)'), 'reason 未走 i18n')
   assert(ui.includes('{reasonText}'), '未显示本地化 reason')
+  // eslint-disable-next-line no-template-curly-in-string
   assert(ui.includes('accessibilityLabel={`${reasonText} (${status.reason})`}'), 'raw reason 未保留在无障碍标签')
   assert(ui.includes('const stateText = tt(status.key)'), '主状态文案未走 i18n')
 })
