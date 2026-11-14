@@ -1,6 +1,6 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b123**（CI 自动回写 `3956d295`，versionCode 282；tag `b5bd0770`，Build `43566246972` success）；本轮回归修复提交 **`b5bd0770`**（已推送）；文档回填随本文档提交
+> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b124**（CI 自动回写 `9d655762`，versionCode 283；tag `921737f2`，Build `43569611762` success）；本轮测试/CI 提交 **`921737f2`**（已推送）；文档回填随本文档提交
 > 最近更新：2026-11-14（临时审计交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。当前改动**未提交、未推送、未触发新构建**）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
 > **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`641e8dc`，已推送，CI `43552333512` success；S-01 push fail-closed `e0a4590`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**29 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@e0a4590`，最近 push CI `43568304962` success，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。

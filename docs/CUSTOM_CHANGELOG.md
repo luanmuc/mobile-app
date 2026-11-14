@@ -11,7 +11,7 @@
 - **源仓台账 HEAD**：`docs/READTHROUGH.md` HEAD 追到 `e0a4590`；`docs-audit` 规则对本次台账提交产生的 lag=1 自指差按同步处理，lag>1 仍 🟡；实跑 0 🟡。
 - **S-01 源仓巡检 push fail-closed**：源仓 `.github/workflows/ci.yml` 的健康表写回由 `git push || { warning }` 改为 `if ! git push ...; then ::error + exit 1; fi`；push 失败不再静默绿，`test/audit/f-repo.js` 增加 Z8 静态断言（53/0）。
 - **文案台账**：三语各 997 键，`dl_*` 102 键；本轮新增 5（I-05 3 + I-07 2）。
-- **发布**：`v1.9.2-b123` / versionCode 282（tag `b5bd0770`，Build `43566246972`，Android/Release 双绿，5 个 APK；状态回写 `3956d295`）。b122（`e5a49c6d` / 281 / Build `43564774952`）因上述回归作废，不再作为最终版本。
+- **发布**：最终 `v1.9.2-b124` / versionCode 283（tag `921737f2`，Build `43569611762`，Android/Release 双绿，5 个 APK；状态回写 `9d655762`）；b123（`b5bd0770` / 282 / Build `43566246972`）为 I-05/I-07 收口版本，b122（`e5a49c6d` / 281）因回归作废。
 - **验证**：`tsc --noEmit` 0；全仓 ESLint 0 error / 0 warning；29 个 check 脚本全部 rc0（`check_source_ci_gate` 用有效 token 复跑源仓 HEAD `e0a4590` / CI `43568304962` success）；`check_docs_consistency` 18 文档通过；源仓 `test/audit/f-repo.js` 54/0、`docs-audit` rc0。
 
 ## [R-01 发布状态闭环 + 错误/进度/用户可见文案收口] - 2026-11-14
