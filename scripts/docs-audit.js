@@ -238,7 +238,7 @@ function ruleSyncPointsActions() {
   // 跨仓基准：优先当前主线音源仓 backend-api-latest，兼容旧布局 lx-music-source
   const candidates = [
     path.resolve(ROOT, '..', 'backend-api-latest', 'lx-source.js'),
-    path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js')
+    path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js'),
   ]
   const sib = candidates.find((p) => fs.existsSync(p))
   if (!sib) { report.push('⚪ 规则13 跳过：本地无相邻音源仓（backend-api-latest / lx-music-source）'); return }
