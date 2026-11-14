@@ -55,7 +55,7 @@
 | `trimTailByBytes` | 纯中文 / 代理对 / 超字节上限 | F11 |
 | `appendHealthEvent` / `readRecentHealthEvents` | 5MB 截尾 / 多日合并 / RN 依赖缺失；父目录整体删除后逐级重建 | 既有压力 U2、U3、U5；契约 H28 |
 | `ensureHealthLogsDir` | 打开诊断页确保目录存在，不依赖下一次播放 | H28 |
-| `recordPlayResult` | 失败 100% / 成功 1/1 / 失败抓 sourceEvents；App attempts 落顶层 `chain_result`；缓存命中单独 `cache_hit` | 契约 H11、H15 + 压力 U9~U12 |
+| `recordPlayResult` | 失败 100% / 成功 1/1 / 失败抓 sourceEvents；App attempts 落顶层 `chain_result`；缓存命中单独 `cache_hit`；真实缓存播放记 `play_result` 但 `recordChain:false` | 契约 H11、H15 + 压力 U9~U12 + R1~R6 |
 
 ### 2.3 其它改动面
 

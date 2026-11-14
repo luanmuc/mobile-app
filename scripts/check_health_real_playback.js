@@ -148,6 +148,32 @@ check('R4 缓存命中：cache_hit 单列，不进取链', async() => {
   assert(result.playWindows.h24.total === 0, '缓存命中污染播放窗口')
 })
 
+check('R5 缓存播放：只记 play_result，不重复记 chain_result', async() => {
+  reset()
+  await hlog.recordPlayResult({
+    ok: true,
+    sourceId: 'kw',
+    recordPlay: true,
+    recordChain: false,
+  })
+  const events = allEntries()
+  assert(events.some(e => e.event === 'play_result'), '缓存播放缺 play_result')
+  assert(!events.some(e => e.event === 'chain_result'), '缓存播放不应重复记 chain_result')
+  assert(report(events).playWindows.h24.total >= 1, '缓存播放未计数')
+  assert(report(events).windows.h24.total === 0, '缓存播放污染取链窗口')
+})
+
+check('R6 预加载缓存命中：不写 play / cache_hit / chain', async() => {
+  reset()
+  await hlog.recordPlayResult({
+    ok: true,
+    sourceId: 'kw',
+    recordPlay: false,
+    recordChain: false,
+  })
+  assert(allEntries().length === 0, '预加载缓存命中不应写健康事件')
+})
+
 ;(async() => {
   for (const t of tests) {
     try {

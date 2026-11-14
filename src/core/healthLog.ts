@@ -37,6 +37,7 @@ export interface PlayResultInput {
   sampleWeight?: number
   attempts?: PlayAttempt[]
   recordPlay?: boolean
+  recordChain?: boolean
 }
 
 export interface HealthLogEntry {
@@ -424,7 +425,7 @@ export const recordPlayResult = async(input: PlayResultInput): Promise<void> => 
     const entry = buildPlayResultEntry({ ...input, sampleWeight: input.ok ? SUCCESS_SAMPLE_RATE : 1 })
     await appendHealthEvent(entry)
   }
-  for (const entry of buildChainResultEntries(input)) await appendHealthEvent(entry)
+  if (input.recordChain !== false) for (const entry of buildChainResultEntries(input)) await appendHealthEvent(entry)
   if (!input.ok && input.traceId) {
     const sourceEvents = sanitizeSourceEvents(await fetchSourceEvents(String(input.traceId)))
     if (sourceEvents.length) {

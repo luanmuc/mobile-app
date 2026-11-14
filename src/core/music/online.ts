@@ -75,11 +75,25 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     onSource(cachedSource ? { ...cachedSource, fragment: cachedFragment } : null)
     onFragment(cachedFragment)
     // 缓存命中不证明音源当前可出链：单独记 cache_hit，不进成功率；用来解释“听歌了但本地诊断 0 次”。
-    void recordCacheHit({
-      platform: cachedSource?.platform ?? musicInfo.source,
-      quality: targetQuality,
-      sourceId: cachedSource?.id,
-    })
+    // 预加载（recordPlay:false）命中缓存只是提前拿到了 URL，既不是真实播放，也不该算一次缓存播放。
+    if (recordPlay) {
+      void recordCacheHit({
+        platform: cachedSource?.platform ?? musicInfo.source,
+        quality: targetQuality,
+        sourceId: cachedSource?.id,
+      })
+      // 预加载成功后真正播放会走这里：这是真实播放，必须记 play_result；但取链已在预加载时记过，
+      // 不能再用一次 chain_result 重复放大取链次数。
+      void recordPlayResult({
+        platform: cachedSource?.platform ?? musicInfo.source,
+        quality: targetQuality,
+        ok: true,
+        latencyMs: 0,
+        sourceId: cachedSource?.id,
+        recordPlay: true,
+        recordChain: false,
+      })
+    }
     return cachedUrl
   }
 

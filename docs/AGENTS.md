@@ -63,8 +63,8 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 ## 本地诊断报告口径（`healthDiagnostics.ts`）
 
 - **成功全量记录 + 历史权重兼容**：失败 100% 落盘（`sampleWeight=1`）；成功 1/1 全量记录（`sampleWeight=1`），历史 1/5 样本仍按 `sampleWeight=5` 还原。窗口 `total/ok/failed/successRate` 一律按权重重算，`p95` 仍用原始延迟样本；历史无权重事件按 1 计。异常规则里的前后 24h 成功率也必须用同一加权口径，禁止直接拿落盘条数相除。
-- **App 侧取链账本**：`recordPlayResult` 在成功/失败都从真实 `attempts` 落顶层 `chain_result`（无 attempts 时用结果本身一条），不再依赖源侧 `source_result`；失败仍额外保存嵌套 `source_events` 供证据包展开。缓存命中只记 `cache_hit`，不进入取链窗口。预加载通过 `recordPlay:false` 只记取链、不伪造播放。
-- **缓存命中**：缓存播放单独记 `cache_hit`，只说明本地已有 URL，不计入取链成功率；页面显示“24h 缓存命中 N 次（不计入取链）”，用于解释“听歌了但取链为 0”。
+- **App 侧取链账本**：`recordPlayResult` 在成功/失败都从真实 `attempts` 落顶层 `chain_result`（无 attempts 时用结果本身一条），不再依赖源侧 `source_result`；失败仍额外保存嵌套 `source_events` 供证据包展开。预加载通过 `recordPlay:false` 只记取链、不伪造播放。
+- **缓存命中与缓存播放**：缓存命中单独记 `cache_hit`，只说明本地已有 URL，不计入取链成功率；真实播放命中缓存时额外记一条 `play_result`（`recordChain:false`），既不让播放数为 0，也不重复放大取链数。预加载命中缓存不写任何播放/缓存事件。页面显示“24h 缓存命中 N 次（不计入取链）”，用于解释“听歌了但取链为 0”。
 - **窗口覆盖 `covered`**：由**全量 outcomes 的最早时间戳**判定（`coversWindow(outcomes, now, ms)`），不是窗口内样本；`coverage` 额外给出事件数、首末时间、`coveredMs`、`truncated`。7 天未被覆盖时摘要必须写“本地日志仅覆盖最近 X，7 天结论仅供参考”。
 - **按源拆分 `breakdown`**：按 `sourceKey|platform|quality` 加权聚合，按 `total` 降序截 10 行，用于回答“是哪个源/平台/音质坏了”，不再让 `platform` 单键把同源拆成两个身份。
 - **证据包**：`attempts` 把 `source_events` 展开为 `traceId/sourceId/ok/code/latencyMs`（上限 50 条）；并带 `appVersion`、`sourceVersion`；`trend/logTail` 保留但日志尾部经 `redactDiagnosticText` 脱敏。
