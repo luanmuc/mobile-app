@@ -1,94 +1,91 @@
-# App 压力测试计划（2026-11-14 最终版）
+# App 压力测试计划 v2.0（重构版）
 
-> 适用基线：App `20d953f0`（本地未 push，v1.9.2 / versionCode 283）；源仓 `101c2e7`（本地未 push，v8.13.1）。历史 `921737f2` / `e0a4590` 仅作已推送快照。
-> 目标：在推送/发布前，用可重复的纯 Node/内存 FS 压力用例证明「大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约」不会崩、不会越界、不会泄露，也不会把失败伪装成通过。
-> 范围：本计划覆盖 `scripts/check_*.js` 中可直接本地执行的压力/深度/契约检查；`health-stress.yml` 仍是周级兜底，`release.yml` 仍以正式门禁为准。
-> 纪律：所有结论必须带本轮 HEAD 的 rc 与通过/失败计数；禁止沿用历史绿；`blocked` 不等于通过。
+> **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
+>
+> **基线（唯一真值，2026-11-14）**：App `3cecdd02`（v1.9.2-b125 / versionCode 284）；源仓 `fb94fcf`（v8.13.1）。
+>
+> **目标**：推送/发布前，用可重复的纯 Node/内存 FS 压力用例，证明大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约、**音质政策联动**下「不崩、不越界、不泄露、不把失败伪装成通过」。
 
-## 1. 分组与边界（当前脚本实测条数）
+## 1. 分组与边界（一表到底）
 
 | # | 检查 | 脚本 | 条数 | 主要边界 | 通过标准 |
-|---|---|---:|---|---|---:|
-| S1 | 诊断压力 | `check_health_diagnostics_stress.js` | 14 | 10000 条事件、5MB 日志截尾、脏行、RN 依赖缺失、200 错误码、证据包脱敏、traceId 唯一、采样边界 | 14/0，不崩、不越界、无隐私字段 |
-| S2 | 诊断深度 | `check_health_diagnostics_deep.js` | 51 | 统计口径、1h/24h/7d 窗口、异常正反例、隐私、多字节、10 万条聚合 | 51/0，数值可复算、窗口不冒充 |
-| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 24 | 折叠态、四层分组、覆盖降级、缓存命中、错误码分组、空态、1 万次构建、三块隔离、finding 三语 | 24/0，无空串/undefined/越界 |
-| S4 | 日志目录 | `check_log_directory.js` | 15 | 公共优先、私有回迁、四类补齐、父目录重建、500 文件回迁、1 万次补齐、并发、幂等 | 15/0，路径合法、不丢文件 |
-| S5 | 状态分类重构 | `check_health_status_refactor.js` | 10 | 手动/自动/默认关闭、休眠、播放摘除、异常优先级、无旧快照回退、4 主状态唯一归属、多源绑定 | 10/0，优先级不回退 |
-| S6 | 4 主状态 + reason | `check_health_state_v2.js` | 7 | 4 主状态、reason 映射、单一汇总、UI 消费、三语键 | 7/0，状态不丢信息 |
-| S7 | UI 映射 | `check_health_ui_mapping.js` | 11 | 主状态文案/颜色、reason、双摘要、质量矩阵、绑定、探测确认、三语 | 11/0，无硬编码 |
-| S8 | 事件链路 | `check_health_event_pipeline.js` | 10 | eventId 优先去重、traceId、失败/探测事件、持久化边界 | 10/0，不重复记账 |
-| S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v2 only、controls 权威、v1 拒绝、容量/版本边界 | 9/0，旧格式不复活 |
-| S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、覆盖不足、错误码分组、空态 | 8/0，不误报 |
-| S11 | 配置契约 | `check_source_config_contract.js` | 25 | 37 键/单位/预设三语、数字/布尔边界 | 25/0，键有消费点 |
-| S12 | 音源契约 | `check_source_contract.js` | 14 | 13 action、v2 envelope、错误码、fallbackOwner、preload | 14/0，无漏 case |
-| S13 | 源健康持久化 | `check_source_health_persistence.js` | 17 | v2 导出/恢复、controls、拒绝敏感字段 | 17/0，无 URL/歌名 |
+|---|---|---:|---|---|---|
+| S1 | 诊断压力 | `check_health_diagnostics_stress.js` | 14 | 10000 条事件、5MB 截尾、200 错误码、脱敏 | 14/0 |
+| S2 | 诊断深度 | `check_health_diagnostics_deep.js` | 51 | 统计口径、1h/24h/7d 窗口、10 万条聚合 | 51/0 |
+| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 24 | 折叠态、四层分组、1 万次构建 | 24/0 |
+| S4 | 日志目录 | `check_log_directory.js` | 15 | 公共优先、500 文件回迁、1 万次补齐 | 15/0 |
+| S5 | 状态分类重构 | `check_health_status_refactor.js` | 10 | 手动/自动/休眠/播放摘除 | 10/0 |
+| S6 | 4 主状态+reason | `check_health_state_v2.js` | 7 | 4 主状态、reason、UI 消费 | 7/0 |
+| S7 | UI 映射 | `check_health_ui_mapping.js` | 11 | 文案/颜色、质量矩阵、三语 | 11/0 |
+| S8 | 事件链路 | `check_health_event_pipeline.js` | 10 | eventId 去重、traceId、脱敏 | 10/0 |
+| S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v1 拒绝、容量/版本边界 | 9/0 |
+| S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、错误码分组 | 8/0 |
+| S11 | 配置契约 | `check_source_config_contract.js` | 25 | 37 键、数字/布尔边界 | 25/0 |
+| S12 | 音源契约 | `check_source_contract.js` | 14 | 13 action、v2 envelope、fallbackOwner | 14/0 |
+| S13 | 源健康持久化 | `check_source_health_persistence.js` | 17 | v2 导出/恢复、拒绝敏感字段 | 17/0 |
+| S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 12 | 自定义源/内置源双裁剪、片段缓存回读 | 12/0 |
+| S17 | 播放预算失败段 | `check_playback_budget.js` | 21 | 24s 预算、attempts 落盘、失败段不丢档 | 21/0 |
+| S18 | 片段/下载/播放服务 | `check_source_platform_label`、`check_player_service_runtime`、`check_download_persistence`、`check_download_restore_runtime` | 9+10+3+3 | 试听标签、片段不回报成功、恢复不丢任务 | 各 0 失败 |
 
-**诊断/状态压力合计：14 + 51 + 23 + 15 + 10 + 7 + 11 + 10 + 9 + 8 = 158 条。**
-**加跨仓契约 S11~S13：158 + 25 + 14 + 17 = 214 条。**
+**合计：14+51+24+15+10+7+11+10+9+8+25+14+17+12+21+9+10+3+3 = 273 条。**
 
 ## 2. 执行顺序
 
 ```bash
-node scripts/check_health_diagnostics_stress.js   # S1 14/0
-node scripts/check_health_diagnostics_deep.js     # S2 51/0
-node scripts/check_health_diagnostics_view.js     # S3 23/0
-node scripts/check_log_directory.js               # S4 15/0
-node scripts/check_health_status_refactor.js      # S5 10/0
-node scripts/check_health_state_v2.js             # S6 7/0
-node scripts/check_health_ui_mapping.js           # S7 11/0
-node scripts/check_health_event_pipeline.js       # S8 10/0
-node scripts/check_health_persistence_v2.js       # S9 9/0
-node scripts/check_health_anomaly_v2.js           # S10 8/0
-node scripts/check_source_config_contract.js      # S11 25/0
-node scripts/check_source_contract.js            # S12 14/0
-node scripts/check_source_health_persistence.js  # S13 17/0
-```
-
-然后跑完整门禁：
-
-```bash
+# 第一梯队：诊断/状态/契约压力（S1~S13）
+node scripts/check_health_diagnostics_stress.js
+node scripts/check_health_diagnostics_deep.js
+node scripts/check_health_diagnostics_view.js
+node scripts/check_log_directory.js
+node scripts/check_health_status_refactor.js
+node scripts/check_health_state_v2.js
+node scripts/check_health_ui_mapping.js
+node scripts/check_health_event_pipeline.js
+node scripts/check_health_persistence_v2.js
+node scripts/check_health_anomaly_v2.js
+node scripts/check_source_config_contract.js
+node scripts/check_source_contract.js
+node scripts/check_source_health_persistence.js
+# 第二梯队：音质改动压力（S16~S18）
+node scripts/check_quality_request_runtime.js
+node scripts/check_playback_budget.js
+node scripts/check_source_platform_label.js
+node scripts/check_player_service_runtime.js
+node scripts/check_download_persistence.js
+node scripts/check_download_restore_runtime.js
+# 完整门禁
 node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 npm run build-test
 node scripts/check_docs_consistency.js
-node scripts/check_ts_syntax.js
-node scripts/check_media_body.js
-node scripts/check_quality_request_runtime.js
-node scripts/check_playback_budget.js
-node scripts/check_playback_ownership_runtime.js
-node scripts/check_source_platform_label.js
-node scripts/check_source_ci_gate_offline.js
 node scripts/docs-audit.js --dry-run
 ```
 
-## 3. 2026-11-13 本轮实测结果
+## 3. 音质政策联动压测（`fb94fcf` 源侧变更对 App 的连带）
 
-| 项 | 结果 | 证据 |
+| 联动点 | 判据 | 守的脚本 |
 |---|---|---|
-| 13 个压力/诊断/契约脚本 | 全部 rc0，合计 214/0 | 逐脚本输出见 `docs/reports/两仓最终审计报告-2026-11-13.md` |
-| 其余门禁 | 22/22 rc0；`check_source_ci_gate` 用 Git 凭据库有效令牌复跑 rc0（源仓 `03fe893` 绿，当前 `7e78e63` 为 docs-only 后继，compare=ahead）；App CI `43520302282` success | 离线旁路仅补充 |
-| `tsc --noEmit` | rc0 | 0 error |
-| `eslint .` | rc0 | 0 error / 0 warning |
-| `npm run build-test` | rc0 | `index.android.bundle` 重建 |
-| `check_ts_syntax` | 527 个 TS/TSX，0 错误 | rc0 |
-| 三语 | 各 997 键 | 删除未消费旧键后复跑 |
+| 第 14 action 漂移 | App `SOURCE_ACTIONS` 仍 13，音源已 14（`forceQualityProbe`）；`check_source_contract` 锁 13 会拒绝未来接该 action | `check_source_contract`（观察，不通过） |
+| 能力备档压制起跑档 | 音源 `getQualityCeiling` 使请求 flac 得 128k；App `onQuality` 回填 128k，UI 无解释 | `check_quality_request_runtime` + 真机观察 |
+| `definitiveFail/linkExpired` 字段 | 音源快照新增，App `Health.tsx` 不消费 | 结构走查 |
+| 片段语义跨仓 | 音源 `fragment:true`+`unknown` → App 标「试听」、不回报成功 | `check_quality_request_runtime` P1-CACHE |
 
-## 4. 失败处置与外部阻塞
+## 4. 本轮实测结果
 
-1. `check_source_contract` 首跑 13/1：断言仍按旧 11 action，实际 13；已更新为 13 并补齐 `probeSource`/`reportPlayback`。
-2. `check_source_ci_gate` 已复跑 **rc0**：环境变量 `GITHUB_TOKEN` 无效，改用 Git 凭据库令牌；它校验远端 `backend-api@03fe893` 的绿 CI，当前源 HEAD `7e78e63` 仅文档提交，compare=ahead。
-3. G2 真机验收仍 blocked：云主机无 `adb`、无 `/dev/kvm`、`ANDROID_HOME` 未设置，`health_device_acceptance.sh --dry-run` rc=3。
-4. G7 tx 完整曲目仍 blocked：上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`。
-5. 真机持久化/RN 桥/分享 Intent 仍无设备级证据；本计划只对纯 Node/内存 FS 结论负责。
+| 项 | 结果 |
+|---|---|
+| S1~S13 诊断/状态/契约 | 全部 rc0 |
+| S16~S18 音质改动 | 全部 rc0 |
+| `tsc --noEmit` | 0 error |
+| `eslint .` | 0 error / 0 warning |
+| `npm run build-test` | rc0 |
+| 三语 | 各 997 键 |
 
+> 本轮完整 rc 与条数以实跑为准；历史绿不替代。
 
-## 5. 2026-11-14 音质改动补充压测
+## 5. 失败处置与外部阻塞
 
-| # | 检查 | 脚本/方式 | 边界 | 通过标准 |
-|---|---|---|---|---|
-| S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 自定义源 flac/320k/128k、内置源双裁剪、设置档不越级/不升档、端到端实收 `type=flac`、片段缓存回读 | 12/0，attempts 请求/交付档一致，P1-CACHE 片段语义不回退 |
-| S17 | 播放预算与失败段 | `check_playback_budget.js` | 24s 预算、attempts 落盘、候选缓存、失败段不丢 requested/delivered | 21/0 |
-| S18 | 片段/下载/播放服务 | `check_source_platform_label`、`check_player_service_runtime`、`check_download_persistence`、`check_download_restore_runtime` | 试听标签不重复、片段不回报成功、下载 metadata fragment、恢复不丢任务 | 各脚本 0 失败 |
-| S19 | 诊断压力 | `check_health_diagnostics_stress.js` + `check_health_diagnostics_deep.js` | 10000 条事件、200 错误码、5MB 日志、10 万条聚合 | 14/0、51/0 |
-
-压测纪律：先跑当前 HEAD；任一脚本非 0 即记录失败，不以“局部通过”代替；真机/真上游仍按原计划标 blocked。
+1. 任一脚本非 0 即记录失败，不以「局部通过」代替。
+2. `check_source_ci_gate` 本地 token 无效 → 用 Git 凭据库令牌复跑；CI 仍用自带 token。
+3. 真机持久化/RN 桥/分享 Intent 仍无设备级证据；本计划只对纯 Node/内存 FS 结论负责。
+4. 音质政策联动（§3）中 X-L1 为已知暂缓缺口，不因「压测绿」而掩盖。

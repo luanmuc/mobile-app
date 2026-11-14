@@ -1,596 +1,158 @@
-# App 仓库审计计划（活文档 · v2 全维度）
+# App 仓库审计计划 v3.0（重构版 · 活文档）
 
-> 基线版本：**v1.9.2 / versionCode 283**；本轮审计 HEAD **`20d953f0`**（本地未 push）；对应源仓 **v8.13.1 / `101c2e7`**（本地未 push）。历史审计起点 `a6767fa1` 与已推送发布 `921737f2` 仅作历史快照。
-> 最近更新：2026-11-14（音质优先 P0–P4 落地后复审；上一轮交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。上一轮改动已推送；本轮音质改动 `20d953f0` 本地未 push）
-> 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
-> **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`641e8dc`，已推送，CI `43552333512` success；S-01 push fail-closed `e0a4590`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**29 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@e0a4590`，最近 push CI `43568304962` success，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
-> **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
-> 维护规则：每轮版本迭代更新维度状态；新增功能加维度；发现问题记入对应轮次的审计报告并把状态改为 ⚠️。
+> **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
+>
+> **基线（唯一真值，2026-11-14）**：
+> - App：`luanmuc/mobile-app` @ `3cecdd02`（已推送），v1.9.2-b125 / versionCode 284
+> - 源仓：`luanmuc/backend-api` @ `fb94fcf`（已推送），v8.13.1
+> - track-player：`88b062b`（v2 分支）
+> - 硬数字：三语各 **997 键**、TS/TSX **527 文件**、`scripts/check_*.js` **34 个**（release.yml 引 30，另 4 个在 health-stress.yml 或离线）
+>
+> **对应变更**：`ff9647cc`「按源能力请求音质并回填真实交付档」+ 源仓 `fb94fcf`「音质政策优化 P0/P1」。
 
 ---
 
-## 2026-11-13 最终审计计划（当前代码量身定制）
+## 0. 目标与边界
 
-> 适用基线：App `785af658` + 文档回填 `8adce795`（均已推送，工作区干净；App CI `43520302282` success）、源仓 `7e78e63`（已推送，CI 绿提交 `03fe893`）。本文所有结论必须在本轮 HEAD 上有实跑证据，**不沿用历史绿**。
+**目标**：按当前 HEAD 审代码正确性、运行逻辑、全仓完成度、跨仓契约、**定制功能间联动**。每条链路从 UI 入口追到数据落点。
 
-### 0. 审计目标与边界
+**边界**（blocked，不写成通过）：
+1. 真机 UI 安装/播放（无 adb/KVM）
+2. tx 完整曲目（上游约 60 秒试听）
+3. 设备级横竖屏/通知栏/批量下载
 
-1. **代码正确性**：类型/语法/导入/导出、异常路径、空值边界、缓存/并发/持久化状态机。
-2. **运行逻辑**：源 `buildSourceChain → computeEligibility → wrapExecute → admit/applyAdmission`；App `Health.tsx → healthDiagnostics* → healthLog → sourceConfig`。每条链路要能从 UI 入口追到数据落点。
-3. **全仓完成度**：TODO/FIXME/占位/半成品、声明了但无消费点的键、文档声称完成但代码未落地、测试夹具漂移。
-4. **跨仓契约**：13 个 action、v2 envelope、健康快照字段、三语键、持久化 v2。
-5. **不在本轮范围**：真机 UI 安装/播放（G2，无 adb/KVM）、tx 完整曲目（G7，上游约 60 秒试听）；标 blocked，不写成通过。
+**纪律**：结论带「命令 + rc + 计数」；失败先修或明确夹具漂移；反向修改必须能让断言变红；不沿用历史绿。
 
-### 1. 证据分级与执行纪律
+---
 
-| 级别 | 证据 | 本轮用法 |
+## 1. 证据分级
+
+| 级别 | 手段 | 能证明什么 |
 |---|---|---|
 | L0 | `tsc --noEmit`、`eslint`、`node --check` | 语法/类型/未定义符号 |
 | L1 | 契约脚本、键对齐、文档一致性 | 声明与消费闭合 |
 | L2 | 纯 Node 行为脚本 + mock 宿主 | 状态机、边界、并发、隐私 |
-| L3 | 构建产物/包体（可行时） | 产物是否真带改动 |
-| L4 | 真机/真上游 | 仅记录外部阻塞 |
+| L3 | 构建产物/包体 | 改动是否真进包 |
+| L4 | 真机/真上游 | 用户实际看到什么（本轮未做） |
 
-纪律：每个结论附「命令 + rc + 通过/失败计数」；失败先修实现或明确夹具漂移，不以 `blocked` 冒充通过；反向修改必须能让断言变红。
+---
 
-### 2. 审计矩阵（App 侧）
+## 2. 审计矩阵（App 侧一表）
 
 | ID | 检查面 | 关键位置 | 验收 |
 |---|---|---|---|
-| A-A01 | 13 action 权威表 | `src/core/init/userApi/sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 14/0；每个 action 有 case |
-| A-A02 | 健康 4 主状态 | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0；4 主状态唯一归属 |
-| A-A03 | 诊断窗口/覆盖 | `healthDiagnostics.ts`、`Health.tsx` | `check_health_diagnostics` 54/0；`coverage.full=false` 隐藏 codes+others |
-| A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 24/0；无 undefined/空串；finding 三语化 |
-| A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0；eventId 优先 |
-| A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0；拒绝 v1 |
+| A-A01 | 13 action 权威表 | `sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 14/0；每个 action 有 case |
+| A-A02 | 健康 4 主状态 | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0 |
+| A-A03 | 诊断窗口/覆盖 | `healthDiagnostics.ts`、`Health.tsx` | `check_health_diagnostics` 54/0 |
+| A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 24/0 |
+| A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
+| A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 25/0；37 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 997 键、无重复、无未消费键、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 997 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
-| A-A10 | 日志目录/隐私 | `check_log_directory`、诊断包 | 15/0；无 URL/歌名/歌手 |
-| A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性；自定义功能无未完成项 |
+| A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
+| A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
 | A-A12 | 文档真值 | 本文件、`STRESS_PLAN.md`、`SYNC_POINTS.md` | 版本/键数/action/HEAD 与代码一致 |
 
-### 3. 全仓完成度扫描方法
+---
 
-```bash
-rg -n "TODO|FIXME|HACK|未实现|占位|半成品|待补|待做" src scripts docs
-rg -n "health_diag_codes_disabled|health_diag_conclusions_disabled" src
-rg -n "SOURCE_ACTIONS|11 个 action|13 个 action" src scripts docs
-```
+## 3. 定制功能维度总表（合并 89 维，按域归类）
 
-判定规则：上游继承的 TODO（列表同步、播放器启动等）标 `upstream`，不冒充本次定制缺口；自定义健康/音源/契约链上的未消费键、漂移计数、失效测试一律算缺口。
-
-### 4. 压力测试计划
-
-见 [`STRESS_PLAN.md`](./STRESS_PLAN.md) 当前版；本轮至少执行 S1~S13 共 214 条诊断/状态/契约断言，再跑 `tsc`、`eslint`、`build-test` 与 29 个 check 脚本。
-
-### 5. 本轮发现与处置
-
-| 编号 | 发现 | 等级 | 证据 | 处置 |
-|---|---|---|---|---|
-| A-F01 | `check_source_contract` 仍按 11 action 断言，实际 13（漏 `probeSource`/`reportPlayback`） | 中 | 首跑 13/1，`期望 11 个，实际 13` | 已改为 13 并补集合；复跑 14/0 |
-| A-F02 | 三语保留未被消费的 `health_diag_codes_disabled`，与 `health_diag_conclusions_disabled` 语义重复 | 低 | `rg` 仅 lang 命中；键数 905 但唯一语义 904 | 已删旧键，三语 904；相关检查复跑通过 |
-| A-F03 | `AUDIT_PLAN` 顶部仍写 893 键/525 文件/11 action/`e41d0d15`/b115 | 低 | 与当前 997/527/13/`785af658` 不一致 | 本文件顶部已改；历史 A–S 组保留原快照 |
-| A-F04 | G2 真机、G7 tx 完整链、Batch 5 版本拍板外部阻塞 | — | `health_device_acceptance.sh --dry-run` rc=3；上游约 60s 试听 | 标 blocked，不写入通过 |
-| A-F05 | `check_source_ci_gate` 本地环境变量 `GITHUB_TOKEN` 无效导致 403 | 低 | 环境变量返回 `Bad credentials`；Git 凭据库令牌有效 | 已用 `git credential fill` 取有效令牌复跑 **rc0**（源仓 `03fe893` 为绿提交，当前 `7e78e63` compare=ahead）；CI runner 仍用其自带 `GITHUB_TOKEN` |
-
-
-
-v1 计划的 39 个维度全部标记 ✅，但 b68–b74 之间仍然连续暴露了 6 类运行时缺陷：启动 NPE 崩溃、`initial()` 不可自愈、`Buffer.byteLength` 会崩、`migrateDownloadDir()` 从未执行、下载状态中文落盘、`trimToBytes` 字节截断错误。
-
-**结论：v1 的方法是「读代码确认存在」，只能证明功能写了，不能证明运行时真的会跑。** v2 改为按「可达性 + 运行时后果」审，并新增 12 个 v1 完全没有覆盖的角度（见下方 H–S 组）。
-
-## 证据分级（每一条结论必须标注等级）
-
-| 级别 | 含义 | 手段 | 能证明什么 |
+| 域 | 覆盖点（合并后） | 关键脚本 | 状态 |
 |---|---|---|---|
-| L0 | 静态/类型 | `tsc --noEmit`、ESLint（**只看 TS2304/TS2551 这类真错误**，不看风格类） | 有没有未定义符号、属性名是否写错 |
-| L1 | 结构契约 | 键对齐脚本、引用完整性、依赖 sha 比对、语言文件重复键检测 | 声明与消费是否闭合 |
-| L2 | 运行路径 | 谁调用、何时渲染、异常是否被 catch 吞掉、默认值是否生效 | **这段代码在运行时会不会被走到、走到会怎样** |
-| L3 | 产物 | APK 解包（bundle 用 UTF-16LE 查中文、dex 查原生符号） | 改动是否真的进包 |
-| L4 | 设备 | 实机安装/权限流/横竖屏/批量下载 | 用户实际看到什么（本轮未做，单列 📝） |
+| 播放核心 | 播放/暂停/切歌、音源调用、音质协商、歌词封面、错误处理、网络封装、后台播放、线控 | `player_core_runtime` 等 | ✅ |
+| 音源管理 | 健康面板、自定义源导入、音源标签、日志、预加载一致性、配置热更新 | `source_config_contract` | ✅ |
+| 状态与存储 | 设置项完整性、本地存储、数据迁移、状态管理 | `download_restore_runtime` | ✅ |
+| UI 与交互 | 侧边栏、播放页、弹窗、主题适配、多语言、组件复用 | `health_ui_mapping` | ✅ |
+| 文档与工程 | 编码规范、KNOWN_ISSUES、音源指南、发布 SOP、AGENTS、变更日志 | `docs-audit` | ✅ |
+| 原生与性能 | Android 原生层、CI 编译、启动速度、包体积、内存 | — | ✅ / 内存📝 |
+| 安全合规 | 权限申请、数据隐私、第三方 SDK | — | ✅ |
+| 定制代码正确性 | 符号导入、属性名、静默失败、空值、返回值契约 | `tsc`/`eslint` | ✅ |
+| 桥接与原生契约 | JS↔Java 符号、初始化时序、通知栏、音频焦点、Duck 音量 | `player_service_runtime` | ✅ |
+| 依赖与兼容 | fork sha 锁定、Hermes Node API、JSON 健壮性、产物一致性 | `docs-audit` | ✅ |
+| 权限与路径 | 路径拼接、URI 还原、权限判定、可写性、空间上限 | `download_persistence` | ✅ |
+| i18n 全链路 | 键对齐/重复/占位、页面/管理器/组件覆盖、原生文案 | `check_docs_consistency` | ✅ |
+| 状态机与持久化 | 状态字段组合、重启恢复、幂等、原子写 | `download_restore_runtime` | ✅ |
+| 并发与竞态 | 并发上限、暂停/恢复竞态、缓存命中分支 | `player_progress_runtime` | ✅ |
+| 主题与视觉 | 主题键合法、对比度、窄屏、图标 | — | ✅ / 设备🧪 |
+| 破坏性操作 | 文案与行为一致、覆盖替换、迁移搬文件 | — | ✅ / 迁移🧪 |
+| 启动与生命周期 | 冷启动、双通道日志、进程杀后恢复、批量下载通知 | — | ✅ |
+| 语义契约 | 文案↔字段横向穿、类型对≠语义对 | 带参 `t()` 全表 | ✅ |
+| 跨平台标签 | `sourcePlatform` 全链路、实际平台优先、标签拼装 | `check_source_platform_label` | ✅ |
 
-## 状态说明
-
-| 标记 | 含义 |
-|---|---|
-| ✅ | 已按 L0–L3 审计，无问题 |
-| ⚠️ | 已审，发现问题（编号见 `AUDIT_REPORT-2026-11-07.md`；**本轮 15 处已于 b75 修复，明细见文末「修复记录」**） |
-| 📝 | 待审 |
-| 🧪 | 需设备实测，未做 |
+**状态说明**：✅ 已审无问题；⚠️ 已审发现问题；📝 待审；🧪 需设备实测。
 
 ---
 
-## A 组：播放核心（v1 已覆盖，v2 复核）
+## 4. 跨仓契约与联动审计面（本轮核心）
 
-| # | 维度 | 状态 | v2 复核结论 |
+> 前几轮联动审计散落在 M 组、T 组、Q 组，本版集中。**字段名对得上 ≠ 语义对得上，字段、枚举、默认值、单位四样都要对。**
+
+| ID | 联动点 | 现状 | 性质 |
 |---|---|---|---|
-| A1 | 播放器核心 | ✅ | 播放/暂停/切歌链路正常；`initial()` 已改 try/catch/finally，异常不再卡死 |
-| A2 | 音源调用链路 | ⚠️ | **R1**：`core/music/utils.ts:326` 使用未导入的 `getStoreMusicSource`，缓存命中分支会 ReferenceError |
-| A3 | 音质协商 | ✅ | 降级链与错误码中文化完整 |
-| A4 | 歌词/封面 | ⚠️ | **R11**：`core/music/local.ts:173` 裸用 `Buffer`（Hermes 无全局 Buffer），带 awlrc 标签的本地歌词会崩 |
-| A5 | 错误处理 | ✅ | `formatPlayError` + 聚合失败摘要完整 |
-| A6 | 网络层封装 | ✅ | `utils/request.js` 统一超时/错误码 |
-| A7 | 后台播放 | ✅ | 焦点三开关链路复核通过（见 I 组） |
-| A8 | 耳机线控 | ✅ | 由 fork 原生 MediaSession 提供 |
+| X-L1 | **第 14 个 action `forceQualityProbe` 未进 App 契约** | 音源已实现；App `SOURCE_ACTIONS` 仍 13、`check_source_contract` 硬断言 `length===13`、`SYNC_POINTS.md` 写「13 action」 | 契约漂移（P2 暂缓，接 App 时先改断言否则 CI 拒绝） |
+| X-L2 | **能力备档压制起跑档无 App 可见解释** | 音源 `getQualityCeiling` 压制起跑档，App 请求 flac 得 128k，UI 无「因源能力备档跳过」提示 | 体验缺口 |
+| X-L3 | **`definitiveFail`/`linkExpired` App 不消费** | 音源 byQuality 新增两字段，App `Health.tsx` 类型未含 | 源有数据 App 不展示（无害） |
+| X-L4 | `qualityConfidence` 三值 | 音源 `exact/estimated/unknown`；App 消费 `default='exact'` 仅旧源兼容 | 已对齐，继续守 |
+| X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
+| X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 
-## B 组：音源管理
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| B1 | 健康面板 | ⚠️ | **R5/R6**：`c-font-1`/`c-border-1` 非法主题键；`playDead` 属性恒 undefined |
-| B2 | 自定义音源导入 | ⚠️ | **R4**：`importUserApi` 无返回值，`Source.tsx` 读 `.id` 必抛 TypeError，「一键更新」失效 |
-| B3 | 音源标签 UI | ✅ | `PlayQualityTag` 渲染正常（但文案硬编码见 L 组 R10） |
-| B4 | 音源日志 | ✅ | 竞速打点与失败明细完整 |
-| B5 | 预加载脚本一致性 | ✅ | `user-api-preload.js` 13 个 action（含 healthEvents/exportHealthState/restoreHealthState/probeSource/reportPlayback）与 `userApi` switch 同步 |
-| B6 | 健康面板新增功能 | ⚠️ | 功能存在，配色缺陷同 R5 |
-| B7 | 配置热更新校验 | ✅ | 音源侧白名单校验 |
-
-## C 组：状态与存储
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| C1 | 设置项完整性 | ✅ | L1 脚本：`defaultSetting` 75 键**全部**有真实消费点；"消费但未声明"的 5 个键全部落在注释/迁移代码，非活代码 |
-| C2 | 本地存储 | ✅ | `plugins/storage` 本地化，无外传 |
-| C3 | 数据迁移 | ⚠️ | K25 已修（迁移可执行）；**R8** 重启恢复未清 `statusKey` |
-| C4 | 状态管理 | ✅ | store/download 事件刷新链路完整（`updateItem`→`emit`→`hook`） |
-
-## D 组：UI 与交互
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| D1 | 侧边栏 | ✅ | 入口齐全 |
-| D2 | 播放页 | ⚠️ | **R2**：`PlayDetail/Horizontal/Player/PlayInfo.tsx:61` 组件内 `theme` 未定义，横屏播放页渲染即 ReferenceError |
-| D3 | 弹窗 | ⚠️ | **R5**：健康面板弹窗配色；**R9** 管理器层弹窗中文硬编码 |
-| D4 | 主题适配 | ⚠️ | 除 R5 两个非法键外，其余 `theme[...]` 引用合法 |
-| D5 | 多语言 | ✅ | 页面层 + 管理器层 + 定制组件已全部接 i18n（审计当时 730×3；当前 997×3）；`Health.tsx` 参数面板、诊断 finding、reason 短标签均已接三语，无遗留 |
-| D6 | 组件复用 | ✅ | common/ 公共组件 |
-
-## E 组：文档与工程
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| E1 | 编码规范 | ✅ | 与实际一致 |
-| E2 | KNOWN_ISSUES | ✅ | K1–K25 编号化，K25 已修待发布验证 |
-| E3 | 音源指南 | ✅ | 协议与实际一致 |
-| E4 | 发布 SOP | ✅ | bN/versionCode 规则与 CI 一致 |
-| E5 | AGENTS 协作规范 | ✅ | TS 文件数已纠正为 514 |
-| E6 | 变更日志 | ✅ | b74 已记入 |
-
-## F 组：原生与性能
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| F1 | Android 原生层 | ✅ | Manifest/Service/Receiver/资源齐全 |
-| F2 | CI 编译 | ✅ | `buildNumber` 由 CI 覆盖写入，本地为空 |
-| F3 | 启动速度 | ✅ | 初始化顺序合理 |
-| F4 | 包体积 | ✅ | 与官方版相当（用户已确认关闭） |
-| F5 | 内存与性能 | 📝 | 未实测（用户已知情并接受） |
-
-## G 组：安全与合规
-
-| # | 维度 | 状态 | v2 复核结论 |
-|---|---|---|---|
-| G1 | 权限申请 | ⚠️ | 时机正确；**R13/R15**：自定义目录仅 `mkdir` 不验可写；SAF 选目录仍需「所有文件访问」 |
-| G2 | 数据隐私 | ✅ | 全部本地存储 |
-| G3 | 第三方 SDK | ✅ | 无冷门 SDK；`@craftzdog/react-native-buffer` 仅作 metro alias，未注入全局（见 R11） |
+**联动铁律**：音源新增 action/字段/枚举时，反查 App 的 `sourceContract.ts`、`Health.tsx`、`SYNC_POINTS.md`、`check_source_contract.js` 是否同步。这条正是本次 QP-L1 发现的教训。
 
 ---
 
-## H 组：定制代码自身正确性（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| H1 | 符号/导入完整性 | ⚠️ | 以 `tsc` 的 TS2304 为线索反查：**R1**（utils.ts）、**R2**（PlayInfo.tsx） |
-| H2 | 属性名正确性 | ⚠️ | 以 TS2551 为线索：**R3**（`temporaryDirectoryPath` 拼错 ×3）、**R5**（非法主题键） |
-| H3 | 静默失败 | ⚠️ | `catch(e){}` 集中在 `unlink/stopDownload`（可接受）；`migrateDownloadDir` 外层空 catch 曾吞掉 ReferenceError（K25 已修），**建议补日志** |
-| H4 | 空值/undefined 字面量 | ✅ | 文件名模板已加 `?? ''`；未再发现 `undefined` 落盘 |
-| H5 | 返回值契约 | ⚠️ | **R4**：`importUserApi` 声明 void，消费方当有返回值用 |
-
-## I 组：桥接与原生契约（v1 仅"目录存在"级）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| I1 | JS↔Java 符号一致 | ✅ | `handleAudioFocus/autoResumeAfterInterrupt/duckOnTransientDuck` 三键在 `setupPlayer` 与 `MusicManager` 一一对应 |
-| I2 | 初始化时序与判空 | ✅ | b69/b70 的 `MetadataManager` 四处判空 + `setNotificationRepeatMode` 启动同步包 `isInitialized()` 均有效 |
-| I3 | 通知栏能力 | ✅ | 5 个实际按钮与图标密度齐全（v1 结论复核） |
-| I4 | 音频焦点实现 | ✅ | media3 内置焦点恒关；`requestAudioFocus/abandonAudioFocus` 均有 `handleAudioFocus` 早退；子开关在主开关关闭时被强制 false |
-| I5 | Duck 音量还原 | ✅ | `volumeBeforeDuck` 记录再还原，不再写死 1.0 |
-
-## J 组：依赖与运行时兼容（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| J1 | fork sha 锁定一致性 | ✅ | `package.json`×1 + `package-lock.json`×2 共 3 处一致，当前为 `a0b2a87`（审计当时 `eceacb5`，更早 `5bff17b`；b75 升级为拿到 quality/subSource 类型，b78 升级为取审计修复） |
-| J2 | Hermes 兼容（Node API） | ⚠️ | **R11**：`Buffer` 裸引用 2 个文件；`Buffer.byteLength` 类问题已在 b73 消除 |
-| J3 | JSON 解析健壮性 | ✅ | `officialVersion` 等解析点均有 try/catch |
-| J4 | 产物一致性 | ✅ | 每版 APK 解包校验键/中文值 |
-
-## K 组：权限与路径安全（v1 只审"有没有申请"）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| K1 | 路径拼接 | ✅ | 下载路径统一 `dir/fileName`，文件名经非法字符替换 + 100 字节截断 |
-| K2 | URI→路径还原 | ⚠️ | **R15**：只认 `com.android.externalstorage.documents`，且还原成裸路径后仍需「所有文件访问」 |
-| K3 | 权限判定健壮性 | ⚠️ | **R14**：权限错误靠中文子串 `includes('权限')` 分类，i18n 化后会失效 |
-| K4 | 可写性验证 | ⚠️ | **R13**：`getDownloadDir` 对自定义目录只 `mkdir`，不验证可写 |
-| K5 | 空间与上限 | ✅ | 下载前 `checkFreeSpace`，日志 512KB 上限 |
-
-## L 组：i18n 全链路（v1 只查"键数对齐"）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| L1 | 键对齐/重复键/占位符 | ✅ | **730×3** 对齐、无重复键；占位符脚本核对 0 缺失（1 处为检查器误报，已人工确认） |
-| L2 | 页面层覆盖 | ✅ | 下载页 65 处 + 状态 9 键已接 |
-| L3 | 管理器层覆盖 | ✅ | **已修**：权限/覆盖确认弹窗、toast、异常文案全部接 i18n（新增 9 键） |
-| L4 | 其他定制组件覆盖 | ✅ | **已修**：4 个组件 + 音源更新流程全部接 i18n；Health 参数面板已接三语（37 键，v8.12.1），无遗留 |
-| L5 | 原生层文案 | ✅ | 通知栏文案来自 JS，无原生硬编码 |
-
-## M 组：状态机与持久化（v1 只查"字段有没有"）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| M1 | 状态字段组合一致性 | ✅ | **已修**：13 处 `status` 变更全部补齐 `statusKey`（等待/暂停/失败/重试），重启恢复同时清 `error`/`speed` |
-| M2 | 重启恢复 | ⚠️ | 同 R8；另启动即 `void startNext()`，无权限时可能开机就弹权限框（观察项） |
-| M3 | 幂等性 | ✅ | `migrateDownloadDir` 幂等（已迁移文件不再搬） |
-| M4 | 原子写 | ✅ | `.part` 临时文件 → 完成后移动，正式目录不留半成品 |
-
-## N 组：并发与竞态（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| N1 | 并发上限 | ✅ | `MAX_TASK_LIMIT` 限制同时任务数，`startNext` 串行取任务 |
-| N2 | 暂停/恢复/重试竞态 | ✅ | 进度回调对 `pause` 有守卫；`activeJobs` 按 jobId 管理 |
-| N3 | 缓存命中分支 | ⚠️ | **R1** 正是这条分支的缺陷 |
-
-## O 组：主题与视觉可达性（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| O1 | 主题键合法性 | ✅ | **已修**：`c-font-1 → c-font`（3 处）、`c-border-1 → c-border-background` |
-| O2 | 对比度/暗色可读性 | ⚠️ | 同 R5；进度条对比度已在 b74 提升（6px + 轨道 35%） |
-| O3 | 窄屏/长文案 | 🧪 | 英文/繁体长标签排版未实机验证 |
-| O4 | 小图标辨识 | ✅ | 模式图标矢量化已判定收益不足并关闭（用户确认） |
-
-## P 组：破坏性操作与数据丢失（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| P1 | 文案与行为一致性 | ✅ | **已修**：改为只清列表、不删文件（删文件走 `removeDownload`） |
-| P2 | 覆盖/替换 | ✅ | 覆盖前弹确认，支持「跳过/替换/全部替换」 |
-| P3 | 迁移搬文件 | 🧪 | K25 修复后首次真迁移，需实机确认文件归位且记录同步 |
-
-## Q 组：启动与生命周期（v1 未覆盖）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| Q1 | 冷启动链路 | ✅ | b69/b70 加固后启动不再 NPE；`isReady()` 守卫覆盖 13 个封装函数 |
-| Q2 | 双通道日志 | ✅ | **已修**：3 处改为 `RNFS.TemporaryDirectoryPath`，私有通道恢复可用 |
-| Q3 | 进程被杀后的任务恢复 | ⚠️ | 同 R8 |
-| Q4 | 批量下载完成通知 | ✅ | 通知开关与 toast 逻辑完整（管理器层中文见 R9） |
-
-## R 组：文档与基线一致性（v2 自动化）
-
-| # | 维度 | 状态 | 结论 |
-|---|---|---|---|
-| R1 | 镜像基线（键数/TS 数/底座版本） | ✅ | `node scripts/docs-audit.js` 三项全绿（730 键 / b78 / `a0b2a87`） |
-| R2 | CI 触发条件认知 | ✅ | docs-audit 仅 schedule + dispatch，push 不跑（本轮已记录） |
-| R3 | 审计报告归档 | ✅ | 每轮结论写入 `docs/AUDIT_REPORT-YYYY-MM-DD.md` |
-
-## S 组：设备级验收（唯一未做的层级）
-
-| # | 维度 | 状态 | 说明 |
-|---|---|---|---|
-| S1 | 首次安装 vs 覆盖升级 | 🧪 | 未做 |
-| S2 | 权限流（拒绝/授予/撤销） | 🧪 | 未做 |
-| S3 | 横竖屏切换 | 🧪 | R2 修复后需实测横屏播放页 |
-| S4 | 批量下载/暂停/恢复/清空 | 🧪 | 未做 |
-| S5 | 长中文名/emoji 文件名 | 🧪 | 逻辑已复算，未实机 |
-
----
-
-## 覆盖矩阵：v1 的 39 维 → v2
-
-| v1 组 | v1 维度数 | v2 状态 | 新增覆盖 |
-|---|---|---|---|
-| A 播放核心 | 8 | 复核，2 处 ⚠️ | 无（v2 加深到运行路径） |
-| B 音源管理 | 7 | 复核，3 处 ⚠️ | 返回值契约 |
-| C 状态与存储 | 4 | 复核，1 处 ⚠️ | 状态字段组合一致性 |
-| D UI 与交互 | 6 | 复核，4 处 ⚠️ | 主题键合法性、i18n 管理器层 |
-| E 文档工程 | 6 | ✅ | 自动化基线镜像 |
-| F 原生性能 | 5 | ✅ / 1 📝 | — |
-| G 安全合规 | 3 | 复核，2 处 ⚠️ | 路径/URI/可写性 |
-| **H 定制代码正确性** | 新增 5 | ⚠️ 3 | 符号导入、属性名、返回值 |
-| **I 桥接契约** | 新增 5 | ✅ | 符号/时序/焦点/音量 |
-| **J 依赖与兼容** | 新增 4 | ⚠️ 1 | Hermes Node API |
-| **K 权限与路径** | 新增 5 | ⚠️ 3 | 可写性/URI/判定健壮性 |
-| **L i18n 全链路** | 新增 5 | ⚠️ 2 | 管理器层/定制组件 |
-| **M 状态机与持久化** | 新增 4 | ⚠️ 1 | 重启恢复、原子写 |
-| **N 并发与竞态** | 新增 3 | ⚠️ 1 | 缓存命中分支 |
-| **O 视觉可达性** | 新增 4 | ⚠️ 2 | 主题键、对比度 |
-| **P 破坏性操作** | 新增 3 | ⚠️ 1 | 文案≠行为 |
-| **Q 启动与生命周期** | 新增 4 | ⚠️ 2 | 日志双通道 |
-| **R 文档自动化** | 新增 3 | ✅ | 脚本巡检 |
-| **S 设备验收** | 新增 5 | 🧪 | 待实机 |
-
-**统计**：v1 39 维 + v2 新增 12 组 **50 维** = **89 维**；本轮发现 ⚠️ **15 处**（R1–R15），**已全部修复**（TS 错误 57→14，键数 697→730），🧪 设备级 5 维待实测。
-
-## 版本迭代更新规则
-
-1. 新增功能 → 在对应组新增维度，标记 📝，并写明「消费点在哪、异常如何兜底」。
-2. 修问题 → 维度改 ✅，并在审计报告标注「已修 + 版本号」。
-3. 任何"只读代码确认存在"的结论，必须补一句**运行时可达性判断**（谁调用/何时渲染/异常是否被吞），否则不算审过。
-4. 发版前 → 更新顶部基线（版本 + 代码 commit + 文档 commit）。
-
----
-
-## 修复记录（2026-11-07 · b75）
-
-| 编号 | 修复内容 | 文件 |
-|---|---|---|
-| R1 | 补 `getStoreMusicSource` 导入 | `core/music/utils.ts` |
-| R2 | 默认导出组件补 `const theme = useTheme()` | `PlayDetail/Horizontal/Player/PlayInfo.tsx` |
-| R3 | `RNFS.temporaryDirectoryPath` → `TemporaryDirectoryPath`（3 处） | `utils/logger.ts`、`utils/log.ts` |
-| R4 | `importUserApi` 补 `return info`（类型变为 `Promise<UserApiInfo>`） | `core/userApi.ts` |
-| R5 | 非法主题键改合法键 | `Setting/settings/Health.tsx` |
-| R6 | `HealthItem` 补 `playDead`/`rateLimited` 字段（音源快照确实提供） | 同上 |
-| R7 | 「清空已完成」改为只清列表 | `core/downloadManager.ts` |
-| R8 | 13 处状态变更补齐 `statusKey`，重启恢复清 `error`/`speed` | 同上 |
-| R9 | 权限/覆盖弹窗、toast、异常文案接 i18n（新增 9 键） | 同上 |
-| R10 | 4 个组件 + 音源更新流程接 i18n（新增 13 键） | `QualitySelect`/`MultipleModeBar`/`ListMenu`/`DrawerNav`/`Basic/Source.tsx` |
-| R11 | 显式 `import { Buffer } from 'buffer'` | `core/music/local.ts`、`plugins/sync/client/auth.ts` |
-| R12 | 封面下载加 10s 超时并 `stopDownload` | `core/downloadManager.ts` |
-| R13 | 自定义下载目录写探针验证可写 | 同上 |
-| R14 | 改用错误码分类（`makeError`），不再依赖中文子串 | 同上 |
-| R15 | 目录选择说明补充「仍需所有文件访问」 | `lang/*` |
-
-### 本轮顺带修掉的类型契约缺口（审计时新增发现）
-
-- `Health.tsx`：`getQuerier` 的 action 联合类型补 `'trend'`（音源 v8.0 已实现该 action，App 侧只漏了类型）；趋势历史显式声明类型，消除 3 处隐式 any；补 3 个图例样式（此前只引用未定义）；`Button` 移除无效的 `size`/`type` 属性
-- `types/user_api.d.ts`：`UserApiSourceInfoActions` 补 `health|toggle|probe|config|trend`
-- `types/app_setting.d.ts`：补 `common.enableDebugLog`（`defaultSetting` 有、声明缺失）
-- `core/init/index.ts`、`utils/nativeModules/userApi.ts`：`logger.warn` 第三参数被签名丢弃 → 改成模板串，保留失败原因
-
-
-## O 组：语义契约与展示层一致性（2026-11-08 新增）
-
-> 来源：第二轮全覆盖审查（听歌统计缺陷暴露）。本组不是新增"领域"，而是给已有 L 组（i18n 全链路）
-> 与 M 组（状态机与持久化）补上**可操作判据**——原判据过宽，执行时退化成"键数对齐"。
-
-### 触发案例（2026-11-08）
-
-听歌统计：侧边栏文案是「今日 {today} 次 · 时长 {time}」，实际传的是累计 `playTime`。
-类型全对（都是 number）、40 条文档规则全绿、`check_ts_syntax` 0 错误——**功能是错的**。
-
-### 根因：判据太宽，执行时被简化
-
-原计划里的 i18n / 状态机 / 持久化 组，执行时被落成"键数对不对""字段有没有"，没有落到
-"文案说的意思 **vs** 数据实际的意思"。这类缺陷在单文件纵向读时处处自洽，只有横向穿才看得见。
-
-### 三条硬判据（改动 UI 展示 / 统计 / 配置时必须过）
-
-1. **文案 ↔ 字段横向穿**：每个带参 `t()` 填五行表
-   `文案键 → 占位符 → 传入表达式 → 字段定义 → 写入点`，任一处语义不符即缺陷。
-   易错语义词：今日/累计/剩余/总数/上次/平均/速度/已下载/本次/总时长。
-2. **类型正确不算通过**：`playTime` 与 `dayTime` 都是 number，编译器不会警告；
-   必须人工确认"这个数字语义上是不是文案要的那一个"。
-3. **"改过"不等于"审过"**：注释里的"已修正"只证明被碰过一次，不证明展示层被审查过。
-
-### 三类假阳性（写报告前必须过滤，否则制造假缺陷）
-
-| 假阳性 | 成因 | 过滤方法 |
-|---|---|---|
-| 文案占位符"缺参" | 脚本不认 ES6 属性简写 `{ name }` | 回读源码确认调用形态 |
-| "设置项没人读" | 正则漏 `useSettingValue('...')` / 动态 key | 用短名全仓 grep 复核 |
-| "导出零引用=没接线" | 可能是有意保留的上游死代码 | `git log -S '<符号>'` 回查引入提交再定性 |
-
-### 一条跨仓新判据
-
-**依赖版本"落后"不等于"有问题"**：App 锁定 fork sha 落后 9 个提交，需先看这 9 个提交的性质
-（本例全为 docs/hooks，零代码变更 → 无风险），不能只比较 sha 差异就判缺陷。
-
-### 本轮实跑结果（作为基线）
-
-- 带参 `t()` 共 **73 处**，逐条横向穿 → 0 个 🔴；2 个 ⚪（`ScriptImportOnline.tsx:100` 硬编码英文、`Comment/Header.tsx:35` 冗余传参）
-- 12 处「文案缺参」脚本告警 → **全部假阳性**（ES6 短写）
-- 设置项 75 个：默认值 ↔ 类型声明双向差集为空；7 个"无人读"候选全为假阳性
-- 定时器 12 处：1 个 🟡（`DrawerNav.tsx:84` / `About.tsx:34` 30s 刷新 < core 10s 结算）→ **已修复为 10s 同频**
-
-### 复核命令
-
-```bash
-# 带参 t() 全表（脚本见本轮审查记录；核心是抓 t('key', {...}) 并解第一层 kv）
-grep -rn "t('[a-z_]*', {" src --include=*.tsx | wc -l
-# 文案占位符来源
-python3 -c "import json;print(json.load(open('src/lang/zh-cn.json'))['drawer_stats_today'])"
-# 设置项三处一致
-grep -c "':" src/config/defaultSetting.ts; grep -c "':" src/types/app_setting.d.ts
-```
-
----
-
-## M 组：与音源仓契约（2026-11-09 新增，跨仓复审）
-
-前五轮审计都在音源仓内部做，App 侧只在 `AUDIT_REPORT-2026-11-07.md` 里审过一次，且那次之后音源仓改了三轮（v8.11.0 验真闸门、v8.11.1 D-20/D-21、面板 rateLimitActive）。**音源侧改了，App 侧有没有跟上，之前没人查过。**
-
-### 审计范围（三处，不是全仓 514 文件）
-
-| 面 | 入口 | 判据 |
-|---|---|---|
-| 健康快照字段 | `Health.tsx` 的 `HealthItem` | App 读的每个字段音源必须提供；无幻读 |
-| action 契约 | `core/init/userApi/index.ts` 的 `case health/toggle/probe/config/trend` | 与音源 `actions` 声明一致，参数名一致 |
-| 一键更新流程 | `Basic/Source.tsx` L152–175 | 顺序、失败回退、异常吞并 |
-
-### 结果
-
-| 项 | 结论 | 证据级别 |
-|---|---|---|
-| 字段对照 | 音源给 18 字段，App 声明 13，**差集为空** | L1 结构 + L2 运行 |
-| `playDead` 幻读（R6） | 已消除，音源现提供该字段 | L1 |
-| `healthScore < 0` 判据 | **实测 -4.5 可成立**，非死判据 | L2 实测 |
-| `trend` 上限注释 | 写「60 条」，音源已改 144 → **D-23** | L1 |
-| 一键更新顺序 | 「导入新 → 删旧 → 切新」，切源失败时旧源已删 → **D-24** | L2 走查 |
-| `await setApiSource(...)` | `setApiSource` 是同步函数，await 无效 → **D-25** | L0 类型 |
-| R1/R4/R5/R6 | 回代码核实，四条都真修 | L0/L1 |
-| 错误码映射 | 音源抛 12 码，App 只映射 6 个，且 `NETWORK_TIMEOUT`/`RATE_LIMIT` 两个码名对不上 → **D-27**（英文码直接给用户） | L1 |
-
-### 一条硬判据（跨仓场景通用）
-
-**字段名对得上 ≠ 语义对得上，枚举值集合也要对。**
-
-> 2026-11-09 补：D-27 就是这一条的另一半。字段（`HealthItem`）对上了，但音源抛的 12 个
-> `ERROR_CODES` 里 App 只认 6 个，且 `NETWORK_TIMEOUT` / `RATE_LIMIT` 连码名都不同——
-> `FAIL_CODE_ZH[code] || code` 把英文码直接显示给用户。**核对跨仓契约时，字段、枚举、默认值、单位，四样都要对。**
- 本轮 `healthScore` 从 0~1 改 0~10 分制，App 用 `< 0` 判异常——如果只核对"字段存在"，会认为没问题；如果只按"0~10 分制"推断，会认为判据恒假。**两个推断都错**，必须实测取值范围。
-
-### 复核命令
-
-```bash
-# 字段对照
-grep -n "interface HealthItem" -A 20 src/screens/Home/Views/Setting/settings/Health.tsx
-grep -n "rateLimitActive:" -B 30 ../lx-music-source/lx-source.js | grep -oE "^\s+[a-zA-Z_]+:" | tr -d ' :'
-# action 契约
-grep -n "case 'health'\|case 'toggle'\|case 'probe'\|case 'config'\|case 'trend'" src/core/init/userApi/index.ts
-# 限流优先级
-grep -n "rateLimitActive" src/screens/Home/Views/Setting/settings/Health.tsx
-```
-
-### 已知限制
-
-App 仓无测试基建（上游项目状态），本组结论全部是 **L0/L1/L2 代码走查 + 局部实测**，没有 APK 产物级（L3）和设备级（L4）证据。不因为"审过了"而升级证据级别。
-
----
-
-## T 组：v8.12.x 跨平台标签与工程质量门禁（2026-11-11 新增）
-
-> 本轮不是新增业务领域，而是补两类此前没有进入审计面的东西：
-> ①跨平台兜底后「实际交付平台」在 App 侧的透传与展示；②tsc/eslint/跨仓版本这三道新门禁是否真的守得住。
-> 判据一律按「消费端能观测到什么」写，不按「代码里有没有这个字段」写。
-
-| # | 维度 | 判据（消费端可观测） | 落地检查 | 证据级 |
-|---|---|---|---|---|
-| T1 | `sourcePlatform` 全链路透传 | 源仓返回 `sourcePlatform=tx` 时，preload → userApi → music/utils → online → player store → 播放页/通知栏，任一环丢失即缺陷 | `node scripts/check_source_platform_label.js` L1~L3 | L1/L2 |
-| T2 | 实际平台优先于主平台 | 跨平台交付时标签显示 `QQ音乐 · Juhe`，不得显示主平台「酷我音乐」；旧音源无字段时回退主平台 | 同上 L4/L5 行为矩阵 | L2 |
-| T3 | 标签拼装与未知平台回退 | `buildSourceLabel` 对空平台/空子源/平台=子源/未知平台四种输入都不产生 `undefined`、双分隔符或空串标签 | 同上 L4/L5 行为矩阵 | L1 |
-| T4 | 全链路枚举闭合 | 7 个已知平台（all/bd/kg/kw/mg/tx/wy）都有 i18n key；`local` 不显示平台；未知值回退原 id 而不是空串 | `getPlatformNameKey` / `resolvePlatformName` 断言 | L1 |
-| T5 | 成功缓存保留实际平台 | 二次播放命中缓存时 `sourcePlatform` 不丢，标签不退回主平台 | 同上 L2 链路 + 源仓 U5 | L2 |
-| T6 | 关闭目标源后的标签一致性 | 目标源被关闭后不得继续用其旧缓存显示该平台；重开后可恢复 | 源仓 U10 + App 侧只消费返回值 | L2 |
-| T7 | 跨仓版本一致 | `docs/MUSIC_SOURCE_GUIDE.md` 的当前工作区版本（v8.13.1）与构建时实际拉到的 `builtin_source.js @version` 必须相等，否则构建失败；源仓 master 当前 v8.13.1；若 App 指南版本与远端产物不一致，Release 会按设计阻断 | `release.yml`「Download latest music source」 | L3 |
-| T8 | tsc 门禁 | 全仓 `tsc --noEmit` 0 error，且 step 位于 Setup 后、契约门禁前，失败即阻断构建 | `release.yml` + 本地 `tsc` | L0 |
-| T9 | eslint 门禁 | 全仓 `eslint . --ext .js,.jsx,.ts,.tsx` 0/0；CI 生成物 `builtin_source.js` 必须被忽略，不得回扫 3000+ 风格错误 | `release.yml` + `.eslintrc.cjs` | L0 |
-| T10 | 版本号持久化 | `buildNumber`/`versionCode` 由 CI 注入并回写 `publish/build-state.json`；同版本不重复 bN，Release 回写 `version.json` | Build `42991043602`：b100 / 259 | L3 |
-| T11 | 新增文案三语闭合 | 跨平台总开关、实际平台标签相关键在 zh-cn/zh-tw/en-us 各 997 键，无空串、无重复键、无占位符缺失 | `check_source_config_contract` + `docs-audit` | L1 |
-| T12 | 文档时效 | 计划基线、CHANGELOG、RELEASE_SOP、AGENTS 与当前 HEAD/版本/门禁一致；`docs-audit --dry-run` 待处理 0 | `node scripts/docs-audit.js --dry-run` | L1 |
-
-### T 组执行清单（本轮必须逐条跑，不接受"上次绿过"）
-
-```bash
-node scripts/check_source_platform_label.js        # 9/9
-node scripts/check_source_config_contract.js       # 25/0
-node scripts/check_playback_ownership_runtime.js  # 21/0
-node scripts/check_health_diagnostics.js           # 51/0
-node scripts/check_health_diagnostics_stress.js    # 14/0
-node scripts/check_health_diagnostics_view.js      # 22/0
-node scripts/check_log_directory.js                # 15/0
-node scripts/check_ts_syntax.js                    # 527/0
-node scripts/check_docs_consistency.js             # 17 文档
-node scripts/docs-audit.js --dry-run               # 待处理 0
-node node_modules/typescript/bin/tsc --noEmit      # 0 error
-node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
-```
-
-### T 组压力测试口径
-
-| 压测 | 做法 | 通过标准 |
-|---|---|---|
-| 标签矩阵穷举 | `buildSourceLabel` × 平台（7 已知 + local + 未知 + 空，10 种）× 子源（有/无/同平台名/空，4 种） | 40 组合无 `undefined`/空串/双分隔符/悬挂分隔符；实际平台优先 |
-| 健康诊断压力 | `check_health_diagnostics_stress.js` 10000 条事件、5MB 日志、200 错误码 | 14/14，不崩、不越界、证据包脱敏 |
-| 健康诊断深度审计 | `check_health_diagnostics_deep.js` 51 条：统计/窗口/异常/隐私/多字节/10 万条 | 51/51，详见 [AUDIT_PLAN_HEALTH_DIAGNOSTICS.md](./AUDIT_PLAN_HEALTH_DIAGNOSTICS.md) |
-| 诊断窗口视图模型 | `check_health_diagnostics_view.js` 23 条：折叠态/覆盖/四格统计/缓存命中/错误码分组/空态/1 万次构建 | 23/23 |
-| 跨仓版本反证 | 故意把 `MUSIC_SOURCE_GUIDE` 版本写成 8.11.7，跑构建前校验 | 必须报「文档音源版本 ≠ 本次内置」而非放行 |
-| CI 生成物反证 | 在本地生成一个含分号的 `builtin_source.js`，跑 `eslint .` | 必须 0 错误（证明忽略规则生效，不是恰好没有该文件） |
-
-> 说明：T7~T10 的最终证据以 Build `43177750140` 的 step 日志为准；本地只做同构复核，不把本地绿替代 CI 绿。
-
-### T 组本轮实跑结果（2026-11-12）
-
-| 检查 | 实跑结果 | 退出码 |
-|---|---|---|
-| `check_source_platform_label.js` | **9/9** | 0 |
-| `check_source_config_contract.js` | **25/0** | 0 |
-| `check_playback_ownership_runtime.js` | **21/0** | 0 |
-| `check_health_diagnostics.js` | **51/0** | 0 |
-| `check_health_diagnostics_stress.js` | **14/0**（U6 200 错误码 findings=6） | 0 |
-| `check_health_diagnostics_view.js` | **22/0** | 0 |
-| `check_log_directory.js` | **15/0**（公共优先/私有回迁/四类补齐/并发/压力） | 0 |
-| `check_ts_syntax.js` | **527 文件 0 错误** | 0 |
-| `check_docs_consistency.js` | **17 文档无过时引用** | 0 |
-| `tsc --noEmit` | **0 error** | 0 |
-| `eslint . --ext .js,.jsx,.ts,.tsx` | **0 errors / 0 warnings** | 0 |
-| `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 0 |
-| Build `43177750140` | Android success / Release success / 跨仓版本 v8.12.5 一致（b115 / `8f53b502`） | — |
-
-> 结论：T 组 12 维中 T1~T6、T11~T12 有本次本地实跑证据；T7~T10 以 Build `43177750140` 为产物级证据。S 组设备级（真机横竖屏/通知栏/批量下载）仍未做，按用户要求不列入本轮待办。
-
----
-
-## 2026-11-13 发布前复核口径（b116 之前）
-
-> 本节只记录当前本地提交的复核结果；b115/Build `43177750140` 的产物级证据仍是历史基线，不能替代 b116。
-
-| 检查 | 当前结果 | 说明 |
-|---|---|---|
-| `tsc --noEmit` | 0 error | 全仓 |
-| `eslint . --ext .js,.jsx,.ts,.tsx` | 0 error / 0 warning | 全仓 |
-| `check_source_contract.js` | 14/0 | 13 action；preload 两 case |
-| `check_source_health_persistence.js` | 17/0 | canonical key、旧键迁移、v2 拆分、G5 动态源/版本 |
-| `check_health_persistence_v2.js` | 9/0 | control 独立 key、v1 兼容、v1→v2 迁移、TTL/64KB |
-| `check_health_event_pipeline.js` | 10/0 | 事件白名单、去重、sourceEvents 脱敏、三块隔离 |
-| `check_health_state_v2.js` | 7/0 | 4 主状态 + reason、4 主状态唯一归属、主状态摘要、UI 消费 |
-| `check_health_ui_mapping.js` | 11/0 | 主状态文案/颜色、reason 本地化、双摘要、质量矩阵七项、绑定、三语无硬编码 |
-| `check_source_platform_label.js` | 9/9 | 实际平台标签 |
-| `check_source_config_contract.js` | 25/0 | 配置键/三语 |
-| `check_playback_budget.js` | 20/0 | 24s 预算 |
-| `check_playback_ownership_runtime.js` | 21/0 | fallbackOwner + 16 源错误码全覆盖、英文界面无中文 |
-| `check_player_progress_runtime.js` | 4/0 | setProgress 以 totalTime 为分母 |
-| `check_release_state_contract.js` | 5/0 | tag target_commitish、状态同 bN、push fail-closed |
-| `check_media_body.js` | 6/0 | `__lxMedia:2` |
-| `check_download_persistence.js` | 3/0 | 下载落盘剥离 `statusText` |
-| `check_download_restore_runtime.js` | 3/0 | run→waiting、完成保留、空存储不写 |
-| `check_ts_syntax.js` | 527/0 | TS/TSX |
-| `check_docs_consistency.js` | **18 文档 0 过时** | 本轮实跑 |
-| `docs-audit --dry-run` | **待处理 0**（报告 20 项） | 本轮实跑 |
-
-**G5 关闭**：`KNOWN_SOURCE_IDS`/固定 `HEALTH_STATE_SOURCE_VERSION` 已删除；写入取快照 `sourceVersion`，源 ID 按 `sources` 实际键校验；新源新版本往返 13/0。
-
-**G7/G8 边界**：wy 原生链成立；tx 只有 60 秒试听（vkeys `quality=6` 503，直连 `200` 但 ffprobe `60.029s`），源侧 5/5 `NOT_FOUND`，不算完整原生交付。G8 官方 API 本地仍可能 403；新增 `scripts/check_source_ci_gate_offline.js` 离线复核 Actions 页面内嵌 JSON，rc0 可作为本地补充证据；构建 runner 仍用 `check_source_ci_gate.js` + `GITHUB_TOKEN`。
-
-
-
----
-
-## 2026-11-14 音质优先改动专项审计（当前 HEAD `20d953f0`）
-
-> 触发：`getPlayQuality/getDownloadQuality` 改为按源能力表请求、`type` 实际交付档、`fragment` 试听语义、`qualityConfidence` 透传、缓存前缀 v2。
-> 纪律：本次结论只认 `20d953f0` 工作区实跑；历史绿不替代。重点不是“设置 flac 能不能出 flac”，而是“会不会把低质/片段/旧源标成高质或成功”。
+## 5. 音质优先改动专项（`ff9647cc`，Q-A1~A8）
 
 | ID | 检查面 | 关键位置 | 验收 |
 |---|---|---|---|
-| Q-A1 | 自定义源请求档 | `src/core/music/utils.ts` 的 `isCustomSource/getAvailableQualitys/getPlayQuality` | 自定义源不再被内置 `meta._qualitys` 裁剪；内置源仍双裁剪；12/0 含 P1-E2E、P1-CACHE |
-| Q-A2 | 下载档位一致 | `downloadManager.ts`、`QualitySelect.tsx`、`ListItem.tsx`、`PlayHighQuality.tsx` | 默认档跟随设置；候选过滤；`onQuality` 回填实际档；设置页动态隐藏 flac24bit |
-| Q-A3 | 实际交付档与 attempts | `online.ts`、`index.ts`、`playbackBudget.ts`、`healthLog.ts` | 成功路径 attempts 带 requested/delivered；失败路径不丢段；日志脱敏 |
-| Q-A4 | 片段语义 | `sourceLabel.ts`、两处 `PlayInfo.tsx`、`playList.ts`、`downloadManager.ts`、`service.ts` | 播放页/通知栏「试听」；下载文件名 `[试听]`；片段不回报播放成功；子源名含“试听”不重复 |
-| Q-A5 | 置信度 | `init/userApi/index.ts`、`utils.ts`、`online.ts` | `exact/estimated/unknown` 透传；片段固定 unknown；旧源缺省 exact 仅兼容 |
-| Q-A6 | 缓存/旧数据 | `config/constant.ts`、`getStoreMusicUrl` | v2 前缀；旧键不删除；缓存命中不把片段当完整；无 URL/歌名落盘 |
-| Q-A8 | 缓存片段语义 | `utils/data.ts`、`online.ts`、`utils.ts` 候选缓存、`check_quality_request_runtime.js` P1-CACHE | `saveMusicSource/getStoreMusicSource` 保留 `fragment?: boolean`；缓存命中按真实片段回读，不固定改写成完整；第二次播放仍标「试听」且不回报成功 |
-| Q-A7 | 回归面 | 播放预算、所有权、播放器 service/progress/utils、下载持久化/恢复、三语/标签、docs | 相关门禁全绿；无新增硬编码文案；无跨仓契约漂移 |
+| Q-A1 | 自定义源请求档 | `utils.ts` `isCustomSource/getAvailableQualitys/getPlayQuality` | 自定义源不被 `meta._qualitys` 裁剪；内置源双裁剪；12/0 |
+| Q-A2 | 下载档位一致 | `downloadManager.ts`、`QualitySelect.tsx`、`ListItem.tsx`、`PlayHighQuality.tsx` | 默认档跟随设置；`onQuality` 回填实际档 |
+| Q-A3 | 实际交付档与 attempts | `online.ts`、`index.ts`、`playbackBudget.ts`、`healthLog.ts` | 成功路径 attempts 带 requested/delivered |
+| Q-A4 | 片段语义 | `sourceLabel.ts`、`PlayInfo.tsx`×2、`playList.ts`、`downloadManager.ts`、`service.ts` | 播放页/通知栏「试听」；下载 `[试听]`；片段不回报成功 |
+| Q-A5 | 置信度 | `index.ts`、`utils.ts`、`online.ts` | `exact/estimated/unknown` 透传；片段固定 unknown |
+| Q-A6 | 缓存/旧数据 | `config/constant.ts`、`getStoreMusicUrl` | v2 前缀；缓存命中不把片段当完整 |
+| Q-A7 | 回归面 | 播放预算/所有权/下载/三语/标签/docs | 相关门禁全绿 |
+| Q-A8 | 缓存片段语义 | `utils/data.ts`、`online.ts` | `fragment` 真实回读；二次命中仍「试听」 |
 
-**本轮审计结果（2026-11-14，工作区 `20d953f0` + 未提交审计补丁）**：
+---
 
-- `npx tsc --noEmit` rc0；`check_ts_syntax` 527 文件 0 错误。
-- 34 个 `scripts/check_*.js` 全部实跑：33 个 rc0；`check_source_ci_gate` rc2 唯一阻塞，原因是 GitHub API 403 rate limit（外部额度，不是代码失败），离线版 `check_source_ci_gate_offline` rc0。
-- 关键数字：`quality_request` 12/0（含 P1-CACHE）、`playback_budget` 21/0、`playback_ownership` 21/0、`player_service` 10/0、`player_utils` 7/0、`player_progress` 4/0、`download_persistence` 3/0、`download_restore` 3/0、`docs_consistency` 18 文档 0 过时。
-- 审计新发现并已修：缓存命中把片段固定为 `false`（Q-A8/P1-CACHE）；否则片段 URL 二次缓存命中会被当完整交付。
-- 未做：真机 10 首矩阵、真机 A/B 延迟、真上游持续稳定性；本轮仍只对纯 Node/内存 FS 结论负责。
+## 6. 执行清单（本轮必跑，不接受「上次绿过」）
 
-**执行命令（必须本轮实跑）**：`tsc --noEmit`、定向 `eslint`、`check_quality_request_runtime`、`check_playback_budget`、`check_playback_ownership_runtime`、`check_source_platform_label`、`check_player_service_runtime`、`check_player_utils_runtime`、`check_player_progress_runtime`、`check_download_persistence`、`check_download_restore_runtime`、`check_docs_consistency`。
+```bash
+node node_modules/typescript/bin/tsc --noEmit
+node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
+node scripts/check_ts_syntax.js                 # 527 文件
+node scripts/check_source_contract.js           # 14/0
+node scripts/check_source_config_contract.js    # 25/0
+node scripts/check_quality_request_runtime.js   # 12/0
+node scripts/check_playback_budget.js           # 21/0
+node scripts/check_playback_ownership_runtime.js # 21/0
+node scripts/check_source_platform_label.js     # 9/9
+node scripts/check_player_service_runtime.js    # 10/0
+node scripts/check_player_utils_runtime.js      # 7/0
+node scripts/check_player_progress_runtime.js   # 4/0
+node scripts/check_download_persistence.js      # 3/0
+node scripts/check_download_restore_runtime.js  # 3/0
+node scripts/check_docs_consistency.js          # 18 文档
+node scripts/docs-audit.js --dry-run            # 待处理 0
+```
+
+通过标准：全部 rc0；`tsc` 0 error；`eslint` 0/0。
+
+---
+
+## 7. 缺口清单（当前未覆盖）
+
+| ID | 缺口 | 验证方法 | 验收 |
+|---|---|---|---|
+| S1~S5 | 设备级：首装/升级、权限流、横竖屏、批量下载、长文件名 | 真机 | 标 🧪，待实机 |
+| X-L1~L3 | 音质政策 App 消费面（见 §4） | App 侧跟进 | 见 §4 处置 |
+| 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
+
+---
+
+## 8. 失败处置与外部阻塞
+
+1. `check_source_ci_gate` 本地 `GITHUB_TOKEN` 无效 → 用 `git credential fill` 取有效令牌复跑；CI runner 仍用自带 `GITHUB_TOKEN`。
+2. G2 真机、G7 tx 完整链 blocked，不写成通过。
+3. 本计划只对纯 Node/内存 FS 结论负责。
