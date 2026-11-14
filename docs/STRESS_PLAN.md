@@ -61,6 +61,23 @@ node scripts/check_docs_consistency.js
 node scripts/docs-audit.js --dry-run
 ```
 
+## 2b. 定制功能压测映射（排除车机版）
+
+> 每个定制功能对应的压测脚本与条数，一表定位。车机版相关项已移出本计划。
+
+| 定制功能 | 压测脚本 | 条数 | 压测边界 |
+|---|---|---:|---|
+| 音源健康·诊断 | `check_health_diagnostics_stress` + `check_health_diagnostics_deep` + `check_health_diagnostics_view` | 14+51+24 | 1 万事件/5MB 截尾/200 错误码/10 万聚合/1 万构建 |
+| 音源健康·状态/UI/事件/持久化 | `check_health_status_refactor` + `check_health_state_v2` + `check_health_ui_mapping` + `check_health_event_pipeline` + `check_health_persistence_v2` + `check_health_anomaly_v2` + `check_source_health_persistence` | 10+7+11+10+9+8+17 | 状态机/去重/v1 拒绝/容量版本边界 |
+| 音源管理 | `check_source_config_contract` + `check_source_contract` | 25+14 | 37 键/数字布尔边界/14 action/envelope |
+| 下载管理器 | `check_download_persistence` + `check_download_restore_runtime` | 3+3 | 恢复不丢任务/路径/覆盖 |
+| 播放器核心 | `check_player_service_runtime` + `check_media_body` | 10+… | 服务运行时/媒体信封 |
+| 播放失败与预算 | `check_playback_budget` | 21 | 24s 预算/attempts 落盘/失败段不丢档 |
+| 音质请求档 | `check_quality_request_runtime` | 12 | 自定义/内置双裁剪/片段缓存回读 |
+| 音源标签 | `check_source_platform_label` | 9 | 实际平台优先/试听标签 |
+
+---
+
 ## 3. 音质政策联动压测（`fb94fcf` 源侧变更对 App 的连带）
 
 | 联动点 | 判据 | 守的脚本 |
@@ -79,7 +96,7 @@ node scripts/docs-audit.js --dry-run
 | `tsc --noEmit` | 0 error |
 | `eslint .` | 0 error / 0 warning |
 | `npm run build-test` | rc0 |
-| 三语 | 各 997 键 |
+| 三语 | 各 999 键 |
 
 > 本轮完整 rc 与条数以实跑为准；历史绿不替代。
 

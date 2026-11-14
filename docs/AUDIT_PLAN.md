@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `3cecdd02`（已推送），v1.9.2-b125 / versionCode 284
 > - 源仓：`luanmuc/backend-api` @ `fb94fcf`（已推送），v8.13.1
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **997 键**、TS/TSX **527 文件**、`scripts/check_*.js` **34 个**（release.yml 引 30，另 4 个在 health-stress.yml 或离线）
+> - 硬数字：三语各 **999 键**、TS/TSX **527 文件**、`scripts/check_*.js` **34 个**（release.yml 引 30，另 4 个在 health-stress.yml 或离线）
 >
 > **对应变更**：`ff9647cc`「按源能力请求音质并回填真实交付档」+ 源仓 `fb94fcf`「音质政策优化 P0/P1」。
 
@@ -48,7 +48,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 25/0；37 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 997 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 999 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -81,6 +81,35 @@
 | 跨平台标签 | `sourcePlatform` 全链路、实际平台优先、标签拼装 | `check_source_platform_label` | ✅ |
 
 **状态说明**：✅ 已审无问题；⚠️ 已审发现问题；📝 待审；🧪 需设备实测。
+
+---
+
+## 3b. 定制功能逐项明细（排除车机版）
+
+> 每个定制功能单列一行：功能 → 关键位置 → 守的脚本/断言 → 状态。**车机版（横屏排行榜、车机布局、车机通知栏竖排按钮）不在本计划范围**；通知栏的常规定制（播放模式按钮/显示格式）仍保留。
+
+| 定制功能 | 关键位置 | 守的脚本/断言 | 状态 |
+|---|---|---|---|
+| 音质优先播放（请求档/真实标签/下载档/缓存版本/置信度/片段语义） | `core/music/utils.ts`、`online.ts`、`downloadManager.ts`、`utils/data.ts` | `check_quality_request_runtime` 12/0 | ✅ |
+| 音源健康面板（4 主状态+reason、质量矩阵、趋势、配置、异常） | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0、`check_health_ui_mapping` 11/0、`check_health_anomaly_v2` 8/0 | ✅ |
+| 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 24/0 | ✅ |
+| 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
+| 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
+| 音源管理（配置契约 37 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 25/0、`check_source_contract` 14/0 | ✅ |
+| 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
+| 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
+| 通知栏定制（播放模式按钮/显示格式/音源名音质不被歌词覆盖） | `android/app/src/main` | 静态走查；真机 blocked | 📝 |
+| 播放页音源标签（实际平台优先/子源名/试听标签） | `sourceLabel.ts`、`PlayInfo.tsx`、`playList.ts` | `check_source_platform_label` 9/9 | ✅ |
+| 播放失败原因（错误码中文化/友好摘要/attempts 账本/降级所有权/取链预算） | `utils.ts`、`online.ts`、`playbackBudget.ts` | `check_playback_budget` 21/0、`check_playback_ownership_runtime` 21/0 | ✅ |
+| 桥接媒体传输（base64 信封/256KB 分片） | `service.ts`、media envelope | `check_media_body` | ✅ |
+| 日志目录与隐私（公共优先/私有回迁/无 URL 歌名歌手） | `utils/log.ts` | `check_log_directory` 15/0 | ✅ |
+| 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
+| 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
+| 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
+| 三语国际化（999 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` 34 个 | 全部门禁 rc0 | ✅ |
+
+**状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
 ---
 

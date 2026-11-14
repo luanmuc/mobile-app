@@ -235,8 +235,13 @@ function ruleI18nKeys() {
 
 // ── 规则 13：SYNC_POINTS「音源 action（N 个）」↔ 音源 actions 并集（跨仓）──
 function ruleSyncPointsActions() {
-  const sib = path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js')
-  if (!fs.existsSync(sib)) { report.push('⚪ 规则13 跳过：本地无 ../lx-music-source'); return }
+  // 跨仓基准：优先当前主线音源仓 backend-api-latest，兼容旧布局 lx-music-source
+  const candidates = [
+    path.resolve(ROOT, '..', 'backend-api-latest', 'lx-source.js'),
+    path.resolve(ROOT, '..', 'lx-music-source', 'lx-source.js')
+  ]
+  const sib = candidates.find((p) => fs.existsSync(p))
+  if (!sib) { report.push('⚪ 规则13 跳过：本地无相邻音源仓（backend-api-latest / lx-music-source）'); return }
   const src = fs.readFileSync(sib, 'utf8')
   const init = (src.match(/const actions = \[([^\]]*)\]/) || [])[1] || ''
   const pushed = (src.match(/actions\.push\([^)]*\)/g) || []).join(';')
