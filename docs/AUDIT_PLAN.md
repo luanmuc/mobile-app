@@ -178,17 +178,17 @@ node scripts/docs-audit.js --dry-run            # 待处理 0
 | X-L1~L3 | 音质政策 App 消费面（见 §4） | App 侧跟进 | 见 §4 处置 |
 | 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
 | 健康诊断·未闭环 4 项 | ①真实播放回传去重（同歌多次 Playing 每次成功回传会抬高样本数）②`probeSource` 只读语义 ③自动关闭 TTL 6h 重启复验 ④真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 / 宿主模拟 | 见 `AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` §6；未闭环前不宣称「健康判定完全正确」 |
-| **G-A01** | **错误码文案缺 4 键（用户可见缺陷）**：源 `ERROR_CODES` 16 个，`FAIL_CODE_ZH` 仅 15 键覆盖 12 个源码，缺 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`/`CONTRACT_ERROR`/`CANCELED` → 走兜底后**界面直接显示英文常量**；该表注释仍写「12 个码全部补齐」 | `utils.ts:721~737` 对照源 `ERROR_CODES` | **高**，待修 |
-| G-A02 | 4 主状态映射 144 种组合仅 10 条断言覆盖 | `check_health_status_refactor.js` vs 144 组合 | 高 |
-| G-A03 | 下载器 922 行只有间接覆盖，24 个 check 脚本中无 `check_download*` 专项 | 脚本清单 grep | 高 |
-| G-A04 | 诊断错误码分组只认 12 个码 | 诊断面板聚合键 | 中 |
-| G-A05 | 无 jest / testing-library，纯函数无系统单测 | `package.json` | 中 |
-| G-A06 | `Health.tsx` 仍有 4 处硬编码中文 | 实测 grep | 低 |
-| G-A07 | `as any` / `@ts-ignore` 未量化建档 | 无基线 | 低 |
+| ~~G-A01~~ **已核销** | 原记「错误码文案缺 4 键、界面显示英文常量」 | **2026-11-15 复核不成立**：`src/core/music/utils.ts` 已重构为 `FAIL_CODE_I18N_KEY`，源侧 16 个码全覆盖（含 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`/`CONTRACT_ERROR`/`CANCELED`）；4 个 `player_error_*` key 在 `src/lang/{zh-cn,zh-tw,en-us}.json` 979~982 行均有三语翻译；表注释已改为「共 16 个（v8.13）」 | 已修复，无需处理 |
+| G-A02 | 4 主状态映射 144 种组合仅 10 条断言覆盖 | `check_health_status_refactor.js` 实跑 10/0；无状态全枚举套件 | 待补（对应压测 E14） |
+| ~~G-A03~~ **不成立** | 原记「下载器 922 行无 `check_download*` 专项」 | **2026-11-15 复核不成立**：已有 `check_download_error_i18n.js` / `check_download_persistence.js` / `check_download_restore_runtime.js` | 已覆盖；仅队列压力未做（E19） |
+| G-A04 | 诊断错误码分组只认 12 个码 | 未复核到证据（`FAIL_CODE_I18N_KEY` 已按 16 码建表） | 待复核，可能随 G-A01 一并解决 |
+| G-A05 | 无 jest / testing-library，纯函数无系统单测 | `package.json` | 仍成立（全仓 node 脚本形态） |
+| G-A06 | 原记 `Health.tsx` 有 4 处硬编码中文 | 文件已移至 `src/screens/Home/Views/Setting/settings/Health.tsx`；77 行含中文，抽样均为 `//` 注释 | 待复核，倾向不成立 |
+| G-A07 | `as any` / `@ts-ignore` 未量化建档 | 当前实测 22 处 | 仍成立（有数量、无明细建档） |
 | G-A08 | 真机验收 blocked | 无 `adb` / 无 `/dev/kvm` / `ANDROID_HOME` 未设 | blocked |
 | G-A09 | tx 完整曲目 blocked（上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`） | 上游限制 | blocked |
 
-> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」，均为实测非推测；2026-11-15 删除该草稿前逐条承接至此（原文其余 14 域 99 项已被本计划 §2~§4 覆盖）。
+> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」。**2026-11-15 承接时已对当前代码逐条复核**：G-A01 已修复、G-A03 不成立（均为 b118 之后修掉），其余标注为「待补 / 待复核 / 仍成立」。凡标「待复核」者未经实测定论，不得当作待修缺陷计入交付。
 
 ---
 
