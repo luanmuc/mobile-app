@@ -129,6 +129,8 @@ export default async(setting: LX.AppSetting) => {
                         subSource?: string
                         subSourceName?: string
                         sourcePlatform?: string
+                        fragment?: boolean
+                        qualityConfidence?: 'exact' | 'estimated' | 'unknown'
                       }>(res.data)
                       return {
                         type: data?.type ?? type,
@@ -136,6 +138,8 @@ export default async(setting: LX.AppSetting) => {
                         subSource: data?.subSource ?? '',
                         subSourceName: data?.subSourceName ?? '',
                         sourcePlatform: data?.sourcePlatform ?? '',
+                        fragment: data?.fragment === true,
+                        qualityConfidence: data?.qualityConfidence,
                       }
                     }).catch(err => {
                       console.log(err.message)

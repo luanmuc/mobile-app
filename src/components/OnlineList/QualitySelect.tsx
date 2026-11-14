@@ -5,7 +5,7 @@ import Button from '@/components/common/Button'
 import Text from '@/components/common/Text'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
-import { FULL_QUALITYS_LIST } from '@/core/music/utils'
+import { getAvailableQualitys } from '@/core/music/utils'
 import { useI18n } from '@/lang'
 
 export const QUALITY_NAMES: Record<string, string> = {
@@ -36,10 +36,8 @@ export default forwardRef<QualitySelectType, Props>(({ onConfirm }, ref) => {
   useImperativeHandle(ref, () => ({
     show(musicInfo) {
       musicInfoRef.current = musicInfo
-      // 获取当前歌曲实际支持的音质列表
-      const supportedQualitys = (musicInfo.meta?._qualitys || {}) as Record<string, boolean>
-      // 按高到低排列，只保留实际支持的（含 192k/ape/wav 等完整音质）
-      const available = FULL_QUALITYS_LIST.filter(q => supportedQualitys[q])
+      // 获取当前歌曲实际支持的音质列表（自定义源按源 qualityList，内置源按 _qualitys）
+      const available = getAvailableQualitys(musicInfo)
       // 默认选最高的可用音质
       setQuality(available[0] || '128k')
       setVisible(true)
@@ -77,8 +75,7 @@ export default forwardRef<QualitySelectType, Props>(({ onConfirm }, ref) => {
                 (() => {
                   const musicInfo = musicInfoRef.current
                   if (!musicInfo) return null
-                  const supported = (musicInfo.meta?._qualitys || {}) as Record<string, boolean>
-                  const availableList = FULL_QUALITYS_LIST.filter(q => supported[q])
+                  const availableList = getAvailableQualitys(musicInfo)
                   return availableList.map((q) => {
                     const isActive = quality == q
                     const nameKey = QUALITY_NAMES[q]

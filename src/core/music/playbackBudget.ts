@@ -17,6 +17,9 @@ export interface PlaybackAttempt {
   ok: boolean
   code: string
   latencyMs: number
+  // 诊断字段：App 请求档 / 源实际交付档；仅用于本地归因，不参与成功判定。
+  requestedQuality?: LX.Quality
+  deliveredQuality?: LX.Quality
 }
 
 /** 主源归谁：源声明 source 即源内换源；其余（缺省/host）由宿主兜底。 */

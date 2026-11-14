@@ -47,8 +47,9 @@ export const storageDataPrefix = {
   listPrevSelectId: '@list_prev_select_id',
 
   lyric: '@lyric__',
-  musicUrl: '@music_url__',
-  musicSource: '@music_source__',
+  // v2：音质请求档修复后，旧缓存里的 flac 槽可能实际存的是 128k；升版本前缀让旧条目自然失效。
+  musicUrl: '@music_url_v2__',
+  musicSource: '@music_source_v2__',
   musicOtherSource: '@music_other_source__',
   playInfo: '@play_info',
 

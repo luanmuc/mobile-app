@@ -66,6 +66,7 @@ declare namespace LX {
         musicInfo: LX.Music.MusicInfoOnline
         url: string | null
         quality: LX.Quality
+        fragment?: boolean
         ext: FileExt
         fileName: string
         filePath: string

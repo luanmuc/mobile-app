@@ -52,6 +52,10 @@ musicSdk（内置官方源）  ──┐
 |---|---|
 | `string`（URL） | 旧音源裸链接，子源未知（播放页只显示平台名） |
 | `{url, type}` | 携带实际交付音质（v1.0+），子源未知 |
+> **音质请求契约（2026-11-14，P0）**：官方文档只规定 `qualitys` 是「该源支持、可被请求的音质列表」，`info.type` 是 App 本次请求的音质；`musicUrl` 返回 `{url, type?, subSource?, subSourceName?, sourcePlatform?, fragment?, qualityConfidence?}`；`qualityConfidence` 仅表示档位置信度（`exact` / `estimated` / `unknown`，片段兜底固定 `unknown`），不是官方字段，源侧对 m4a/ogg 估算档返回 `estimated`、无法判定返回 `unknown`；旧源缺省时 App 按 `exact` 处理但不据此宣称标签真实。其中 `type` 是本 fork 的源侧扩展（实际交付档），App 用 `res.data.type ?? 请求 type` 兼容旧源，因此旧源不返回 `type` 时只能按请求档显示，不能宣称标签真实。
+>
+> App 侧 `getAvailableQualitys()` 对自定义源只按 `global.lx.qualityList[source]` 过滤 `FULL_QUALITYS_LIST`，**不再**用内置搜索结果的 `musicInfo.meta._qualitys` 做歌曲级裁剪——自定义源不提供搜索，`_qualitys` 来自内置源，内置结果没 flac 标记时会把设置 flac 直接降成 128k 请求；内置源保持 `qualityList + _qualitys` 双裁剪。`fallbackOwner=source` 时 App 不跨源、不竞速，降档全部在源脚本内部完成。
+
 | `{url, type, subSource, subSourceName, sourcePlatform}` | **v8.12.0 推荐**：再携带实际交付平台（`tx`/`wy`/`kw`），播放页显示「实际平台 · 子源名」（如「企鹅音乐 · Juhe聚合(tx)」）；旧音源无该字段时回退主平台 |
 | `{url, type, subSource, subSourceName}` | v6.0+ 兼容：只带子源，播放页显示「主平台 · 子源名」 |
 

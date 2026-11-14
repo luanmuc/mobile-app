@@ -48,9 +48,10 @@ export const resolvePlatformName = (
   return translatedName !== undefined && translatedName !== '' ? translatedName : value
 }
 
-export const buildSourceLabel = (platformName?: string, sourceName?: string) => {
+export const buildSourceLabel = (platformName?: string, sourceName?: string, fragment?: boolean) => {
   const platform = String(platformName ?? '').trim()
   const source = String(sourceName ?? '').trim()
-  if (source && platform && source !== platform) return `${platform} · ${source}`
-  return source !== '' ? source : platform
+  const base = (source && platform && source !== platform) ? `${platform} · ${source}` : (source !== '' ? source : platform)
+  if (fragment && base && !base.includes('试听')) return `${base} · 试听`
+  return base
 }

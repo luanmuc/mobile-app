@@ -57,7 +57,7 @@ const getNotificationSubSource = () => {
   const platform = resolvePlayPlatform(source, null)
   const platformKey = getPlatformNameKey(platform)
   const platformName = resolvePlatformName(platform, platformKey ? global.i18n.t(platformKey) : '')
-  const label = buildSourceLabel(platformName, source.name)
+  const label = buildSourceLabel(platformName, source.name, source.fragment === true)
   return label || undefined
 }
 

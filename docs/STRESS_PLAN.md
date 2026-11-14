@@ -1,6 +1,6 @@
 # App 压力测试计划（2026-11-14 最终版）
 
-> 适用基线：App `921737f2`（master 已推送；App Build `43569611762` success，发布 `v1.9.2-b124` / versionCode 283）；源仓 `e0a4590`（v8.13.1 + S-01 + Z9 真实 push 失败注入，已推送，CI `43568304962` success）。
+> 适用基线：App `20d953f0`（本地未 push，v1.9.2 / versionCode 283）；源仓 `101c2e7`（本地未 push，v8.13.1）。历史 `921737f2` / `e0a4590` 仅作已推送快照。
 > 目标：在推送/发布前，用可重复的纯 Node/内存 FS 压力用例证明「大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约」不会崩、不会越界、不会泄露，也不会把失败伪装成通过。
 > 范围：本计划覆盖 `scripts/check_*.js` 中可直接本地执行的压力/深度/契约检查；`health-stress.yml` 仍是周级兜底，`release.yml` 仍以正式门禁为准。
 > 纪律：所有结论必须带本轮 HEAD 的 rc 与通过/失败计数；禁止沿用历史绿；`blocked` 不等于通过。
@@ -53,6 +53,7 @@ npm run build-test
 node scripts/check_docs_consistency.js
 node scripts/check_ts_syntax.js
 node scripts/check_media_body.js
+node scripts/check_quality_request_runtime.js
 node scripts/check_playback_budget.js
 node scripts/check_playback_ownership_runtime.js
 node scripts/check_source_platform_label.js
@@ -79,3 +80,15 @@ node scripts/docs-audit.js --dry-run
 3. G2 真机验收仍 blocked：云主机无 `adb`、无 `/dev/kvm`、`ANDROID_HOME` 未设置，`health_device_acceptance.sh --dry-run` rc=3。
 4. G7 tx 完整曲目仍 blocked：上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`。
 5. 真机持久化/RN 桥/分享 Intent 仍无设备级证据；本计划只对纯 Node/内存 FS 结论负责。
+
+
+## 5. 2026-11-14 音质改动补充压测
+
+| # | 检查 | 脚本/方式 | 边界 | 通过标准 |
+|---|---|---|---|---|
+| S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 自定义源 flac/320k/128k、内置源双裁剪、设置档不越级/不升档、端到端实收 `type=flac`、片段缓存回读 | 12/0，attempts 请求/交付档一致，P1-CACHE 片段语义不回退 |
+| S17 | 播放预算与失败段 | `check_playback_budget.js` | 24s 预算、attempts 落盘、候选缓存、失败段不丢 requested/delivered | 21/0 |
+| S18 | 片段/下载/播放服务 | `check_source_platform_label`、`check_player_service_runtime`、`check_download_persistence`、`check_download_restore_runtime` | 试听标签不重复、片段不回报成功、下载 metadata fragment、恢复不丢任务 | 各脚本 0 失败 |
+| S19 | 诊断压力 | `check_health_diagnostics_stress.js` + `check_health_diagnostics_deep.js` | 10000 条事件、200 错误码、5MB 日志、10 万条聚合 | 14/0、51/0 |
+
+压测纪律：先跑当前 HEAD；任一脚本非 0 即记录失败，不以“局部通过”代替；真机/真上游仍按原计划标 blocked。

@@ -27,7 +27,10 @@ const Item = ({ id, name }: {
 export default memo(() => {
   const t = useI18n()
   const playQualityList = useMemo(() => {
-    return [...TRY_QUALITYS_LIST, '128k'].reverse() as LX.Quality[]
+    // flac24bit 只有部分源支持；当前自定义源通常只上报到 flac，避免选了却永远降档。
+    const hasFlac24bit = Object.values(global.lx.qualityList).some((list) => list?.includes('flac24bit'))
+    const list = [...TRY_QUALITYS_LIST, '128k'].reverse() as LX.Quality[]
+    return list.filter(q => q !== 'flac24bit' || hasFlac24bit)
   }, [])
 
   return (

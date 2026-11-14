@@ -21,7 +21,7 @@ runs:
       shell: bash
       run: echo "cachedir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
 
-    - name: Cache node modules
+    - name: Cache npm cache
       id: cache-npm
       uses: actions/cache@v4
       with:
@@ -31,6 +31,19 @@ runs:
         restore-keys: |
           ${{ runner.os }}-npm-cache-
 
+    - name: Cache node_modules
+      # 362MB 依赖装一次约 100s；key 锚定 lockfile + Node 版本，
+      # 命中后跳过 npm ci，三个 job（lint/checks/Android）共享同一份缓存。
+      id: cache-node-modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node_modules-${{ hashFiles('package-lock.json', '.nvmrc') }}
+        restore-keys: |
+          ${{ runner.os }}-node_modules-
+
     - name: Install dependencies
+      # 仅缓存未命中时安装；命中时 node_modules 直接可用。
+      if: steps.cache-node-modules.outputs.cache-hit != 'true'
       shell: bash
-      run: npm ci
+      run: npm ci --prefer-offline --no-audit --no-fund

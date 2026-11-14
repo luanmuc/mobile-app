@@ -42,7 +42,7 @@ export default () => {
   const actualPlatform = resolvePlayPlatform(playSource, src as string | undefined)
   const platformKey = getPlatformNameKey(actualPlatform)
   const platformName = resolvePlatformName(actualPlatform, platformKey ? t(platformKey) : '')
-  const sourceLabel = buildSourceLabel(platformName, playSource?.name)
+  const sourceLabel = buildSourceLabel(platformName, playSource?.name, playSource?.fragment === true)
   // console.log('render playInfo')
 
   return (

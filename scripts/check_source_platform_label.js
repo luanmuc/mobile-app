@@ -127,6 +127,8 @@ run('L4/L5 标签行为矩阵', () => {
   assert.strictEqual(buildSourceLabel(nameOf('tx'), ''), 'QQ音乐', '子源名缺失时只显示平台名')
   assert.strictEqual(buildSourceLabel('', ''), '', '全缺失时为空')
   assert.strictEqual(buildSourceLabel('QQ音乐·Juhe聚合(tx)', 'Juhe聚合(tx)'), 'QQ音乐·Juhe聚合(tx) · Juhe聚合(tx)', '子源名已含平台时仍按统一分隔拼装（防重复由调用方传纯子源名）')
+  assert.strictEqual(buildSourceLabel(nameOf('kw'), '溯音酷我', true), '酷我音乐 · 溯音酷我 · 试听', '片段追加试听标记')
+  assert.strictEqual(buildSourceLabel(nameOf('kw'), '溯音酷我 · 试听版', true), '酷我音乐 · 溯音酷我 · 试听版', '子源名已含试听时不重复追加')
   assert.strictEqual(getPlatformNameKey('tx'), 'source_real_tx', '已知平台映射到 i18n key')
   assert.strictEqual(getPlatformNameKey('xm'), '', '未知平台不映射翻译 key')
   assert.strictEqual(resolvePlatformName('tx', 'QQ音乐'), 'QQ音乐', '已知平台显示翻译名')

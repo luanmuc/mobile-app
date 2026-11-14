@@ -22,6 +22,8 @@ export interface PlayAttempt {
   ok?: boolean
   code?: string
   latencyMs?: number
+  requestedQuality?: string
+  deliveredQuality?: string
 }
 
 export interface PlayResultInput {
@@ -143,6 +145,8 @@ export const normalizePlayAttempts = (attempts?: PlayAttempt[]): PlayAttempt[] |
     if (typeof item.ok === 'boolean') attempt.ok = item.ok
     if (typeof item.code === 'string' && item.code) attempt.code = item.code
     if (Number.isFinite(item.latencyMs)) attempt.latencyMs = Math.round(Number(item.latencyMs))
+    if (typeof item.requestedQuality === 'string' && item.requestedQuality) attempt.requestedQuality = item.requestedQuality
+    if (typeof item.deliveredQuality === 'string' && item.deliveredQuality) attempt.deliveredQuality = item.deliveredQuality
     out.push(attempt)
     if (out.length >= MAX_PLAY_ATTEMPTS) break
   }

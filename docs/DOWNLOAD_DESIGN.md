@@ -6,7 +6,7 @@
 
 | 代码 | 职责 |
 |---|---|
-| `src/core/downloadManager.ts`（922 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
+| `src/core/downloadManager.ts`（928 行） | 下载核心：任务状态机、并发、断点、音质、文件、标签、通知 |
 | `src/store/download/{state,action,hook}.ts` | Redux 风格状态管理（任务列表、进度、UI 联动） |
 | `src/screens/Home/Views/Download/index.tsx` | 下载页 UI（进行中/已完成/未完成分组） |
 | `src/components/OnlineList/QualitySelect.tsx` | 音质选择弹窗（只显示歌曲实际支持音质） |
@@ -49,7 +49,9 @@ waiting ──→ run ──→ completed
 
 - 顺序：`flac24bit → flac → wav → ape → 320k → 192k → 128k`（`core/music/utils.ts` 的 `FULL_QUALITYS_LIST`）
 - `getDownloadQuality`：按源实际支持能力降级；`getOnlineMusicUrl` 逐级尝试取播放链接
-- 弹窗选择（QualitySelect）只显示歌曲 `meta._qualitys` 实际支持的音质，默认选最高
+- **自定义源**的音质能力来自 `global.lx.qualityList`（源在 `inited.qualitys` 声明），不拿内置搜索结果的 `meta._qualitys` 裁剪；否则「设置 flac、源声明支持 flac、搜索结果只标 128k」会把请求档错误降成 128k。内置源仍保留 `qualityList + _qualitys` 双裁剪
+- 弹窗选择（QualitySelect）通过 `getAvailableQualitys()` 取可用档，自定义源支持 flac 时可见可选，默认选最高
+- 下载任务默认档跟随 `player.playQuality`；候选档按 `getAvailableQualitys()` 过滤，`onQuality` 回填源实际交付档，文件名/下载列表标签/metadata 均跟随实际档，不再固定使用 `flac24bit` 请求
 
 ## 六、权限矩阵（getDownloadDir）
 
@@ -124,3 +126,5 @@ waiting ──→ run ──→ completed
 - 保持「正式目录永远完整」的原子性原则，不要在正式路径直接写流
 - 新状态/新字段必须同步 `state.ts` 默认值 + `@download_list` 兼容读取（`mergeSetting` 思路）
 - 修改权限逻辑时同步更新 [FAQ.md](FAQ.md) 权限章节
+
+> 片段兜底：下载文件名追加 `[试听]`，下载 metadata 记录 `fragment`，播放页/通知栏子源标签追加「试听」。

@@ -24,6 +24,8 @@ const reportPlayback = (ok: boolean, code?: string) => {
   try {
     const ps = playerState.playSource
     if (!ps?.id) return
+    // 试听片段不是完整交付，不能作为一次播放成功回传健康分（否则会错误解除 playDead）。
+    if (ok && ps.fragment === true) return
     const platform = ps.platform
     if (!platform) return
     const key = `${String(global.lx.playerTrackId || '')}|${ps.id}|${platform}|${String(playerState.playQuality || '128k')}|${ok ? 'ok' : 'fail'}|${code ?? ''}`

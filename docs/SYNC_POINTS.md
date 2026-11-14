@@ -29,6 +29,7 @@
 3. **看 trend**：音源侧 trend 返回多少条 → 对照 Health.tsx 注释里的条数
 4. **看 lang**：有没有新增 toast / 设置文案 → 三语言都要加，键数一致
 5. **看 subSource / 音质**：有没有新字段透出 → App 侧 UI 要接住
+6. **看 `type` / `fragment`**：`type` 是源实际交付档（旧源可缺省，App 回退请求档）；`fragment` 是片段兜底标记（`subSourceName` 已带「试听版」，App 目前透传到播放诊断）。
 
 ---
 
@@ -40,3 +41,5 @@
 - 检查动作（怎么核对）
 
 > 踩过的坑：action 表曾只列 3 个（实际 8 个）、zh-tw 曾缺 24 词条、trend 上限 20→60（v8.10 已再扩到 144）——都是靠人肉记得才发现的。有了本表，每次音源迭代后照单检查，避免再踩。
+
+7. **`qualityConfidence` 字段**：源侧可在 `musicUrl` 返回 `exact/estimated/unknown`，App 适配层透传；片段兜底固定 `unknown`，不得把片段/估算档宣称为精确真实档。

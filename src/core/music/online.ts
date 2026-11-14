@@ -44,14 +44,15 @@ export const setPic = (datas: {
  */
 
 
-export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, onQuality = () => {}, onSource = () => {} }: {
+export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, onQuality = () => {}, onSource = () => {}, onFragment = () => {} }: {
   musicInfo: LX.Music.MusicInfoOnline
   quality?: LX.Quality
   isRefresh: boolean
   allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
   onQuality?: (quality: LX.Quality) => void
-  onSource?: (source: { id: string, name: string, platform?: string } | null) => void
+  onSource?: (source: { id: string, name: string, platform?: string, fragment?: boolean } | null) => void
+  onFragment?: (fragment: boolean) => void
 }): Promise<string> => {
   // if (!musicInfo._types[type]) {
   //   // 兼容旧版酷我源搜索列表过滤128k音质的bug
@@ -69,7 +70,9 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     // 播放页只显示平台名（已用时序模拟 100% 复现）。await 后 onSource 在 getMusicUrl resolve 前
     // 同步执行（gettingUrlId 仍为当前歌），校验放行。
     const cachedSource = await getStoreMusicSource(musicInfo, targetQuality)
-    onSource(cachedSource ?? null)
+    const cachedFragment = cachedSource?.fragment === true
+    onSource(cachedSource ? { ...cachedSource, fragment: cachedFragment } : null)
+    onFragment(cachedFragment)
     // 缓存命中不证明音源当前可出链：单独记 cache_hit，不进成功率；用来解释“听歌了但本地诊断 0 次”。
     void recordCacheHit({
       platform: cachedSource?.platform ?? musicInfo.source,
@@ -85,8 +88,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   const traceId = createHealthTraceId()
   log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh} trace=${traceId}`)
   // b70 诊断：兜底超时——防止任何链路异常导致 promise 永不 settle（无限 00:00），25s 强制失败并打点
-  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName, sourcePlatform }) => {
-    const source = subSource ? { id: subSource, name: subSourceName || subSource, platform: sourcePlatform || '' } : null
+  const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence = 'exact', requestedQuality = targetQuality, attempts }) => {
+    const source = subSource ? { id: subSource, name: subSourceName || subSource, platform: sourcePlatform || '', fragment: fragment === true } : null
     if (targetMusicInfo.id != musicInfo.id && !isFromCache) {
       void saveMusicUrl(targetMusicInfo, targetQuality, url)
       if (source) void saveMusicSource(targetMusicInfo, targetQuality, source)
@@ -95,6 +98,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     if (source) void saveMusicSource(musicInfo, targetQuality, source)
     onQuality(targetQuality)
     onSource(source)
+    onFragment(fragment === true)
     void recordPlayResult({
       traceId,
       platform: sourcePlatform || targetMusicInfo.source || musicInfo.source,
@@ -102,8 +106,9 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       ok: true,
       latencyMs: Date.now() - startTs,
       sourceId: subSource,
+      attempts,
     })
-    log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 子源=${subSourceName || subSource || '无'} trace=${traceId}`)
+    log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 请求档=${requestedQuality} 实际档=${targetQuality} 子源=${subSourceName || subSource || '无'} 片段=${fragment === true ? '是' : '否'} 置信=${qualityConfidence} trace=${traceId} attempts=${attempts ? JSON.stringify(attempts) : '无'}`)
     return url
   })
   const timeoutPromise = new Promise<never>((_resolve, reject) => {

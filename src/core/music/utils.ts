@@ -279,14 +279,43 @@ type TryQualityType = typeof TRY_QUALITYS_LIST[number]
 export const FULL_QUALITYS_LIST = ['flac24bit', 'flac', 'wav', 'ape', '320k', '192k', '128k'] as const
 type FullQualityType = typeof FULL_QUALITYS_LIST[number]
 
+/**
+ * 自定义源（user API）与内置源的区别：
+ * - 自定义源声明 fallbackOwner=source 时，音质降档由源内部完成，App 只负责选请求档；
+ * - 未声明 fallbackOwner 的自定义源也属于自定义源（其 getMusicUrl 在 global.lx.apis 上）。
+ * 内置源没有 global.lx.apis[source].getMusicUrl，也没有 source 所有权。
+ */
+const isCustomSource = (source: LX.Source): boolean => {
+  if (global.lx.fallbackOwners?.[source] === 'source') return true
+  // global.lx.apis 在运行时存的是 user API 实现；类型声明只覆盖了源信息，需在此处收窄。
+  const userApi = (global.lx.apis as unknown as Partial<Record<LX.Source, { getMusicUrl?: unknown }>>)?.[source]
+  return typeof userApi?.getMusicUrl === 'function'
+}
+
+/**
+ * 当前源 + 当前歌曲可请求的音质（高 → 低）。
+ *
+ * 自定义源：只信源声明的 qualityList。_qualitys 来自内置搜索结果，
+ * 自定义源不提供搜索，拿它裁剪会把 flac 错误降成 128k。
+ * 内置源：保持原 qualityList + _qualitys 双裁剪，避免改坏既有行为。
+ */
+export const getAvailableQualitys = (musicInfo: LX.Music.MusicInfoOnline): LX.Quality[] => {
+  const list = global.lx.qualityList[musicInfo.source]
+  if (!Array.isArray(list)) return []
+  if (isCustomSource(musicInfo.source)) {
+    return FULL_QUALITYS_LIST.filter(q => list.includes(q))
+  }
+  return FULL_QUALITYS_LIST.filter(q => list.includes(q) && musicInfo.meta?._qualitys?.[q])
+}
+
 export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
   let type: LX.Quality = '128k'
   if (TRY_QUALITYS_LIST.includes(highQuality as TryQualityType)) {
-    let list = global.lx.qualityList[musicInfo.source]
+    const available = getAvailableQualitys(musicInfo)
 
     let t = TRY_QUALITYS_LIST
       .slice(TRY_QUALITYS_LIST.indexOf(highQuality as TryQualityType))
-      .find(q => musicInfo.meta?._qualitys?.[q] && list?.includes(q))
+      .find(q => available.includes(q))
 
     if (t) type = t
   }
@@ -299,10 +328,10 @@ export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.Musi
 export const getDownloadQuality = (highQuality: LX.Quality, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
   let type: LX.Quality = '128k'
   if (FULL_QUALITYS_LIST.includes(highQuality as FullQualityType)) {
-    const list = global.lx.qualityList[musicInfo.source]
+    const available = getAvailableQualitys(musicInfo)
     const t = FULL_QUALITYS_LIST
       .slice(FULL_QUALITYS_LIST.indexOf(highQuality as FullQualityType))
-      .find(q => musicInfo.meta?._qualitys?.[q] && list?.includes(q))
+      .find(q => available.includes(q))
     if (t) type = t
   }
   return type
@@ -325,6 +354,10 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   subSource: string
   subSourceName: string
   sourcePlatform: string
+  fragment?: boolean
+  qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+  requestedQuality?: LX.Quality
+  attempts?: PlaybackAttempt[]
 }> => {
   const playbackBudget = budget ?? createPlaybackBudget()
   const playbackAttempts = attempts ?? []
@@ -365,6 +398,9 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     subSource: string
     subSourceName: string
     sourcePlatform: string
+    fragment?: boolean
+    qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+    requestedQuality?: LX.Quality
   }
   const candidateCancelled = () => Object.assign(new Error('CANDIDATE_CANCELLED: 已有候选先成功'), { code: 'CANDIDATE_CANCELLED' })
   const tasks = candidates.map(({ musicInfo: candidate, itemQuality: candidateQuality }) => {
@@ -378,23 +414,24 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
           if (cachedUrl && !isRefresh) {
             // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
             const cachedSource = await getStoreMusicSource(candidate, candidateQuality)
-            playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
-            return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '' }
+            const cachedFragment = cachedSource?.fragment === true
+            playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: candidateQuality })
+            return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '', fragment: cachedFragment, requestedQuality: candidateQuality }
           }
 
-          let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
+          let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>
           try {
             reqPromise = musicSdk[candidate.source].getMusicUrl(toOldMusicInfo(candidate), candidateQuality, traceId).promise
           } catch (err: any) {
             reqPromise = Promise.reject(err)
           }
-          const { url, type, subSource = '', subSourceName = '', sourcePlatform = '' } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
+          const { url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact' } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
           if (isCancelled()) throw candidateCancelled()
-          playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt })
-          return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
+          playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: type })
+          return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, requestedQuality: candidateQuality }
         } catch (err: any) {
           // 已胜出的候选会取消其余任务；晚到失败不再写 attempts，避免同一 trace 出现两条归因。
-          if (!isCancelled()) playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt })
+          if (!isCancelled()) playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality })
           throw err
         }
       },
@@ -403,7 +440,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
 
   const winner = await racePlaybackCandidates(tasks)
   onToggleSource(winner.value.musicInfo)
-  return winner.value
+  return { ...winner.value, attempts: playbackAttempts }
 }
 
 /**
@@ -426,6 +463,10 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   subSource: string
   subSourceName: string
   sourcePlatform: string
+  fragment?: boolean
+  qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+  requestedQuality?: LX.Quality
+  attempts?: PlaybackAttempt[]
 }> => {
   const playbackBudget = budget ?? createPlaybackBudget()
   const playbackAttempts = attempts ?? []
@@ -444,18 +485,18 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
   const primaryOwner = resolvePlaybackOwner(fallbackOwner)
 
-  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>
+  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>
   const primaryStartedAt = Date.now()
   try {
     reqPromise = musicSdk[musicInfo.source].getMusicUrl(toOldMusicInfo(musicInfo), targetQuality, traceId).promise
   } catch (err: any) {
     reqPromise = Promise.reject(err)
   }
-  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string }) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt })
-    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform }
+  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }) => {
+    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality, deliveredQuality: type })
+    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, requestedQuality: targetQuality, attempts: playbackAttempts }
   }).catch(async(err: any) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt })
+    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     console.log(err)
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。

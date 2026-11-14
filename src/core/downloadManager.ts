@@ -6,7 +6,7 @@ import downloadActions from '@/store/download/action'
 import downloadState from '@/store/download/state'
 import settingState from '@/store/setting/state'
 import { getMusicUrl as getOnlineMusicUrl } from '@/core/music/online'
-import { getDownloadQuality, FULL_QUALITYS_LIST } from '@/core/music/utils'
+import { getAvailableQualitys, getDownloadQuality, FULL_QUALITYS_LIST } from '@/core/music/utils'
 import { toast, requestStoragePermission, checkStoragePermissions } from '@/utils/tools'
 import { formatFileNameTemplate } from '@/utils/fileNameTemplate'
 import { existsFile, moveFile, unlink } from '@/utils/fs'
@@ -187,14 +187,15 @@ const trimToBytes = (text: string, maxBytes: number): string => {
   }
   return out
 }
-const buildFileName = (musicInfo: LX.Music.MusicInfoOnline, url: string, quality: LX.Quality): string => {
+const buildFileName = (musicInfo: LX.Music.MusicInfoOnline, url: string, quality: LX.Quality, fragment = false): string => {
   // 遵循「下载设置 - 文件命名」模板（{title}/{artist} 占位符，旧「歌名/歌手」自动迁移）
   const name = trimToBytes(formatFileNameTemplate(settingState.setting['download.fileName'], musicInfo).replace(invalidFileNameChars, '_').trim(), 100).trim() || 'untitled'
   const extMatch = url.match(/\.(flac|mp3|m4a|aac|wav|ogg)(?:\?|$)/i)
   const ext = extMatch ? extMatch[1].toLowerCase() : 'mp3'
   // 文件名带音质标识，避免同一首歌不同音质互相覆盖
   const qualityTag = quality && quality !== '128k' ? ` [${quality}]` : ''
-  return `${name}${qualityTag}.${ext}`
+  const fragmentTag = fragment ? ' [试听]' : ''
+  return `${name}${fragmentTag}${qualityTag}.${ext}`
 }
 
 // 是否已选择"全部替换"已存在的文件（本次会话内生效，借鉴 Spotube ReplaceDownloadedDialog）
@@ -415,20 +416,28 @@ const runTask = async(task: LX.Download.ListItem) => {
 
     // 获取下载url（借鉴 MusicFree：目标音质拿不到链接时按音质序列向下降级尝试）
     const qualityIndex = FULL_QUALITYS_LIST.indexOf(actualQuality)
-    const candidateQualities = qualityIndex >= 0 ? FULL_QUALITYS_LIST.slice(qualityIndex) : [actualQuality]
+    const availableQualitys = getAvailableQualitys(task.metadata.musicInfo)
+    const candidateQualities = qualityIndex >= 0
+      ? FULL_QUALITYS_LIST.slice(qualityIndex).filter(q => availableQualitys.includes(q))
+      : [actualQuality]
     let url: string | null = null
     let usedQuality: LX.Quality = actualQuality
+    let deliveredFragment = false
     let lastUrlError: Error | null = null
-    for (const quality of candidateQualities) {
+    for (const quality of candidateQualities.length ? candidateQualities : [actualQuality]) {
       try {
+        let deliveredQuality: LX.Quality = quality
         const u = await getOnlineMusicUrl({
           musicInfo: task.metadata.musicInfo,
           quality,
           isRefresh: true,
+          onQuality: (q) => { deliveredQuality = q },
+          onFragment: (f) => { deliveredFragment = f },
         })
         if (u) {
           url = u
-          usedQuality = quality
+          // 源可能按自己的降档链返回更低档（type=128k），下载标签必须跟随实际交付档。
+          usedQuality = deliveredQuality
           break
         }
       } catch (e) {
@@ -442,7 +451,7 @@ const runTask = async(task: LX.Download.ListItem) => {
     const dir = await getDownloadDir()
     // 存储空间检查（借鉴 MusicFree）：空间不足直接失败，不进入下载
     if (!(await checkFreeSpace())) throw makeError(global.i18n.t('dl_err_no_space'), 'NO_SPACE')
-    const fileName = buildFileName(task.metadata.musicInfo, url, usedQuality)
+    const fileName = buildFileName(task.metadata.musicInfo, url, usedQuality, deliveredFragment)
     const filePath = `${dir}/${fileName}`
 
     // 检查文件是否已存在且是完整文件（借鉴 lx-music-desktop 的判定：
@@ -465,7 +474,7 @@ const runTask = async(task: LX.Download.ListItem) => {
               progress: 1,
               downloaded: stat.size,
               total: stat.size,
-              metadata: { ...task.metadata, url, fileName, filePath, quality: usedQuality },
+              metadata: { ...task.metadata, url, fileName, filePath, quality: usedQuality, fragment: deliveredFragment },
             })
             save()
             const showNotify = settingState.setting['download.notifyComplete'] ?? true
@@ -487,7 +496,7 @@ const runTask = async(task: LX.Download.ListItem) => {
     }
 
     // 开始真正下载
-    await runDownload({ ...task, metadata: { ...task.metadata, url, fileName, filePath, quality: usedQuality } })
+    await runDownload({ ...task, metadata: { ...task.metadata, url, fileName, filePath, quality: usedQuality, fragment: deliveredFragment } })
   } catch (err) {
     // 权限类错误不自动重试：用户未授权时重试只会反复弹权限弹窗，直接标记失败等待用户处理后手动重试
     const errorMsg = (err as Error)?.message ?? ''
@@ -538,7 +547,7 @@ const startNext = async() => {
 /**
  * 添加下载任务
  */
-export const startDownload = async(musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality = 'flac24bit') => {
+export const startDownload = async(musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality = settingState.setting['player.playQuality']) => {
   const taskId = musicInfo.id
   const exists = downloadState.list.find(t => t.id === taskId)
   if (exists) {
@@ -579,7 +588,7 @@ export const startDownload = async(musicInfo: LX.Music.MusicInfoOnline, quality:
 /**
  * 批量下载
  */
-export const startBatchDownload = async(musicList: LX.Music.MusicInfoOnline[], quality: LX.Quality = 'flac24bit') => {
+export const startBatchDownload = async(musicList: LX.Music.MusicInfoOnline[], quality: LX.Quality = settingState.setting['player.playQuality']) => {
   let added = 0
   for (const musicInfo of musicList) {
     const taskId = musicInfo.id

@@ -182,6 +182,14 @@ run('P1C-A1 play_result 持久化 attempts', () => {
   }, 'attempt 字段被改写')
 })
 
+run('P1C-A1b attempts 保留请求档/交付档', () => {
+  const { normalizePlayAttempts } = HEALTH_LOG()
+  const out = normalizePlayAttempts([{ source: 'kw', requestedQuality: 'flac', deliveredQuality: '128k' }])
+  assert.deepStrictEqual(out[0], {
+    source: 'kw', requestedQuality: 'flac', deliveredQuality: '128k',
+  }, '真实标签字段未透传')
+})
+
 run('P1C-A2 attempts 白名单归一、限 20 条', () => {
   const { buildPlayResultEntry } = HEALTH_LOG()
   const raw = Array.from({ length: 25 }, (_, i) => ({

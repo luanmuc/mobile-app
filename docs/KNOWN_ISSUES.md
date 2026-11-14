@@ -7,7 +7,7 @@
 |---|---|---|---|---|
 | K1 | **下载无断点续传**：暂停后重新从头下载，`.part` 残件直接删除 | 大文件/弱网下载体验差 | `core/downloadManager.ts` | ⬜ 待实现（扩展方案见 [DOWNLOAD_DESIGN.md](./DOWNLOAD_DESIGN.md) 第九节） |
 | K2 | **进度条默认不可拖**（定制默认值） | 与部分用户习惯不一致 | `config/defaultSetting.ts` | ✅ 默认设计（用户可在设置中开启） |
-| K3 | **flac24bit 默认优先**，但多数音源不支持该音质，依赖降级链 | 高音质偏好用户实际拿到 flac/320k | `config/defaultSetting.ts` + 音质链 | ✅ 降级机制兜底（flac24bit→flac→wav→ape→320k→192k→128k） |
+| K3 | **flac24bit 默认优先**，但多数音源不支持该音质，依赖降级链；自定义源此前还会被内置搜索 `_qualitys` 误裁成 128k | 高音质偏好用户实际拿到 flac/320k | `config/defaultSetting.ts` + `core/music/utils.ts` + 音质链 | ✅ 已修请求档（`getAvailableQualitys` 对自定义源只按 `qualityList`；设置页无源支持 flac24bit 时隐藏该档）；仍受源实际能力限制 |
 | K4 | **与上游 lyswhut 分叉**（fork 点 `fb848072`；已合并至 v1.9.2），v1.9.2 之后的新功能/修复未跟踪 | 原版后续改进缺失 | 全仓库 | 🟡 已合并 v1.9.2（v1.9.2-b1），后续差异由 [UPSTREAM_LIFECYCLE.md](./UPSTREAM_LIFECYCLE.md) 管理 |
 | K5 | **track-player fork 定制依赖**：通知栏按钮等改动基于 `luanmuc/react-native-track-player` 的 commit `a0b2a87`（沿 `5bff17b`→`eceacb5` 累积；`eceacb5` 仅追加 `quality`/`subSource` 两个可选类型字段、无运行时改动；`a0b2a87` 为 2026-11-07 全覆盖审计后的修复：焦点续播不再覆盖用户主动暂停、点通知 PendingIntent 补 `FLAG_IMMUTABLE`、`MusicService` 加 signature 级权限、定制注释补齐；当前定制：艺术家行音源/音质拼接、播放模式按钮、音频焦点三开关 + 幂等/音量还原、通知栏状态判空；随 b69/b70 合入） | 上游升级需重新应用定制补丁，升级阻塞 | `package.json` + 原生层 | 🟡 观察中（每次升上游都要重放补丁，见 UPSTREAM_LIFECYCLE） |
 | K6 | **内置音源由构建生成**：本仓库不内置 `assets/builtin_source.js` 静态副本（b74 起移除），每次构建 CI 从音源仓库 master 拉取最新生成；本地改同名文件会被覆盖 | 本地调试需手动放置最新脚本 | `assets/builtin_source.js`（构建生成） | ✅ 设计如此（音源唯一权威 = `luanmuc/backend-api`，见 [MUSIC_SOURCE_GUIDE.md](./MUSIC_SOURCE_GUIDE.md)） |

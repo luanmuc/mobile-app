@@ -1,3 +1,17 @@
+## [音质优先播放 P0–P4：请求档/真实标签/下载档/缓存版本] - 2026-11-14
+
+> 本轮修复「设置 flac、自定义源实际只给 128k」的请求档错配；App 与源仓各一个本地提交，不推送。
+
+- **P0 请求档**：新增 `isCustomSource()` / `getAvailableQualitys()`；自定义源只按 `global.lx.qualityList` 过滤，不再用内置搜索结果的 `meta._qualitys` 把设置 flac 降成 128k；内置源保持 `qualityList + _qualitys` 双裁剪。`getPlayQuality` / `getDownloadQuality` 共用该能力表，新增 `check_quality_request_runtime.js` 12 条矩阵（新增端到端断言：设置 flac、搜索无 flac 标记时实收 `type=flac`，并校验 attempts 的请求档/交付档；新增 P1-CACHE：片段的 `fragment:true` 必须随 URL/子源缓存一起回读，第二次播放仍标「试听」且不回报完整播放成功）。
+- **P0 诊断与片段语义**：成功路径把 attempts 带入 `recordPlayResult`，播放诊断成功行直接打印「请求档 / 实际档 / 置信 / 片段」；`qualityConfidence` 由源侧透传：片段固定 `unknown`，m4a/ogg 估算档为 `estimated`，能定准/非估算档为 `exact`，App 不把片段当成完整高质量交付；播放页/通知栏子源标签追加「试听」，下载文件名追加 `[试听]`；`service.reportPlayback` 对片段不再回传播放成功，避免错误解除源侧 `playDead`。
+- **P1 下载链路**：`QualitySelect` 与 `ListItem` 角标改用 `getAvailableQualitys`；自定义源支持 flac 时下载弹窗可见可选。`downloadManager` 默认档跟随 `player.playQuality`，候选档按实际能力过滤，`onQuality` 回填源实际交付档后再写文件名/标签/metadata。
+- **P2 设置项**：`PlayHighQuality` 动态检查 `global.lx.qualityList`，无任何源支持 flac24bit 时隐藏该档，避免设置一个永远拿不到的档位。
+- **P3 诊断与缓存**：`playbackBudget`/`healthLog` 的 attempts 增加 `requestedQuality`/`deliveredQuality` 白名单字段，失败归因能区分「请求 flac、实得 128k」；`storageDataPrefix.musicUrl/musicSource` 升 v2，旧脏缓存（flac 槽存 128k）自然失效，旧键不删除。
+- **P4 源侧真实标签**：源仓 `qualityFromDelivery` 对 m4a/ogg 按「content-length + 歌曲时长」估算平均码率（≥256kbps→320k、其余→128k），wav 视为无损 flac，拿不到总字节/时长时保留请求档；全档片段兜底返回 `fragment: true`，App 适配层透传并在播放诊断中标注片段。
+- **P3 缓存片段语义修复**：`saveMusicSource/getStoreMusicSource` 增加 `fragment?: boolean`，缓存命中不再把片段固定改写成完整；`online.ts` 与候选缓存 `utils.ts` 均按缓存里的真实 `fragment` 回读，避免第二次播放把试听片段当完整交付、UI 不标「试听」、`reportPlayback` 误记成功。
+- **兼容边界**：官方文档只规定 `qualitys` 是源支持列表、`info.type` 是请求档，未承诺「请求 flac 必须返回 flac」；源未返回 `type` 时 App 仍回退请求档，旧源标签无法保证真实。`fallbackOwner=source` 时 App 不跨源竞速，Phase 5（host-owned 宽限窗）不做。
+- **验证**：App `tsc --noEmit` 0；`check_quality_request_runtime` 12/0、`check_playback_budget` 21/0、`check_playback_ownership_runtime` 21/0、`check_player_utils_runtime` 7/0、`check_player_progress_runtime` 4/0；源仓 `quality-truth` 8/0、`n-fixes` 4/0、`health-breaker-quality` 5/0、`d-func` 30/0、冒烟 67 组。
+
 ## [I-05 文件名模板结构化 + I-07 失败标点三语 + N2 热点断言 + S-01 源仓 push fail-closed] - 2026-11-14
 
 > 本轮为审计交接单剩余真实问题的代码/文案/测试/CI 收口；I-06（PactModal/About 法律全文翻译）因涉及法律与产品口径，未做机器翻译，等待产品或法务确认。

@@ -27,6 +27,7 @@ export const getMusicUrl = async({
   allowToggleSource,
   onQuality,
   onSource,
+  onFragment,
 }: {
   musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
   isRefresh?: boolean
@@ -34,7 +35,8 @@ export const getMusicUrl = async({
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
   allowToggleSource?: boolean
   onQuality?: (quality: LX.Quality) => void
-  onSource?: (source: { id: string, name: string, platform?: string } | null) => void
+  onSource?: (source: { id: string, name: string, platform?: string, fragment?: boolean } | null) => void
+  onFragment?: (fragment: boolean) => void
 }): Promise<string> => {
   if ('progress' in musicInfo) {
     return getDownloadMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource, onSource })
@@ -45,7 +47,7 @@ export const getMusicUrl = async({
   } else {
     // v-b73：必须透传 onSource——player.ts 的 onSource（setPlaySource）经此路由到 online.ts，
     // 若丢失则在线播放永远收不到子源回调 → 播放页音源标签只显示平台名（历史多轮修复未达此层）
-    return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource, onQuality, onSource })
+    return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource, onQuality, onSource, onFragment })
   }
 }
 

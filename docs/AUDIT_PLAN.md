@@ -1,7 +1,7 @@
 # App 仓库审计计划（活文档 · v2 全维度）
 
-> 基线版本：审计起点 **v1.9.2-b99**（HEAD `a6767fa1`，versionCode 258）；最近发布 **v1.9.2-b124**（CI 自动回写 `9d655762`，versionCode 283；tag `921737f2`，Build `43569611762` success）；本轮测试/CI 提交 **`921737f2`**（已推送）；文档回填随本文档提交
-> 最近更新：2026-11-14（临时审计交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。当前改动**未提交、未推送、未触发新构建**）
+> 基线版本：**v1.9.2 / versionCode 283**；本轮审计 HEAD **`20d953f0`**（本地未 push）；对应源仓 **v8.13.1 / `101c2e7`**（本地未 push）。历史审计起点 `a6767fa1` 与已推送发布 `921737f2` 仅作历史快照。
+> 最近更新：2026-11-14（音质优先 P0–P4 落地后复审；上一轮交接单 P1–P5 复现与修复：P1 错误码文案补齐 16 源码 + 预算/取消友好文案；P2 下载落盘剥离 `statusText`；P3 在源仓当前 HEAD 不可复现、按假阳性留档；P4 源仓 mutation job 补 `npm ci`、runner 缺 esbuild 预检 + 180s 超时 + strict 覆盖全部未判定状态；N1 诊断 finding 三语化；N2 reason 本地化短标签 + raw code 留底；N3 9 处硬编码 UI 文案接 i18n；B2 7 个健康/文档检查接入 release.yml，新增 `check_download_persistence`；B4 台账回填。上一轮改动已推送；本轮音质改动 `20d953f0` 本地未 push）
 > 前次：2026-11-09（跨仓契约复审 + 一键更新流程整改）、2026-11-07（b74 审计轮）
 > **当前真值（2026-11-14 最终审计 + 本轮审计修复）**：三语各 **997 键**（本轮新增 5 个：I-05 3 + I-07 2）、TS/TSX **527 文件**、`tsc --noEmit` **0 error**、`eslint .` **0 error / 0 warning**、源仓音源 **v8.13.1（`641e8dc`，已推送，CI `43552333512` success；S-01 push fail-closed `e0a4590`）**、App 审计基线 **`a87d3f3a`**、修复提交 **`785af658`**（已推送）、健康页文案/夹具提交 **`bffaf281`**（已推送）、文档回填 **`8adce795`**、**`ae823b88`** 与最终 **`43beb654`**（均已推送，App CI `43531794187` success）、**13 个 action**、`check_source_contract` **14/0**、**29 个 check 脚本**全部 rc0（`check_source_ci_gate` 用 Git 凭据库有效令牌正式复跑：源仓 `luanmuc/backend-api@e0a4590`，最近 push CI `43568304962` success，compare=identical；`check_source_ci_gate_offline` 仍为离线补充证据）。
 > **历史快照**：A–S 组的状态与计数保留 2026-11-07 审计当时结论（730 键 / b78 / TS 57→14 等）；当前以 `scripts/docs-audit.js`、`docs/SYNC_POINTS.md` 与文末 **T 组** 为准。
@@ -565,3 +565,32 @@ node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx   # 0/0
 
 **G7/G8 边界**：wy 原生链成立；tx 只有 60 秒试听（vkeys `quality=6` 503，直连 `200` 但 ffprobe `60.029s`），源侧 5/5 `NOT_FOUND`，不算完整原生交付。G8 官方 API 本地仍可能 403；新增 `scripts/check_source_ci_gate_offline.js` 离线复核 Actions 页面内嵌 JSON，rc0 可作为本地补充证据；构建 runner 仍用 `check_source_ci_gate.js` + `GITHUB_TOKEN`。
 
+
+
+---
+
+## 2026-11-14 音质优先改动专项审计（当前 HEAD `20d953f0`）
+
+> 触发：`getPlayQuality/getDownloadQuality` 改为按源能力表请求、`type` 实际交付档、`fragment` 试听语义、`qualityConfidence` 透传、缓存前缀 v2。
+> 纪律：本次结论只认 `20d953f0` 工作区实跑；历史绿不替代。重点不是“设置 flac 能不能出 flac”，而是“会不会把低质/片段/旧源标成高质或成功”。
+
+| ID | 检查面 | 关键位置 | 验收 |
+|---|---|---|---|
+| Q-A1 | 自定义源请求档 | `src/core/music/utils.ts` 的 `isCustomSource/getAvailableQualitys/getPlayQuality` | 自定义源不再被内置 `meta._qualitys` 裁剪；内置源仍双裁剪；12/0 含 P1-E2E、P1-CACHE |
+| Q-A2 | 下载档位一致 | `downloadManager.ts`、`QualitySelect.tsx`、`ListItem.tsx`、`PlayHighQuality.tsx` | 默认档跟随设置；候选过滤；`onQuality` 回填实际档；设置页动态隐藏 flac24bit |
+| Q-A3 | 实际交付档与 attempts | `online.ts`、`index.ts`、`playbackBudget.ts`、`healthLog.ts` | 成功路径 attempts 带 requested/delivered；失败路径不丢段；日志脱敏 |
+| Q-A4 | 片段语义 | `sourceLabel.ts`、两处 `PlayInfo.tsx`、`playList.ts`、`downloadManager.ts`、`service.ts` | 播放页/通知栏「试听」；下载文件名 `[试听]`；片段不回报播放成功；子源名含“试听”不重复 |
+| Q-A5 | 置信度 | `init/userApi/index.ts`、`utils.ts`、`online.ts` | `exact/estimated/unknown` 透传；片段固定 unknown；旧源缺省 exact 仅兼容 |
+| Q-A6 | 缓存/旧数据 | `config/constant.ts`、`getStoreMusicUrl` | v2 前缀；旧键不删除；缓存命中不把片段当完整；无 URL/歌名落盘 |
+| Q-A8 | 缓存片段语义 | `utils/data.ts`、`online.ts`、`utils.ts` 候选缓存、`check_quality_request_runtime.js` P1-CACHE | `saveMusicSource/getStoreMusicSource` 保留 `fragment?: boolean`；缓存命中按真实片段回读，不固定改写成完整；第二次播放仍标「试听」且不回报成功 |
+| Q-A7 | 回归面 | 播放预算、所有权、播放器 service/progress/utils、下载持久化/恢复、三语/标签、docs | 相关门禁全绿；无新增硬编码文案；无跨仓契约漂移 |
+
+**本轮审计结果（2026-11-14，工作区 `20d953f0` + 未提交审计补丁）**：
+
+- `npx tsc --noEmit` rc0；`check_ts_syntax` 527 文件 0 错误。
+- 34 个 `scripts/check_*.js` 全部实跑：33 个 rc0；`check_source_ci_gate` rc2 唯一阻塞，原因是 GitHub API 403 rate limit（外部额度，不是代码失败），离线版 `check_source_ci_gate_offline` rc0。
+- 关键数字：`quality_request` 12/0（含 P1-CACHE）、`playback_budget` 21/0、`playback_ownership` 21/0、`player_service` 10/0、`player_utils` 7/0、`player_progress` 4/0、`download_persistence` 3/0、`download_restore` 3/0、`docs_consistency` 18 文档 0 过时。
+- 审计新发现并已修：缓存命中把片段固定为 `false`（Q-A8/P1-CACHE）；否则片段 URL 二次缓存命中会被当完整交付。
+- 未做：真机 10 首矩阵、真机 A/B 延迟、真上游持续稳定性；本轮仍只对纯 Node/内存 FS 结论负责。
+
+**执行命令（必须本轮实跑）**：`tsc --noEmit`、定向 `eslint`、`check_quality_request_runtime`、`check_playback_budget`、`check_playback_ownership_runtime`、`check_source_platform_label`、`check_player_service_runtime`、`check_player_utils_runtime`、`check_player_progress_runtime`、`check_download_persistence`、`check_download_restore_runtime`、`check_docs_consistency`。

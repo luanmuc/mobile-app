@@ -25,9 +25,87 @@ permissions:
   actions: read
 
 jobs:
+  # 全仓 ESLint：单进程扫全仓，与 checks 并行，不阻塞 tsc/契约检查
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Setup Env
+        uses: ./.github/actions/setup
+
+      - name: ESLint 全仓检查
+        # 全仓 eslint 必须 0 error / 0 warning；与 tsc 互补，失败即停在构建前。
+        run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
+
+  # TypeScript 类型检查 + 全部只读契约门禁：与 lint 并行
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Setup Env
+        uses: ./.github/actions/setup
+
+      - name: TypeScript 类型检查
+        # 全仓 tsc --noEmit 必须 0 error；语法检查只能发现 parse 错误，类型检查补 TS 类型/接口契约。
+        run: node node_modules/typescript/bin/tsc --noEmit
+
+      - name: 音源标签/配置/语法/action 契约门禁
+        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 11 个 action 权威表与 v2 envelope / 525 个 TS 文件语法 / 播放 24s 预算与 attempts / 桥媒体 base64 信封与 256KB 分片。
+        # 失败即停在本步，不进入构建与 Release，避免发出标签、配置或 action 契约回退的 APK。
+        run: |
+          node scripts/check_ts_syntax.js
+          node scripts/check_source_config_contract.js
+          node scripts/check_source_contract.js
+          node scripts/check_source_health_persistence.js
+          node scripts/check_source_platform_label.js
+          node scripts/check_playback_budget.js
+          node scripts/check_playback_ownership_runtime.js
+          node scripts/check_player_progress_runtime.js
+          node scripts/check_release_state_contract.js
+          node scripts/check_media_body.js
+
+      - name: 健康诊断契约门禁（51 条 + 视图 22 条 + 日志目录 15 条）
+        # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
+        # 视图模型锁折叠态、错误码/其他线索分组与空态。
+        run: |
+          node scripts/check_health_diagnostics.js
+          node scripts/check_health_diagnostics_view.js
+          node scripts/check_log_directory.js
+
+      - name: 健康状态/文案/文档一致性门禁
+        # 这些检查此前只在本机手动跑，导致健康页文案/映射回退可以绕过 CI。
+        # check_source_ci_gate_offline 依赖本地源仓与 Actions 页面，保留离线/手动，不在此处。
+        run: |
+          node scripts/check_health_anomaly_v2.js
+          node scripts/check_health_event_pipeline.js
+          node scripts/check_health_persistence_v2.js
+          node scripts/check_health_state_v2.js
+          node scripts/check_health_status_refactor.js
+          node scripts/check_health_ui_mapping.js
+          node scripts/check_download_persistence.js
+          node scripts/check_download_restore_runtime.js
+          node scripts/check_docs_consistency.js
+
+      - name: 热点行为断言（播放器/同步/文件名/错误标点）
+        run: |
+          node scripts/check_player_utils_runtime.js
+          node scripts/check_player_core_runtime.js
+          node scripts/check_player_service_runtime.js
+          node scripts/check_player_hook_runtime.js
+          node scripts/check_sync_client_runtime.js
+          node scripts/check_file_name_template_runtime.js
+          node scripts/check_download_error_i18n.js
+
   Android:
     name: Android
     runs-on: ubuntu-latest
+    needs: [lint, checks]
     outputs:
       build: ${{ steps.buildstate.outputs.build }}
       versionCode: ${{ steps.buildstate.outputs.versionCode }}
@@ -78,62 +156,6 @@ jobs:
       - name: Setup Env
         uses: ./.github/actions/setup
 
-      - name: TypeScript 类型检查
-        # 全仓 tsc --noEmit 必须 0 error；语法检查只能发现 parse 错误，类型检查补 TS 类型/接口契约。
-        # 失败即停在构建前，避免带类型错误的 APK 进入 Release。
-        run: node node_modules/typescript/bin/tsc --noEmit
-
-      - name: ESLint 全仓检查
-        # 全仓 eslint 必须 0 error / 0 warning；与 tsc 互补，失败即停在构建前。
-        run: node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
-
-      - name: 音源标签/配置/语法/action 契约门禁
-        # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 11 个 action 权威表与 v2 envelope / 525 个 TS 文件语法 / 播放 24s 预算与 attempts / 桥媒体 base64 信封与 256KB 分片。
-        # 失败即停在本步，不进入构建与 Release，避免发出标签、配置或 action 契约回退的 APK。
-        run: |
-          node scripts/check_ts_syntax.js
-          node scripts/check_source_config_contract.js
-          node scripts/check_source_contract.js
-          node scripts/check_source_health_persistence.js
-          node scripts/check_source_platform_label.js
-          node scripts/check_playback_budget.js
-          node scripts/check_playback_ownership_runtime.js
-          node scripts/check_player_progress_runtime.js
-          node scripts/check_release_state_contract.js
-          node scripts/check_media_body.js
-
-      - name: 健康诊断契约门禁（51 条 + 视图 22 条 + 日志目录 15 条）
-        # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
-        # 视图模型锁折叠态、错误码/其他线索分组与空态。
-        # 失败即停在本步，不进入构建与 Release，避免发出拉不到 healthEvents 的 APK。
-        run: |
-          node scripts/check_health_diagnostics.js
-          node scripts/check_health_diagnostics_view.js
-          node scripts/check_log_directory.js
-
-      - name: 健康状态/文案/文档一致性门禁
-        # 这些检查此前只在本机手动跑，导致健康页文案/映射回退可以绕过 CI。
-        # check_source_ci_gate_offline 依赖本地源仓与 Actions 页面，保留离线/手动，不在此处。
-        run: |
-          node scripts/check_health_anomaly_v2.js
-          node scripts/check_health_event_pipeline.js
-          node scripts/check_health_persistence_v2.js
-          node scripts/check_health_state_v2.js
-          node scripts/check_health_status_refactor.js
-          node scripts/check_health_ui_mapping.js
-          node scripts/check_download_persistence.js
-          node scripts/check_download_restore_runtime.js
-          node scripts/check_docs_consistency.js
-      - name: 热点行为断言（播放器/同步/文件名/错误标点）
-        run: |
-          node scripts/check_player_utils_runtime.js
-          node scripts/check_player_core_runtime.js
-          node scripts/check_player_service_runtime.js
-          node scripts/check_player_hook_runtime.js
-          node scripts/check_sync_client_runtime.js
-          node scripts/check_file_name_template_runtime.js
-          node scripts/check_download_error_i18n.js
-
       - name: Compute build number
         # 构建序号与 versionCode 统一由 publish/build-state.json 状态文件驱动：
         # 底座版本（package.json version）变化时 bN 从 1 重新计数（如 1.9.2-b1），
@@ -169,7 +191,9 @@ jobs:
           cd android
           # release 变体自动打包 JS bundle（debug 变体不含 bundle，安装后无法独立运行）；
           # 无 secrets 时签名自动降级为 debug.keystore（build.gradle 已配置），可正常安装
-          ./gradlew assembleRelease
+          # --build-cache：Gradle build cache 复用跨 run 任务输出；--parallel：多模块并行；
+          # --no-daemon：单次构建用完即停，不留常驻进程占用 runner 内存
+          ./gradlew assembleRelease --build-cache --parallel --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
