@@ -178,6 +178,17 @@ node scripts/docs-audit.js --dry-run            # 待处理 0
 | X-L1~L3 | 音质政策 App 消费面（见 §4） | App 侧跟进 | 见 §4 处置 |
 | 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
 | 健康诊断·未闭环 4 项 | ①真实播放回传去重（同歌多次 Playing 每次成功回传会抬高样本数）②`probeSource` 只读语义 ③自动关闭 TTL 6h 重启复验 ④真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 / 宿主模拟 | 见 `AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` §6；未闭环前不宣称「健康判定完全正确」 |
+| **G-A01** | **错误码文案缺 4 键（用户可见缺陷）**：源 `ERROR_CODES` 16 个，`FAIL_CODE_ZH` 仅 15 键覆盖 12 个源码，缺 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`/`CONTRACT_ERROR`/`CANCELED` → 走兜底后**界面直接显示英文常量**；该表注释仍写「12 个码全部补齐」 | `utils.ts:721~737` 对照源 `ERROR_CODES` | **高**，待修 |
+| G-A02 | 4 主状态映射 144 种组合仅 10 条断言覆盖 | `check_health_status_refactor.js` vs 144 组合 | 高 |
+| G-A03 | 下载器 922 行只有间接覆盖，24 个 check 脚本中无 `check_download*` 专项 | 脚本清单 grep | 高 |
+| G-A04 | 诊断错误码分组只认 12 个码 | 诊断面板聚合键 | 中 |
+| G-A05 | 无 jest / testing-library，纯函数无系统单测 | `package.json` | 中 |
+| G-A06 | `Health.tsx` 仍有 4 处硬编码中文 | 实测 grep | 低 |
+| G-A07 | `as any` / `@ts-ignore` 未量化建档 | 无基线 | 低 |
+| G-A08 | 真机验收 blocked | 无 `adb` / 无 `/dev/kvm` / `ANDROID_HOME` 未设 | blocked |
+| G-A09 | tx 完整曲目 blocked（上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`） | 上游限制 | blocked |
+
+> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」，均为实测非推测；2026-11-15 删除该草稿前逐条承接至此（原文其余 14 域 99 项已被本计划 §2~§4 覆盖）。
 
 ---
 
