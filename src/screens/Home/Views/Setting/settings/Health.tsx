@@ -55,6 +55,8 @@ interface HealthItem {
     success?: number
     fail?: number
     businessFail?: number
+    definitiveFail?: number
+    linkExpired?: number
     rate?: number | null
     avgTime?: number | null
     state?: 'closed' | 'open' | 'half-open'
@@ -730,6 +732,8 @@ export default memo(() => {
                                       t('health_q_ok', { n: q.success }),
                                       t('health_q_fail', { n: q.fail }),
                                       q.businessFail ? t('health_q_biz', { n: q.businessFail }) : '',
+                                      q.definitiveFail ? t('health_q_def', { n: q.definitiveFail }) : '',
+                                      q.linkExpired ? t('health_q_exp', { n: q.linkExpired }) : '',
                                       avg,
                                       q.state !== 'closed' ? q.state : '',
                                       q.rateLimited ? t('health_q_limited') : '',

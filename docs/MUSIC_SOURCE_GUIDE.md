@@ -34,7 +34,7 @@ musicSdk（内置官方源）  ──┐
 |---|---|
 | `name` | 音源名称（含「豆包定制」会被内置导入逻辑识别/清理） |
 | `version` | 版本号（`vX.Y` 格式，用于启动时版本比对） |
-| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/整轮手动探测，v4.0 起；全局探测 App 先确认再应用）、`probeSource`（单源探测，默认只读；用户确认后可 `apply:true` 落账，v8.14 起）、`reportPlayback`（App 真实播放回传，v8.14 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起）、`healthEvents`（只读事件环形缓冲，2.4 方案）、`exportHealthState`/`restoreHealthState`（健康持久化，v8.13.0 起） |
+| `actions` | 提供的接口：`musicUrl`（取播放链接）、`lyric`（歌词）、`pic`（封面）、`health`（健康快照，v4.0 起）、`toggle`/`probe`（单源开关/整轮手动探测，v4.0 起；全局探测 App 先确认再应用）、`probeSource`（单源探测，默认只读；用户确认后可 `apply:true` 落账，v8.14 起）、`reportPlayback`（App 真实播放回传，v8.14 起）、`config`（配置热更新）、`trend`（健康趋势，v8.0 起）、`healthEvents`（只读事件环形缓冲，2.4 方案）、`exportHealthState`/`restoreHealthState`（健康持久化，v8.13.0 起）、`forceQualityProbe`（强制高质探路，v8.13.1 起） |
 | `qualitys` | 该源支持的音质列表（映射到 App 的 `FULL_QUALITYS_LIST`） |
 | `onScriptAction` | 处理 App 请求，返回 Promise 结果 |
 
@@ -96,7 +96,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 **本地诊断闭环（2.4 方案，只本地不上传）**：
 
 - 音源侧新增只读 `healthEvents` action：容量 500 的环形缓冲，返回 `{schema, capacity, dropped, events}`；事件只含 `traceId/event/sourceId/platform/quality/ok/code/latencyMs/reason`，不记歌名、URL、搜索词、账号、设备 ID、位置。
-- **action 透传（P0 起）**：`user-api-preload.js` 不再维护按 source 的 `supportActions` 白名单，直接把源脚本声明的 `actions` 透传给 App；App 的 `normalizeSourceInfo` 只保留 `sourceContract.ts` 中 13 个合法 action（含 `probeSource/reportPlayback/exportHealthState/restoreHealthState`），未知 action 不注册。契约 H10 看护。preload 同时透传 `fallbackOwner`，缺省由 `normalizeFallbackOwner` 归为 `host`。
+- **action 透传（P0 起）**：`user-api-preload.js` 不再维护按 source 的 `supportActions` 白名单，直接把源脚本声明的 `actions` 透传给 App；App 的 `normalizeSourceInfo` 只保留 `sourceContract.ts` 中 14 个合法 action（含 `probeSource/reportPlayback/exportHealthState/restoreHealthState/forceQualityProbe`），未知 action 不注册。契约 H10 看护。preload 同时透传 `fallbackOwner`，缺省由 `normalizeFallbackOwner` 归为 `host`。
 - App 侧一次播放生成一个 `traceId`，经 `online.ts → music/utils.ts → init/userApi/index.ts → 5 个 musicSdk/*/index.js` 透传到 `musicUrl.info.traceId`；换源候选复用同一 `traceId`。
 - 本地日志：`source_health_YYYYMMDD.jsonl` 按天滚动，失败 100% 记、成功 1/5 采样；缓存命中单独记 `cache_hit`，只说明本地已有 URL，不计入取链成功率；单文件 2MB 封顶保留尾部；保留 7 天；失败时抓同 `traceId` 的源事件一起落盘。报告里的成功率按采样权重还原（成功 weight=5、失败 weight=1），是本地估算而非服务端真值。
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。

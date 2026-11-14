@@ -898,6 +898,8 @@
   "health_q_fail": "失敗 {n}",
   "health_q_biz": "業務失敗 {n}",
   "health_q_limited": "限流",
+  "health_q_def": "確定失敗 {n}",
+  "health_q_exp": "連結過期 {n}",
   "health_probe_failed": "單源探測失敗",
   "health_probe_one": "探測",
   "health_probe_apply_tip": "單源探測結果：{outcome}。是否套用本次結果？失敗可能觸發該源自動關閉。",

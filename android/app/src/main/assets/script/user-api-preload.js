@@ -232,11 +232,13 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
           case 'musicUrl': {
             // 兼容三种返回：字符串 URL（旧音源）；{url, type} 对象（v11.13+ 携带实际交付音质）；
             // {url, type, subSource, subSourceName, sourcePlatform}（v25.8+/b52+ 携带实际子源；v8.12.0 起携带实际平台）
+            // v8.13.1 起携带 qualityCeilingApplied（能力备档压制起跑档）
             let musicUrl = response
             let actualType = data.info.type
             let subSource = ''
             let subSourceName = ''
             let sourcePlatform = ''
+            let qualityCeilingApplied = false
             if (typeof response === 'object' && response !== null && typeof response.url === 'string') {
               musicUrl = response.url
               if (typeof response.type === 'string') actualType = response.type
@@ -244,6 +246,8 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
               if (typeof response.subSourceName === 'string') subSourceName = response.subSourceName
               // v8.12.0 跨平台兜底：实际交付平台（tx/wy/kw），旧音源无该字段时留空
               if (typeof response.sourcePlatform === 'string') sourcePlatform = response.sourcePlatform.slice(0, 16)
+              // v8.13.1 能力备档压制起跑档：源返回 true 表示本轮从被压制的档起跑
+              if (typeof response.qualityCeilingApplied === 'boolean') qualityCeilingApplied = response.qualityCeilingApplied
             }
             if (typeof musicUrl != 'string' || musicUrl.length > 2048 || !/^https?:/.test(musicUrl)) throw new Error('failed')
             result = {
@@ -255,6 +259,7 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
                 subSource,
                 subSourceName,
                 sourcePlatform,
+                qualityCeilingApplied,
               },
             }
             break
@@ -339,6 +344,33 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
             break
           case 'restoreHealthState':
             // P3：健康元数据恢复结果（{ok, reason?}）
+            if (typeof response != 'object' || response === null || typeof response.ok != 'boolean') throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
+          case 'probeSource':
+            // v8.14：单源探测结果（{ok, id, outcome, usable, code, targets, applied}）
+            if (typeof response != 'object' || response === null) throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
+          case 'reportPlayback':
+            // v8.14：真实播放回传结果（{ok, id, state, playDead, code?}）
+            if (typeof response != 'object' || response === null) throw new Error('failed')
+            result = {
+              source: data.source,
+              action: data.action,
+              data: response,
+            }
+            break
+          case 'forceQualityProbe':
+            // 音质政策 P1：强制高质探路结果（{ok, id, quality}）
             if (typeof response != 'object' || response === null || typeof response.ok != 'boolean') throw new Error('failed')
             result = {
               source: data.source,

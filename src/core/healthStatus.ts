@@ -102,6 +102,8 @@ export interface HealthQualityCell {
   success: number
   fail: number
   businessFail: number
+  definitiveFail: number
+  linkExpired: number
   rate: number | null
   avgTime: number | null
   state: 'closed' | 'open' | 'half-open'
@@ -117,6 +119,8 @@ export const buildQualityMatrixRows = (item: { byQuality?: Partial<Record<string
     const success = Number(q.success) || 0
     const fail = Number(q.fail) || 0
     const businessFail = Number(q.businessFail) || 0
+    const definitiveFail = Number(q.definitiveFail) || 0
+    const linkExpired = Number(q.linkExpired) || 0
     const rate = q.rate == null ? null : Number(q.rate)
     const avgTime = q.avgTime == null ? null : Number(q.avgTime)
     const state = q.state === 'open' || q.state === 'half-open' ? q.state : 'closed'
@@ -126,10 +130,12 @@ export const buildQualityMatrixRows = (item: { byQuality?: Partial<Record<string
       success,
       fail,
       businessFail,
+      definitiveFail,
+      linkExpired,
       rate: Number.isFinite(rate) ? rate : null,
       avgTime: Number.isFinite(avgTime) ? avgTime : null,
       state,
       rateLimited: q.rateLimited === true,
-      hasSample: req > 0 || success > 0 || fail > 0,
+      hasSample: req > 0 || success > 0 || fail > 0 || definitiveFail > 0 || linkExpired > 0,
     }
   })

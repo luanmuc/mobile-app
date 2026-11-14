@@ -21,6 +21,7 @@ export const SOURCE_ACTIONS = [
   'healthEvents',
   'exportHealthState',
   'restoreHealthState',
+  'forceQualityProbe',
 ] as const
 
 export type SourceAction = typeof SOURCE_ACTIONS[number]

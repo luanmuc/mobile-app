@@ -356,6 +356,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   sourcePlatform: string
   fragment?: boolean
   qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+  qualityCeilingApplied?: boolean
   requestedQuality?: LX.Quality
   attempts?: PlaybackAttempt[]
 }> => {
@@ -400,6 +401,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     sourcePlatform: string
     fragment?: boolean
     qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+    qualityCeilingApplied?: boolean
     requestedQuality?: LX.Quality
   }
   const candidateCancelled = () => Object.assign(new Error('CANDIDATE_CANCELLED: 已有候选先成功'), { code: 'CANDIDATE_CANCELLED' })
@@ -419,16 +421,16 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
             return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '', fragment: cachedFragment, requestedQuality: candidateQuality }
           }
 
-          let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>
+          let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }>
           try {
             reqPromise = musicSdk[candidate.source].getMusicUrl(toOldMusicInfo(candidate), candidateQuality, traceId).promise
           } catch (err: any) {
             reqPromise = Promise.reject(err)
           }
-          const { url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact' } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
+          const { url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
           if (isCancelled()) throw candidateCancelled()
           playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: type })
-          return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, requestedQuality: candidateQuality }
+          return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: candidateQuality }
         } catch (err: any) {
           // 已胜出的候选会取消其余任务；晚到失败不再写 attempts，避免同一 trace 出现两条归因。
           if (!isCancelled()) playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality })
@@ -465,6 +467,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   sourcePlatform: string
   fragment?: boolean
   qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+  qualityCeilingApplied?: boolean
   requestedQuality?: LX.Quality
   attempts?: PlaybackAttempt[]
 }> => {
@@ -485,16 +488,16 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   const fallbackOwner = global.lx.fallbackOwners?.[musicInfo.source]
   const primaryOwner = resolvePlaybackOwner(fallbackOwner)
 
-  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>
+  let reqPromise: Promise<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }>
   const primaryStartedAt = Date.now()
   try {
     reqPromise = musicSdk[musicInfo.source].getMusicUrl(toOldMusicInfo(musicInfo), targetQuality, traceId).promise
   } catch (err: any) {
     reqPromise = Promise.reject(err)
   }
-  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact' }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown' }) => {
+  return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }) => {
     playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality, deliveredQuality: type })
-    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, requestedQuality: targetQuality, attempts: playbackAttempts }
+    return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: targetQuality, attempts: playbackAttempts }
   }).catch(async(err: any) => {
     playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)

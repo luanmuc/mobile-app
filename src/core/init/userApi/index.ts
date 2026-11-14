@@ -131,6 +131,7 @@ export default async(setting: LX.AppSetting) => {
                         sourcePlatform?: string
                         fragment?: boolean
                         qualityConfidence?: 'exact' | 'estimated' | 'unknown'
+                        qualityCeilingApplied?: boolean
                       }>(res.data)
                       return {
                         type: data?.type ?? type,
@@ -140,6 +141,7 @@ export default async(setting: LX.AppSetting) => {
                         sourcePlatform: data?.sourcePlatform ?? '',
                         fragment: data?.fragment === true,
                         qualityConfidence: data?.qualityConfidence,
+                        qualityCeilingApplied: data?.qualityCeilingApplied === true,
                       }
                     }).catch(err => {
                       console.log(err.message)
@@ -413,6 +415,19 @@ export default async(setting: LX.AppSetting) => {
                     promise: sendUserApiRequest({
                       requestKey,
                       data: { source, action: 'restoreHealthState', info: state },
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => ({ ok: false, reason: String(err?.message || err) })),
+                  }
+                }
+                break
+              case 'forceQualityProbe':
+                // 音质政策 P1：用户强制重试高质，绕过唯一源短路探路窗口（只放行一轮，不动 breaker/健康账本）。
+                apis[source].forceQualityProbe = (id: string, quality?: string) => {
+                  const requestKey = `request__${Math.random().toString().substring(2)}`
+                  return {
+                    canceleFn() { /* 同步旁路无独立取消 */ },
+                    promise: sendUserApiRequest({
+                      requestKey,
+                      data: { source, action: 'forceQualityProbe', info: { id, quality } },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => ({ ok: false, reason: String(err?.message || err) })),
                   }
                 }

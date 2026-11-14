@@ -898,6 +898,8 @@
   "health_q_fail": "fail {n}",
   "health_q_biz": "biz fail {n}",
   "health_q_limited": "limited",
+  "health_q_def": "definitive {n}",
+  "health_q_exp": "expired {n}",
   "health_probe_failed": "Single-source probe failed",
   "health_probe_one": "Probe",
   "health_probe_apply_tip": "Single-source probe result: {outcome}. Apply this result? A failure may auto-disable this source.",
