@@ -30,7 +30,7 @@ run('R-01-W1 tag 固定到实际构建提交', () => {
 })
 run('R-01-W2 Release 提交前 fetch/rebase 远端', () => {
   assert(workflow.includes('git fetch origin master'), '缺少 fetch origin master')
-  assert(workflow.includes('git rebase origin/master'), '缺少 rebase origin/master')
+  assert(/git rebase(?: --autostash)? origin\/master/.test(workflow), '缺少 rebase origin/master（或 --autostash）')
 })
 run('R-01-W3 push 失败必须 fail-closed', () => {
   assert(!/git push[\s\S]{0,200}\|\|/.test(workflow), 'git push 仍存在 || 吞错')

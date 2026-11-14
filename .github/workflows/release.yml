@@ -262,7 +262,8 @@ jobs:
           " "${PACKAGE_VERSION}" "${{ needs.Android.outputs.build }}"
           git config user.name "luanmuc"
           git config user.email "luanmuc@users.noreply.github.com"
-          git add publish/version.json publish/build-state.json npm-version-info/package.json README.md
+          # changeLog.md 由 gen_change_log.py 每次生成；若不入提交，rebase 会因 unstaged changes 直接失败。
+          git add publish/version.json publish/build-state.json publish/changeLog.md npm-version-info/package.json README.md
           # 只把“无改动”当作可跳过；commit 本身失败必须让 job 红
           if ! git diff --cached --quiet; then
             git commit -m "chore: 更新版本信息 v${VER}"
@@ -270,6 +271,8 @@ jobs:
           # Release job 可能在构建期间落后于远端（例如 docs 提交先落 master）。
           # 先 fetch/rebase 再 push，避免非快进被拒后状态永远不落盘。
           git fetch origin master
-          git rebase origin/master
+          # 兜底：任何未被 add 的生成物都不能让 rebase 以 "unstaged changes" 失败。
+          # autostash 会在 rebase 后恢复；恢复冲突仍会让 job 红（fail-closed）。
+          git rebase --autostash origin/master
           # push 失败不得用 `|| echo` 吞掉：状态没回写，下一次构建会重复 bN/tag。
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master
