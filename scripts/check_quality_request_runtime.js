@@ -190,7 +190,7 @@ run('P1-CACHE 片段缓存命中：缓存里 fragment=true 时，onSource/onFrag
       getCachedLyricInfo: async() => null,
     },
     '@/utils/log': { log: { diagnose: () => {}, info: () => {}, warn: () => {}, error: () => {} } },
-    '@/core/healthLog': { createHealthTraceId: () => 't', recordCacheHit: async() => {}, recordPlayResult: async() => {} },
+    '@/core/healthLog': { createHealthTraceId: () => 't', recordCacheHit: async() => {}, recordPlayResult: async() => {}, setPendingPlayback: () => {} },
   })
   const url = await online.getMusicUrl({
     musicInfo: makeMusicInfo('kw', { flac: true }),
