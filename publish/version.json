@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b130",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0b06a0e6 fix(health): 收口超时竞态与旧数据/趋势弹窗遗留项\n- 3585a81e docs: 回填 b129 发布事实与内置源 v8.14.1",
+  "version": "1.9.2-b131",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6d06e6d2 fix(player): 首次播放音质标签被 isPlay 守卫丢弃，改与 onSource 同款只防串歌\n- dd124782 docs: 回填 b130 发布事实与 5 APK",
   "history": [
+    {
+      "version": "1.9.2-b130",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0b06a0e6 fix(health): 收口超时竞态与旧数据/趋势弹窗遗留项\n- 3585a81e docs: 回填 b129 发布事实与内置源 v8.14.1"
+    },
     {
       "version": "1.9.2-b129",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 316d322e fix(test): B3 控制态对齐 HDM-3 永久保留契约\n- 42da2399 fix(health): 落地 HDM-3 健康数据分层与播放起播语义"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b125",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- ff9647cc feat(music): 按源能力请求音质并回填真实交付档\n- 420f87a1 docs: 同步 b124 发布事实与 N2/S-01 收口记录"
-    },
-    {
-      "version": "1.9.2-b124",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 921737f2 test(player): 补齐核心/服务/Hook 运行时断言\n- 794f498b docs: finalize b123 release state and S-01 source baseline"
     }
   ]
 }
