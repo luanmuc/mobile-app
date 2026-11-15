@@ -1,12 +1,14 @@
-## [一键更新：8s 超时不再谎报「加载失败」（本地待发布）] - 2026-11-15
+## [一键更新：8s 超时不再谎报「加载失败」（b135 已发布）] - 2026-11-15
 
 > D-24 整改（b84）已把顺序改成「导新 → 切新并等 init（8s 上限）→ 成功才删旧」，但超时分支把「没等到」直接当成「加载失败」，说了句不成立的话。
 
 - **问题**：`Promise.race([setApiSource(id), 8s])` 的输家不会被取消——超时后再 `resolve(true)` 照样发生，源可能已经切到新源。此时原逻辑抛 `source_switch_failed_keep_old`（「新音源未能加载，已保留旧音源」），对用户是**假陈述**，对账本是真隐患：`common.apiSource` 已同步写成新 id，而 `builtin_source_id` / `imported_builtin_source_version` 没写、pending 也没清。
 - **修复**：区分「明确失败」与「超时未就绪」。超时命中时抛新文案 `source_switch_timeout_keep_old`（「新音源 8 秒内未就绪，旧音源已保留（下次启动会自动对账）」），三语文案同步；明确 `false` 仍走原 `source_switch_failed_keep_old`。两条路径都不删旧源、都不写 `has_imported`/版本，pending 保留给下次启动对账。
 - **回归**：`check_source_update_logic` 24/0；`check_ts_syntax` 528 个 TS/TSX 0 错误；`check_source_config_contract` 29/0；`check_docs_consistency` 18 文档无过时引用。
+- **发布**：App `31440518` → b135（Build `43775350921` success，versionCode 294，5 APK，Release `v1.9.2-b135`）；发布前源仓 `lx-source CI` 曾连续 3 次红导致 `check_source_ci_gate` 阻断，已由源仓 `cd43810`（R44：require 安全环境侧依赖 + M9c）修复转绿后重新构建。
+- **产物**：`mobile-app-v1.9.2-b135-{arm64-v8a,armeabi-v7a,universal,x86,x86_64}.apk`，md5 已回写 `publish/changeLog.md`；`publish/build-state.json` build 134→135、versionCode 293→294；`npm-version-info` 1.0.270→1.0.271。
 
-## [音源升级原子性/基线/锚定修复（本地待发布）] - 2026-11-15
+## [音源升级原子性/基线/锚定修复（b134 已发布）] - 2026-11-15
 
 > 在 b133 已发布修复之上，继续收口在线升级的原子性、版本基线、`@version` 锚定与首次读 assets 失败路径。本轮只做本地提交，不升发布版本、不推送、不触发 Release。
 
