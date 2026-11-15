@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b131",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6d06e6d2 fix(player): 首次播放音质标签被 isPlay 守卫丢弃，改与 onSource 同款只防串歌\n- dd124782 docs: 回填 b130 发布事实与 5 APK",
+  "version": "1.9.2-b132",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 062870a4 fix(lint): 联动脚本与归因字段按仓库 ESLint 规则收口\n- c701c33b test(quality): 补齐 healthLog mock 的 setPendingPlayback\n- 74de2742 fix(linkage): 收口配置契约、预算归因与诊断溯源",
   "history": [
+    {
+      "version": "1.9.2-b131",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6d06e6d2 fix(player): 首次播放音质标签被 isPlay 守卫丢弃，改与 onSource 同款只防串歌\n- dd124782 docs: 回填 b130 发布事实与 5 APK"
+    },
     {
       "version": "1.9.2-b130",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0b06a0e6 fix(health): 收口超时竞态与旧数据/趋势弹窗遗留项\n- 3585a81e docs: 回填 b129 发布事实与内置源 v8.14.1"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b126",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9c6d3b4d docs(audit): 归档 2026-11-07 历史报告，健康诊断专项定位为主计划子纲，音源版本同步 v8.14.0\n- b7bd445c fix(docs-audit): 补齐数组尾逗号，修复 Lint\n- cbd6eb3a docs: 同步源仓 v8.14.0 与 b126 发布口径\n- a4e0e4d1 docs: 四份计划补定制功能逐项明细（排除车机版）+ 音源动作基准对齐\n- 85d316ce fix(quality): 补齐音质优先播放策略三处跨仓联动（QP-L1/L2/L3）\n- 8aca3b94 docs(audit): 重构审计/压测计划为 v3/v2，补音质政策联动审计"
-    },
-    {
-      "version": "1.9.2-b125",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- ff9647cc feat(music): 按源能力请求音质并回填真实交付档\n- 420f87a1 docs: 同步 b124 发布事实与 N2/S-01 收口记录"
     }
   ]
 }
