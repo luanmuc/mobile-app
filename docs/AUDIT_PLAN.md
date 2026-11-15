@@ -47,7 +47,7 @@
 | A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 24/0 |
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
-| A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 26/0；39 键三语 |
+| A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
 | A-A08 | 三语闭合 | `src/lang/*.json` | 各 1004 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
@@ -95,7 +95,7 @@
 | 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 24/0 | ✅ |
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
-| 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 26/0、`check_source_contract` 14/0 | ✅ |
+| 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
 | 通知栏定制（播放模式按钮/显示格式/音源名音质不被歌词覆盖） | `android/app/src/main` | 静态走查；真机 blocked | 📝 |
@@ -152,7 +152,7 @@ node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
 node scripts/check_ts_syntax.js                 # 528 文件
 node scripts/check_source_contract.js           # 14/0
-node scripts/check_source_config_contract.js    # 26/0
+node scripts/check_source_config_contract.js    # 29/0
 node scripts/check_quality_request_runtime.js   # 12/0
 node scripts/check_playback_budget.js           # 21/0
 node scripts/check_playback_ownership_runtime.js # 21/0

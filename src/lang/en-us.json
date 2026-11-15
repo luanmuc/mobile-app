@@ -999,6 +999,7 @@
   "list_scan_download_dir": "Scan download folder",
   "list_local_music": "Local music",
   "source_switch_failed_keep_old": "New source failed to load; old source was kept",
+  "source_switch_timeout_keep_old": "New source was not ready within 8s; old source kept (will reconcile on next launch)",
   "choose_path_read_dir_failed": "Failed to read folder: {msg}",
   "setting_play_count_summary": "Listening stats: {count} plays · today {day} · about {time}",
   "setting_play_count_time_hm": "{h}h {m}m",

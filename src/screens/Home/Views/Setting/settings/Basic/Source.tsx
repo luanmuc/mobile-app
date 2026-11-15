@@ -261,11 +261,16 @@ export default memo(() => {
                 // 3) 切到新源并等它真的加载出来，再考虑删旧的。
                 //    旧音源的清理必须放在切源之后：切源失败时旧源还在，能回退。
                 //    8s 是 init 事件的上限等待——超时按失败处理，不删旧源。
+                // 8s 超时只代表「没等到 init」，**不等于加载失败**：
+                // Promise.race 不会取消 setApiSource 里的加载，超时之后再 resolve(true) 照样可能发生。
+                // 因此把「超时」与「明确失败」分开报：超时说「未就绪、旧源已保留、下次启动对账」，
+                // 不去断言「加载失败」，也不删旧源。
+                let timedOut = false
                 const switched = await Promise.race([
                   setApiSource(newApiInfo.id),
-                  new Promise<boolean>(resolve => { setTimeout(() => { resolve(false) }, 8000) }),
+                  new Promise<boolean>(resolve => { setTimeout(() => { timedOut = true; resolve(false) }, 8000) }),
                 ])
-                if (!switched) throw new Error(t('source_switch_failed_keep_old'))
+                if (!switched) throw new Error(t(timedOut ? 'source_switch_timeout_keep_old' : 'source_switch_failed_keep_old'))
 
                 // 4) 切源成功后记录当前内置源身份与版本。
                 //    下次启动时 decideBuiltinSourceImport 会把 APK 内置源和这个版本比较，

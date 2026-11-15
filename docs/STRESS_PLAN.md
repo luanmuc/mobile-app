@@ -20,7 +20,7 @@
 | S8 | 事件链路 | `check_health_event_pipeline.js` | 10 | eventId 去重、traceId、脱敏 | 10/0 |
 | S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v1 拒绝、容量/版本边界 | 9/0 |
 | S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、错误码分组 | 8/0 |
-| S11 | 配置契约 | `check_source_config_contract.js` | 26 | 39 键、数字/布尔边界 | 26/0 |
+| S11 | 配置契约 | `check_source_config_contract.js` | 26 | 39 键、数字/布尔边界 | 29/0 |
 | S12 | 音源契约 | `check_source_contract.js` | 14 | 13 action、v2 envelope、fallbackOwner | 14/0 |
 | S13 | 源健康持久化 | `check_source_health_persistence.js` | 17 | v2 导出/恢复、拒绝敏感字段 | 17/0 |
 | S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 12 | 自定义源/内置源双裁剪、片段缓存回读 | 12/0 |

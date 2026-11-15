@@ -999,6 +999,7 @@
   "list_scan_download_dir": "掃描下載目錄",
   "list_local_music": "本地音樂",
   "source_switch_failed_keep_old": "新音源未能載入，已保留舊音源",
+  "source_switch_timeout_keep_old": "新音源 8 秒內未就緒，舊音源已保留（下次啟動會自動對帳）",
   "choose_path_read_dir_failed": "讀取目錄失敗：{msg}",
   "setting_play_count_summary": "聽歌統計：累計播放 {count} 次 · 今日 {day} 次 · 累計播放時長約 {time}",
   "setting_play_count_time_hm": "{h} 小時 {m} 分鐘",
