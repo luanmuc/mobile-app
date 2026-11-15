@@ -110,8 +110,12 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
 
   // 取消切换音源功能后：一律使用当前歌曲本身请求播放链接，不再优先使用切换残留的 toggleMusicInfo
   // （历史切换过的歌曲 meta 里残留的 toggleMusicInfo 会导致请求错误平台的坏 URL，反复刷新失败）
+  // 与 onSource 同款守卫：只防串歌（gettingUrlId），不套 diffCurrentMusicInfo。
+  // 后者含 playerState.isPlay 与 playMusicInfo.id 对齐判定，首次播放时回调常落在 isPlay=true 之后，
+  // 会把音质写回整条丢掉 —— setMusicUrl 开头已清空 playQuality，于是标签一直空白（b129+ 起播变慢后更易复现）。
   const onQuality = (quality: LX.Quality) => {
-    if (global.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return
+    if (global.lx.isPlayedStop) return
+    if (createGettingUrlId(musicInfo) != global.lx.gettingUrlId) return
     playerActions.setPlayQuality(quality)
   }
 
