@@ -5,6 +5,7 @@ import { isActive } from '@/utils/tools'
 import BackgroundTimer from 'react-native-background-timer'
 import playerState from '@/store/player/state'
 import { setNowPlayTime } from '@/core/player/progress'
+import { consumePendingPlayback, recordPlaybackStart } from '@/core/healthLog'
 
 
 export default () => {
@@ -75,6 +76,9 @@ export default () => {
   const handlePlaying = () => {
     setStatusText('')
     clearLoadingTimeout()
+    // 取链成功不等于用户听到：只有播放器真正进入 playing，才补一条 playback_start。
+    // 必须带当前播放歌曲 ID，避免快速切歌时消费上一首遗留的 pending。
+    void recordPlaybackStart(consumePendingPlayback(String(playerState.musicInfo.id ?? '')))
   }
 
   const handleEmpied = () => {

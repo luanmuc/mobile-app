@@ -2,6 +2,7 @@
 
 > 本仓库由**多个豆包账号共同开发**。此文件供 GitHub Copilot / 豆包 / 任何智能体读取，避免互相踩踏。
 > **核心原则：master 直推即发版，只推已验证的改动；核心逻辑与高冲突区改动先走实证验证链。**
+> **健康数据（HDM-3）**：L0 用户控制意图永久、无 TTL、跨 sourceVersion；L1 健康元数据 7 天 TTL 且绑 sourceVersion；L2 事件 7 天滚动。v1 不迁移、不兼容。事件必须带 `context`：`chain_result` 是 URL 获取尝试，`play_result` 是播放请求/URL 就绪，`playback_start` 是播放器真实起播；`cache_hit` 单列，预加载/legacy 不参与用户异常。改健康统计前先读 `docs/AUDIT_PLAN_HEALTH_DIAGNOSTICS.md`。
 
 ## 项目一句话
 

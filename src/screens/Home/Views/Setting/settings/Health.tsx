@@ -592,7 +592,13 @@ export default memo(() => {
                       {t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_block', { label: t('health_diag_playback'), total: diagView.blocks.playback.h24.total, ok: diagView.blocks.playback.h24.ok, rate: diagView.blocks.playback.h24.rateText })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
                       {t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}
+                    </Text>
+                    <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
+                      {t('health_diag_block', { label: t('health_diag_preload'), total: diagView.blocks.preload.h24.total, ok: diagView.blocks.preload.h24.ok, rate: diagView.blocks.preload.h24.rateText })}
                     </Text>
                     <Text size={11} color={theme['c-font-label']} style={{ marginTop: 2 }}>
                       {t('health_diag_cache_hits', { n: diagView.cacheHits.h24 })}

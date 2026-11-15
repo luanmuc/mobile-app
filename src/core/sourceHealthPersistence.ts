@@ -136,14 +136,17 @@ export const sanitizeSourceHealthState = (input: unknown, opts: {
   return { ok: true, state: input as HealthState }
 }
 
-/** F57：控制态校验不依赖 sourceVersion；只认用户意图字段。 */
+/**
+ * L0 控制态校验：用户意图是持久配置，不是健康快照。
+ * 只拒绝未来时间，不设 7 天 TTL；sourceVersion 不参与校验。
+ */
 export const sanitizeSourceHealthControls = (input: unknown, opts: { now?: number, maxBytes?: number } = {}): { ok: boolean, state?: HealthControlState, reason?: string } => {
   const now = opts.now ?? Date.now()
   if (!isPlainObject(input)) return { ok: false, reason: 'control 必须是对象' }
   if (input.v !== HEALTH_CONTROL_VERSION) return { ok: false, reason: 'control version 不符' }
   if (!isFiniteNumber(input.savedAt)) return { ok: false, reason: 'control savedAt 非法' }
   const age = now - input.savedAt
-  if (age < -HEALTH_STATE_FUTURE_TOLERANCE_MS || age > HEALTH_STATE_TTL_MS) return { ok: false, reason: 'control savedAt 超出 TTL' }
+  if (age < -HEALTH_STATE_FUTURE_TOLERANCE_MS) return { ok: false, reason: 'control savedAt 在未来' }
   if (JSON.stringify(input).length > (opts.maxBytes ?? HEALTH_CONTROL_MAX_BYTES)) return { ok: false, reason: 'control 超过容量上限' }
   if (!isPlainObject(input.controls)) return { ok: false, reason: 'controls 非法' }
   const forbidden = findForbiddenKey(input, 'control')

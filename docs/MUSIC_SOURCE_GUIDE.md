@@ -65,10 +65,10 @@ musicSdk（内置官方源）  ──┐
 
 App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`android/app/src/main/java/cn/toside/music/mobile/userApi/`。
 
-## 四、聚合源内部结构（豆包定制 v8.14.0）
+## 四、聚合源内部结构（豆包定制 v8.14.1）
 
 > 每次构建自动拉取音源仓库 master 最新版，以下为当前结构；随音源迭代会更新。
-> **产物状态**：v8.14.0 为音质优先与 CI 编排版，随 App `v1.9.2-b126` 发布（内置源 `8.14.0`）；v8.13.1 此前随 b125 发布。源仓 tag `v8.14.0` @ `f3a3e75`（已并入 `qualityCeilingApplied` 与第 14 个 action 声明），App Build `43619278134`（b126）success，5 个 APK 已上传；上一版 b125 Build `43605546128`。
+> **产物状态**：v8.14.1 为 HDM-3 健康数据分层版（L0 用户控制意图永久化、controls-only 去 7 天 TTL、未知 control 源跳过；已推送，随 b129 构建）。v8.14.0 为音质优先与 CI 编排版，随 App `v1.9.2-b126` 发布（内置源 `8.14.0`）；v8.13.1 此前随 b125 发布。源仓 tag `v8.14.0` @ `f3a3e75`（已并入 `qualityCeilingApplied` 与第 14 个 action 声明），App Build `43619278134`（b126）success，5 个 APK 已上传；上一版 b125 Build `43605546128`。
 >
 > **P3 持久化 v2（v8.13.0，2026-11-13）**：Redis 无关的宿主侧健康持久化。源侧 `exportHealthState`/`restoreHealthState` 升 schema v2：健康元数据（`breaker/byQuality/playDead/qualityShortCircuit`）与用户控制（`controls`）分离，仍接受 v1；controls-only（`sources:{}` + `controls`）不绑 `sourceVersion`，用户开关不因源升版丢失；`healthV2Enabled=false` 回旧 v1 导出。健康态仍 7 天 TTL、256KB，禁止 `url/successUrl/cache/name/singer/account/cookie/token/headers/body` 等键，**不恢复** `successCache/failCache/fragmentUrlMap/qualityCeilingMap`。App `src/core/sourceHealthPersistence.ts` 健康快照写单一 canonical key `@___SOURCE_HEALTH___global`，控制独立写 `@___SOURCE_CONTROL___global`（v2、64KB、7 天 TTL）；旧平台键 `kw/wy/tx/mg/kg` 首次读取迁移并清理。`getMusicUrl/getHealth` 首个请求前等待 restore，控制先于健康恢复；`getHealth` 成功后异步 save，失败只降级不阻断播放。跨平台目标收敛为 `tx→wy→kw`；mg/kg 保留直连，但 `suyinKuwo` 实际交付酷我 CDN 时 `sourcePlatform` 回填 `kw`。源仓 `aa-p3-persist` 10/0、`health-persistence-v2` 8/0、`u-cross-platform` 15/15（U15 先红后绿）；App `check_source_health_persistence` 17/0、`check_health_event_pipeline` 10/0（源事件白名单/去重/三块隔离，`sourceEvents` 落盘前脱敏）（canonical key A12/A13、v2 拆分 B1/B2、v1 兼容 B4、存储异常 A10、五平台并发 A11、G5 动态源/版本 G5-A1）、`check_health_persistence_v2` 9/0（Q1~Q9）。G5 已关闭：不再维护 12 个 provider 固定名单，`sourceVersion` 取源快照自带值，宿主只校验源 ID 形态；增源/升版不再需要改 App 常量。
 >
@@ -102,7 +102,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
   面板表格的「源内成功率」来自音源快照，和「本地诊断」的播放成功率不是同一口径；前者看源自身探测，后者看 App 实际取链。
 - 健康页「最近异常」默认折叠，点标题展开为四层：数据可信度（覆盖时长/是否截断）、近 24h 总体（取链/成功/失败/本地成功率）、错误码、其他线索；展开后仍展示异常规则（本地 0% 但快照健康、成功率跌 20pp、P95 翻倍、新错误码（仅在有前 24h 基线时判定）、最近 4 次快照成功率连续下降且累计 ≥15pp）；页面顶部趋势预警与报告共用同一条 `trend_decline` finding，不再维护第二套健康分阈值；同一错误码不会同时以“新错误码”和“近期失败”重复出现；取链/播放/探测按块分算，播放失败单列 `play_failure`、探测非 `UNKNOWN` 失败单列 `probe_failure`，`cache_hit` 与探测 `UNKNOWN` 不算异常；窗口覆盖不足时标记 `covered=false` 并提示实际覆盖时长；`new_code` 只写实际基线跨度，不宣称 7 天结论。趋势弹窗支持 1h/24h/7d 窗口切换，按历史时间戳过滤，并显示播放/探测近 24h 分块；覆盖不足时错误码结论不展示。健康页的行内开关/单源探测会按源快照的 `platforms` 绑定到对应音源 API；不再对所有源统一取第一个声明 action 的 API。
 
-诊断聚合按取链（`chain_result`，历史 `source_result` 兼容）/ 播放（`play_result`）/ 探测（`probe_result`）三块独立算成功率，`windows` 只代表取链；报告同时给出 `playWindows/probeWindows`，缓存命中单独计数。健康页展开后按“取链 / 播放 / 探测”三行分别展示近 24h 次数、成功数与成功率，禁止把播放成功混入取链口径。
+诊断聚合按用户取链（`chain_result` + `context=user/refresh`，历史 `source_result` 兼容）/ 播放请求（`play_result`）/ 实际起播（`playback_start`）/ 探测（`probe_result`）/ 后台预加载（`chain_result` + `context=preload`）五块独立算成功率，`windows` 只代表用户取链；报告同时给出 `playWindows/playbackWindows/preloadWindows/probeWindows`，缓存命中单独计数。旧无 context 的 `chain_result` 归 `legacy`，只展示计数、不参与异常。健康页展开后按“取链 / 播放请求 / 实际起播 / 探测 / 后台预加载”五行分别展示近 24h 次数、成功数与成功率，禁止把播放成功或预加载混入用户取链口径。
 
 「导出诊断包」生成 `schema:2` 证据包：`manifest + report + events + snapshot + trend + logTail`；manifest 记录版本/计数/上限/截断标记/估算字节，事件最近 1000 条、趋势最近 200 条、日志尾部 UTF-8 64KB、总量 2MB 上限；快照与日志均递归脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动上传、不自动关源。
 

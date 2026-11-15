@@ -96,6 +96,7 @@ check('R2 失败播放：chain_result 进入窗口，source_events 仍保留', a
                 ok: false,
                 code: 'NETWORK_TIMEOUT',
                 latencyMs: 30,
+                context: 'user',
               },
             ],
           }),
@@ -116,11 +117,13 @@ check('R2 失败播放：chain_result 进入窗口，source_events 仍保留', a
   assert(events.some(e => e.event === 'play_result' && e.ok === false), '缺失败 play_result')
   assert(events.some(e => e.event === 'chain_result' && e.ok === false), '缺失败 chain_result')
   assert(events.some(e => e.event === 'source_events' && Array.isArray(e.sourceEvents)), '缺 source_events')
+  const nested = events.find(e => e.event === 'source_events').sourceEvents[0]
+  assert(nested.context === 'user', '嵌套源事件丢失 context')
   assert(result.playWindows.h24.total >= 1, '失败播放未计数')
   assert(result.windows.h24.total >= 1, '失败取链未计数')
 })
 
-check('R3 预加载：只记 chain，不伪造 play', async() => {
+check('R3 预加载：只记 chain，不伪造 play，且带 preload context', async() => {
   reset()
   await hlog.recordPlayResult({
     traceId: 'preload',
@@ -133,8 +136,10 @@ check('R3 预加载：只记 chain，不伪造 play', async() => {
   const events = allEntries()
   assert(!events.some(e => e.event === 'play_result'), '预加载不应写 play_result')
   assert(events.some(e => e.event === 'chain_result' && e.traceId === 'preload'), '预加载应写 chain_result')
+  assert(events.some(e => e.event === 'chain_result' && e.context === 'preload'), '预加载 chain_result 缺 preload context')
   assert(report(events).playWindows.h24.total === 0, '预加载污染播放窗口')
-  assert(report(events).windows.h24.total >= 1, '预加载取链未计数')
+  assert(report(events).windows.h24.total === 0, '预加载不应计入用户取链窗口')
+  assert(report(events).preloadWindows.h24.total >= 1, '预加载取链未单独计数')
 })
 
 check('R4 缓存命中：cache_hit 单列，不进取链', async() => {
@@ -172,6 +177,62 @@ check('R6 预加载缓存命中：不写 play / cache_hit / chain', async() => {
     recordChain: false,
   })
   assert(allEntries().length === 0, '预加载缓存命中不应写健康事件')
+})
+
+check('R7 playback_start：取链成功不等于实际起播', async() => {
+  reset()
+  await hlog.recordPlayResult({ traceId: 'pb', ok: true, sourceId: 'kw', recordChain: false })
+  assert(report(allEntries()).playbackWindows.h24.total === 0, '只有 play_result 时实际起播应为 0')
+  hlog.setPendingPlayback({ traceId: 'pb', platform: 'kw', quality: '128k', sourceId: 'kw' })
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback())
+  const events = allEntries()
+  assert(events.some(e => e.event === 'playback_start' && e.traceId === 'pb'), '缺 playback_start')
+  assert(report(events).playbackWindows.h24.total === 1, '实际起播未计数')
+  assert(report(events).windows.h24.total === 0, '实际起播不应污染取链窗口')
+  // pending 只能消费一次：暂停/恢复不应重复计数。
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback())
+  assert(allEntries().filter(e => e.event === 'playback_start').length === 1, 'pending 被重复消费')
+})
+
+check('R8 取链失败清理 pending：失败后 playerPlaying 不得伪造起播', async() => {
+  reset()
+  hlog.setPendingPlayback({ traceId: 'bad', sourceId: 'kw' })
+  await hlog.recordPlayResult({ traceId: 'bad', ok: false, code: 'PLAY_FAIL', recordChain: false })
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback())
+  assert(allEntries().filter(e => e.event === 'playback_start').length === 0, '失败后不应记实际起播')
+})
+
+check('R9 切歌竞态：迟到的 playerPlaying 不得消费上一首 pending', async() => {
+  reset()
+  hlog.setPendingPlayback({ traceId: 'song-a', musicId: 'a', sourceId: 'kw' })
+  // 模拟：A 取链成功但用户已切到 B，B 的 playerPlaying 先到。
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback('b'))
+  assert(allEntries().filter(e => e.event === 'playback_start').length === 0, '跨歌 pending 不得记成 B 的实际起播')
+  // 同歌再次起播仍应能正常消费。
+  hlog.setPendingPlayback({ traceId: 'song-b', musicId: 'b', sourceId: 'kw' })
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback('b'))
+  assert(allEntries().filter(e => e.event === 'playback_start' && e.traceId === 'song-b').length === 1, '同歌实际起播未记录')
+})
+
+check('R10 多源失败证据：不得只查第一个 healthEvents API', async() => {
+  reset()
+  global.lx = {
+    apis: {
+      first: {
+        healthEvents: () => ({ promise: Promise.resolve({ events: [] }) }),
+      },
+      second: {
+        healthEvents: () => ({
+          promise: Promise.resolve({
+            events: [{ event: 'source_result', traceId: 'multi-source', sourceId: 'kw', ok: false, code: 'NETWORK_TIMEOUT' }],
+          }),
+        }),
+      },
+    },
+  }
+  await hlog.recordPlayResult({ traceId: 'multi-source', ok: false, code: 'PLAY_FAIL', recordChain: false })
+  const event = allEntries().find(e => e.event === 'source_events')
+  assert(event && event.sourceEvents && event.sourceEvents.length === 1, '第二个音源的失败证据被丢弃')
 })
 
 ;(async() => {

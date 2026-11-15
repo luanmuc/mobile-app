@@ -44,7 +44,9 @@ export interface HealthDiagnosticsView {
   blocks: {
     chain: HealthBlockStats
     play: HealthBlockStats
+    playback: HealthBlockStats
     probe: HealthBlockStats
+    preload: HealthBlockStats
   }
   stats: {
     total: number
@@ -113,7 +115,9 @@ export const buildHealthDiagnosticsView = (report: HealthReport): HealthDiagnost
     blocks: {
       chain: blockOf({ h1: report.windows.h1, h24: report.windows.h24 }),
       play: blockOf(report.playWindows),
+      playback: blockOf(report.playbackWindows),
       probe: blockOf(report.probeWindows),
+      preload: blockOf(report.preloadWindows),
     },
     stats: {
       total: h24.total,

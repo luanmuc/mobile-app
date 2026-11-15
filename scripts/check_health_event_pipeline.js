@@ -155,19 +155,22 @@ check('E7 cache_hit 单列，不进入 chain 成功率与 Top 错误码', async(
   assert(!agg.topCodes.some(c => c.code === 'CACHE_MISS'), 'cache_hit 不应产生 Top 错误码')
 })
 
-check('E8 报告摘要分别给出播放/探测计数', async() => {
+check('E8 报告摘要分别给出播放请求/实际起播/探测计数', async() => {
   const now = Date.now()
   const report = diag.buildHealthReport({
     events: [
       { ts: now - 1000, event: 'source_result', ok: true },
-      { ts: now - 900, event: 'play_result', ok: false, code: 'PLAY_FAIL' },
+      { ts: now - 900, event: 'play_result', ok: false, code: 'PLAY_FAIL', context: 'user' },
+      { ts: now - 850, event: 'playback_start', ok: true, context: 'user' },
       { ts: now - 800, event: 'probe_result', ok: true, latencyMs: 20 },
     ],
     now,
   })
   assert(report.playWindows.h24.total === 1, '报告缺播放块')
+  assert(report.playbackWindows.h24.total === 1, '报告缺实际起播块')
   assert(report.probeWindows.h24.total === 1, '报告缺探测块')
-  assert(report.summary.includes('播放近 24 小时 1 次'), '摘要缺播放说明')
+  assert(report.summary.includes('播放请求近 24 小时 1 次'), '摘要缺播放请求说明')
+  assert(report.summary.includes('实际起播近 24 小时 1 次'), '摘要缺实际起播说明')
   assert(report.summary.includes('探测近 24 小时 1 次'), '摘要缺探测说明')
 })
 

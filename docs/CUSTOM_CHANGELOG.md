@@ -1,3 +1,17 @@
+## [HDM-3 健康数据分层与升级契约（已推送，触发 b129）] - 2026-11-15
+
+> 真机「24h 取链/播放/缓存命中全 0」修复后，继续处理“统计口径断层”和“新旧数据未融合”。结论不是再给 v1 加兼容，而是把健康数据分成三层：L0 用户控制意图永久、L1 健康元数据 7 天且绑源版本、L2 事件日志 7 天滚动。v1 不迁移、不兼容、不保留分支，等 TTL 自然死亡。
+
+- **L0 永久化**：`src/core/sourceHealthPersistence.ts` 的 `sanitizeSourceHealthControls` 去掉 7 天 TTL，只保留“未来时间”容差；用户手动关源 8 天/30 天没开 App，重启后开关不再被静默重置。
+- **源仓 L0**：`src/legacy.js` 的 `restoreHealthState` 提前计算 `controlsOnly`，controls-only 不再受 `HEALTH_STATE_TTL_MS`；完整健康态（`sources/qualityShortCircuit`）仍 7 天 TTL，不复活旧熔断。未知 control 源 ID 从“拒绝整包”改为跳过，已删除源不会带走其余开关。源仓版本 `v8.14.1`。
+- **事件 context**：`healthLog.ts` 新增 `HealthContext=user|preload|refresh|download|probe|legacy`；`PlayResultInput.context` / `HealthLogEntry.context` / `CacheHitInput.context`。预加载默认 `preload`，用户刷新 `refresh`，普通播放 `user`；旧无 context 的 `chain_result` 归 `legacy`，只计数、不参与异常。
+- **实际起播**：新增 `playback_start` 事件与 pending trace：取链成功只代表 URL 就绪，`playerPlaying` 消费一次 pending 才记“实际起播”；失败/暂停恢复不会重复计数。`playerEvent.ts` 的 `handlePlaying` 接入。
+- **诊断聚合**：`healthDiagnostics.ts` 的 `kinds` 增加 `preload` / `playback`，`chain` 只吃用户取链；`detectHealthAnomalies` 只吃 `user` chain，预加载失败不再生成 `local_zero_snapshot_healthy` / `recent_failure`。报告新增 `playbackWindows` / `preloadWindows` / `playbackBreakdown` / `preloadBreakdown` 与 `coverage.legacyChain`；`healthDiagnosticsView.ts` 输出 `playback` / `preload` 块。
+- **UI/三语**：Health 页新增“实际起播”“后台预加载”行；`health_diag_play` 改“播放请求”，新增 `health_diag_playback` / `health_diag_preload`（zh-cn / zh-tw / en-us）。
+- **契约**：`check_health_persistence_v2.js` Q5 改为 8 天/30 天 controls 接受、未来时间拒绝；`check_health_real_playback.js` R3 断言 `preload` context、R7 `playback_start`、R8 失败清 pending；新增 R9 切歌竞态（pending 绑定 `musicId`，跨歌不得消费）与 R10 多源失败证据（并发查询所有带 `healthEvents` 的 API，不再只取第一个）；R2 增加嵌套 `source_events` 的 `context` 保真。`check_health_diagnostics.js` 新增 E1 预加载零异常、E2 实际起播、E3 legacy、E4 pending 一次性；源仓 `health-persistence-v2.js` P7 未知源跳过、P9 controls-only 8 天成功/完整态 8 天拒绝、P10 controls-only 不得清质量短路表。
+- **提交后审计补修**：`PlaybackContext` 增加 `musicId`，`consumePendingPlayback` 按当前 `playerState.musicInfo.id` 校验；`fetchSourceEvents` 改为并发查询全部 `healthEvents` API 并按 JSON 去重；`SOURCE_EVENT_FIELDS` 补 `context`；源仓 controls-only 在 `applyHealthControls` 后直接返回，不再执行 `qualitySkipProbeAt.clear()`。
+- **边界**：v1 仍拒绝；L1/L2 永不迁移；片段试听语义、质量压制入口、K15 真机矩阵不在本轮范围。
+
 ## [健康页取链/播放统计修复 + 缓存播放口径补齐（已推送 e49ab766，待发布）] - 2026-11-15
 
 > 复现：真实 `recordPlayResult` 成功只写 `play_result`，健康报告取链窗口为 0；失败时源侧 `source_result` 被存成嵌套 `source_events`，取链窗口仍为 0。根因是 App 无顶层取链事件写入，且成功播放 1/5 采样会让一小时随机播放仍显示 0。审计又发现：预加载成功后真正播放走缓存分支时只写 `cache_hit`，播放数仍会是 0。

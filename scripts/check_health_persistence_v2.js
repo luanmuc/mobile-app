@@ -94,11 +94,15 @@ check('Q4 v1 旧合并态拒绝读取', async() => {
   assert(r.restored === 0 && called === null, 'v1 必须被拒绝，不能进入源恢复')
 })
 
-check('Q5 control TTL / 64KB / 禁止字段', async() => {
+check('Q5 control 永久化 / 64KB / 禁止字段', async() => {
   const ok = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
   assert(ok.ok, ok.reason)
   const old = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW - 8 * 24 * 3600 * 1000, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
-  assert(!old.ok, '过期 control 应拒绝')
+  assert(old.ok, '控制态是用户意图，8 天不应过期')
+  const ancient = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW - 30 * 24 * 3600 * 1000, controls: { suyinKuwo: { enabled: false, manualOff: true } } }, { now: NOW })
+  assert(ancient.ok, '控制态是用户意图，30 天不应过期')
+  const future = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW + 2 * 3600 * 1000, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
+  assert(!future.ok, '未来时间仍应拒绝')
   const big = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true, note: 'x'.repeat(70000) } } }, { now: NOW })
   assert(!big.ok, '超 64KB 应拒绝')
   const bad = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true, token: 'x' } } }, { now: NOW })

@@ -15,6 +15,8 @@
 declare const require: (name: string) => any
 declare const global: any
 
+export type HealthContext = 'user' | 'preload' | 'refresh' | 'download' | 'probe' | 'legacy'
+
 export interface PlayAttempt {
   source: string
   owner?: 'host' | 'source'
@@ -38,6 +40,8 @@ export interface PlayResultInput {
   attempts?: PlayAttempt[]
   recordPlay?: boolean
   recordChain?: boolean
+  // 事件来源：user=用户动作；preload=后台预加载；refresh=同一用户链路的刷新重试。
+  context?: HealthContext
 }
 
 export interface HealthLogEntry {
@@ -53,6 +57,7 @@ export interface HealthLogEntry {
   sampleWeight?: number
   sourceEvents?: unknown[]
   attempts?: PlayAttempt[]
+  context?: HealthContext
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -119,6 +124,7 @@ export interface CacheHitInput {
   platform?: string
   quality?: string
   sourceId?: string
+  context?: HealthContext
 }
 
 /** 缓存命中只证明“本地有可用 URL”，不证明音源当前可出链；单独记事件，绝不混入成功率。 */
@@ -130,6 +136,7 @@ export const buildCacheHitEntry = (input: CacheHitInput): HealthLogEntry => {
   if (input.platform) entry.platform = String(input.platform)
   if (input.quality) entry.quality = String(input.quality)
   if (input.sourceId) entry.sourceId = String(input.sourceId)
+  entry.context = input.context ?? 'user'
   return entry
 }
 
@@ -156,6 +163,8 @@ export const normalizePlayAttempts = (attempts?: PlayAttempt[]): PlayAttempt[] |
   return out.length ? out : undefined
 }
 
+const resolvePlayContext = (input: PlayResultInput): HealthContext => input.context ?? (input.recordPlay === false ? 'preload' : 'user')
+
 export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => {
   const entry: HealthLogEntry = {
     ts: Date.now(),
@@ -169,6 +178,7 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   if (input.code) entry.code = String(input.code)
   if (Number.isFinite(input.latencyMs)) entry.latencyMs = Math.round(Number(input.latencyMs))
   if (Number.isFinite(input.sampleWeight) && Number(input.sampleWeight) > 0) entry.sampleWeight = Number(input.sampleWeight)
+  entry.context = resolvePlayContext(input)
   const attempts = normalizePlayAttempts(input.attempts)
   if (attempts) entry.attempts = attempts
   return entry
@@ -184,6 +194,7 @@ export const buildChainResultEntries = (input: PlayResultInput): HealthLogEntry[
     ts: Date.now(),
     event: 'chain_result',
     sampleWeight: 1,
+    context: resolvePlayContext(input),
   }
   if (input.traceId) base.traceId = String(input.traceId)
   if (input.platform) base.platform = String(input.platform)
@@ -375,12 +386,32 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
   try {
     const apis = global.lx?.apis as Record<string, { healthEvents?: (params: { traceId: string }) => { promise: Promise<{ events?: unknown[] }> } }> | undefined
     if (!apis || !traceId) return []
-    const sourceId = Object.keys(apis).find(id => typeof apis[id]?.healthEvents === 'function')
-    if (!sourceId) return []
-    const healthEvents = apis[sourceId].healthEvents
-    if (!healthEvents) return []
-    const res = await healthEvents({ traceId }).promise
-    return Array.isArray(res?.events) ? res.events : []
+    // 多音源：同一 trace 只可能命中实际处理该请求的源；不能只拿第一个 API，
+    // 否则失败证据会因加载顺序被另一个无关源的空结果吞掉。
+    const sourceIds = Object.keys(apis).filter(id => typeof apis[id]?.healthEvents === 'function')
+    if (!sourceIds.length) return []
+    const results = await Promise.all(sourceIds.map(async id => {
+      try {
+        const healthEvents = apis[id]?.healthEvents
+        if (!healthEvents) return []
+        const res = await healthEvents({ traceId }).promise
+        return Array.isArray(res?.events) ? res.events : []
+      } catch {
+        return []
+      }
+    }))
+    const merged: unknown[] = []
+    const seen = new Set<string>()
+    for (const list of results) {
+      for (const event of list) {
+        let key: string
+        try { key = JSON.stringify(event) } catch { key = String(event) }
+        if (seen.has(key)) continue
+        seen.add(key)
+        merged.push(event)
+      }
+    }
+    return merged
   } catch {
     return []
   }
@@ -388,7 +419,7 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
 
 // F56：源事件落盘前再过一遍白名单。源侧本身已裁剪，但旧版本/异常源仍可能带 URL、
 // 歌名或任意字段；App 不能把“源侧应该干净”当成安全边界。
-const SOURCE_EVENT_FIELDS = ['ts', 'seq', 'traceId', 'event', 'sourceId', 'platform', 'quality', 'ok', 'code', 'latencyMs', 'reason', 'from', 'to']
+const SOURCE_EVENT_FIELDS = ['ts', 'seq', 'traceId', 'event', 'sourceId', 'platform', 'quality', 'ok', 'code', 'latencyMs', 'reason', 'from', 'to', 'context']
 const clipHealthText = (v: unknown, max = 64): string => String(v ?? '').slice(0, max)
 export const sanitizeSourceEvents = (events: unknown): unknown[] => {
   if (!Array.isArray(events)) return []
@@ -418,6 +449,59 @@ export const recordCacheHit = async(input: CacheHitInput): Promise<void> => {
   await appendHealthEvent(buildCacheHitEntry(input))
 }
 
+export interface PlaybackContext {
+  traceId?: string
+  // 绑定本次取链对应的歌曲；playerPlaying 必须拿当前播放歌曲来消费，
+  // 防止快速切歌时把上一首的 pending 记到下一首的实际起播。
+  musicId?: string
+  platform?: string
+  quality?: string
+  sourceId?: string
+}
+
+// 取链成功只说明 URL 可用；playerPlaying 才说明音频真正开始。
+// 这里按一次取链请求保存待确认上下文，playerPlaying 消费一次，暂停/恢复不会重复计数。
+let pendingPlaybackContext: PlaybackContext | null = null
+export const setPendingPlayback = (context: PlaybackContext): void => {
+  pendingPlaybackContext = {
+    traceId: context.traceId,
+    musicId: context.musicId,
+    platform: context.platform,
+    quality: context.quality,
+    sourceId: context.sourceId,
+  }
+}
+export const clearPendingPlayback = (traceId?: string): void => {
+  if (traceId == null || pendingPlaybackContext?.traceId === traceId) pendingPlaybackContext = null
+}
+export const consumePendingPlayback = (musicId?: string): PlaybackContext | null => {
+  const context = pendingPlaybackContext
+  if (!context) return null
+  pendingPlaybackContext = null
+  // 旧调用方可能不传音乐 ID；生产播放器必须传，跨歌时丢弃而不是串记。
+  if (musicId !== undefined && context.musicId !== undefined && context.musicId !== musicId) return null
+  return context
+}
+
+export const buildPlaybackStartEntry = (input: PlaybackContext): HealthLogEntry => {
+  const entry: HealthLogEntry = {
+    ts: Date.now(),
+    event: 'playback_start',
+    ok: true,
+    context: 'user',
+  }
+  if (input.traceId) entry.traceId = String(input.traceId)
+  if (input.platform) entry.platform = String(input.platform)
+  if (input.quality) entry.quality = String(input.quality)
+  if (input.sourceId) entry.sourceId = String(input.sourceId)
+  return entry
+}
+
+export const recordPlaybackStart = async(input: PlaybackContext | null): Promise<void> => {
+  if (!input) return
+  await appendHealthEvent(buildPlaybackStartEntry(input))
+}
+
 export const recordPlayResult = async(input: PlayResultInput): Promise<void> => {
   // 失败 100% 落盘；成功按 SUCCESS_SAMPLE_RATE 采样（当前 1/1）。取链账本必须
   // 独立于播放采样：否则成功播放没被采中时，chain 也会一起丢失。
@@ -426,6 +510,7 @@ export const recordPlayResult = async(input: PlayResultInput): Promise<void> => 
     await appendHealthEvent(entry)
   }
   if (input.recordChain !== false) for (const entry of buildChainResultEntries(input)) await appendHealthEvent(entry)
+  if (!input.ok) clearPendingPlayback(input.traceId)
   if (!input.ok && input.traceId) {
     const sourceEvents = sanitizeSourceEvents(await fetchSourceEvents(String(input.traceId)))
     if (sourceEvents.length) {

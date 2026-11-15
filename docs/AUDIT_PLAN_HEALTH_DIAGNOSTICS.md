@@ -1,9 +1,11 @@
 # 音源健康 · 本地诊断深度审计计划与压力测试口径
 
-> **定位**：本文件是主计划 [`AUDIT_PLAN.md`](./AUDIT_PLAN.md) §3b「音源健康本地诊断」一行的**深度子纲**（85 条断言口径：深度 52 / 视图 20 / 日志目录 13），不是并列的第二份审计计划。主计划管「审什么 / 缺口在哪」，本文件管「健康诊断这一域的逐分支断言怎么验」。
+> **定位**：本文件是主计划 [`AUDIT_PLAN.md`](./AUDIT_PLAN.md) §3b「音源健康本地诊断」一行的**深度子纲**（当前 88 条断言口径：深度 51 / 视图 24 / 日志目录 13），不是并列的第二份审计计划。主计划管「审什么 / 缺口在哪」，本文件管「健康诊断这一域的逐分支断言怎么验」。
 >
 > 审计对象：App 仓 `lx-music-mobile`，本地诊断闭环（`healthLog.ts` / `healthDiagnostics.ts` / `online.ts` 失败归因 / `Health.tsx` / 三语文案 / 文档与 workflow）。
-> 本轮基线：历史起点 `a02db1af`；2026-11-14 当前复核提交 `785af658` + 文档回填 `8adce795`（均已推送，App CI `43520302282` success），`check_health_diagnostics` 54/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_stress` 14/0、`check_health_diagnostics_view` 23/0、`check_log_directory` 15/0。
+> 本轮基线：历史起点 `a02db1af`；2026-11-15 HDM-3 本地基线：App `check_health_diagnostics` 58/0（新增 E1~E4）、`check_health_real_playback` 8/0（新增 R7/R8）、`check_health_persistence_v2` 9/0（Q5 改为 controls 永久）；源仓 `health-persistence-v2` P1~P9 全绿（P7 未知源跳过、P9 controls-only 去 TTL）。历史基线 `785af658` + `8adce795` 为 54/0 / 51/0 / 14/0 / 23/0 / 15/0。
+>
+> **2026-11-15 HDM-3 口径变更**：健康数据分 L0/L1/L2。L0 用户控制意图永久、无 TTL、跨 sourceVersion；L1 健康元数据 7 天 TTL 且绑 sourceVersion；L2 事件 7 天滚动。事件新增 `context`（`user/preload/refresh/download/probe/legacy`）与 `playback_start`。`chain_result` 是 URL 获取尝试，`play_result` 是播放请求/URL 就绪，`playback_start` 是播放器真实起播；`cache_hit` 单列，`probe_result` 独立。用户取链/播放请求/实际起播/预加载/legacy 分块统计，异常只吃 `user` 取链；旧无 context 的 `chain_result` 只计数、不参与异常。v1 不迁移、不兼容。
 > 原则：不是「跑一遍不崩」，而是逐分支验证统计口径、窗口语义、异常规则、隐私边界和大数据行为。
 
 > **2026-11-13 v8.14 健康整功能重构补审**：新增 `scripts/check_health_status_refactor.js`（HS1~HS8）专审状态优先级与 `offReason`，已 8/0。覆盖：用户关闭 > 自动关闭 > 默认关闭 > 休眠 > 待采样 > 播放摘除 > 异常；旧快照无 `offReason` 回退不回归；4 主状态只落一态。新增待审缺口：真实播放回传去重（同一首歌多次 Playing 目前每次成功回传，会抬高样本数）、`probeSource` 只读语义、自动关闭 TTL 6h 重启复验；这三项需真机或宿主模拟补证，未闭环前不得宣称“健康状态完全正确”。

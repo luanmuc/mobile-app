@@ -22,6 +22,7 @@ export interface HealthEventLike {
   reason?: string
   sampleWeight?: number
   sourceEvents?: unknown[]
+  context?: 'user' | 'preload' | 'refresh' | 'download' | 'probe' | 'legacy'
 }
 
 export interface HealthWindowStats {
@@ -50,8 +51,8 @@ export interface HealthAggregate {
   windows: HealthWindows
   topCodes: Array<{ code: string, count: number }>
   breakdown: HealthBreakdownRow[]
-  // 播放/探测各自独立窗口，三块成功率不得混算。
-  kinds: { chain: HealthKindAggregate, play: HealthKindAggregate, probe: HealthKindAggregate }
+  // 播放/探测/预加载/实际起播各自独立窗口，三块成功率不得混算。
+  kinds: { chain: HealthKindAggregate, play: HealthKindAggregate, probe: HealthKindAggregate, preload: HealthKindAggregate, playback: HealthKindAggregate }
 }
 
 export interface HealthBreakdownRow {
@@ -70,6 +71,7 @@ export interface HealthCoverage {
   coveredMs: number
   truncated: boolean
   unweightedSuccesses: number
+  legacyChain: number
 }
 
 export interface HealthFindingSample {
@@ -128,12 +130,16 @@ export interface HealthReport {
   windows: HealthWindows
   // F53：播放/探测窗口分开；windows 只代表取链，不把播放成功混进取链成功率。
   playWindows: HealthWindows
+  playbackWindows: HealthWindows
   probeWindows: HealthWindows
+  preloadWindows: HealthWindows
   coverage: HealthCoverage
   cacheHits: HealthCacheHits
   breakdown: HealthBreakdownRow[]
   playBreakdown: HealthBreakdownRow[]
+  playbackBreakdown: HealthBreakdownRow[]
   probeBreakdown: HealthBreakdownRow[]
+  preloadBreakdown: HealthBreakdownRow[]
   findings: HealthFinding[]
   recommendations: string[]
   traceIds: string[]
@@ -179,6 +185,16 @@ const DAY = 24 * HOUR
 const isChainOutcome = (e: HealthEventLike) => (e.event === 'chain_result' || e.event === 'source_result') && typeof e.ok === 'boolean'
 const isPlayOutcome = (e: HealthEventLike) => e.event === 'play_result' && typeof e.ok === 'boolean'
 const isProbeOutcome = (e: HealthEventLike) => e.event === 'probe_result' && typeof e.ok === 'boolean'
+const isPlaybackStart = (e: HealthEventLike) => e.event === 'playback_start' && e.ok === true
+const isPreloadChain = (e: HealthEventLike) => e.event === 'chain_result' && e.context === 'preload'
+const isLegacyChain = (e: HealthEventLike) => e.event === 'chain_result' && (e.context === 'legacy' || e.context == null)
+// 旧日志没有 context：source_result 是源侧账本，仍算用户取链；chain_result 无法区分
+// preload/user，归 legacy，只展示计数、不参与异常，等 7 天自然过期。
+const isUserChainOutcome = (e: HealthEventLike) => {
+  if (e.event === 'source_result') return typeof e.ok === 'boolean'
+  if (e.event !== 'chain_result') return false
+  return e.context === 'user' || e.context === 'refresh'
+}
 const isOutcome = (e: HealthEventLike) => isChainOutcome(e) || isPlayOutcome(e)
 
 const inWindow = (e: HealthEventLike, now: number, ms: number) => e.ts <= now && e.ts > now - ms
@@ -261,9 +277,11 @@ export const aggregateHealthEvents = (events: HealthEventLike[], now: number = D
   const safe = (Array.isArray(events) ? events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
   // F53/F10：取链、播放、探测分开算；任何一块的失败都不能污染另一块成功率。
   const kinds = {
-    chain: aggregateKind(safe.filter(isChainOutcome), now),
+    chain: aggregateKind(safe.filter(isUserChainOutcome), now),
     play: aggregateKind(safe.filter(isPlayOutcome), now),
     probe: aggregateKind(safe.filter(isProbeOutcome), now),
+    preload: aggregateKind(safe.filter(isPreloadChain), now),
+    playback: aggregateKind(safe.filter(isPlaybackStart), now),
   }
   return { windows: kinds.chain.windows, topCodes: kinds.chain.topCodes, breakdown: kinds.chain.breakdown, kinds }
 }
@@ -291,9 +309,9 @@ export const detectHealthAnomalies = (input: {
 }): HealthFinding[] => {
   const now = input.now ?? Date.now()
   const events = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number')
-  // F54：异常检测按 block 分算。取链异常只看 source_result，播放/探测各自单列，
+  // F54：异常检测按 block 分算。取链异常只看用户取链，preload/legacy 单独计数，
   // cache_hit 永远不是异常（缓存命中是正常路径）。
-  const chainOutcomes = events.filter(isChainOutcome)
+  const chainOutcomes = events.filter(isUserChainOutcome)
   const playOutcomes = events.filter(isPlayOutcome)
   const probeOutcomes = events.filter(isProbeOutcome)
   const outcomes = chainOutcomes
@@ -576,6 +594,7 @@ export const buildHealthReport = (input: {
   const timestamps = safe.map(e => e.ts)
   const oldestTs = timestamps.length ? Math.min(...timestamps) : null
   const newestTs = timestamps.length ? Math.max(...timestamps) : null
+  const legacyChain = safe.filter(isLegacyChain).length
   // 升级前的成功事件没有 sampleWeight，按 1 计；它们会把加权成功率拉低，
   // 报告必须显式说明，避免用户把混合口径当成当前真实成功率。
   const unweightedSuccesses = safe.filter(e => isOutcome(e) && e.ok === true && weightOf(e) === 1).length
@@ -586,13 +605,19 @@ export const buildHealthReport = (input: {
     coveredMs: oldestTs != null && newestTs != null ? Math.max(0, newestTs - oldestTs) : 0,
     truncated: Boolean(input.truncated),
     unweightedSuccesses,
+    legacyChain,
   }
   const h1 = agg.windows.h1
   const h24 = agg.windows.h24
   const play24 = agg.kinds.play.windows.h24
+  const playback24 = agg.kinds.playback.windows.h24
   const probe24 = agg.kinds.probe.windows.h24
-  const playNote = play24.total ? `；播放近 24 小时 ${play24.total} 次、成功 ${play24.ok}（${pct(play24.successRate)}）` : ''
+  const preload24 = agg.kinds.preload.windows.h24
+  const playNote = play24.total ? `；播放请求近 24 小时 ${play24.total} 次、成功 ${play24.ok}（${pct(play24.successRate)}）` : ''
+  const playbackNote = playback24.total ? `；实际起播近 24 小时 ${playback24.total} 次` : ''
   const probeNote = probe24.total ? `；探测近 24 小时 ${probe24.total} 次、成功 ${probe24.ok}（${pct(probe24.successRate)}）` : ''
+  const preloadNote = preload24.total ? `；后台预加载取链 ${preload24.total} 次、成功 ${preload24.ok}（${pct(preload24.successRate)}，不计入用户异常）` : ''
+  const legacyNote = legacyChain ? `；${legacyChain} 条旧口径取链记录仅计数、不参与异常判断` : ''
   const cacheHits: HealthCacheHits = {
     h1: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, HOUR)).length,
     h24: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, DAY)).length,
@@ -606,10 +631,10 @@ export const buildHealthReport = (input: {
     ? ''
     : ` 本地日志仅覆盖最近 ${spanText(coverage.coveredMs)}，7 天结论仅供参考。`
   const summary = h24.total
-    ? `取链近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）${playNote}${probeNote}；${cacheNote}${weightingNote}发现 ${findings.length} 项异常/线索。${coverageNote}`
+    ? `取链近 1 小时约 ${h1.total} 次、成功 ${h1.ok} 次（${pct(h1.successRate)}）；近 24 小时约 ${h24.total} 次、成功 ${h24.ok} 次（${pct(h24.successRate)}）${playNote}${playbackNote}${probeNote}${preloadNote}${legacyNote}；${cacheNote}${weightingNote}发现 ${findings.length} 项异常/线索。${coverageNote}`
     : cacheHits.h24
-      ? `近 24 小时没有本地取链记录，缓存命中 ${cacheHits.h24} 次；要判断音源健康，播放一首未缓存的歌，或到音源健康页点一次探测。${coverageNote}`
-      : `近 24 小时还没有本地取链记录。播放一首未缓存的歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
+      ? `近 24 小时没有本地用户取链记录，缓存命中 ${cacheHits.h24} 次；${preloadNote ? preloadNote.slice(1) + '；' : ''}要判断音源健康，播放一首未缓存的歌，或到音源健康页点一次探测。${coverageNote}`
+      : `近 24 小时还没有本地用户取链记录。${preloadNote ? preloadNote.slice(1) + '；' : ''}播放一首未缓存的歌，或到音源健康页点一次探测，再回来导出。${coverageNote}`
   const traceIds = trimTrace(findings.flatMap(f => f.traceIds))
   const recommendations = Array.from(new Set(findings.map(f => f.suggestion).filter(Boolean))).slice(0, 6)
   return {
@@ -618,12 +643,16 @@ export const buildHealthReport = (input: {
     summary,
     windows: agg.windows,
     playWindows: agg.kinds.play.windows,
+    playbackWindows: agg.kinds.playback.windows,
     probeWindows: agg.kinds.probe.windows,
+    preloadWindows: agg.kinds.preload.windows,
     coverage,
     cacheHits,
     breakdown: agg.breakdown,
     playBreakdown: agg.kinds.play.breakdown,
+    playbackBreakdown: agg.kinds.playback.breakdown,
     probeBreakdown: agg.kinds.probe.breakdown,
+    preloadBreakdown: agg.kinds.preload.breakdown,
     findings,
     recommendations,
     traceIds,

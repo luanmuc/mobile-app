@@ -17,7 +17,7 @@ import {
   getCachedLyricInfo,
 } from './utils'
 import { log } from '@/utils/log'
-import { createHealthTraceId, recordCacheHit, recordPlayResult } from '@/core/healthLog'
+import { createHealthTraceId, recordCacheHit, recordPlayResult, setPendingPlayback } from '@/core/healthLog'
 import type { PlaybackAttempt } from './playbackBudget'
 
 /* export const setMusicUrl = ({ musicInfo, type, url }: {
@@ -62,6 +62,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   //   // return Promise.reject(new Error('该歌曲没有可播放的音频'))
   // }
   const targetQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
+  // 一次播放请求一个 traceId；缓存命中也要用它关联后续 playerPlaying。
+  const traceId = createHealthTraceId()
   const cachedUrl = await getStoreMusicUrl(musicInfo, targetQuality)
   if (cachedUrl && !isRefresh) {
     onQuality(targetQuality)
@@ -77,14 +79,23 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     // 缓存命中不证明音源当前可出链：单独记 cache_hit，不进成功率；用来解释“听歌了但本地诊断 0 次”。
     // 预加载（recordPlay:false）命中缓存只是提前拿到了 URL，既不是真实播放，也不该算一次缓存播放。
     if (recordPlay) {
-      void recordCacheHit({
+      setPendingPlayback({
+        traceId,
+        musicId: String(musicInfo.id),
         platform: cachedSource?.platform ?? musicInfo.source,
         quality: targetQuality,
         sourceId: cachedSource?.id,
       })
-      // 预加载成功后真正播放会走这里：这是真实播放，必须记 play_result；但取链已在预加载时记过，
-      // 不能再用一次 chain_result 重复放大取链次数。
+      void recordCacheHit({
+        platform: cachedSource?.platform ?? musicInfo.source,
+        quality: targetQuality,
+        sourceId: cachedSource?.id,
+        context: 'user',
+      })
+      // 预加载成功后真正播放会走这里：这是真实播放请求，必须记 play_result；但取链已在预加载时记过，
+      // 不能再用一次 chain_result 重复放大取链次数。实际播放由 playerPlaying 另行记 playback_start。
       void recordPlayResult({
+        traceId,
         platform: cachedSource?.platform ?? musicInfo.source,
         quality: targetQuality,
         ok: true,
@@ -92,6 +103,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
         sourceId: cachedSource?.id,
         recordPlay: true,
         recordChain: false,
+        context: 'user',
       })
     }
     return cachedUrl
@@ -100,7 +112,6 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   // b70 诊断：获取链接全链路打点（写运行诊断日志，fire-and-forget 不阻塞）
   const startTs = Date.now()
   // 2.4：一次播放一个 traceId；换源候选复用同一个，串起源侧多次取链事件
-  const traceId = createHealthTraceId()
   log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh} trace=${traceId}`)
   // b70 诊断：兜底超时——防止任何链路异常导致 promise 永不 settle（无限 00:00），25s 强制失败并打点
   const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence = 'exact', qualityCeilingApplied = false, requestedQuality = targetQuality, attempts }) => {
@@ -114,6 +125,16 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     onQuality(targetQuality)
     onSource(source)
     onFragment(fragment === true)
+    const healthContext = recordPlay ? (isRefresh ? 'refresh' : 'user') : 'preload'
+    if (recordPlay) {
+      setPendingPlayback({
+        traceId,
+        musicId: String(musicInfo.id),
+        platform: sourcePlatform || targetMusicInfo.source || musicInfo.source,
+        quality: targetQuality,
+        sourceId: subSource,
+      })
+    }
     void recordPlayResult({
       traceId,
       platform: sourcePlatform || targetMusicInfo.source || musicInfo.source,
@@ -123,6 +144,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       sourceId: subSource,
       attempts,
       recordPlay,
+      context: healthContext,
     })
     log.diagnose(`[播放诊断] 链接获取成功: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms 缓存=${isFromCache} 请求档=${requestedQuality} 实际档=${targetQuality} 子源=${subSourceName || subSource || '无'} 片段=${fragment === true ? '是' : '否'} 置信=${qualityConfidence} 起跑档压制=${qualityCeilingApplied ? '是' : '否'} trace=${traceId} attempts=${attempts ? JSON.stringify(attempts) : '无'}`)
     return url
@@ -147,6 +169,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
       sourceId: failureSourceId,
       attempts: errAttempts,
       recordPlay,
+      context: recordPlay ? (isRefresh ? 'refresh' : 'user') : 'preload',
     })
     log.diagnose(`[播放诊断] 链接获取失败: 歌=${musicInfo.name} 错误=${err?.message} trace=${traceId} attempts=${errAttempts ? JSON.stringify(errAttempts) : '无'}`)
     throw err

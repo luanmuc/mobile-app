@@ -682,6 +682,66 @@ const memoryFs = () => {
     assert(shared[0] === p, `分享路径不符：${shared[0]}`)
   })
 
+  if (diag) {
+    check('E1 预加载失败不生成用户异常，只进 preload 块', () => {
+      const preload = [1, 2, 3].map(i => ({
+        ts: NOW - i * 10 * MIN,
+        event: 'chain_result',
+        sourceId: 'deadLocal',
+        platform: 'kw',
+        quality: '128k',
+        ok: false,
+        code: 'NETWORK_ERROR',
+        context: 'preload',
+      }))
+      const agg = diag.aggregateHealthEvents(preload, NOW)
+      assert(agg.windows.h24.total === 0, `预加载污染用户取链窗口：${JSON.stringify(agg.windows.h24)}`)
+      assert(agg.kinds.preload.windows.h24.total === 3, '预加载未单独计数')
+      const report = diag.buildHealthReport({ events: preload, snapshot, now: NOW })
+      assert(report.findings.length === 0, `预加载失败不应生成异常：${JSON.stringify(report.findings)}`)
+      assert(report.preloadWindows.h24.total === 3, '报告缺少预加载窗口')
+    })
+
+    check('E2 只有 play_result 无 playback_start 时实际起播为 0', () => {
+      const ev = [
+        { ts: NOW - 5 * MIN, event: 'play_result', sourceId: 'kw', ok: true, context: 'user' },
+        { ts: NOW - 4 * MIN, event: 'playback_start', sourceId: 'kw', ok: true, context: 'user' },
+      ]
+      const agg = diag.aggregateHealthEvents(ev, NOW)
+      assert(agg.kinds.play.windows.h24.total === 1, '播放请求未计数')
+      assert(agg.kinds.playback.windows.h24.total === 1, '实际起播未计数')
+      const report = diag.buildHealthReport({ events: ev, now: NOW })
+      assert(report.playbackWindows.h24.total === 1, '报告缺少实际起播窗口')
+      assert(report.playbackBreakdown.length >= 1, '报告缺少实际起播按源拆分')
+    })
+
+    check('E3 无 context 的旧 chain_result 归 legacy，不参与异常', () => {
+      const legacy = [1, 2, 3].map(i => ({
+        ts: NOW - i * 20 * MIN,
+        event: 'chain_result',
+        sourceId: 'deadLocal',
+        platform: 'kw',
+        quality: '128k',
+        ok: false,
+        code: 'NETWORK_ERROR',
+      }))
+      const agg = diag.aggregateHealthEvents(legacy, NOW)
+      assert(agg.windows.h24.total === 0, '旧 chain_result 不应冒充用户取链')
+      const report = diag.buildHealthReport({ events: legacy, snapshot, now: NOW })
+      assert(report.coverage.legacyChain === 3, `legacy 计数不符：${report.coverage.legacyChain}`)
+      assert(report.findings.length === 0, `legacy 不应生成异常：${JSON.stringify(report.findings)}`)
+    })
+
+    check('E4 playback 计数与 pending 一次性消费', () => {
+      healthLog.setPendingPlayback({ traceId: 'e4', platform: 'kw', quality: '128k', sourceId: 'kw' })
+      const first = healthLog.consumePendingPlayback()
+      assert(first && first.traceId === 'e4', 'pending 未取回')
+      assert(healthLog.consumePendingPlayback() === null, 'pending 应一次性消费')
+      const entry = healthLog.buildPlaybackStartEntry(first)
+      assert(entry.event === 'playback_start' && entry.context === 'user', `条目不符：${JSON.stringify(entry)}`)
+    })
+  }
+
   console.log(`\n===== 健康诊断契约汇总：${passed} 通过 / ${failures.length} 失败 =====`)
   if (failures.length) {
     console.log('失败项：')
