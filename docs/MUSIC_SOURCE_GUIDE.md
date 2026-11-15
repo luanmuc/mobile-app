@@ -21,7 +21,7 @@ musicSdk（内置官方源）  ──┐
 
 1. **CI 拉取**：`.github/workflows/release.yml` 每次构建时，通过 GitHub Contents API（`?ref=master`）从 `luanmuc/backend-api` 拉取最新脚本 → **生成** `assets/builtin_source.js`（本仓库**不内置音源副本**，该文件由每次构建自动创建；仓库内若删除/不存在也由构建重建）
 2. **校验**：文件 >50KB 且包含 `@name` 声明才通过，防止拉取到损坏文件；拉取失败（curl 非 0）即构建中断，不会出无音源的包
-3. **启动导入**：App 启动时读取内置脚本，按 `@version` 首 token 与 `imported_builtin_source_version` 比较；仅首次安装或内置版本严格更高时自动导入/替换，禁止旧 APK 内置源覆盖在线升级；旧源清理只按 `builtin_source_id` 标记，不按名字批量删。
+3. **启动导入**：App 启动时读取内置脚本，按 `@version` 首 token 与 `imported_builtin_source_version` 比较；仅首次安装或内置版本严格更高时自动导入/替换，禁止旧 APK 内置源覆盖在线升级；旧源清理只按 `builtin_source_id` 标记，不按名字批量删。在线升级导入后、切源前写 `pending_builtin_source_id`，切源成功并完成版本/ id / 旧源清理后才清除；下次启动按 pending 对账，避免“新源已导入但版本标记仍旧”导致重复导入。
 4. **运行时**：音源脚本在 QuickJS 中运行，向 App 注册 `musicUrl/lyric/pic` 等 actions，App 侧统一调用
 
 > ⚠️ **本仓库不再内置 `assets/builtin_source.js` 静态副本**（v1.9.1-b74 起移除）：它由每次构建自动生成并覆盖。改音源请到 [luanmuc/backend-api](https://github.com/luanmuc/backend-api)；本地调试可用最新脚本手动放置同名文件。

@@ -81,7 +81,7 @@ git push origin master
 
 1. 全量语法检查 0 错误（528 个 TS/TSX）
 2. `APP_PROVIDER_NAME`（constant.ts）与 AndroidManifest 的 `${applicationId}.provider`、原生 shareFile/openFile 传参一致
-3. 内置音源兜底逻辑仍在（`has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id` 三键 + `decideBuiltinSourceImport` 只升不降）
+3. 内置音源兜底逻辑仍在（`has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id` / `pending_builtin_source_id` 四键 + `decideBuiltinSourceImport` 只升不降 + `decidePendingBuiltinSwitch` 切源失败对账）
 4. 权限三分支（<30 / 30-32 / >=33）未被上游覆盖
 5. 下载列表播放（`getList('download')` 返回已完成任务）未被上游覆盖
 6. package.json 的 author/homepage/bugs 仍指向 `luanmuc`

@@ -153,5 +153,130 @@ run('U12 在线升级使用共享解析/比较，并记录 imported_builtin_sour
   assert.ok(!source.includes('api.name.includes(\'豆包定制\')'), 'Source.tsx 仍按名字批量删除内置源')
 })
 
+console.log('\n[版本锚定]')
+
+run('U13 @version 只认文件头，说明/前置注释里的假版本不能当真相', () => {
+  const { parseSourceVersion } = LOGIC()
+  const script = `// @version 9.9.9
+/*!
+ * @name 豆包定制[聚合音源]
+ * @description 说明里写 @version 7.7.7 也不算
+ * @version 8.15.0
+ */`
+  assert.strictEqual(parseSourceVersion(script), '8.15.0')
+})
+
+run('U14 无文件头时，只接受行首 @version 兜底', () => {
+  const { parseSourceVersion } = LOGIC()
+  assert.strictEqual(parseSourceVersion('// @version v8.1.2\nfoo()'), '8.1.2')
+})
+
+console.log('\n[升级基线]')
+
+run('U15 升级基线优先取内置源脚本，不被当前选中的其他源污染', () => {
+  const { resolveSourceUpdateBaseline } = LOGIC()
+  const r = resolveSourceUpdateBaseline({
+    builtinScript: '/*! @version 8.15.0 */',
+    importedVersion: '8.15.0',
+    activeSourceName: '用户手动源',
+    activeScript: '/*! @version 9.9.9 */',
+  })
+  assert.strictEqual(r.version, '8.15.0')
+  assert.strictEqual(r.source, 'builtin-script')
+})
+
+run('U16 内置源脚本读不到时，回退 imported_builtin_source_version', () => {
+  const { resolveSourceUpdateBaseline } = LOGIC()
+  const r = resolveSourceUpdateBaseline({
+    builtinScript: '',
+    importedVersion: '8.16.0',
+    activeSourceName: '用户手动源',
+    activeScript: '/*! @version 9.9.9 */',
+  })
+  assert.strictEqual(r.version, '8.16.0')
+  assert.strictEqual(r.source, 'imported-version')
+})
+
+run('U17 无 id / 无版本时，才按内置名回退当前选中源', () => {
+  const { BUILTIN_SOURCE_NAME, resolveSourceUpdateBaseline } = LOGIC()
+  const r = resolveSourceUpdateBaseline({
+    builtinScript: '',
+    importedVersion: '',
+    activeSourceName: BUILTIN_SOURCE_NAME,
+    activeScript: '/*! @version 8.17.0 */',
+  })
+  assert.strictEqual(r.version, '8.17.0')
+  assert.strictEqual(r.source, 'active-builtin')
+})
+
+console.log('\n[待切换源对账]')
+
+run('U18 待切换源已在当前选中位，按脚本版本提升为内置源', () => {
+  const { decidePendingBuiltinSwitch } = LOGIC()
+  const d = decidePendingBuiltinSwitch({
+    pendingSourceId: 'user_api_1',
+    sourceIds: ['user_api_1', 'kw'],
+    activeSourceId: 'user_api_1',
+    pendingVersion: 'v8.15.0',
+  })
+  assert.strictEqual(d.action, 'promote-active')
+  assert.strictEqual(d.promoteVersion, '8.15.0')
+})
+
+run('U19 待切换源是孤儿时阻止启动自动导入，避免重复源', () => {
+  const { decidePendingBuiltinSwitch } = LOGIC()
+  const d = decidePendingBuiltinSwitch({
+    pendingSourceId: 'user_api_1',
+    sourceIds: ['user_api_1', 'kw'],
+    activeSourceId: 'kw',
+    pendingVersion: '',
+  })
+  assert.strictEqual(d.action, 'block-import')
+})
+
+run('U20 待切换源已被删除时清掉 pending 标记', () => {
+  const { decidePendingBuiltinSwitch } = LOGIC()
+  const d = decidePendingBuiltinSwitch({
+    pendingSourceId: 'user_api_1',
+    sourceIds: ['kw'],
+    activeSourceId: 'kw',
+    pendingVersion: '',
+  })
+  assert.strictEqual(d.action, 'clear-stale')
+})
+
+run('U21 有 pending 阻断时导入决策必须拒绝自动导入', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.14.1', pendingBlocked: true })
+  assert.strictEqual(d.shouldImport, false)
+  assert.strictEqual(d.reason, 'pending-switch')
+})
+
+console.log('\n[接线静态锁 · 原子性]')
+
+run('U22 在线升级先写 pending 再切源，成功后才清 pending', () => {
+  const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
+  const pendingAt = source.indexOf('BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId')
+  const switchAt = source.indexOf('setApiSource(newApiInfo.id)')
+  const removeAt = source.lastIndexOf('removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)')
+  assert.ok(pendingAt >= 0, 'Source.tsx 未写 pendingSourceId')
+  assert.ok(switchAt > pendingAt, 'pendingSourceId 必须在切源前写入')
+  assert.ok(removeAt > switchAt, 'pendingSourceId 必须在切源成功后清理')
+})
+
+run('U23 启动导入用第二次读到的脚本回填版本，避免首次读失败导致反复导入', () => {
+  const index = read('src/core/init/userApi/index.ts')
+  assert.ok(index.includes('builtinVer || parseSourceVersion(script)'), 'index.ts 未用第二次读取的脚本回填版本')
+})
+
+run('U24 pending 提升为内置源后清理旧内置源，避免只换标记不换实体', () => {
+  const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
+  const index = read('src/core/init/userApi/index.ts')
+  assert.ok(source.includes('previousBuiltinId'), 'Source.tsx 未记录待清理的旧内置源 id')
+  assert.ok(source.includes('removeUserApi([previousBuiltinId])'), 'Source.tsx 未清理旧内置源')
+  assert.ok(index.includes('previousBuiltinId'), 'index.ts 未记录待清理的旧内置源 id')
+  assert.ok(index.includes('removeUserApi([previousBuiltinId])'), 'index.ts 未清理旧内置源')
+})
+
 console.log(`\n${checks} 项通过，${failures} 项失败`)
 if (failures) process.exitCode = 1

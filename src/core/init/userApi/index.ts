@@ -4,14 +4,14 @@ import settingState from '@/store/setting/state'
 import BackgroundTimer from 'react-native-background-timer'
 import RNFS from 'react-native-fs'
 import { fetchData } from './request'
-import { getUserApiList, addUserApi, removeUserApi } from '@/utils/data'
+import { getUserApiList, addUserApi, removeUserApi, getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
 import { restoreSourceHealth, saveSourceHealth, type HealthStorage, type SourceHealthApi } from '@/core/sourceHealthPersistence'
 import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, parseSourceVersion } from './builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion } from './builtinSource'
 import { recordProbeEvents } from '@/core/healthLog'
 
 
@@ -541,10 +541,61 @@ export default async(setting: LX.AppSetting) => {
   const builtinVersionKey = BUILTIN_SOURCE_STORAGE_KEYS.importedVersion
   const builtinSourceIdKey = BUILTIN_SOURCE_STORAGE_KEYS.sourceId
   const BUILTIN_NAME = BUILTIN_SOURCE_NAME
-  const hasImportedBuiltin = !!(await getData<boolean>(builtinSourceKey))
-  const importedVersion = (await getData<string>(builtinVersionKey)) ?? ''
+  let hasImportedBuiltin = !!(await getData<boolean>(builtinSourceKey))
+  let importedVersion = (await getData<string>(builtinVersionKey)) ?? ''
   // 内置源 id 标记（新机制）：自动导入时记录，此后升级/清理只认这一个 id
-  const storedBuiltinId = await getData<string>(builtinSourceIdKey)
+  let storedBuiltinId = await getData<string>(builtinSourceIdKey)
+
+  // 在线升级“导入成功但切源结果不确定”的启动对账：
+  // - 待切换源已是当前选中源：视为迟到成功，提升为内置源并补版本；
+  // - 待切换源还在但未选中：保留孤儿源，阻止本次启动再次导入；
+  // - 待切换源已被用户删除：清掉 pending，恢复正常升级流程。
+  let pendingBlocked = false
+  const pendingSourceId = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)) ?? ''
+  if (pendingSourceId) {
+    const activeSourceId = (setting['common.apiSource'] as string | undefined) ?? ''
+    let pendingVersion = ''
+    if (activeSourceId === pendingSourceId) {
+      try {
+        pendingVersion = parseSourceVersion(await getUserApiScript(pendingSourceId))
+      } catch (e) {
+        console.warn('Failed to read pending builtin source version:', e)
+      }
+    }
+    const pendingDecision = decidePendingBuiltinSwitch({
+      pendingSourceId,
+      sourceIds: userApiList.map(api => api.id),
+      activeSourceId,
+      pendingVersion,
+    })
+    if (pendingDecision.action === 'promote-active') {
+      const previousBuiltinId = storedBuiltinId
+      storedBuiltinId = pendingSourceId
+      importedVersion = pendingDecision.promoteVersion
+      hasImportedBuiltin = true
+      await saveData(builtinSourceIdKey, pendingSourceId)
+      await saveData(builtinSourceKey, true)
+      await saveData(builtinVersionKey, pendingDecision.promoteVersion)
+      await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
+      // 迟到的切源已成功，旧内置源不再是当前选中源，可以安全清理。
+      if (previousBuiltinId && previousBuiltinId !== pendingSourceId) {
+        const idx = userApiList.findIndex(api => api.id === previousBuiltinId)
+        if (idx >= 0) {
+          await removeUserApi([previousBuiltinId]).catch((e) => {
+            console.warn('Failed to remove previous builtin source:', e)
+          })
+          userApiList.splice(idx, 1)
+        }
+      }
+      console.log('pending builtin source promoted:', pendingSourceId, pendingDecision.promoteVersion)
+    } else if (pendingDecision.action === 'clear-stale') {
+      await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
+      console.log('pending builtin source cleared:', pendingSourceId)
+    } else if (pendingDecision.action === 'block-import') {
+      pendingBlocked = true
+      console.log('pending builtin source blocked auto import:', pendingSourceId)
+    }
+  }
 
   // 定位"真正的内置源"：优先按 id 标记；历史数据无标记时做一次性迁移——
   // 名字精确匹配内置名且唯一时视为内置源；多份同名（旧内置与用户手动导入并存）时
@@ -582,6 +633,7 @@ export default async(setting: LX.AppSetting) => {
     hasBuiltinSource: !!builtinApi,
     builtinVersion: builtinVer,
     importedVersion,
+    pendingBlocked,
   })
   console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
 
@@ -617,11 +669,14 @@ export default async(setting: LX.AppSetting) => {
             }
           }
         }
-        // 记录内置源 id（升级/清理仅以此为准）与版本标记
+        // 记录内置源 id（升级/清理仅以此为准）与版本标记。
+        // 首次读 assets 只用于决策；若它失败而这次导入读取成功，用第二次脚本回填版本，
+        // 避免 importedVersion 为空导致后续每次启动都重复导入。
+        const verifiedBuiltinVersion = builtinVer || parseSourceVersion(script)
         await saveData(builtinSourceIdKey, newApi.id)
         await saveData(builtinSourceKey, true)
-        if (builtinVer) await saveData(builtinVersionKey, builtinVer)
-        console.log('builtin source imported/updated:', newApi.name, builtinVer || '')
+        if (verifiedBuiltinVersion) await saveData(builtinVersionKey, verifiedBuiltinVersion)
+        console.log('builtin source imported/updated:', newApi.name, verifiedBuiltinVersion || '')
       }
     } catch (e) {
       console.warn('Failed to load builtin source:', e)

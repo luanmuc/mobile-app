@@ -16,8 +16,8 @@ import { useTheme } from '@/store/theme/hook'
 import { httpFetch } from '@/utils/request'
 import { importUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
-import { getData, saveData } from '@/plugins/storage'
-import { BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, parseSourceVersion } from '@/core/init/userApi/builtinSource'
+import { getData, saveData, removeData } from '@/plugins/storage'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
 
 const SOURCE_UPDATE_TIMEOUT = 15_000
 const SOURCE_UPDATE_MAX_SIZE = 9_000_000
@@ -157,11 +157,66 @@ export default memo(() => {
       const remoteVersion = parseSourceVersion(remoteScript)
       if (!remoteVersion) throw new Error(t('source_update_bad_script'))
 
-      // 提取本地当前音源版本号
-      let localVersion = ''
-      try {
-        localVersion = parseSourceVersion(await getUserApiScript(apiSourceSetting))
-      } catch { /* 读不到就当未知 */ }
+      // 版本基线必须锚定内置源，不能拿“当前选中的任意音源”做比较：
+      // 用户手动选中的其它源版本更高/更低，都不应影响内置源的升级判断。
+      // 先处理上次“导入成功但切源结果不确定”的 pending：迟到成功就提升，孤儿就清掉，
+      // 避免用户不重启直接重试时再堆一份重复源。
+      const pendingSourceId = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => null)) ?? ''
+      if (pendingSourceId) {
+        const pendingScript = apiSourceSetting === pendingSourceId
+          ? await getUserApiScript(pendingSourceId).catch(() => '')
+          : ''
+        const pendingDecision = decidePendingBuiltinSwitch({
+          pendingSourceId,
+          sourceIds: userApiListRaw.map(api => api.id),
+          activeSourceId: apiSourceSetting,
+          pendingVersion: parseSourceVersion(pendingScript),
+        })
+        if (pendingDecision.action === 'promote-active') {
+          const previousBuiltinId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId).catch(() => null)
+          await saveData(BUILTIN_SOURCE_STORAGE_KEYS.hasImported, true).catch(() => {})
+          await saveData(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion, pendingDecision.promoteVersion).catch(() => {})
+          await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, pendingSourceId).catch(() => {})
+          await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
+          if (previousBuiltinId && previousBuiltinId !== pendingSourceId) {
+            await removeUserApi([previousBuiltinId]).catch(e => {
+              console.warn('Failed to remove previous builtin source:', e)
+            })
+          }
+        } else if (pendingDecision.action === 'block-import') {
+          await removeUserApi([pendingSourceId]).catch(e => {
+            console.warn('Failed to remove orphan pending source:', e)
+          })
+          await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
+        } else {
+          await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
+        }
+      }
+
+      const [storedBuiltinId, importedBuiltinVersion] = await Promise.all([
+        getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId).catch(() => null),
+        getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion).catch(() => null),
+      ])
+      let builtinScript = ''
+      if (storedBuiltinId) {
+        try {
+          builtinScript = await getUserApiScript(storedBuiltinId)
+        } catch { /* 内置源脚本读不到时走版本/名称兜底 */ }
+      }
+      const activeApi = userApiListRaw.find(api => api.id === apiSourceSetting)
+      let activeBuiltinScript = ''
+      if (!builtinScript && activeApi?.name === BUILTIN_SOURCE_NAME) {
+        try {
+          activeBuiltinScript = await getUserApiScript(apiSourceSetting)
+        } catch { /* 迁移期兜底失败就当未知 */ }
+      }
+      const baseline = resolveSourceUpdateBaseline({
+        builtinScript,
+        importedVersion: importedBuiltinVersion ?? '',
+        activeSourceName: activeApi?.name ?? '',
+        activeScript: activeBuiltinScript,
+      })
+      const localVersion = baseline.version
       const localLabel = localVersion || t('source_version_unknown')
       const comparison = localVersion ? compareSourceVersions(remoteVersion, localVersion) : null
 
@@ -196,20 +251,26 @@ export default memo(() => {
                 // 1) 先导新的（失败则什么都没动）
                 const newApiInfo = await importUserApi(remoteScript)
 
-                // 2) 切到新源并等它真的加载出来，再考虑删旧的。
+                // 2) 切源前先落 pending 标记：
+                //    切源结果不确定时，下次启动靠它对账，避免“新源已导入 + 版本标记仍旧”
+                //    导致内置源再次导入、堆出重复源。
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId, newApiInfo.id).catch(e => {
+                  console.warn('Failed to persist pending builtin source id:', e)
+                })
+
+                // 3) 切到新源并等它真的加载出来，再考虑删旧的。
                 //    旧音源的清理必须放在切源之后：切源失败时旧源还在，能回退。
-                //    8s 是 init 事件的上限等待——超时按失败处理（宁可留重复源，也不删光）
+                //    8s 是 init 事件的上限等待——超时按失败处理，不删旧源。
                 const switched = await Promise.race([
                   setApiSource(newApiInfo.id),
                   new Promise<boolean>(resolve => { setTimeout(() => { resolve(false) }, 8000) }),
                 ])
                 if (!switched) throw new Error(t('source_switch_failed_keep_old'))
 
-                // 3) 切源成功后记录当前内置源身份与版本。
+                // 4) 切源成功后记录当前内置源身份与版本。
                 //    下次启动时 decideBuiltinSourceImport 会把 APK 内置源和这个版本比较，
                 //    避免旧 APK 内置源把在线升级的新版本反向覆盖。
-                //    必须先读旧 id，再写新 id，否则会丢掉待清理的旧内置源。
-                const storedBuiltinId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId).catch(() => undefined)
+                //    storedBuiltinId 是切源前读到的旧 id，用于后面只清理旧内置源。
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.hasImported, true).catch(e => {
                   console.warn('Failed to persist builtin source imported flag:', e)
                 })
@@ -220,7 +281,7 @@ export default memo(() => {
                   console.warn('Failed to persist builtin source id:', e)
                 })
 
-                // 4) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。
+                // 5) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。
                 const oldIds = storedBuiltinId && storedBuiltinId !== newApiInfo.id
                   ? userApiListRaw.filter(api => api.id === storedBuiltinId).map(api => api.id)
                   : []
@@ -229,6 +290,12 @@ export default memo(() => {
                     console.warn('Failed to remove old builtin source:', e)
                   })
                 }
+
+                // 6) 切源、版本、旧源清理都走完了才清 pending；
+                //    中途崩溃时下次启动仍能靠 pending 恢复，不会重复导入。
+                await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(e => {
+                  console.warn('Failed to clear pending builtin source id:', e)
+                })
 
                 toast(t('source_update_ok', { version: remoteVersion }), 'long')
               } catch (err: any) {

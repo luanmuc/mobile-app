@@ -1,3 +1,14 @@
+## [音源升级原子性/基线/锚定修复（本地待发布）] - 2026-11-15
+
+> 在 b133 已发布修复之上，继续收口在线升级的原子性、版本基线、`@version` 锚定与首次读 assets 失败路径。本轮只做本地提交，不升发布版本、不推送、不触发 Release。
+
+- **切源失败不再重复导入**：在线升级导入成功后、切源前写 `pending_builtin_source_id`；切源成功并完成版本/ id / 旧源清理后才清 pending。切源结果不确定时，下次启动按 pending 对账：已在选中位则提升为内置源，孤儿则阻止本次自动导入，已删除则清标记。
+- **升级基线锚定内置源**：`Source.tsx` 不再用当前选中的任意音源做版本基线，改为 `resolveSourceUpdateBaseline`：内置源脚本 → `imported_builtin_source_version` → 名称精确匹配的内置源兜底。
+- **`@version` 锚定文件头**：`parseSourceVersion` 优先在 `/*! ... */` 头块中取 `@version`，没有头块才回退行首 `@version` / `// @version`，避免说明文字或前置注释里的假版本抢先。
+- **首次读 assets 失败可回填**：启动导入第二次读取脚本成功后，用 `builtinVer || parseSourceVersion(script)` 落盘版本，避免首次读失败导致 `importedVersion` 为空、后续反复导入。
+- **回归**：`scripts/check_source_update_logic.js` 扩到 24/0，新增 U13–U24；`check_source_contract` 14/0、`check_source_config_contract` 29/0、全量 ESLint 0、`tsc --noEmit` 0、`docs-audit --dry-run` 待处理 0。
+- **文档**：同步 `docs/MERGE_GUIDE.md`、`docs/MUSIC_SOURCE_GUIDE.md` 的内置源键与升级基线说明。
+
 ## [音源内置/在线升级修复（b133 已发布）] - 2026-11-15
 
 > 修复 b132 覆盖升级后音源管理仍显示 8.14.1 的问题。APK 本身已带 8.15.0，根因是启动导入仍在用旧 `聚合音源 vX.Y` 正则，匹配不到 `@version 8.15.0`，导致 `needImport=false`；在线“更新音源”走远端 `@version`，因此手动更新反而正常。
