@@ -1,4 +1,4 @@
-## [音源内置/在线升级修复（本地待确认）] - 2026-11-15
+## [音源内置/在线升级修复（b133 已发布）] - 2026-11-15
 
 > 修复 b132 覆盖升级后音源管理仍显示 8.14.1 的问题。APK 本身已带 8.15.0，根因是启动导入仍在用旧 `聚合音源 vX.Y` 正则，匹配不到 `@version 8.15.0`，导致 `needImport=false`；在线“更新音源”走远端 `@version`，因此手动更新反而正常。
 
@@ -7,6 +7,7 @@
 - **在线升级**：`Source.tsx` 改为 GitHub Contents API 优先、jsDelivr 兜底；远端低于当前版本时拒绝降级；成功后写 `has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id`，并只按 id 清理旧内置源，不再按“豆包定制”名字批量删。
 - **回归**：`scripts/check_source_update_logic.js` 12/0 覆盖 b131 `imported=8.14.1` → b132 `builtin=8.15.0` 必须升级、在线 8.16.0 → APK 8.15.0 不降级、缺少 `@version` 不覆盖等路径；已接入 `.github/workflows/release.yml` 的 `Checks`。
 - **文档**：同步 `docs/MUSIC_SOURCE_GUIDE.md`、`docs/SYNC_POINTS.md`、`docs/RELEASE_SOP.md` 的读取规则与门禁说明。
+- **发布**：App `a33a339f` → b133（Build `43692249306` success，versionCode 292，5 APK，Release `v1.9.2-b133`）；源仓 `v8.15.0` tag 已补。
 - **文案台账**：三语各 1004 键（本轮 +2）。
 
 ## [双仓联动缺陷修复（已推送 master）] - 2026-11-15
