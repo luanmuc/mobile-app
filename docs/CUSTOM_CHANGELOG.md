@@ -1,12 +1,13 @@
-## [HDM-3 后续修复合集（本地提交，待确认推送）] - 2026-11-15
+## [HDM-3 后续修复合集（已发布 b130）] - 2026-11-15
 
-> b129 发布后剩余 4 项已知问题收口；未升版本、未建 tag、未推送。
+> b129 发布后剩余 4 项已知问题收口；随 App `v1.9.2-b130` 发布。
 
 - **25s 超时竞态**：`online.ts` 增加请求级 settled 闸门；超时先定案，晚到成功只打诊断日志，不再补写 `play_result`/`chain_result`、不再留 pending、不再回放 `onQuality/onSource`。新增 `check_playback_timeout_race.js`：1 条失败账、0 条成功账、0 pending。
 - **趋势弹窗**：健康趋势弹窗改为四块：播放请求 / 实际起播 / 探测 / 后台预加载；删除重复的播放/探测块。`check_health_ui_mapping.js` U12 锁定四块。
 - **旧报告缺块**：`healthDiagnosticsView.ts` 对缺失的 `playWindows`/`probeWindows`/`preloadWindows`/`playbackWindows` 返回空窗口，不再回退到顶层取链窗口；V25 锁定。
 - **旧数据融合**：`healthDiagnostics.ts` 对无 `context` 的旧 `chain_result` 做安全回填——同 `traceId` 有 `play_result` 才归 `user`，没有配对的仍归 `legacy` 只计数；报告新增 `coverage.legacyMigrated`，E3b 锁定“1 条回填 + 1 条 legacy”。
 - **验证**：健康门禁 11 套全绿（diagnostics 59/0、deep 51/0、view 25/0、stress 14/0、real playback 10/0、timeout race 1/0 等）；契约五件套 527 TS 文件 0 错误、config 25/0、source contract 14/0、persistence 17/0、platform label 9/9；`tsc` rc=0；全仓 eslint rc=0。
+- **发布**：App `v1.9.2-b130`（Build `43671444942`，tag `v1.9.2-b130`；Checks 1m12s / Lint 1m24s / Android 4m27s / Release 17s 四 job 全绿）；5 个 APK：arm64-v8a `018d97f82b12a2e13e3d23cd7f2ce237`、armeabi-v7a `4db86c3cfe7de69c7c2fe8456737a2e3`、universal `e054abe50229fe353bc7283007c885ab`、x86 `f8fc09cee40af18f0e360dcbf016153e`、x86_64 `40b4307dbc8b0c3ff5c1fc7b8eb13f2b`；内置源仍为 `v8.14.1`。
 
 ## [HDM-3 健康数据分层与升级契约（已发布 b129）] - 2026-11-15
 
