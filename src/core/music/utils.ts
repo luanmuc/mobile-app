@@ -417,7 +417,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
             // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
             const cachedSource = await getStoreMusicSource(candidate, candidateQuality)
             const cachedFragment = cachedSource?.fragment === true
-            playbackAttempts.push({ source: cachedSource?.id || candidate.source, platform: cachedSource?.platform || candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: candidateQuality })
+            playbackAttempts.push({ source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: candidateQuality })
             return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '', fragment: cachedFragment, requestedQuality: candidateQuality }
           }
 

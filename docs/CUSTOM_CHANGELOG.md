@@ -1,4 +1,4 @@
-## [双仓联动缺陷修复（本地提交，待确认推送）] - 2026-11-15
+## [双仓联动缺陷修复（已推送 master）] - 2026-11-15
 
 > 合并远端 `6d06e6d2`（首次播放音质标签 `isPlay` 守卫）后，对双仓深挖出的配置、预算、归因、诊断、重复桥调用问题做一次提交级收口。不升发布版本、不触发 Release。
 
@@ -8,7 +8,7 @@
 - **归因**：`PlaybackAttempt`/`PlayAttempt` 增加 `platform`；成功 attempt 的 `source` 写实际子源（如 `suyinKuwo`），`platform` 写请求平台；`chain_result.sourceId` 与源仓 provider 对齐，同时保留平台。
 - **诊断溯源**：音源初始化成功持久化 `active_source_version`，诊断包优先读当前活动源版本，缺省才回落 `imported_builtin_source_version`，手动导入社区源后不再冒充内置源版本。
 - **重复桥调用**：`fetchSourceEvents` 改为按 trace 顺序拉取、命中非空即停，正常单源从 5 次降到 1 次；`restoreSourceHealth` 每个脚本只恢复一次，所有平台共享同一个 restore promise。
-- **验证**：`check_source_contract` 14/0；`check_source_config_contract` 29/0；播放预算 21/0、所有权 21/0、播放器热点 7/0、事件流水线 10/0、健康诊断 59/0；`tsc --noEmit` rc=0。源仓 `npm test` rc=0、`build` rc=0、新增 `budget-admission` 7/0；源仓本地产物 `5740 行 / 300126 bytes`。
+- **验证**：`check_source_contract` 14/0；`check_source_config_contract` 29/0；播放预算 21/0、所有权 21/0、播放器热点 7/0、事件流水线 10/0、健康诊断 59/0；`tsc --noEmit` rc=0。源仓 `npm test` rc=0、`build` rc=0、新增 `budget-admission` 7/0；源仓本地产物 `5740 行 / 300268 bytes`。补跑后追加：App 全仓 ESLint rc=0、37 个 `check_*.js` 全绿（含源仓 CI 在线/离线闸门）；源仓 41 个 audit 全绿、`stress-round3` 14/0、`stress-round4` 133/0、`stress-test` 12/0，远端 CI 绿。
 
 ## [HDM-3 后续修复合集（已发布 b130）] - 2026-11-15
 

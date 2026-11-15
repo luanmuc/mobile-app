@@ -9,7 +9,8 @@ const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8')
-let pass = 0, fail = 0
+let pass = 0
+let fail = 0
 const check = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`) } else { fail++; console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`) }
 }
@@ -42,8 +43,8 @@ check('健康恢复每个脚本只调用一次并共享 promise', (() => {
 
 check('attempt 带平台归因，成功源写实际子源', (() => {
   const u = read('src/core/music/utils.ts')
-  return u.includes("source: subSource || musicInfo.source, platform: musicInfo.source") &&
-    u.includes("source: cachedSource?.id || candidate.source, platform: cachedSource?.platform || candidate.source")
+  return u.includes('source: subSource || musicInfo.source, platform: musicInfo.source') &&
+    u.includes('source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source')
 })(), 'utils.ts')
 
 const sourceRoot = path.join(ROOT, '..', 'lx-music-source')
