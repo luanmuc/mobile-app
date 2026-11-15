@@ -194,11 +194,16 @@ check('B2 control 独立恢复：健康版本不符仍保留用户意图', async
   assert(calls.length === 1 && calls[0].sources && Object.keys(calls[0].sources).length === 0, '只应发控制态')
 })
 
-check('B3 control 态不绑定 sourceVersion，TTL 与容量仍校验', async() => {
+check('B3 control 态不绑定 sourceVersion、不按 TTL 过期，未来时间与容量仍校验', async() => {
   const ok = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
   assert(ok.ok, ok.reason)
+  // HDM-3：用户控制意图永久保留，8 天/30 天停机后重启不得丢失
   const old = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW - 8 * 24 * 3600 * 1000, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
-  assert(!old.ok, '过期 control 应拒绝')
+  assert(old.ok, `8 天 control 应保留：${old.reason}`)
+  const future = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW + 2 * 3600 * 1000, controls: { suyinKuwo: { enabled: true } } }, { now: NOW })
+  assert(!future.ok, '未来时间 control 应拒绝')
+  const big = mod.sanitizeSourceHealthControls({ v: 2, savedAt: NOW, controls: { suyinKuwo: { enabled: true }, pad: { enabled: true, note: 'x'.repeat(70000) } } }, { now: NOW })
+  assert(!big.ok, '超容量 control 应拒绝')
 })
 
 check('B4 健康态携带 controls 时不走合并恢复', async() => {
