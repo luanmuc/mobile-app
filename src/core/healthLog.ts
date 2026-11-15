@@ -18,7 +18,10 @@ declare const global: any
 export type HealthContext = 'user' | 'preload' | 'refresh' | 'download' | 'probe' | 'legacy'
 
 export interface PlayAttempt {
+  /** 实际子源/provider id；失败时是尝试过的平台 id。 */
   source: string
+  /** 请求所属平台，避免把子源归因丢失成平台级。 */
+  platform?: string
   owner?: 'host' | 'source'
   stage?: string
   ok?: boolean
@@ -150,6 +153,7 @@ export const normalizePlayAttempts = (attempts?: PlayAttempt[]): PlayAttempt[] |
     if (!item || typeof item !== 'object') continue
     if (typeof item.source !== 'string' || !item.source) continue
     const attempt: PlayAttempt = { source: item.source }
+    if (typeof item.platform === 'string' && item.platform) attempt.platform = item.platform
     if (item.owner === 'host' || item.owner === 'source') attempt.owner = item.owner
     if (typeof item.stage === 'string' && item.stage) attempt.stage = item.stage
     if (typeof item.ok === 'boolean') attempt.ok = item.ok
@@ -210,6 +214,7 @@ export const buildChainResultEntries = (input: PlayResultInput): HealthLogEntry[
         sourceId: attempt.source,
         ok: attempt.ok,
       }
+      if (attempt.platform) entry.platform = attempt.platform
       if (attempt.code) entry.code = attempt.code
       if (Number.isFinite(attempt.latencyMs)) entry.latencyMs = Math.round(Number(attempt.latencyMs))
       rows.push(entry)
@@ -386,32 +391,23 @@ const fetchSourceEvents = async(traceId: string): Promise<unknown[]> => {
   try {
     const apis = global.lx?.apis as Record<string, { healthEvents?: (params: { traceId: string }) => { promise: Promise<{ events?: unknown[] }> } }> | undefined
     if (!apis || !traceId) return []
-    // 多音源：同一 trace 只可能命中实际处理该请求的源；不能只拿第一个 API，
-    // 否则失败证据会因加载顺序被另一个无关源的空结果吞掉。
+    // 同一脚本会注册多个平台 API（kw/wy/tx/kg/mg），它们指向同一份 healthEvents。
+    // 按 trace 顺序调用，第一条非空即停：正常单源场景从 5 次桥调用降到 1 次；
+    // 只有多脚本共存时才继续向后找，避免漏掉真正处理该 trace 的源。
     const sourceIds = Object.keys(apis).filter(id => typeof apis[id]?.healthEvents === 'function')
     if (!sourceIds.length) return []
-    const results = await Promise.all(sourceIds.map(async id => {
+    for (const id of sourceIds) {
       try {
         const healthEvents = apis[id]?.healthEvents
-        if (!healthEvents) return []
+        if (!healthEvents) continue
         const res = await healthEvents({ traceId }).promise
-        return Array.isArray(res?.events) ? res.events : []
+        const events = Array.isArray(res?.events) ? res.events : []
+        if (events.length) return events
       } catch {
-        return []
-      }
-    }))
-    const merged: unknown[] = []
-    const seen = new Set<string>()
-    for (const list of results) {
-      for (const event of list) {
-        let key: string
-        try { key = JSON.stringify(event) } catch { key = String(event) }
-        if (seen.has(key)) continue
-        seen.add(key)
-        merged.push(event)
+        // 单个源不可用不影响后续源；继续找下一个
       }
     }
-    return merged
+    return []
   } catch {
     return []
   }

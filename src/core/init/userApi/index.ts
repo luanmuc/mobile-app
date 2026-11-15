@@ -65,7 +65,7 @@ export default async(setting: LX.AppSetting) => {
           if (!target) return
           userApiRequestMap.delete(data.requestKey)
           target.reject(new Error('request timeout'))
-        }, 20_000),
+        }, 23_000),
       })
       sendAction('request', data)
     }).finally(() => {
@@ -88,6 +88,11 @@ export default async(setting: LX.AppSetting) => {
     if (!info || info.id !== settingState.setting['common.apiSource']) return
     if (status) {
       logger.info('userApi', `[debug] 音源初始化成功，info.id = ${info.id}, info.name = ${info.name}`)
+      // 诊断包溯源：记录“当前实际加载”的源版本，不能再用内置源版本冒充。
+      // 失败不阻断初始化；旧数据/旧版源没有 version 时保留上一次值。
+      if (typeof info.version === 'string' && info.version) {
+        void saveData('active_source_version', info.version).catch(() => {})
+      }
       if (info.sources) {
         let apis: any = {}
         let qualitys: LX.QualityList = {}
@@ -438,12 +443,15 @@ export default async(setting: LX.AppSetting) => {
           }
           qualitys[source as LX.Source] = sourceQualitys
         }
-        for (const source of Object.keys(apis as Record<string, unknown>)) {
-          const sourceId = String(source)
-          const restore = restoreSourceHealth(apis as Record<string, SourceHealthApi>, sourceId, String(info.version || ''), healthStorage)
-          healthRestoreMap.set(sourceId, restore)
-          void restore
+        // 同一脚本注册的 5 个平台 API 共享一份健康态：只恢复一次，再把这个 promise
+        // 挂到每个平台上，保证各平台的 getMusicUrl 都等同一个恢复完成；避免 5 次重复桥调用和中间态。
+        const restoreIds = Object.keys(apis as Record<string, unknown>).map(String)
+        let restore: Promise<unknown> = Promise.resolve()
+        if (restoreIds.length) {
+          restore = restoreSourceHealth(apis as Record<string, SourceHealthApi>, restoreIds[0], String(info.version || ''), healthStorage)
         }
+        for (const sourceId of restoreIds) healthRestoreMap.set(sourceId, restore as ReturnType<typeof restoreSourceHealth>)
+        void restore
         global.lx.qualityList = qualitys
         global.lx.apis = apis
         global.lx.fallbackOwners = fallbackOwners

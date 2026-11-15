@@ -11,7 +11,10 @@ export type PlaybackStage = 'primary' | 'fallback'
 export type PlaybackOwner = 'host' | 'source'
 
 export interface PlaybackAttempt {
+  /** 实际子源/provider id（如 suyinKuwo）；失败时是尝试过的平台 id。 */
   source: string
+  /** 请求所属平台（kw/wy/tx/kg/mg），用于区分“平台失败”与“子源失败”。 */
+  platform?: string
   owner: PlaybackOwner
   stage: PlaybackStage
   ok: boolean

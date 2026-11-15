@@ -417,7 +417,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
             // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
             const cachedSource = await getStoreMusicSource(candidate, candidateQuality)
             const cachedFragment = cachedSource?.fragment === true
-            playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: candidateQuality })
+            playbackAttempts.push({ source: cachedSource?.id || candidate.source, platform: cachedSource?.platform || candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: candidateQuality })
             return { url: cachedUrl, musicInfo: candidate, quality: candidateQuality, isFromCache: true, subSource: cachedSource?.id ?? '', subSourceName: cachedSource?.name ?? '', sourcePlatform: cachedSource?.platform ?? '', fragment: cachedFragment, requestedQuality: candidateQuality }
           }
 
@@ -429,11 +429,11 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
           }
           const { url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
           if (isCancelled()) throw candidateCancelled()
-          playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: type })
+          playbackAttempts.push({ source: subSource || candidate.source, platform: sourcePlatform || candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: type })
           return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: candidateQuality }
         } catch (err: any) {
           // 已胜出的候选会取消其余任务；晚到失败不再写 attempts，避免同一 trace 出现两条归因。
-          if (!isCancelled()) playbackAttempts.push({ source: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality })
+          if (!isCancelled()) playbackAttempts.push({ source: candidate.source, platform: candidate.source, owner: 'host', stage: 'fallback', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality })
           throw err
         }
       },
@@ -496,10 +496,10 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     reqPromise = Promise.reject(err)
   }
   return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality, deliveredQuality: type })
+    playbackAttempts.push({ source: subSource || musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality, deliveredQuality: type })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: targetQuality, attempts: playbackAttempts }
   }).catch(async(err: any) => {
-    playbackAttempts.push({ source: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
+    playbackAttempts.push({ source: musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
     console.log(err)
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。

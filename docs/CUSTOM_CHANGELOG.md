@@ -1,3 +1,15 @@
+## [双仓联动缺陷修复（本地提交，待确认推送）] - 2026-11-15
+
+> 合并远端 `6d06e6d2`（首次播放音质标签 `isPlay` 守卫）后，对双仓深挖出的配置、预算、归因、诊断、重复桥调用问题做一次提交级收口。不升发布版本、不触发 Release。
+
+- **配置契约**：`sourceConfig.ts` 数字键由 28 补到 30（`healthCheckJitterRatio` / `healthCheckPauseRetryMs`），布尔仍 9；`coldStartTimeoutMs` 默认 8s→5s、预设 `[2,5,8,15]`；`check_source_config_contract.js` 改为 30/9/39，并新增与源仓 `ALLOWED_KEYS` 对表（源仓 34、App 30、差异恰好 4 个 source-only 键）。此前面板可见但保存返回 `not-in-source`，导致高级配置整次无法提交；并新增跨字段校验：`coldStartTimeoutMs` 不得高于 `raceBudgetMs`，否则保存整次拦截并在冷启动字段提示。
+- **源仓版本**：升至 `8.15.0`（预算边界与归因版）；`HEALTH_STATE_SOURCE_VERSION` 仍为 `8.14.1`，健康态 schema 未变，升级不清健康账本。
+- **预算语义**：源仓预算耗尽改用 `BUDGET_EXHAUSTED`，`verdictOfCode` 新增 `BUDGET`，策略为不交付、不 bump `resolveDead`、不摘除；单源冷启动 5s，跨平台 `grace/search` 3s，跨平台最坏按总预算+末档保底硬顶 `3+3+16=22s`，低于 App 桥 `sendUserApiRequest` 23s（播放预算 24s、外层 25s 仍有 1s 余量）。
+- **归因**：`PlaybackAttempt`/`PlayAttempt` 增加 `platform`；成功 attempt 的 `source` 写实际子源（如 `suyinKuwo`），`platform` 写请求平台；`chain_result.sourceId` 与源仓 provider 对齐，同时保留平台。
+- **诊断溯源**：音源初始化成功持久化 `active_source_version`，诊断包优先读当前活动源版本，缺省才回落 `imported_builtin_source_version`，手动导入社区源后不再冒充内置源版本。
+- **重复桥调用**：`fetchSourceEvents` 改为按 trace 顺序拉取、命中非空即停，正常单源从 5 次降到 1 次；`restoreSourceHealth` 每个脚本只恢复一次，所有平台共享同一个 restore promise。
+- **验证**：`check_source_contract` 14/0；`check_source_config_contract` 29/0；播放预算 21/0、所有权 21/0、播放器热点 7/0、事件流水线 10/0、健康诊断 59/0；`tsc --noEmit` rc=0。源仓 `npm test` rc=0、`build` rc=0、新增 `budget-admission` 7/0；源仓本地产物 `5740 行 / 300126 bytes`。
+
 ## [HDM-3 后续修复合集（已发布 b130）] - 2026-11-15
 
 > b129 发布后剩余 4 项已知问题收口；随 App `v1.9.2-b130` 发布。

@@ -874,6 +874,7 @@
   "health_config_err_zero": "該值不能為 0",
   "health_config_err_below_min": "低於允許的最小值",
   "health_config_err_above_max": "高於允許的最大值",
+  "health_config_err_above_total_budget": "冷啟動逾時不能超過競速總預算",
   "health_config_err_not_in_source": "音源不支援該設定",
   "health_config_err_not_boolean": "開關值非法",
   "health_config_err_missing": "缺少該設定",

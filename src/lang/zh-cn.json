@@ -874,6 +874,7 @@
   "health_config_err_zero": "该值不能为 0",
   "health_config_err_below_min": "低于允许的最小值",
   "health_config_err_above_max": "高于允许的最大值",
+  "health_config_err_above_total_budget": "冷启动超时不能超过竞速总预算",
   "health_config_err_not_in_source": "音源不支持该配置",
   "health_config_err_not_boolean": "开关值非法",
   "health_config_err_missing": "缺少该配置",

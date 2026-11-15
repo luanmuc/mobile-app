@@ -159,7 +159,8 @@ export default memo(() => {
       const logTail = await readDiagnoseLogTail()
       report = buildHealthReport({ events, snapshot: snapshot ?? {}, trend: trendData, now: Date.now(), truncated: events.length >= REPORT_EVENT_LIMIT })
       const appVersion = (process as unknown as { versions?: { app?: string } }).versions?.app
-      const sourceVersion = (await getData<string>('imported_builtin_source_version')) ?? undefined
+      const sourceVersion = (await getData<string>('active_source_version')) ??
+        (await getData<string>('imported_builtin_source_version')) ?? undefined
       const pkg = buildEvidencePackage({ report, events, snapshot: snapshot ?? {}, trend: trendData, logTail, appVersion, sourceVersion })
       const path = await exportAndShareDiagnostics(pkg)
       if (path) {
@@ -428,6 +429,7 @@ export default memo(() => {
       'zero-not-allowed': 'zero',
       'below-min': 'below_min',
       'above-max': 'above_max',
+      'above-total-budget': 'above_total_budget',
       'not-boolean': 'not_boolean',
       missing: 'missing',
       __form: 'not_in_source',

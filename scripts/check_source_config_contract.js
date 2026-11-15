@@ -89,10 +89,34 @@ section('contract', () => {
     assert.strictEqual(c.msToDisplay('not-a-key', 1234), 1234, '未知键原值返回')
     assert.strictEqual(c.msToDisplay('raceMatchWaitMs', 600), 0.6, '600ms → 0.6 秒')
   })
-  run('28 个数字键 + 9 个布尔键', () => {
-    assert.strictEqual(c.NUMERIC_CONFIG_KEYS.length, 28)
+  run('30 个数字键 + 9 个布尔键', () => {
+    assert.strictEqual(c.NUMERIC_CONFIG_KEYS.length, 30)
     assert.strictEqual(c.BOOL_CONFIG_KEYS.length, 9)
-    assert.strictEqual(c.SOURCE_CONFIG_KEYS.length, 37)
+    assert.strictEqual(c.SOURCE_CONFIG_KEYS.length, 39)
+  })
+  run('与源仓 ALLOWED_KEYS 对表（34 数字键，4 个 source-only 显式登记）', () => {
+    const sourcePath = path.join(ROOT, '..', 'lx-music-source', 'src', 'legacy.js')
+    if (!fs.existsSync(sourcePath)) {
+      console.log('    （跳过：未检出源仓，CI 单仓环境不强制）')
+      return
+    }
+    const source = fs.readFileSync(sourcePath, 'utf-8')
+    const match = source.match(/const ALLOWED_KEYS\s*=\s*\[([\s\S]*?)\]/)
+    assert(match, '源仓 ALLOWED_KEYS 未找到')
+    const sourceKeys = [...match[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1])
+    const appKeys = c.NUMERIC_CONFIG_KEYS.slice()
+    const sourceOnly = [
+      'probeConcurrency',
+      'probeTierCoreInterval',
+      'probeTierSecondaryInterval',
+      'qualityShortCircuitUniqueProbeMs',
+    ]
+    assert.strictEqual(sourceKeys.length, 34, `源仓数字键应为 34，实际 ${sourceKeys.length}`)
+    assert.strictEqual(appKeys.length, 30, `App 数字键应为 30，实际 ${appKeys.length}`)
+    for (const key of appKeys) assert(sourceKeys.includes(key), `App 键不在源仓白名单：${key}`)
+    const diff = sourceKeys.filter(key => !appKeys.includes(key)).sort()
+    assert.deepStrictEqual(diff, sourceOnly.slice().sort(), `App/源仓键表差异不符：${diff.join(',')}`)
+    for (const key of sourceOnly) assert(!c.CONFIG_UNIT_CONFIG[key], `source-only 键不应出现在 App 面板：${key}`)
   })
   run('所有数字键都有单位配置和下上限', () => {
     for (const key of c.NUMERIC_CONFIG_KEYS) {
@@ -100,7 +124,7 @@ section('contract', () => {
       assert(c.PARAM_LIMITS[key], `缺少 PARAM_LIMITS: ${key}`)
     }
   })
-  run('启动注入接受完整 37 键', () => {
+  run('启动注入接受完整 39 键', () => {
     const input = {}
     for (const key of c.NUMERIC_CONFIG_KEYS) {
       const spec = c.CONFIG_UNIT_CONFIG[key]
@@ -226,9 +250,9 @@ section('validation', () => {
     for (const key of c.NUMERIC_CONFIG_KEYS) inputs[key] = String(c.CONFIG_UNIT_CONFIG[key].default)
     return inputs
   }
-  run('全部合法时 37 项更新 0 错误', () => {
+  run('全部合法时 39 项更新 0 错误', () => {
     const r = c.buildConfigUpdates(makeData(), makeInputs(), { ...c.BOOL_CONFIG_DEFAULT })
-    assert.strictEqual(Object.keys(r.updates).length, 37)
+    assert.strictEqual(Object.keys(r.updates).length, 39)
     assert.strictEqual(Object.keys(r.errors).length, 0)
   })
   run('超上限报 above-max 且整次不提交', () => {
@@ -249,6 +273,21 @@ section('validation', () => {
     const r = c.buildConfigUpdates(makeData(), { ...makeInputs(), verifyDurRatio: '0' }, { ...c.BOOL_CONFIG_DEFAULT })
     assert.strictEqual(r.errors.verifyDurRatio, undefined)
     assert.strictEqual(r.updates.verifyDurRatio, 0)
+  })
+  run('冷启动超时超过竞速总预算报 above-total-budget', () => {
+    const r = c.buildConfigUpdates(makeData(), { ...makeInputs(), coldStartTimeoutMs: '15' }, { ...c.BOOL_CONFIG_DEFAULT })
+    assert.strictEqual(r.errors.coldStartTimeoutMs, 'above-total-budget')
+    assert.strictEqual(Object.keys(r.updates).length, 0)
+  })
+  run('总预算低于冷启动默认值也拦截', () => {
+    const r = c.buildConfigUpdates(makeData(), { ...makeInputs(), raceBudgetMs: '2' }, { ...c.BOOL_CONFIG_DEFAULT })
+    assert.strictEqual(r.errors.coldStartTimeoutMs, 'above-total-budget')
+    assert.strictEqual(Object.keys(r.updates).length, 0)
+  })
+  run('冷启动 5s / 总预算 12s 合法', () => {
+    const r = c.buildConfigUpdates(makeData(), { ...makeInputs(), coldStartTimeoutMs: '5', raceBudgetMs: '12' }, { ...c.BOOL_CONFIG_DEFAULT })
+    assert.strictEqual(r.errors.coldStartTimeoutMs, undefined)
+    assert.strictEqual(r.updates.coldStartTimeoutMs, 5000)
   })
   run('布尔非布尔值被拒', () => {
     const r = c.buildConfigUpdates(makeData(), makeInputs(), { ...c.BOOL_CONFIG_DEFAULT, verifyDelivery: 'false' })
@@ -290,7 +329,7 @@ section('i18n', () => {
     }
     for (const k of ['health_main_available', 'health_main_degraded', 'health_main_paused', 'health_main_off']) assert(sets[0].has(k), `缺 ${k}`)
   })
-  run('37 个配置名/说明/8 个单位三语言齐全', () => {
+  run('39 个配置名/说明/9 个单位三语言齐全', () => {
     const c = CFG()
     const langs = ['zh-cn', 'zh-tw', 'en-us']
     const ds = langs.map(l => JSON.parse(read(`src/lang/${l}.json`)))

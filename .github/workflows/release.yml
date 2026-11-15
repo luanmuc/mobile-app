@@ -61,6 +61,7 @@ jobs:
         run: |
           node scripts/check_ts_syntax.js
           node scripts/check_source_config_contract.js
+          node scripts/check_cross_repo_linkage.js
           node scripts/check_source_contract.js
           node scripts/check_source_health_persistence.js
           node scripts/check_source_platform_label.js

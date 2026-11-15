@@ -20,7 +20,7 @@
 | S8 | 事件链路 | `check_health_event_pipeline.js` | 10 | eventId 去重、traceId、脱敏 | 10/0 |
 | S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v1 拒绝、容量/版本边界 | 9/0 |
 | S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、错误码分组 | 8/0 |
-| S11 | 配置契约 | `check_source_config_contract.js` | 25 | 37 键、数字/布尔边界 | 25/0 |
+| S11 | 配置契约 | `check_source_config_contract.js` | 26 | 39 键、数字/布尔边界 | 26/0 |
 | S12 | 音源契约 | `check_source_contract.js` | 14 | 13 action、v2 envelope、fallbackOwner | 14/0 |
 | S13 | 源健康持久化 | `check_source_health_persistence.js` | 17 | v2 导出/恢复、拒绝敏感字段 | 17/0 |
 | S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 12 | 自定义源/内置源双裁剪、片段缓存回读 | 12/0 |
@@ -84,7 +84,7 @@ node scripts/docs-audit.js --dry-run
 |---|---|---:|---|
 | 音源健康·诊断 | `check_health_diagnostics_stress` + `check_health_diagnostics_deep` + `check_health_diagnostics_view` | 14+51+24 | 1 万事件/5MB 截尾/200 错误码/10 万聚合/1 万构建 |
 | 音源健康·状态/UI/事件/持久化 | `check_health_status_refactor` + `check_health_state_v2` + `check_health_ui_mapping` + `check_health_event_pipeline` + `check_health_persistence_v2` + `check_health_anomaly_v2` + `check_source_health_persistence` | 10+7+11+10+9+8+17 | 状态机/去重/v1 拒绝/容量版本边界 |
-| 音源管理 | `check_source_config_contract` + `check_source_contract` | 25+14 | 37 键/数字布尔边界/14 action/envelope |
+| 音源管理 | `check_source_config_contract` + `check_source_contract` | 26+14 | 39 键/数字布尔边界/14 action/envelope |
 | 下载管理器 | `check_download_persistence` + `check_download_restore_runtime` | 3+3 | 恢复不丢任务/路径/覆盖 |
 | 播放器核心 | `check_player_service_runtime` + `check_media_body` | 10+… | 服务运行时/媒体信封 |
 | 播放失败与预算 | `check_playback_budget` | 21 | 24s 预算/attempts 落盘/失败段不丢档 |

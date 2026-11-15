@@ -17,6 +17,7 @@ export type ConfigErrorCode =
   | 'zero-not-allowed'
   | 'below-min'
   | 'above-max'
+  | 'above-total-budget'
   | 'not-boolean'
   | 'missing'
 
@@ -29,7 +30,12 @@ export interface NumericConfigSpec {
   default: number
 }
 
-/** 音源 v8.11.7 ALLOWED_KEYS：28 个数字键 */
+/**
+ * 音源 ALLOWED_KEYS 中 App 面板暴露的 30 个数字键。
+ * 源仓还有 4 个 source-only 键（probeConcurrency / probeTierCoreInterval /
+ * probeTierSecondaryInterval / qualityShortCircuitUniqueProbeMs），由源侧默认值控制，
+ * 不注入 App 面板；跨仓测试显式登记这 4 个键，避免再次静默漂移。
+ */
 export const NUMERIC_CONFIG_KEYS = [
   'cacheTtlMs',
   'cacheTtlHighQualityMs',
@@ -42,6 +48,8 @@ export const NUMERIC_CONFIG_KEYS = [
   'rateWindowMs',
   'rateWindowMax',
   'healthCheckIntervalMs',
+  'healthCheckJitterRatio',
+  'healthCheckPauseRetryMs',
   'raceBudgetMs',
   'raceBudgetFloorMs',
   'raceBatchSize',
@@ -114,7 +122,7 @@ export const CONFIG_UNIT_CONFIG: Record<string, NumericConfigSpec> = {
   raceBatchSize: { unit: 'health_unit_items', presets: [1, 2, 3, 5], default: 3 },
   raceBatchStaggerMs: { unit: 'health_unit_ms', presets: [100, 300, 500], default: 300 },
   raceMatchWaitMs: { unit: 'health_unit_seconds', msPerUnit: 1000, presets: [0.3, 0.6, 1, 2], default: 0.6 },
-  coldStartTimeoutMs: { unit: 'health_unit_seconds', msPerUnit: 1000, presets: [5, 8, 15, 30], default: 8 },
+  coldStartTimeoutMs: { unit: 'health_unit_seconds', msPerUnit: 1000, presets: [2, 5, 8, 15], default: 5 },
   coldStartProbeTimeoutMs: { unit: 'health_unit_seconds', msPerUnit: 1000, presets: [10, 20, 30, 60], default: 30 },
   coldStartWarmTtlMs: { unit: 'health_unit_minutes', msPerUnit: 60000, presets: [1, 5, 10, 30], default: 5 },
   qualityShortCircuitSamples: { unit: 'health_unit_times', presets: [2, 3, 5, 10], default: 3 },
@@ -191,7 +199,7 @@ const isAllowedNumber = (key: string, value: number) => {
 
 /**
  * 启动注入：只把音源契约内的合法键写进 __lxSourceConfig。
- * 数字支持 28 键（含两个允许 0 的验真键），布尔支持 8 键；
+ * 数字支持 30 键（含两个允许 0 的验真键），布尔支持 9 键；
  * 旧死键、错误类型、负数、超限值一律丢弃。
  */
 export const filterConfigForInjection = (
@@ -281,6 +289,25 @@ export const buildConfigUpdates = (
       continue
     }
     updates[key] = value
+  }
+
+  // 跨字段校验：冷启动单源超时不得超过竞速总预算。
+  // 两个键各自都可能在上下限内，但组合后会让冷启动源在总预算内永远跑不完。
+  const effectiveMs = (key: string): number | undefined => {
+    const text = String(inputs[key] ?? '').trim()
+    if (text !== '') {
+      const num = Number(text)
+      if (Number.isFinite(num) && num >= 0) return displayToMs(key, num)
+    }
+    const raw = configData[key]
+    return typeof raw === 'number' ? raw : undefined
+  }
+  if (!errors.raceBudgetMs && !errors.coldStartTimeoutMs) {
+    const totalBudgetMs = effectiveMs('raceBudgetMs')
+    const coldStartMs = effectiveMs('coldStartTimeoutMs')
+    if (totalBudgetMs !== undefined && coldStartMs !== undefined && coldStartMs > totalBudgetMs) {
+      errors.coldStartTimeoutMs = 'above-total-budget'
+    }
   }
 
   for (const key of BOOL_CONFIG_KEYS) {

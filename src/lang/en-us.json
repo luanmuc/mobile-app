@@ -874,6 +874,7 @@
   "health_config_err_zero": "Must be greater than 0",
   "health_config_err_below_min": "Below the minimum",
   "health_config_err_above_max": "Above the maximum",
+  "health_config_err_above_total_budget": "Cold start timeout cannot exceed the race budget",
   "health_config_err_not_in_source": "Source does not support this setting",
   "health_config_err_not_boolean": "Invalid switch value",
   "health_config_err_missing": "Missing setting",
