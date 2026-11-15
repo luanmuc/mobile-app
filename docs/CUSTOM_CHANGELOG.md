@@ -1,10 +1,20 @@
+## [HDM-3 后续修复合集（本地提交，待确认推送）] - 2026-11-15
+
+> b129 发布后剩余 4 项已知问题收口；未升版本、未建 tag、未推送。
+
+- **25s 超时竞态**：`online.ts` 增加请求级 settled 闸门；超时先定案，晚到成功只打诊断日志，不再补写 `play_result`/`chain_result`、不再留 pending、不再回放 `onQuality/onSource`。新增 `check_playback_timeout_race.js`：1 条失败账、0 条成功账、0 pending。
+- **趋势弹窗**：健康趋势弹窗改为四块：播放请求 / 实际起播 / 探测 / 后台预加载；删除重复的播放/探测块。`check_health_ui_mapping.js` U12 锁定四块。
+- **旧报告缺块**：`healthDiagnosticsView.ts` 对缺失的 `playWindows`/`probeWindows`/`preloadWindows`/`playbackWindows` 返回空窗口，不再回退到顶层取链窗口；V25 锁定。
+- **旧数据融合**：`healthDiagnostics.ts` 对无 `context` 的旧 `chain_result` 做安全回填——同 `traceId` 有 `play_result` 才归 `user`，没有配对的仍归 `legacy` 只计数；报告新增 `coverage.legacyMigrated`，E3b 锁定“1 条回填 + 1 条 legacy”。
+- **验证**：健康门禁 11 套全绿（diagnostics 59/0、deep 51/0、view 25/0、stress 14/0、real playback 10/0、timeout race 1/0 等）；契约五件套 527 TS 文件 0 错误、config 25/0、source contract 14/0、persistence 17/0、platform label 9/9；`tsc` rc=0；全仓 eslint rc=0。
+
 ## [HDM-3 健康数据分层与升级契约（已发布 b129）] - 2026-11-15
 
 > 真机「24h 取链/播放/缓存命中全 0」修复后，继续处理“统计口径断层”和“新旧数据未融合”。结论不是再给 v1 加兼容，而是把健康数据分成三层：L0 用户控制意图永久、L1 健康元数据 7 天且绑源版本、L2 事件日志 7 天滚动。v1 不迁移、不兼容、不保留分支，等 TTL 自然死亡。
 
 - **L0 永久化**：`src/core/sourceHealthPersistence.ts` 的 `sanitizeSourceHealthControls` 去掉 7 天 TTL，只保留“未来时间”容差；用户手动关源 8 天/30 天没开 App，重启后开关不再被静默重置。
 - **源仓 L0**：`src/legacy.js` 的 `restoreHealthState` 提前计算 `controlsOnly`，controls-only 不再受 `HEALTH_STATE_TTL_MS`；完整健康态（`sources/qualityShortCircuit`）仍 7 天 TTL，不复活旧熔断。未知 control 源 ID 从“拒绝整包”改为跳过，已删除源不会带走其余开关。源仓版本 `v8.14.1`。
-- **事件 context**：`healthLog.ts` 新增 `HealthContext=user|preload|refresh|download|probe|legacy`；`PlayResultInput.context` / `HealthLogEntry.context` / `CacheHitInput.context`。预加载默认 `preload`，用户刷新 `refresh`，普通播放 `user`；旧无 context 的 `chain_result` 归 `legacy`，只计数、不参与异常。
+- **事件 context**：`healthLog.ts` 新增 `HealthContext=user|preload|refresh|download|probe|legacy`；`PlayResultInput.context` / `HealthLogEntry.context` / `CacheHitInput.context`。预加载默认 `preload`，用户刷新 `refresh`，普通播放 `user`；旧无 context 的 `chain_result` 默认归 `legacy`；若同 `traceId` 存在 `play_result`，回填为 `user`，仅无法判定的才只计数、不参与异常。
 - **实际起播**：新增 `playback_start` 事件与 pending trace：取链成功只代表 URL 就绪，`playerPlaying` 消费一次 pending 才记“实际起播”；失败/暂停恢复不会重复计数。`playerEvent.ts` 的 `handlePlaying` 接入。
 - **诊断聚合**：`healthDiagnostics.ts` 的 `kinds` 增加 `preload` / `playback`，`chain` 只吃用户取链；`detectHealthAnomalies` 只吃 `user` chain，预加载失败不再生成 `local_zero_snapshot_healthy` / `recent_failure`。报告新增 `playbackWindows` / `preloadWindows` / `playbackBreakdown` / `preloadBreakdown` 与 `coverage.legacyChain`；`healthDiagnosticsView.ts` 输出 `playback` / `preload` 块。
 - **UI/三语**：Health 页新增“实际起播”“后台预加载”行；`health_diag_play` 改“播放请求”，新增 `health_diag_playback` / `health_diag_preload`（zh-cn / zh-tw / en-us）。

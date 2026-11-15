@@ -891,9 +891,15 @@ export default memo(() => {
         <View style={styles.modalContent}>
           <Text size={16} color={theme['c-font']} style={styles.modalTitle}>{t('health_trend_title', { n: trendDataView.length })}</Text>
           {diagView ? (
-            <View style={styles.trendBlockRow}>
-              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
-              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
+            <View>
+              <View style={styles.trendBlockRow}>
+                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
+                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_playback'), total: diagView.blocks.playback.h24.total, ok: diagView.blocks.playback.h24.ok, rate: diagView.blocks.playback.h24.rateText })}</Text>
+              </View>
+              <View style={styles.trendBlockRow}>
+                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
+                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_preload'), total: diagView.blocks.preload.h24.total, ok: diagView.blocks.preload.h24.ok, rate: diagView.blocks.preload.h24.rateText })}</Text>
+              </View>
             </View>
           ) : null}
           <View style={styles.trendWindowRow}>
@@ -907,12 +913,6 @@ export default memo(() => {
               >{t(`health_trend_window_${w}`)}</Text>
             ))}
           </View>
-          {diagView ? (
-            <View style={{ marginTop: 4 }}>
-              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
-              <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
-            </View>
-          ) : null}
           {/* 图例说明 */}
           <View style={styles.trendLegend}>
             <View style={styles.trendLegendItem}>

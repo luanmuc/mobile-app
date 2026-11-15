@@ -283,6 +283,17 @@ check('V22 旧报告缺 cacheHits 时按 0 处理', () => {
   assert(v.cacheHits.h1 === 0 && v.cacheHits.h24 === 0, JSON.stringify(v.cacheHits))
 })
 
+check('V25 旧报告缺播放/探测块时返回空窗口，不借用取链窗口', () => {
+  const v = view.buildHealthDiagnosticsView(report({
+    windows: { h1: win(), h24: win({ total: 9, ok: 2, failed: 7, successRate: 0.22 }), d7: win() },
+  }))
+  for (const key of ['play', 'playback', 'probe', 'preload']) {
+    assert(v.blocks[key].h24.total === 0, `${key} 不应回退到取链窗口：${JSON.stringify(v.blocks[key])}`)
+    assert(v.blocks[key].h24.rateText === '-', `${key} 缺块成功率应为 -`)
+  }
+  assert(v.blocks.chain.h24.total === 9, '取链块自身应保留')
+})
+
 check('V24 诊断 finding 三语键齐全，en-us 格式化不残留中文', () => {
   const langs = {}
   for (const l of ['zh-cn', 'zh-tw', 'en-us']) langs[l] = JSON.parse(fs.readFileSync(path.join(ROOT, `src/lang/${l}.json`), 'utf8'))

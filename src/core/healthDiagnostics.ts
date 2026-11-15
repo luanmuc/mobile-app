@@ -72,6 +72,8 @@ export interface HealthCoverage {
   truncated: boolean
   unweightedSuccesses: number
   legacyChain: number
+  // 旧无 context 的 chain_result 中，能与同 traceId 的 play_result 配对的条数。
+  legacyMigrated?: number
 }
 
 export interface HealthFindingSample {
@@ -197,6 +199,27 @@ const isUserChainOutcome = (e: HealthEventLike) => {
 }
 const isOutcome = (e: HealthEventLike) => isChainOutcome(e) || isPlayOutcome(e)
 
+/**
+ * 旧无 context 的 chain_result 不再一律丢掉：如果同一 traceId 还有 play_result，
+ * 说明这条链一定来自用户播放，可以安全回填为 user。没有配对的链无法区分
+ * 用户取链与预加载，仍归 legacy 只计数，避免把预加载失败算成用户异常。
+ */
+const normalizeLegacyChainContexts = (events: HealthEventLike[]): { events: HealthEventLike[], migrated: number } => {
+  const playedTraceIds = new Set<string>()
+  for (const e of events) {
+    if (isPlayOutcome(e) && e.traceId != null && String(e.traceId) !== '') playedTraceIds.add(String(e.traceId))
+  }
+  let migrated = 0
+  const normalized = events.map(e => {
+    if (e.event !== 'chain_result' || e.context != null) return e
+    const traceId = e.traceId != null ? String(e.traceId) : ''
+    if (!traceId || !playedTraceIds.has(traceId)) return e
+    migrated++
+    return { ...e, context: 'user' as const }
+  })
+  return { events: normalized, migrated }
+}
+
 const inWindow = (e: HealthEventLike, now: number, ms: number) => e.ts <= now && e.ts > now - ms
 
 const p95 = (values: number[]): number | null => {
@@ -274,7 +297,8 @@ const aggregateKind = (outcomes: HealthEventLike[], now: number): HealthKindAggr
 }
 
 export const aggregateHealthEvents = (events: HealthEventLike[], now: number = Date.now()): HealthAggregate => {
-  const safe = (Array.isArray(events) ? events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
+  const raw = (Array.isArray(events) ? events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
+  const safe = normalizeLegacyChainContexts(raw).events
   // F53/F10：取链、播放、探测分开算；任何一块的失败都不能污染另一块成功率。
   const kinds = {
     chain: aggregateKind(safe.filter(isUserChainOutcome), now),
@@ -308,7 +332,8 @@ export const detectHealthAnomalies = (input: {
   now?: number
 }): HealthFinding[] => {
   const now = input.now ?? Date.now()
-  const events = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number')
+  const raw = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number')
+  const events = normalizeLegacyChainContexts(raw).events
   // F54：异常检测按 block 分算。取链异常只看用户取链，preload/legacy 单独计数，
   // cache_hit 永远不是异常（缓存命中是正常路径）。
   const chainOutcomes = events.filter(isUserChainOutcome)
@@ -588,7 +613,10 @@ export const buildHealthReport = (input: {
   truncated?: boolean
 }): HealthReport => {
   const now = input.now ?? Date.now()
-  const safe = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
+  const raw = (Array.isArray(input.events) ? input.events : []).filter(e => e && typeof e.ts === 'number' && !Number.isNaN(e.ts))
+  const normalized = normalizeLegacyChainContexts(raw)
+  const safe = normalized.events
+  const legacyMigrated = normalized.migrated
   const agg = aggregateHealthEvents(safe, now)
   const findings = detectHealthAnomalies({ events: safe, snapshot: input.snapshot, trend: input.trend, now })
   const timestamps = safe.map(e => e.ts)
@@ -606,6 +634,7 @@ export const buildHealthReport = (input: {
     truncated: Boolean(input.truncated),
     unweightedSuccesses,
     legacyChain,
+    legacyMigrated,
   }
   const h1 = agg.windows.h1
   const h24 = agg.windows.h24
@@ -617,7 +646,9 @@ export const buildHealthReport = (input: {
   const playbackNote = playback24.total ? `；实际起播近 24 小时 ${playback24.total} 次` : ''
   const probeNote = probe24.total ? `；探测近 24 小时 ${probe24.total} 次、成功 ${probe24.ok}（${pct(probe24.successRate)}）` : ''
   const preloadNote = preload24.total ? `；后台预加载取链 ${preload24.total} 次、成功 ${preload24.ok}（${pct(preload24.successRate)}，不计入用户异常）` : ''
-  const legacyNote = legacyChain ? `；${legacyChain} 条旧口径取链记录仅计数、不参与异常判断` : ''
+  const legacyNote = legacyMigrated || legacyChain
+    ? `${legacyMigrated ? `；${legacyMigrated} 条旧口径取链已按 traceId 回填为用户取链` : ''}${legacyChain ? `；${legacyChain} 条无法判定来源的旧记录仅计数、不参与异常判断` : ''}`
+    : ''
   const cacheHits: HealthCacheHits = {
     h1: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, HOUR)).length,
     h24: safe.filter(e => e.event === 'cache_hit' && inWindow(e, now, DAY)).length,

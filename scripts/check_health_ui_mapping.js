@@ -130,6 +130,16 @@ check('U11 诊断取链/播放/探测三块独立可见', () => {
   }
 })
 
+check('U12 趋势弹窗同时展示播放请求/实际起播/探测/后台预加载', () => {
+  const start = ui.indexOf('{/* v8.0：健康趋势弹窗 */}')
+  const end = ui.indexOf('</Modal>', start)
+  assert(start >= 0 && end > start, '未定位趋势弹窗')
+  const trend = ui.slice(start, end)
+  for (const key of ['play', 'playback', 'probe', 'preload']) {
+    assert(trend.includes(`diagView.blocks.${key}`), `趋势弹窗缺 ${key} 块`)
+  }
+})
+
 console.log(`\n${passed} passed, ${failures.length} failed`)
 if (failures.length) process.exit(1)
 process.exit(0)

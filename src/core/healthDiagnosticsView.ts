@@ -91,15 +91,18 @@ export interface HealthDiagnosticsView {
  * 纯函数：不排序、不改写 findings，只按错误码/其他线索分组，保留后端顺序。
  */
 export const buildHealthDiagnosticsView = (report: HealthReport): HealthDiagnosticsView => {
-  const h24 = report.windows.h24
-  const h1 = report.windows.h1
+  // 旧报告可能缺 playWindows/probeWindows/preloadWindows/playbackWindows。
+  // 缺块必须返回空窗口；不能回退到顶层取链窗口，否则播放/探测会显示成取链数据。
+  const emptyWindow = { total: 0, ok: 0, failed: 0, successRate: null as number | null, p95: null as number | null, covered: false }
+  const h24 = report.windows?.h24 ?? emptyWindow
+  const h1 = report.windows?.h1 ?? emptyWindow
   const findings = Array.isArray(report.findings) ? report.findings : []
   const codes = findings.filter(isCodeFinding)
   const others = findings.filter(f => !isCodeFinding(f))
   const rateText = percentText(h24.successRate)
   const blockOf = (ws?: { h1?: typeof h1, h24?: typeof h24 }): HealthBlockStats => {
-    const b1 = ws?.h1 ?? h1
-    const b24 = ws?.h24 ?? h24
+    const b1 = ws?.h1 ?? emptyWindow
+    const b24 = ws?.h24 ?? emptyWindow
     return {
       h1: { total: b1.total, ok: b1.ok, empty: b1.total === 0 },
       h24: {
@@ -127,7 +130,7 @@ export const buildHealthDiagnosticsView = (report: HealthReport): HealthDiagnost
       rateWarn: h24.successRate != null && h24.successRate < 0.6,
     },
     coverage: {
-      full: report.windows.d7.covered,
+      full: report.windows?.d7?.covered ?? false,
       span: spanText(report.coverage.coveredMs),
       truncated: report.coverage.truncated,
     },

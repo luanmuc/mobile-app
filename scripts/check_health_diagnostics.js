@@ -732,6 +732,20 @@ const memoryFs = () => {
       assert(report.findings.length === 0, `legacy 不应生成异常：${JSON.stringify(report.findings)}`)
     })
 
+    check('E3b 旧 chain_result 与同 traceId 的 play_result 配对时回填为用户取链', () => {
+      const events = [
+        { ts: NOW - 15 * MIN, event: 'chain_result', traceId: 'old-user', sourceId: 'kw', platform: 'kw', quality: '128k', ok: false, code: 'NETWORK_ERROR' },
+        { ts: NOW - 14 * MIN, event: 'play_result', traceId: 'old-user', sourceId: 'kw', platform: 'kw', quality: '128k', ok: false, code: 'PLAY_FAIL' },
+        { ts: NOW - 10 * MIN, event: 'chain_result', traceId: 'old-preload', sourceId: 'kw', platform: 'kw', quality: '128k', ok: true },
+      ]
+      const agg = diag.aggregateHealthEvents(events, NOW)
+      assert(agg.windows.h24.total === 1, `配对旧链应回填 1 条用户取链：${agg.windows.h24.total}`)
+      const report = diag.buildHealthReport({ events, now: NOW })
+      assert(report.windows.h24.total === 1, '报告取链窗口未回填配对旧链')
+      assert(report.coverage.legacyMigrated === 1, `回填计数不符：${report.coverage.legacyMigrated}`)
+      assert(report.coverage.legacyChain === 1, `无配对旧链仍应归 legacy：${report.coverage.legacyChain}`)
+    })
+
     check('E4 playback 计数与 pending 一次性消费', () => {
       healthLog.setPendingPlayback({ traceId: 'e4', platform: 'kw', quality: '128k', sourceId: 'kw' })
       const first = healthLog.consumePendingPlayback()

@@ -111,10 +111,29 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
 
   // b70 诊断：获取链接全链路打点（写运行诊断日志，fire-and-forget 不阻塞）
   const startTs = Date.now()
+  // 请求级 settled 闸门：超时/失败一旦定案，晚到的成功不得再写账、留 pending 或回放 UI 回调。
+  // 否则 25s 超时后会补一条成功 play_result，并留下 stale pending，下一次 playerPlaying 可能串记。
+  let requestSettled = false
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const markSettled = () => {
+    if (requestSettled) return false
+    requestSettled = true
+    if (timeoutId != null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    return true
+  }
   // 2.4：一次播放一个 traceId；换源候选复用同一个，串起源侧多次取链事件
   log.diagnose(`[播放诊断] 获取链接开始: 歌=${musicInfo.name} 源=${musicInfo.source} 音质=${targetQuality} 刷新=${isRefresh} trace=${traceId}`)
   // b70 诊断：兜底超时——防止任何链路异常导致 promise 永不 settle（无限 00:00），25s 强制失败并打点
   const urlPromise = handleGetOnlineMusicUrl({ musicInfo, quality, onToggleSource, isRefresh, allowToggleSource, traceId }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence = 'exact', qualityCeilingApplied = false, requestedQuality = targetQuality, attempts }) => {
+    if (requestSettled) {
+      log.diagnose(`[播放诊断] 链接获取晚到成功已丢弃: 歌=${musicInfo.name} 耗时=${Date.now() - startTs}ms trace=${traceId}`)
+      return url
+    }
+    markSettled()
+
     const source = subSource ? { id: subSource, name: subSourceName || subSource, platform: sourcePlatform || '', fragment: fragment === true } : null
     if (targetMusicInfo.id != musicInfo.id && !isFromCache) {
       void saveMusicUrl(targetMusicInfo, targetQuality, url)
@@ -150,9 +169,14 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
     return url
   })
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
-    setTimeout(() => { reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`)) }, 25_000)
+    timeoutId = setTimeout(() => {
+      if (!markSettled()) return
+      reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`))
+    }, 25_000)
   })
   return Promise.race([urlPromise, timeoutPromise]).catch(err => {
+    // 先占位再记账：保证晚到成功在同一个 tick 内也被闸门挡住。
+    markSettled()
     const codeMatch = String(err?.message || '').match(/^([A-Z_]+):/)
     const errAttempts = (err as { attempts?: PlaybackAttempt[] } | null)?.attempts
     // 2.4 归因：失败也尽量带 sourceId，避免报告把同一源拆成 platform/sourceId 两个身份。
