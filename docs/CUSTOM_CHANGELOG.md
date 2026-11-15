@@ -1,4 +1,4 @@
-## [HDM-3 健康数据分层与升级契约（已推送，触发 b129）] - 2026-11-15
+## [HDM-3 健康数据分层与升级契约（已发布 b129）] - 2026-11-15
 
 > 真机「24h 取链/播放/缓存命中全 0」修复后，继续处理“统计口径断层”和“新旧数据未融合”。结论不是再给 v1 加兼容，而是把健康数据分成三层：L0 用户控制意图永久、L1 健康元数据 7 天且绑源版本、L2 事件日志 7 天滚动。v1 不迁移、不兼容、不保留分支，等 TTL 自然死亡。
 
@@ -12,6 +12,7 @@
 - **提交后审计补修**：`PlaybackContext` 增加 `musicId`，`consumePendingPlayback` 按当前 `playerState.musicInfo.id` 校验；`fetchSourceEvents` 改为并发查询全部 `healthEvents` API 并按 JSON 去重；`SOURCE_EVENT_FIELDS` 补 `context`；源仓 controls-only 在 `applyHealthControls` 后直接返回，不再执行 `qualitySkipProbeAt.clear()`。
 - **B3 契约对齐**：`check_source_health_persistence.js` 的 B3 从“8 天 control 必须拒绝”改为“control 永久保留、未来时间与容量仍拒绝”，与 HDM-3 的 L0 永久化一致；CI 音源契约门禁 17/0。
 - **边界**：v1 仍拒绝；L1/L2 永不迁移；片段试听语义、质量压制入口、K15 真机矩阵不在本轮范围。
+- **发布**：App `v1.9.2-b129`（Build `43668044955`，tag `v1.9.2-b129`，Android 3m54s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64），内置源 `v8.14.1`；`Lint`/`Checks`/`Android`/`Release` 四 job 全绿。
 
 ## [健康页取链/播放统计修复 + 缓存播放口径补齐（已推送 e49ab766，待发布）] - 2026-11-15
 
