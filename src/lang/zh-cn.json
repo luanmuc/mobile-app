@@ -712,6 +712,8 @@
   "source_update_too_large": "音源文件过大",
   "source_version_unknown": "未知",
   "source_update_latest": "已是最新版 v{version}",
+  "source_update_remote_older": "远端版本 v{remote} 低于当前 v{local}，已保持当前版本",
+  "source_update_bad_script": "远端音源缺少有效的 @version，已取消更新",
   "source_update_new_version_title": "发现新音源版本",
   "source_update_new_version_msg": "当前版本：v{local}\n最新版本：v{remote}\n\n确认更新到最新版？",
   "source_update_confirm": "确认更新",

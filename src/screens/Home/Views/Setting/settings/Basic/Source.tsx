@@ -16,6 +16,38 @@ import { useTheme } from '@/store/theme/hook'
 import { httpFetch } from '@/utils/request'
 import { importUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
+import { getData, saveData } from '@/plugins/storage'
+import { BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, parseSourceVersion } from '@/core/init/userApi/builtinSource'
+
+const SOURCE_UPDATE_TIMEOUT = 15_000
+const SOURCE_UPDATE_MAX_SIZE = 9_000_000
+const SOURCE_UPDATE_SOURCES = [
+  // GitHub Contents API 优先：每次取 master 当前内容，避开 jsDelivr 的 @master 边缘缓存。
+  {
+    url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js?ref=master',
+    options: { headers: { Accept: 'application/vnd.github.raw' } },
+  },
+  // 匿名 API 触发限额或网络失败时回退 jsDelivr；仍由 @version 做最终校验。
+  {
+    url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
+    options: {},
+  },
+] as const
+
+const fetchSourceScript = async(url: string, options: Record<string, unknown>, timeoutMessage: string) => {
+  const request = httpFetch(url, options)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => { reject(new Error(timeoutMessage)) }, SOURCE_UPDATE_TIMEOUT)
+    })
+    const response = await Promise.race([request.promise, timeout]) as { body?: unknown }
+    return typeof response.body === 'string' ? response.body : ''
+  } finally {
+    if (timer) clearTimeout(timer)
+    request.cancelHttp()
+  }
+}
 
 const apiSourceList = apiSourceInfo.map(api => ({
   id: api.id,
@@ -96,7 +128,7 @@ export default memo(() => {
     modalRef.current?.show()
   }
 
-  // 更新音源：从 GitHub raw 拉取 master 最新 lx-source.js（绕过 jsDelivr CDN 缓存）
+  // 更新音源：GitHub Contents API 优先，jsDelivr 兜底；版本只认 `@version`。
   // 流程：拉取 → 比对版本 → 弹窗显示版本信息 → 用户确认后才导入
   const [updating, setUpdating] = useState(false)
   const handleUpdateSource = useCallback(async() => {
@@ -104,35 +136,43 @@ export default memo(() => {
     setUpdating(true)
     toast(t('source_update_checking'))
     try {
-      // 用 jsDelivr CDN 拉（有 CDN 加速），版本更新时先 purge CDN 缓存
-      const url = 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js'
-      // 15 秒超时控制
-      const fetchPromise = httpFetch(url).promise.then(resp => resp.body) as unknown as string
-      const timeoutPromise = new Promise((_resolve, reject) =>
-        setTimeout(() => { reject(new Error(t('source_update_timeout'))) }, 15000),
-      )
-      const remoteScript = await Promise.race([fetchPromise, timeoutPromise]) as string
-      if (remoteScript.length > 9_000_000) {
-        toast(t('source_update_too_large'), 'long')
+      let remoteScript = ''
+      let lastError: unknown
+      for (const source of SOURCE_UPDATE_SOURCES) {
+        try {
+          const script = await fetchSourceScript(source.url, source.options, t('source_update_timeout'))
+          if (script.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
+          if (script.length < 50_000 || !parseSourceVersion(script)) throw new Error(t('source_update_bad_script'))
+          remoteScript = script
+          break
+        } catch (err) {
+          lastError = err
+        }
+      }
+      if (!remoteScript) {
+        const message = lastError instanceof Error ? lastError.message : t('source_update_bad_script')
+        throw new Error(message)
+      }
+
+      const remoteVersion = parseSourceVersion(remoteScript)
+      if (!remoteVersion) throw new Error(t('source_update_bad_script'))
+
+      // 提取本地当前音源版本号
+      let localVersion = ''
+      try {
+        localVersion = parseSourceVersion(await getUserApiScript(apiSourceSetting))
+      } catch { /* 读不到就当未知 */ }
+      const localLabel = localVersion || t('source_version_unknown')
+      const comparison = localVersion ? compareSourceVersions(remoteVersion, localVersion) : null
+
+      // 同版本 = 已是最新；远端更低 = 不降级
+      if (comparison === 0) {
+        toast(t('source_update_latest', { version: remoteVersion }), 'long')
         setUpdating(false)
         return
       }
-
-      // 提取远端版本号
-      const remoteVerMatch = remoteScript.match(/@version\s+(\S+)/)
-      const remoteVersion = remoteVerMatch ? remoteVerMatch[1] : t('source_version_unknown')
-
-      // 提取本地当前音源版本号
-      let localVersion: string = t('source_version_unknown')
-      try {
-        const localScript = await getUserApiScript(apiSourceSetting)
-        const localVerMatch = localScript.match(/@version\s+(\S+)/)
-        if (localVerMatch) localVersion = localVerMatch[1]
-      } catch { /* 读不到就当未知 */ }
-
-      // 版本一样 = 已是最新
-      if (remoteVersion === localVersion) {
-        toast(t('source_update_latest', { version: remoteVersion }), 'long')
+      if (comparison != null && comparison < 0) {
+        toast(t('source_update_remote_older', { local: localLabel, remote: remoteVersion }), 'long')
         setUpdating(false)
         return
       }
@@ -140,7 +180,7 @@ export default memo(() => {
       // 弹窗显示版本信息，用户确认后才更新
       Alert.alert(
         t('source_update_new_version_title'),
-        t('source_update_new_version_msg', { local: localVersion, remote: remoteVersion }),
+        t('source_update_new_version_msg', { local: localLabel, remote: remoteVersion }),
         [
           {
             text: t('cancel'),
@@ -165,12 +205,29 @@ export default memo(() => {
                 ])
                 if (!switched) throw new Error(t('source_switch_failed_keep_old'))
 
-                // 3) 切源成功后再删"豆包定制"旧音源（不删刚导入的那个）
-                const oldIds = userApiListRaw
-                  .filter(api => api.name.includes('豆包定制') && api.id !== newApiInfo.id)
-                  .map(api => api.id)
+                // 3) 切源成功后记录当前内置源身份与版本。
+                //    下次启动时 decideBuiltinSourceImport 会把 APK 内置源和这个版本比较，
+                //    避免旧 APK 内置源把在线升级的新版本反向覆盖。
+                //    必须先读旧 id，再写新 id，否则会丢掉待清理的旧内置源。
+                const storedBuiltinId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId).catch(() => undefined)
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.hasImported, true).catch(e => {
+                  console.warn('Failed to persist builtin source imported flag:', e)
+                })
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion, remoteVersion).catch(e => {
+                  console.warn('Failed to persist builtin source version:', e)
+                })
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, newApiInfo.id).catch(e => {
+                  console.warn('Failed to persist builtin source id:', e)
+                })
+
+                // 4) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。
+                const oldIds = storedBuiltinId && storedBuiltinId !== newApiInfo.id
+                  ? userApiListRaw.filter(api => api.id === storedBuiltinId).map(api => api.id)
+                  : []
                 if (oldIds.length) {
-                  await removeUserApi(oldIds)
+                  await removeUserApi(oldIds).catch(e => {
+                    console.warn('Failed to remove old builtin source:', e)
+                  })
                 }
 
                 toast(t('source_update_ok', { version: remoteVersion }), 'long')

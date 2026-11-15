@@ -11,6 +11,7 @@ import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, parseSourceVersion } from './builtinSource'
 import { recordProbeEvents } from '@/core/healthLog'
 
 
@@ -536,11 +537,11 @@ export default async(setting: LX.AppSetting) => {
   // 升级/清理仅操作 id 标记的内置源——此前按名字(含"豆包定制")识别会把用户手动导入的同名音源
   // 误判为内置源并批量删除，导致"手动导入的新源重启后被删"）
   const userApiList = await getUserApiList()
-  const builtinSourceKey = 'has_imported_builtin_source'
-  const builtinVersionKey = 'imported_builtin_source_version'
-  const builtinSourceIdKey = 'builtin_source_id'
-  const BUILTIN_NAME = '豆包定制[聚合音源]'
-  const hasImportedBuiltin = await getData<boolean>(builtinSourceKey)
+  const builtinSourceKey = BUILTIN_SOURCE_STORAGE_KEYS.hasImported
+  const builtinVersionKey = BUILTIN_SOURCE_STORAGE_KEYS.importedVersion
+  const builtinSourceIdKey = BUILTIN_SOURCE_STORAGE_KEYS.sourceId
+  const BUILTIN_NAME = BUILTIN_SOURCE_NAME
+  const hasImportedBuiltin = !!(await getData<boolean>(builtinSourceKey))
   const importedVersion = (await getData<string>(builtinVersionKey)) ?? ''
   // 内置源 id 标记（新机制）：自动导入时记录，此后升级/清理只认这一个 id
   const storedBuiltinId = await getData<string>(builtinSourceIdKey)
@@ -565,20 +566,26 @@ export default async(setting: LX.AppSetting) => {
     // named.length > 1：无法区分内置/手动 → 不冒险（canManageBuiltin 保持 false）
   }
 
-  // 读取内置脚本并解析聚合源版本号（logInfo 里的 v1.0 形式；匹配失败则仅首次导入）
+  // 版本只认 `@version` 首 token；`聚合音源 vX` 旧标记已废弃，避免与设置页/在线升级分叉。
   let builtinVer = ''
   try {
     const probeScript = await RNFS.readFileAssets('builtin_source.js', 'utf8')
-    const m = probeScript.match(/聚合音源\s*v(\d+(?:\.\d+)*)/)
-    builtinVer = m ? m[1] : ''
+    builtinVer = parseSourceVersion(probeScript)
   } catch (e) {
     console.warn('Failed to read builtin source version:', e)
   }
 
-  // 触发升级：内置版本变化（App 更新带新源）；或全新安装首次导入
-  const needImport = canManageBuiltin && ((builtinVer && builtinVer != importedVersion) || (!hasImportedBuiltin && !builtinApi))
+  // 触发升级：首次安装；或内置版本严格高于已导入版本。禁止旧内置源覆盖在线升级。
+  const importDecision = decideBuiltinSourceImport({
+    canManage: canManageBuiltin,
+    hasImported: hasImportedBuiltin,
+    hasBuiltinSource: !!builtinApi,
+    builtinVersion: builtinVer,
+    importedVersion,
+  })
+  console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
 
-  if (needImport) {
+  if (importDecision.shouldImport) {
     try {
       // RN 的 fetch 基于 OkHttp，不支持 file:// 协议，读取内置 assets 必须用 react-native-fs
       const script = await RNFS.readFileAssets('builtin_source.js', 'utf8')

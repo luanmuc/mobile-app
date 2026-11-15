@@ -37,7 +37,7 @@
 |---|---|---|---:|---|---|
 | E14 | 状态全枚举穷举 `check_health_state_enum.js` | L2 映射 | 22 | 待建 | 4 主状态 × reason × 手动/自动 × 播放态全组合（对应 G-A02） |
 | E15 | 错误码 16 全映射 `check_error_code_map.js` | L6 契约 | 10 | 待建 | 16 个 `ERROR_CODES` 全部有中文文案（与 G-A01 同源） |
-| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 999 键 × 三语 × tone 组合渲染 |
+| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1004 键 × 三语 × tone 组合渲染 |
 | E18 | 播放所有权运行时 `check_playback_ownership_runtime.js` | L7 运行时 | — | **脚本已存在 300 行，未纳入矩阵** | `fallbackOwner` 所有权交接 |
 | E19 | 下载器队列压力 `check_download_queue.js` | L7 运行时 | 12 | 待建 | 并发队列、暂停/恢复、失败重排（对应 G-A03） |
 | E20 | 类型与语法全量 | L8 长稳 | 5 | 待建 | tsc / eslint / ts_syntax 全量，反复迭代后仍绿 |
@@ -111,7 +111,7 @@ node scripts/docs-audit.js --dry-run
 | `tsc --noEmit` | 0 error |
 | `eslint .` | 0 error / 0 warning |
 | `npm run build-test` | rc0 |
-| 三语 | 各 999 键 |
+| 三语 | 各 1004 键 |
 
 > 本轮完整 rc 与条数以实跑为准；历史绿不替代。
 

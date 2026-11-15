@@ -712,6 +712,8 @@
   "source_update_too_large": "Source file is too large",
   "source_version_unknown": "unknown",
   "source_update_latest": "Already up to date: v{version}",
+  "source_update_remote_older": "Remote v{remote} is older than current v{local}; keeping current version",
+  "source_update_bad_script": "Remote source has no valid @version; update canceled",
   "source_update_new_version_title": "New source version found",
   "source_update_new_version_msg": "Current: v{local}\nLatest: v{remote}\n\nUpdate to the latest version?",
   "source_update_confirm": "Update",

@@ -1,3 +1,14 @@
+## [音源内置/在线升级修复（本地待确认）] - 2026-11-15
+
+> 修复 b132 覆盖升级后音源管理仍显示 8.14.1 的问题。APK 本身已带 8.15.0，根因是启动导入仍在用旧 `聚合音源 vX.Y` 正则，匹配不到 `@version 8.15.0`，导致 `needImport=false`；在线“更新音源”走远端 `@version`，因此手动更新反而正常。
+
+- **统一版本真相**：新增 `src/core/init/userApi/builtinSource.ts`，内置导入与在线升级统一使用 `parseSourceVersion` 读取 `@version` 首 token；`@description` / `logInfo` 只作说明。
+- **升级决策**：`decideBuiltinSourceImport` 只在首次安装或内置版本严格高于已导入版本时导入；同版本、内置更低、版本不可解析一律保持现状，禁止旧 APK 内置源覆盖在线升级。
+- **在线升级**：`Source.tsx` 改为 GitHub Contents API 优先、jsDelivr 兜底；远端低于当前版本时拒绝降级；成功后写 `has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id`，并只按 id 清理旧内置源，不再按“豆包定制”名字批量删。
+- **回归**：`scripts/check_source_update_logic.js` 12/0 覆盖 b131 `imported=8.14.1` → b132 `builtin=8.15.0` 必须升级、在线 8.16.0 → APK 8.15.0 不降级、缺少 `@version` 不覆盖等路径；已接入 `.github/workflows/release.yml` 的 `Checks`。
+- **文档**：同步 `docs/MUSIC_SOURCE_GUIDE.md`、`docs/SYNC_POINTS.md`、`docs/RELEASE_SOP.md` 的读取规则与门禁说明。
+- **文案台账**：三语各 1004 键（本轮 +2）。
+
 ## [双仓联动缺陷修复（已推送 master）] - 2026-11-15
 
 > 合并远端 `6d06e6d2`（首次播放音质标签 `isPlay` 守卫）后，对双仓深挖出的配置、预算、归因、诊断、重复桥调用问题做一次提交级收口。不升发布版本、不触发 Release。

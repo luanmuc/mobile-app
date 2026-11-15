@@ -3,12 +3,12 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-15）**：
-> - App：`luanmuc/mobile-app` @ `59ab63bd`（已推送），v1.9.2-b126 / versionCode 285（Build `43619278134` success）
-> - 源仓：`luanmuc/backend-api` @ `f3a3e75`（已推送），v8.14.0（5707 行 / 297753 bytes）
+> - App：`luanmuc/mobile-app` @ `b0b11c9c`（已推送），v1.9.2-b132 / versionCode 291（Build `43685049514` success）
+> - 源仓：`luanmuc/backend-api` @ `2094201`（已推送），v8.15.0（300268 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **999 键**、TS/TSX **527 文件**、`scripts/check_*.js` **34 个**（release.yml 引 30，另 4 个在 health-stress.yml 或离线）
+> - 硬数字：三语各 **1004 键**、TS/TSX **528 文件**、`scripts/check_*.js` **38 个**（release.yml 引 29，另 9 个在 health-stress.yml 或离线）
 >
-> **对应变更**：`ff9647cc`「按源能力请求音质并回填真实交付档」+ 源仓 `f3a3e75`「v8.14.0 音质优先与 CI 编排」；跨仓 QP-L1/L2/L3 已由 App `85d316ce` 补齐。
+> **对应变更**：App `b0b11c9c`「b132 版本信息」+ 源仓 `2094201`「v8.15.0」；本轮音源内置/在线升级修复已合入本地待确认提交。
 
 ---
 
@@ -48,7 +48,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 26/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 999 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1004 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -106,8 +106,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（999 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` 34 个 | 全部门禁 rc0 | ✅ |
+| 三语国际化（1004 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` 38 个 | 全部门禁 rc0 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -150,7 +150,7 @@
 ```bash
 node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx
-node scripts/check_ts_syntax.js                 # 527 文件
+node scripts/check_ts_syntax.js                 # 528 文件
 node scripts/check_source_contract.js           # 14/0
 node scripts/check_source_config_contract.js    # 26/0
 node scripts/check_quality_request_runtime.js   # 12/0
