@@ -55,7 +55,7 @@ function fail(msg) {
     head = await getJson(`${API}/commits/${encodeURIComponent(REF)}`)
   } catch (e) {
     console.error(`❌ 源仓 CI 闸门无法读取 ${REPO}@${REF}：${e.message}`)
-    process.exit(2)
+    process.exit(3)
   }
   const headSha = head.sha
   console.log(`源仓 ${REPO} ${REF} HEAD：${headSha}`)
@@ -65,7 +65,7 @@ function fail(msg) {
     runs = await getJson(`${API}/actions/runs?branch=master&event=push&per_page=20`)
   } catch (e) {
     console.error(`❌ 源仓 CI 闸门无法读取 ${REPO} 的 push runs：${e.message}`)
-    process.exit(2)
+    process.exit(3)
   }
   const latest = (runs.workflow_runs || []).find(r => r.name === 'lx-source CI')
   if (!latest) fail('找不到 lx-source CI 的 push run，无法确认源仓 CI 绿')
@@ -79,7 +79,7 @@ function fail(msg) {
     cmp = await getJson(`${API}/compare/${latest.head_sha}...${headSha}`)
   } catch (e) {
     console.error(`❌ 源仓 CI 闸门无法比较 ${latest.head_sha}...${headSha}：${e.message}`)
-    process.exit(2)
+    process.exit(3)
   }
   console.log(`绿提交 → 当前 HEAD compare status=${cmp.status}`)
   if (cmp.status !== 'ahead' && cmp.status !== 'identical') {
@@ -88,5 +88,5 @@ function fail(msg) {
   console.log(`✅ 源仓 CI 闸门通过：当前 HEAD ${headSha} 基于绿提交 ${latest.head_sha}`)
 })().catch(e => {
   console.error(`❌ 源仓 CI 闸门异常：${(e && e.stack) || e}`)
-  process.exit(2)
+  process.exit(3)
 })

@@ -77,4 +77,4 @@ node scripts/check_ts_syntax.js
 ## 七、发布相关
 
 - 本地改完 push 即发版（见 [RELEASE_SOP.md](./RELEASE_SOP.md)）
-- 不要手动改 `package.json` 的 version / `android/app/build.gradle` 的 versionCode（CI 注入）
+- 不要手动改 `package.json` 的 version / `publish/build-state.json` 的 build 与 versionCode（CI 注入；`android/app/build.gradle` 直接读 build-state，`package.json` 已不再保留 versionCode）

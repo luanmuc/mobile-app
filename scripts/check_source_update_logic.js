@@ -150,7 +150,10 @@ run('U12 在线升级使用共享解析/比较，并记录 imported_builtin_sour
   assert.ok(source.includes('parseSourceVersion'), 'Source.tsx 未使用 parseSourceVersion')
   assert.ok(source.includes('compareSourceVersions'), 'Source.tsx 未使用 compareSourceVersions')
   assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.importedVersion'), 'Source.tsx 未记录内置源版本')
-  assert.ok(!source.includes('api.name.includes(\'豆包定制\')'), 'Source.tsx 仍按名字批量删除内置源')
+  // 判据要写行为方向，不能写源码字面量：`!includes(旧写法)` 这种断言改文案/换变量名就假绿，
+  // 真正的回归（改回按名字删除）反而抓不到。
+  assert.ok(/filter\(api => api\.id === storedBuiltinId\)/.test(source), 'Source.tsx 未按 id 精确清理旧内置源（storedBuiltinId）')
+  assert.ok(!/\.filter\(api => api\.name/.test(source), 'Source.tsx 仍按 name 字段筛选/删除内置源')
 })
 
 console.log('\n[版本锚定]')

@@ -1,3 +1,27 @@
+## [审计包收尾：bundle 出库 + 闸门假绿清理 + 依赖锁 sha + 离线闸门走 API] - 2026-11-16
+
+- **`index.android.bundle` 出库**（V-38）：10.4MB 构建产物从索引移除，`.gitignore` 保留 `/index.android.bundle`；`git clone` 不再拖 1751 提交前的老会话缓存。
+- **闸门「跳过=红」**（N-1139 同源问题）：`check_truth_gates.js` 的 `S()` 从「⏭ 跳过」改为「❌ 无法验证并计红」——原版在读不到文件时全 skip 却报「口径全部一致」，是最危险的假绿。
+- **G20 依赖可复现性**（N-1136）：新增断言，`github:` 依赖必须锁 40 位 commit sha；`react-native-track-player#88b062b` 改全 sha `88b062be7450…f903`（短 sha 会随对象增长变歧义）。checksum 仍缺，靠 git 内容寻址兜底，已记录为限制。
+- **离线闸门主路径改 API**（V-31a）：`check_source_ci_gate_offline.js` 先走 `api.github.com/.../workflows/ci.yml/runs`（有 `GITHUB_TOKEN` 时带 Bearer），403/401 才退回抓 Actions 页面；远端 HEAD 改用 `git ls-remote`，不再顺带 `git fetch` 污染工作区。
+- **Android-only 声明**（N-1140）：`ios/` 4 个源文件 118 行仍是上游原样（`git log ios/` 只有 RN 升级），README 明确本 fork 只维护 Android。
+- **保留 targetSdk 29**（N-1142）：自签名直发、不走 Play 商店；升到 33+ 会引入 `POST_NOTIFICATIONS` 运行时权限与前台服务类型约束，需真机回归，暂按现状并在 `docs/AUDIT_PLAN.md` 记录为有意取舍。
+- **回归**：`check_truth_gates` 9/0（G6/G7/G8/G10×2/G11/G12/G18/G20）、`check_source_update_logic` 24/0、`check_ts_syntax` 528/0、`docs-audit` 0 红。
+
+## [审计包落地：versionCode 单一真相 + 口径门禁 + 跨平台打包] - 2026-11-16
+
+> 外部审计包 `审计交付-2026-11-16`（27 条未修 / 23 条补丁 / 18 条口径门禁）核验后落地。逐项结论见交接清单；本轮只改**能被门禁抓到**的那几条。
+
+- **versionCode 单一真相**：`package.json` 曾有 `versionCode: 80`，而 `publish/build-state.json` 是 294；`build.gradle` 默认取前者 → 不带 `APP_VERSION_CODE` 构建出的 APK 版本号低于已发布包，**Android 拒绝覆盖安装**。修法：删掉 `package.json.versionCode`，`build.gradle` 改为读 `publish/build-state.json`（env 覆盖优先），并新增 G6 门禁（键不存在=通过，加回来就必须与发布态相等）。
+- **切源超时清理定时器**：`Promise.race` 超时那一路的 `setTimeout` 在竞速结束后仍会空转，改为 `SOURCE_SWITCH_INIT_TIMEOUT` 常量 + 结束即 `clearTimeout`（G18 门禁）。
+- **打包命令跨平台**：`pack:android`/`clear` 原写死 `gradlew.bat`（Windows），`pack:android:debug` 写 `./gradlew`（Unix）→ 谁都不通用。改为按 `process.platform` 选二进制（G8 门禁）。
+- **三语键数漂移**：b135 的 `source_switch_timeout_keep_old` 让文案变 **1005 键**，文档 4 处仍写 1004；已回填（G10 门禁：改文案不更数字即红）。
+- **闸门退出码分「未验证」**：`check_source_ci_gate.js` 与 `check_source_ci_gate_offline.js` 的「读不到」从 `exit 2` 改为 **`exit 3`**，语义收敛为 0 通过 / 1 真阻断 / 3 未验证（网络 403 不再伪装成阻断或通过）。
+- **判据去字面量**：`check_source_update_logic` U12 原断言 `!source.includes(旧写法)`，改文案就假绿；改为行为正向断言（`filter(api => api.id === storedBuiltinId)` 存在、按 `name` 筛选不存在）。
+- **新增 `scripts/check_truth_gates.js`**（8 条：G6/G7/G8/G10×2/G11/G12/G18），读不到按红处理，已接入 release.yml Checks；`docs/AUDIT_PLAN.md` 门禁脚本数 38 → 39。
+- **bundle 出库**：`index.android.bundle`（10,396,403 字节，1751 提交只更新 2 次，内含 348 处旧会话路径）已 `git rm --cached` 并保留 `.gitignore` 规则——它是 `build-test` 的产物，不参与 gradle 打包（gradle 用的是 `android/app/src/main/assets/`，由 CI 生成）。
+- **回归**：`check_truth_gates` 8/0 · `check_source_update_logic` 24/0 · `check_source_config_contract` 29/0 · `check_cross_repo_linkage` 8/0 · `check_docs_consistency` 18 文档 · `check_ts_syntax` 528 文件 0 错 · `tsc --noEmit` 0。
+
 ## [一键更新：8s 超时不再谎报「加载失败」（b135 已发布）] - 2026-11-15
 
 > D-24 整改（b84）已把顺序改成「导新 → 切新并等 init（8s 上限）→ 成功才删旧」，但超时分支把「没等到」直接当成「加载失败」，说了句不成立的话。

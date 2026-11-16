@@ -67,3 +67,6 @@ buck-out/
 
 # testing
 /coverage
+
+# RN 构建产物：10.4MB 二进制，历史上被入库过（保留索引，仅防新增）
+/index.android.bundle

@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `74c3db37`（已推送），v1.9.2-b133 / versionCode 292（Build `43692249306` success）
 > - 源仓：`luanmuc/backend-api` @ `2094201`（已推送），v8.15.0（300268 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1004 键**、TS/TSX **528 文件**、`scripts/check_*.js` **38 个**（release.yml 引 29，另 9 个在 health-stress.yml 或离线）
+> - 硬数字：三语各 **1005 键**、TS/TSX **528 文件**、`scripts/check_*.js` **39 个**（release.yml 的 Checks 队列全跑，另 9 个在 health-stress.yml 或离线）
 >
 > **对应变更**：App `a33a339f`「统一内置源版本解析并阻止升级回退」→ b133 已发布；源仓 `2094201`「v8.15.0」及 `v8.15.0` tag 已推送。
 
@@ -48,7 +48,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1004 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1005 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -106,8 +106,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1004 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` 38 个 | 全部门禁 rc0 | ✅ |
+| 三语国际化（1005 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` 39 个 | 全部门禁 rc0 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -197,3 +197,5 @@ node scripts/docs-audit.js --dry-run            # 待处理 0
 1. `check_source_ci_gate` 本地 `GITHUB_TOKEN` 无效 → 用 `git credential fill` 取有效令牌复跑；CI runner 仍用自带 `GITHUB_TOKEN`。
 2. G2 真机、G7 tx 完整链 blocked，不写成通过。
 3. 本计划只对纯 Node/内存 FS 结论负责。
+
+> 已知取舍：`targetSdkVersion = 29` 保持不动（自签名直发、不走 Play 商店；升到 33+ 会引入 `POST_NOTIFICATIONS` 运行时权限与前台服务类型约束，需真机回归）。

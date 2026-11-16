@@ -64,6 +64,7 @@ jobs:
           node scripts/check_cross_repo_linkage.js
           node scripts/check_source_contract.js
           node scripts/check_source_update_logic.js
+          node scripts/check_truth_gates.js
           node scripts/check_source_health_persistence.js
           node scripts/check_source_platform_label.js
           node scripts/check_playback_budget.js

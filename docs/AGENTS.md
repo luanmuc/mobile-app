@@ -179,6 +179,7 @@ node scripts/docs-audit.js   # 文档一致性检查：过时引用清零才可�
 
 - push master 即触发云编译发版（`v1.9.2-bN`）；`publish/**`、`npm-version-info/**` 不触发。
 - 构建前先跑源仓 HEAD CI 闸门：源仓最近一次 push CI 非 success、未完成、无 run，或绿提交不是当前 HEAD 祖先时，直接阻断取源。
+- 本地打包：`npm run pack:android` / `pack:android:debug` / `clear` 都按 `process.platform` 选 `gradlew`(Unix) 或 `gradlew.bat`(Windows)，不再是单平台写死；版本号取自 `publish/build-state.json`（可用 `APP_VERSION_CODE` 覆盖）。
 - CI 依赖缓存：`.github/actions/setup` 缓存 `node_modules`（key=package-lock.json+.nvmrc，命中跳过 npm ci）；`setup-java` 缓存 Gradle wrapper/依赖；`android/gradle.properties` 开启 `org.gradle.caching/parallel/workers.max=4`，构建命令 `./gradlew assembleRelease --build-cache --parallel --no-daemon`。改依赖锁定文件后缓存自动失效，无需手动清理。
 - 完整流程、发布后验证清单与回滚方法见 `docs/RELEASE_SOP.md`。
 - 音源版本独立发布，由 CI 构建时拉取（见 `docs/MUSIC_SOURCE_GUIDE.md`）。

@@ -98,7 +98,15 @@ def getNpmPackageJson() {
     return packageJson
 }
 def npmPackageJson = getNpmPackageJson()
-def verCode = (System.getenv("APP_VERSION_CODE") ?: npmPackageJson["versionCode"]) as Integer
+// versionCode 的唯一真相在发布态（publish/build-state.json，由 CI 回写）。
+// 历史坑：package.json 里也写过一份 versionCode，且长期停在旧值 → 不带 APP_VERSION_CODE
+// 构建出的 APK 版本号低于已发布包，Android 拒绝覆盖安装。
+def getBuildState() {
+    def f = new File(rootProject.projectDir.parentFile, "publish/build-state.json")
+    return f.exists() ? new JsonSlurper().parseText(f.text) : [:]
+}
+def buildState = getBuildState()
+def verCode = (System.getenv("APP_VERSION_CODE") ?: buildState["versionCode"] ?: npmPackageJson["versionCode"]) as Integer
 def verName = System.getenv("APP_VERSION_NAME") ?: npmPackageJson["version"]
 def applicationName = npmPackageJson["name"]
 

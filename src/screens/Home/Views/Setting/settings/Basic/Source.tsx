@@ -20,6 +20,8 @@ import { getData, saveData, removeData } from '@/plugins/storage'
 import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
 
 const SOURCE_UPDATE_TIMEOUT = 15_000
+// 切源后等 init 事件的上限（超时只代表"没等到"，不等于加载失败）
+const SOURCE_SWITCH_INIT_TIMEOUT = 8000
 const SOURCE_UPDATE_MAX_SIZE = 9_000_000
 const SOURCE_UPDATE_SOURCES = [
   // GitHub Contents API 优先：每次取 master 当前内容，避开 jsDelivr 的 @master 边缘缓存。
@@ -266,10 +268,15 @@ export default memo(() => {
                 // 因此把「超时」与「明确失败」分开报：超时说「未就绪、旧源已保留、下次启动对账」，
                 // 不去断言「加载失败」，也不删旧源。
                 let timedOut = false
+                let initTimer: ReturnType<typeof setTimeout> | undefined
                 const switched = await Promise.race([
                   setApiSource(newApiInfo.id),
-                  new Promise<boolean>(resolve => { setTimeout(() => { timedOut = true; resolve(false) }, 8000) }),
+                  new Promise<boolean>(resolve => {
+                    initTimer = setTimeout(() => { timedOut = true; resolve(false) }, SOURCE_SWITCH_INIT_TIMEOUT)
+                  }),
                 ])
+                // 竞速结束后必须清定时器：另一路赢了之后它还会空转，留着会拖住事件循环。
+                clearTimeout(initTimer)
                 if (!switched) throw new Error(t(timedOut ? 'source_switch_timeout_keep_old' : 'source_switch_failed_keep_old'))
 
                 // 4) 切源成功后记录当前内置源身份与版本。

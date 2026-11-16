@@ -15,6 +15,8 @@
 
 - Android 5 及以上（包名 `com.luanmuc.lxmusic`，可与原版共存安装）
 
+> 本 fork **只维护 Android**。`ios/` 目录仍是上游原样（4 个源文件 118 行，`git log ios/` 只有 RN 升级），不随定制改动；iOS 构建/上架不在本项目范围内。
+
 > 桌面版项目地址：<https://github.com/lyswhut/lx-music-desktop><br>
 > 定制版更新日志：[CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) · 上游更新日志：[CHANGELOG.md](./docs/CHANGELOG.md)
 
