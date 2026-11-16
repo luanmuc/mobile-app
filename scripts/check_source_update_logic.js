@@ -281,5 +281,178 @@ run('U24 pending 提升为内置源后清理旧内置源，避免只换标记不
   assert.ok(index.includes('removeUserApi([previousBuiltinId])'), 'index.ts 未清理旧内置源')
 })
 
+run('U25 多份同名时，覆盖目标必须是「正在启用的那份」', () => {
+  const { resolveBuiltinTarget } = LOGIC()
+  const t = resolveBuiltinTarget({
+    storedId: '',
+    activeId: 'user_api_b',
+    list: [
+      { id: 'user_api_a', name: '豆包定制[聚合音源]' },
+      { id: 'user_api_b', name: '豆包定制[聚合音源]' },
+    ],
+    builtinName: '豆包定制[聚合音源]',
+  })
+  assert.strictEqual(t.targetId, 'user_api_b', '多份同名时未把启用中的那份作为覆盖目标')
+  assert.strictEqual(t.canManage, true)
+  assert.strictEqual(t.reason, 'active-named')
+})
+
+run('U26 多份同名但启用的不是同名源时不冒险，且不覆盖用户源', () => {
+  const { resolveBuiltinTarget } = LOGIC()
+  const t = resolveBuiltinTarget({
+    storedId: '',
+    activeId: 'kw',
+    list: [
+      { id: 'user_api_a', name: '豆包定制[聚合音源]' },
+      { id: 'user_api_b', name: '豆包定制[聚合音源]' },
+    ],
+    builtinName: '豆包定制[聚合音源]',
+  })
+  assert.strictEqual(t.targetId, '', '启用的不是聚合音源时不应指定覆盖目标')
+  assert.strictEqual(t.canManage, false)
+  assert.strictEqual(t.reason, 'ambiguous')
+})
+
+run('U27 无 id 标记但同名唯一时，目标就是那一份（兼容旧数据迁移）', () => {
+  const { resolveBuiltinTarget } = LOGIC()
+  const t = resolveBuiltinTarget({
+    storedId: '',
+    activeId: 'kw',
+    list: [{ id: 'user_api_only', name: '豆包定制[聚合音源]' }],
+    builtinName: '豆包定制[聚合音源]',
+  })
+  assert.strictEqual(t.targetId, 'user_api_only')
+  assert.strictEqual(t.canManage, true)
+  assert.strictEqual(t.reason, 'named-unique')
+})
+
+run('U28 有 id 标记时优先按 id，名字不同也认（用户可改名）', () => {
+  const { resolveBuiltinTarget } = LOGIC()
+  const t = resolveBuiltinTarget({
+    storedId: 'user_api_x',
+    activeId: 'kw',
+    list: [{ id: 'user_api_x', name: '我自己改的名字' }],
+    builtinName: '豆包定制[聚合音源]',
+  })
+  assert.strictEqual(t.targetId, 'user_api_x')
+  assert.strictEqual(t.reason, 'stored-id')
+})
+
+run('U29 就地覆盖保留 id 与更新提醒开关，只换版本/名称/说明', () => {
+  const { buildOverwrittenApiInfo } = LOGIC()
+  const prev = { id: 'user_api_old', name: '豆包定制[聚合音源]', version: '8.15.1', description: '旧说明', allowShowUpdateAlert: false, author: 'x' }
+  const next = buildOverwrittenApiInfo(prev, { name: '豆包定制[聚合音源]', version: '8.16.0', description: '新说明' })
+  assert.strictEqual(next.id, 'user_api_old', '覆盖后 id 变了（会多出一份新源）')
+  assert.strictEqual(next.allowShowUpdateAlert, false, '覆盖后丢了更新提醒开关')
+  assert.strictEqual(next.author, 'x', '覆盖后丢了原有 author')
+  assert.strictEqual(next.version, '8.16.0')
+  assert.strictEqual(next.description, '新说明')
+})
+
+console.log('\n[接线静态锁 · 就地覆盖]')
+
+run('U30 在线更新走就地覆盖，目标取自当前启用源，不再无条件新增', () => {
+  const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
+  assert.ok(source.includes('overwriteUserApi'), 'Source.tsx 未调用 overwriteUserApi（仍只会新增）')
+  assert.ok(source.includes('resolveBuiltinTarget'), 'Source.tsx 未使用 resolveBuiltinTarget 定位覆盖目标')
+  assert.ok(/resolveBuiltinTarget\([\s\S]{0,200}activeId:\s*apiSourceSetting/.test(source), 'Source.tsx 未把当前启用源作为覆盖目标')
+})
+
+run('U31 启动自动升级同样就地覆盖，不再 remove+add 造成 id 漂移', () => {
+  const index = read('src/core/init/userApi/index.ts')
+  assert.ok(index.includes('overwriteUserApi'), 'index.ts 未就地覆盖内置源（仍 remove+add）')
+  assert.ok(!/await removeUserApi\(\[builtinApi\.id\]\)[\s\S]{0,80}await addUserApi/.test(index), 'index.ts 仍是先删后建')
+})
+
+run('U32 用户手动启用了另一份同名源时，覆盖目标必须是启用那份（不能被 id 标记带偏）', () => {
+  const { resolveBuiltinTarget } = LOGIC()
+  const t = resolveBuiltinTarget({
+    storedId: 'user_api_stored',
+    activeId: 'user_api_active',
+    list: [
+      { id: 'user_api_stored', name: '豆包定制[聚合音源]' },
+      { id: 'user_api_active', name: '豆包定制[聚合音源]' },
+    ],
+    builtinName: '豆包定制[聚合音源]',
+  })
+  assert.strictEqual(t.targetId, 'user_api_active', 'id 标记压过了启用份，会去覆盖没启用的那份')
+  assert.strictEqual(t.reason, 'active-named')
+})
+
+run('U33 版本基线优先取「将被覆盖那份」的版本，避免拿另一份的版本误判远端更低', () => {
+  const { resolveSourceUpdateBaseline } = LOGIC()
+  const base = resolveSourceUpdateBaseline({
+    builtinScript: '/*!\n * @name 豆包定制[聚合音源]\n * @version 8.16.0\n */',
+    importedVersion: '8.16.0',
+    targetScript: '/*!\n * @name 豆包定制[聚合音源]\n * @version 8.15.1\n */',
+  })
+  assert.strictEqual(base.version, '8.15.1', '基线仍取标记份（8.16.0），启用份就永远升不动')
+  assert.strictEqual(base.source, 'target-script')
+})
+
+run('U34 只有“没有覆盖目标”时 pending 才阻断自动导入，避免老 pending 永久卡住升级', () => {
+  const index = read('src/core/init/userApi/index.ts')
+  assert.ok(/pendingBlocked:\s*pendingBlocked\s*&&\s*!builtinApi/.test(index), 'index.ts 仍在有目标时被 pending 阻断')
+})
+
+run('U35 删除内置源必须清掉悬空 id 标记，避免将来把用户自建同名源当内置源覆盖', () => {
+  const core = read('src/core/userApi.ts')
+  assert.ok(core.includes('BUILTIN_SOURCE_STORAGE_KEYS.sourceId'), 'core/userApi.ts 删除时未清 builtin_source_id')
+  assert.ok(/removeData\(BUILTIN_SOURCE_STORAGE_KEYS\.pendingSourceId\)/.test(core), 'core/userApi.ts 删除时未清 pending 标记')
+})
+
+run('U36 覆盖成功后不再谎报“重启 App 生效”（同 id 已经热重载）', () => {
+  for (const lang of ['zh-cn', 'zh-tw', 'en-us']) {
+    const text = JSON.parse(read(`src/lang/${lang}.json`)).source_update_ok
+    assert.ok(!/重启|重新啟動|Restart/i.test(text), `${lang} 的 source_update_ok 仍写“重启生效”`)
+  }
+})
+
+run('U37 覆盖目标不存在时给用户可读文案，不抛英文内部错误', () => {
+  const data = read('src/utils/data.ts')
+  assert.ok(!data.includes("throw new Error('user api not found')"), 'data.ts 仍抛英文内部错误')
+  assert.ok(/global\.i18n\.t\('source_update_target_missing'\)/.test(data), 'data.ts 未用可读文案')
+})
+
+run('U38 换包（含降级）：包内版本更低也必须覆盖，音源跟包走', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({
+    canManage: true, hasImported: true, hasBuiltinSource: true,
+    builtinVersion: '8.16.0', importedVersion: '8.18.0',
+    appVersion: '1.9.2-b134', importedAppVersion: '1.9.2-b138',
+  })
+  assert.strictEqual(d.shouldImport, true, '换包后内置版本更低仍拒绝覆盖，降级包音源不生效')
+  assert.strictEqual(d.reason, 'app-version-sync')
+})
+
+run('U39 同一个包内重启：内置更低仍不覆盖，保住在线更新结果', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({
+    canManage: true, hasImported: true, hasBuiltinSource: true,
+    builtinVersion: '8.16.0', importedVersion: '8.18.0',
+    appVersion: '1.9.2-b138', importedAppVersion: '1.9.2-b138',
+  })
+  assert.strictEqual(d.shouldImport, false)
+  assert.strictEqual(d.reason, 'builtin-older')
+})
+
+run('U40 老数据没有 App 版本标记：强制同步一次，顺带修好卡在旧版的设备', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({
+    canManage: true, hasImported: true, hasBuiltinSource: true,
+    builtinVersion: '8.16.0', importedVersion: '8.15.1',
+    appVersion: '1.9.2-b138', importedAppVersion: '',
+  })
+  assert.strictEqual(d.shouldImport, true)
+  assert.strictEqual(d.reason, 'app-version-sync')
+})
+
+run('U41 覆盖后必须记录当前 App 版本，否则下次启动又会当成换包', () => {
+  const index = read('src/core/init/userApi/index.ts')
+  const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
+  assert.ok(index.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'index.ts 未记录 app 版本标记')
+  assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'Source.tsx 未记录 app 版本标记')
+})
+
 console.log(`\n${checks} 项通过，${failures} 项失败`)
 if (failures) process.exitCode = 1

@@ -1,5 +1,5 @@
 import { type InitParams, onScriptAction, sendAction, type ResponseParams, type UpdateInfoParams, type RequestParams } from '@/utils/nativeModules/userApi'
-import { log, setUserApiList, setUserApiStatus } from '@/core/userApi'
+import { log, overwriteUserApi, setUserApiList, setUserApiStatus } from '@/core/userApi'
 import settingState from '@/store/setting/state'
 import BackgroundTimer from 'react-native-background-timer'
 import RNFS from 'react-native-fs'
@@ -11,7 +11,7 @@ import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion } from './builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget } from './builtinSource'
 import { recordProbeEvents } from '@/core/healthLog'
 
 
@@ -545,6 +545,9 @@ export default async(setting: LX.AppSetting) => {
   let importedVersion = (await getData<string>(builtinVersionKey)) ?? ''
   // 内置源 id 标记（新机制）：自动导入时记录，此后升级/清理只认这一个 id
   let storedBuiltinId = await getData<string>(builtinSourceIdKey)
+  // 当前 App 版本（CI 注入的 1.9.2-bN）：换包即以内置音源为准，升级/降级都覆盖
+  const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
+  const storedAppVersion = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.appVersion)) ?? ''
 
   // 在线升级“导入成功但切源结果不确定”的启动对账：
   // - 待切换源已是当前选中源：视为迟到成功，提升为内置源并补版本；
@@ -597,25 +600,20 @@ export default async(setting: LX.AppSetting) => {
     }
   }
 
-  // 定位"真正的内置源"：优先按 id 标记；历史数据无标记时做一次性迁移——
-  // 名字精确匹配内置名且唯一时视为内置源；多份同名（旧内置与用户手动导入并存）时
-  // 无法区分，为保护用户数据【不做任何自动升级/清理】（用户手动导入的新源永不被删）
-  let builtinApi: LX.UserApi.UserApiInfo | undefined
-  let canManageBuiltin = false
-  if (storedBuiltinId) {
-    builtinApi = userApiList.find(api => api.id === storedBuiltinId)
-    canManageBuiltin = !!builtinApi || !hasImportedBuiltin
-  } else {
-    const named = userApiList.filter(api => api.name === BUILTIN_NAME)
-    if (named.length === 0) {
-      // 全新安装：无内置源 → 允许首次导入
-      canManageBuiltin = !hasImportedBuiltin
-    } else if (named.length === 1) {
-      builtinApi = named[0]
-      canManageBuiltin = true
-    }
-    // named.length > 1：无法区分内置/手动 → 不冒险（canManageBuiltin 保持 false）
-  }
+  // 定位"真正要覆盖的那一份内置源"：优先按 id 标记；无标记时同名唯一即认它；
+  // 多份同名（旧内置与用户手动导入并存）时，只认“正在启用的那份”——音源同时只能启用一个，
+  // 未启用的同名旧版属于用户手动导入，不动。启用的不是它们就放弃（绝不猜、绝不新增副本）。
+  const builtinTarget = resolveBuiltinTarget({
+    storedId: storedBuiltinId ?? '',
+    activeId: (setting['common.apiSource'] as string | undefined) ?? '',
+    list: userApiList.map(api => ({ id: api.id, name: api.name })),
+    builtinName: BUILTIN_NAME,
+  })
+  const builtinApi = builtinTarget.targetId
+    ? userApiList.find(api => api.id === builtinTarget.targetId)
+    : undefined
+  // 有目标就能升级；没目标只在“全新安装/可恢复”时才允许导入
+  const canManageBuiltin = builtinTarget.canManage && (!!builtinApi || !hasImportedBuiltin)
 
   // 版本只认 `@version` 首 token；`聚合音源 vX` 旧标记已废弃，避免与设置页/在线升级分叉。
   let builtinVer = ''
@@ -633,7 +631,11 @@ export default async(setting: LX.AppSetting) => {
     hasBuiltinSource: !!builtinApi,
     builtinVersion: builtinVer,
     importedVersion,
-    pendingBlocked,
+    // 已有明确的覆盖目标时不受 pending 阻断：新逻辑是就地覆盖，不会因此多出一份源；
+    // 老版本遗留的孤儿 pending 否则会永久卡住升级。
+    pendingBlocked: pendingBlocked && !builtinApi,
+    appVersion: currentAppVersion,
+    importedAppVersion: storedAppVersion,
   })
   console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
 
@@ -642,13 +644,17 @@ export default async(setting: LX.AppSetting) => {
       // RN 的 fetch 基于 OkHttp，不支持 file:// 协议，读取内置 assets 必须用 react-native-fs
       const script = await RNFS.readFileAssets('builtin_source.js', 'utf8')
       if (script && script.length > 1000) {
-        // 仅删除旧内置源（id 标记或迁移唯一确认的那一份）；用户手动导入的其他源不动
+        // 已定位到目标：就地覆盖同一 id（不新增、不删除、不换 id），用户只会看到版本变了
+        let newApi: LX.UserApi.UserApiInfo
         if (builtinApi) {
-          await removeUserApi([builtinApi.id]).catch((e) => { console.warn('Failed to remove old builtin source:', e) })
+          newApi = await overwriteUserApi(builtinApi.id, script)
           const idx = userApiList.findIndex(api => api.id === builtinApi.id)
-          if (idx >= 0) userApiList.splice(idx, 1)
+          if (idx >= 0) userApiList.splice(idx, 1, newApi)
+          console.log('builtin source overwritten in place:', newApi.id)
+        } else {
+          // 全新安装：库里没有任何同名源，才新增一份
+          newApi = await addUserApi(script)
         }
-        const newApi = await addUserApi(script)
         if (!userApiList.some(api => api.id === newApi.id)) {
           userApiList.push(newApi)
           // 仅当当前正使用旧内置源（或未选音源）时切换到新内置源；
@@ -676,6 +682,8 @@ export default async(setting: LX.AppSetting) => {
         await saveData(builtinSourceIdKey, newApi.id)
         await saveData(builtinSourceKey, true)
         if (verifiedBuiltinVersion) await saveData(builtinVersionKey, verifiedBuiltinVersion)
+        // 记下“这次同步发生在哪个 App 版本”，下次同包重启才不会又当成换包
+        if (currentAppVersion) await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion)
         console.log('builtin source imported/updated:', newApi.name, verifiedBuiltinVersion || '')
       }
     } catch (e) {

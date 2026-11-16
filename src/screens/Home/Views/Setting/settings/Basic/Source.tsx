@@ -14,10 +14,13 @@ import UserApiEditModal, { type UserApiEditModalType } from './UserApiEditModal'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
 import { httpFetch } from '@/utils/request'
-import { importUserApi, removeUserApi } from '@/core/userApi'
+import { importUserApi, overwriteUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
+
+// 当前运行 App 的版本（CI 注入的 1.9.2-bN）：换包与否决定启动时是否以内置音源为准
+const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
 
 const SOURCE_UPDATE_TIMEOUT = 15_000
 // 切源后等 init 事件的上限（超时只代表"没等到"，不等于加载失败）
@@ -199,24 +202,33 @@ export default memo(() => {
         getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId).catch(() => null),
         getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion).catch(() => null),
       ])
+      // 覆盖目标先定：启用份优先（音源同时只能启用一个），未被启用的同名旧版不是更新对象。
+      const target = resolveBuiltinTarget({
+        storedId: storedBuiltinId ?? '',
+        activeId: apiSourceSetting,
+        list: userApiListRaw,
+        builtinName: BUILTIN_SOURCE_NAME,
+      })
+      let targetScript = ''
+      if (target.targetId) {
+        try {
+          targetScript = await getUserApiScript(target.targetId)
+        } catch { /* 目标脚本读不到时退回版本/名称兜底 */ }
+      }
+      // 标记份与目标不是同一份时才去读它：只作为兜底，不能拿它的版本挡住目标升级
       let builtinScript = ''
-      if (storedBuiltinId) {
+      if (storedBuiltinId && storedBuiltinId !== target.targetId) {
         try {
           builtinScript = await getUserApiScript(storedBuiltinId)
         } catch { /* 内置源脚本读不到时走版本/名称兜底 */ }
       }
       const activeApi = userApiListRaw.find(api => api.id === apiSourceSetting)
-      let activeBuiltinScript = ''
-      if (!builtinScript && activeApi?.name === BUILTIN_SOURCE_NAME) {
-        try {
-          activeBuiltinScript = await getUserApiScript(apiSourceSetting)
-        } catch { /* 迁移期兜底失败就当未知 */ }
-      }
       const baseline = resolveSourceUpdateBaseline({
         builtinScript,
         importedVersion: importedBuiltinVersion ?? '',
+        targetScript,
         activeSourceName: activeApi?.name ?? '',
-        activeScript: activeBuiltinScript,
+        activeScript: targetScript,
       })
       const localVersion = baseline.version
       const localLabel = localVersion || t('source_version_unknown')
@@ -250,7 +262,34 @@ export default memo(() => {
             // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onPress: async() => {
               try {
-                // 1) 先导新的（失败则什么都没动）
+                // 目标已在弹窗前算好（与弹窗里显示的本地版本同源）。
+                // 多份同名且启用的不是它们：不猜、不新增，让用户先清理重复源
+                if (target.reason === 'ambiguous') throw new Error(t('source_update_ambiguous'))
+
+                if (target.targetId) {
+                  await overwriteUserApi(target.targetId, remoteScript)
+                  // 覆盖的是正在用的脚本：同 id 重新加载。超时只表示没等到 init，脚本已换，提示重启。
+                  let timedOut = false
+                  let initTimer: ReturnType<typeof setTimeout> | undefined
+                  const reloaded = await Promise.race([
+                    setApiSource(target.targetId),
+                    new Promise<boolean>(resolve => {
+                      initTimer = setTimeout(() => { timedOut = true; resolve(false) }, SOURCE_SWITCH_INIT_TIMEOUT)
+                    }),
+                  ])
+                  clearTimeout(initTimer)
+                  if (!reloaded) throw new Error(t(timedOut ? 'source_update_reload_timeout' : 'source_update_reload_failed'))
+                  await saveData(BUILTIN_SOURCE_STORAGE_KEYS.hasImported, true).catch(() => {})
+                  await saveData(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion, remoteVersion).catch(() => {})
+                  await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, target.targetId).catch(() => {})
+                  // 在线更新成功也记下当前 App 版本：同包重启不算“换包”，不会回滚到包内旧版
+                  await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion).catch(() => {})
+                  await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
+                  toast(t('source_update_ok', { version: remoteVersion }), 'long')
+                  return
+                }
+
+                // 2) 全新安装（库里没有任何同名音源）：新增内置源并切换，再记录内置身份
                 const newApiInfo = await importUserApi(remoteScript)
 
                 // 2) 切源前先落 pending 标记：
@@ -291,6 +330,9 @@ export default memo(() => {
                 })
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, newApiInfo.id).catch(e => {
                   console.warn('Failed to persist builtin source id:', e)
+                })
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion).catch(e => {
+                  console.warn('Failed to persist builtin source app version:', e)
                 })
 
                 // 5) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。

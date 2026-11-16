@@ -1,6 +1,7 @@
 import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
+import { buildOverwrittenApiInfo } from '@/core/init/userApi/builtinSource'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
 // import { readFile, writeFile, temporaryDirectoryPath, unlink } from '@/utils/fs'
 // import { isNotificationsEnabled, openNotificationPermissionActivity, shareText } from '@/utils/nativeModules/utils'
@@ -576,6 +577,23 @@ const matchInfo = (scriptInfo: string) => {
   }
 
   return infos as Record<keyof typeof INFO_NAMES, string>
+}
+export const updateUserApi = async(id: string, script: string): Promise<LX.UserApi.UserApiInfo> => {
+  const result = /^\/\*[\S|\s]+?\*\//.exec(script)
+  if (!result) throw new Error(global.i18n.t('user_api_add_failed_tip'))
+
+  const targetIndex = userApis.findIndex(api => api.id === id)
+  if (targetIndex < 0) throw new Error(global.i18n.t('source_update_target_missing'))
+
+  const scriptInfo = matchInfo(result[0])
+  const nextInfo = buildOverwrittenApiInfo<LX.UserApi.UserApiInfo>(userApis[targetIndex], scriptInfo)
+  // 就地替换：id 不变、列表长度不变，避免“更新一次多一份同名源”
+  userApis.splice(targetIndex, 1, nextInfo)
+  await saveDataMultiple([
+    [userApiPrefix, userApis],
+    [`${userApiPrefix}${id}`, script],
+  ])
+  return nextInfo
 }
 export const addUserApi = async(script: string): Promise<LX.UserApi.UserApiInfo> => {
   const result = /^\/\*[\S|\s]+?\*\//.exec(script)

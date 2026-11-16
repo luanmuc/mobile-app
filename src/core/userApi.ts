@@ -1,7 +1,9 @@
 import { action, state } from '@/store/userApi'
-import { addUserApi, getUserApiScript, removeUserApi as removeUserApiFromStore, setUserApiAllowShowUpdateAlert as setUserApiAllowShowUpdateAlertFromStore } from '@/utils/data'
+import { addUserApi, getUserApiScript, updateUserApi, removeUserApi as removeUserApiFromStore, setUserApiAllowShowUpdateAlert as setUserApiAllowShowUpdateAlertFromStore } from '@/utils/data'
 import { destroy, loadScript } from '@/utils/nativeModules/userApi'
 import { log as writeLog } from '@/utils/log'
+import { getData, removeData } from '@/plugins/storage'
+import { BUILTIN_SOURCE_STORAGE_KEYS } from '@/core/init/userApi/builtinSource'
 
 
 export const setUserApi = async(apiId: string) => {
@@ -34,9 +36,30 @@ export const importUserApi = async(script: string) => {
   return info
 }
 
+export const overwriteUserApi = async(id: string, script: string) => {
+  const info = await updateUserApi(id, script)
+  // 就地覆盖：列表里同一位置换成新元信息，id 与条数都不变。
+  // 启动期 store 还没装载该源时不要用 map 结果覆盖整个列表（会清空其它源）。
+  if (state.list.some(api => api.id === id)) {
+    action.setUserApiList(state.list.map(api => (api.id === id ? info : api)))
+  }
+  return info
+}
+
 export const removeUserApi = async(ids: string[]) => {
   const list = await removeUserApiFromStore(ids)
   action.setUserApiList(list)
+
+  // 删掉的正是内置源时清掉悬空标记：否则 id 会永远指向一个已不存在的源，
+  // 将来用户自建同名源时会被当成内置源静默覆盖。
+  try {
+    const storedId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.sourceId)
+    if (storedId && ids.includes(storedId)) await removeData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId)
+    const pendingId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
+    if (pendingId && ids.includes(pendingId)) await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
+  } catch (e) {
+    console.warn('Failed to clear builtin source markers:', e)
+  }
 }
 
 export const setUserApiAllowShowUpdateAlert = async(id: string, enable: boolean) => {
