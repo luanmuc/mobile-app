@@ -417,9 +417,13 @@ run('U37 覆盖目标不存在时给用户可读文案，不抛英文内部错�
 run('U38 换包（含降级）：包内版本更低也必须覆盖，音源跟包走', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true, hasImported: true, hasBuiltinSource: true,
-    builtinVersion: '8.16.0', importedVersion: '8.18.0',
-    appVersion: '1.9.2-b134', importedAppVersion: '1.9.2-b138',
+    canManage: true,
+    hasImported: true,
+    hasBuiltinSource: true,
+    builtinVersion: '8.16.0',
+    importedVersion: '8.18.0',
+    appVersion: '1.9.2-b134',
+    importedAppVersion: '1.9.2-b138',
   })
   assert.strictEqual(d.shouldImport, true, '换包后内置版本更低仍拒绝覆盖，降级包音源不生效')
   assert.strictEqual(d.reason, 'app-version-sync')
@@ -428,9 +432,13 @@ run('U38 换包（含降级）：包内版本更低也必须覆盖，音源跟�
 run('U39 同一个包内重启：内置更低仍不覆盖，保住在线更新结果', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true, hasImported: true, hasBuiltinSource: true,
-    builtinVersion: '8.16.0', importedVersion: '8.18.0',
-    appVersion: '1.9.2-b138', importedAppVersion: '1.9.2-b138',
+    canManage: true,
+    hasImported: true,
+    hasBuiltinSource: true,
+    builtinVersion: '8.16.0',
+    importedVersion: '8.18.0',
+    appVersion: '1.9.2-b138',
+    importedAppVersion: '1.9.2-b138',
   })
   assert.strictEqual(d.shouldImport, false)
   assert.strictEqual(d.reason, 'builtin-older')
@@ -439,9 +447,13 @@ run('U39 同一个包内重启：内置更低仍不覆盖，保住在线更新�
 run('U40 老数据没有 App 版本标记：强制同步一次，顺带修好卡在旧版的设备', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true, hasImported: true, hasBuiltinSource: true,
-    builtinVersion: '8.16.0', importedVersion: '8.15.1',
-    appVersion: '1.9.2-b138', importedAppVersion: '',
+    canManage: true,
+    hasImported: true,
+    hasBuiltinSource: true,
+    builtinVersion: '8.16.0',
+    importedVersion: '8.15.1',
+    appVersion: '1.9.2-b138',
+    importedAppVersion: '',
   })
   assert.strictEqual(d.shouldImport, true)
   assert.strictEqual(d.reason, 'app-version-sync')
