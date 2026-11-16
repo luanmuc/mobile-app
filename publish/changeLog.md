@@ -2,15 +2,17 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 1b1bb838 docs(plan): 审计计划收成一份（子纲并入主计划附录 A），并加 G21 门禁锁住唯一性
+- 1093a91e build(android): compileSdk 36 → 35（AGP 8.6.1 官方上限 35，b144 用 36 可编但越界）
+- 20c0723c fix(timeout): Promise.race 超时定时器全部清理，并补 G22/G23/G27 门禁
+- 9d57e0d4 docs(changelog): 记录 v1.9.2-b144 发布与双仓推送/CI 事实，计划基线升 b144
 
 ### File MD5
 ```
-6149d5fed88e49592754bac424dd323c  mobile-app-v1.9.2-b144-arm64-v8a.apk
-c30e70c0f840b11f35e798f250ea06c0  mobile-app-v1.9.2-b144-armeabi-v7a.apk
-b01b48ff5c32a439340f87649b07bfe9  mobile-app-v1.9.2-b144-universal.apk
-065470359cc70fe1ae3fd5b28c828662  mobile-app-v1.9.2-b144-x86.apk
-48bf9379f353060ce3fd905f3a8e51ca  mobile-app-v1.9.2-b144-x86_64.apk
+58bef5b259f6a7800659e17b8e7d75a9  mobile-app-v1.9.2-b145-arm64-v8a.apk
+5f2c775c8cc107238bd984cadef3c5fc  mobile-app-v1.9.2-b145-armeabi-v7a.apk
+abb1ef46508b5ecf16fa754b7eaea6c7  mobile-app-v1.9.2-b145-universal.apk
+7db715b7892a36e30512b4283bae4af5  mobile-app-v1.9.2-b145-x86.apk
+88c554f6b5098c3e57b9d28539621f4b  mobile-app-v1.9.2-b145-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
