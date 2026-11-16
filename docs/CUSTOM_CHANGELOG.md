@@ -9,7 +9,8 @@
 - **第二轮复盘（6 处补漏）**：① `resolveBuiltinTarget` 改**启用优先**——原来 id 标记压过启用份，用户手动启用另一份同名源时会被去覆盖没启用的那份，永远停在旧版；② 在线升版本基线改取**将被覆盖那份**的版本（原来取标记份，会出现「标记份 8.16 挡住启用份 8.15.1 升级」或把 8.15.1→8.15.5 误判成降级）；③ `pendingBlocked` 只在没有覆盖目标时生效，老版本遗留的孤儿 pending 不再永久卡住升级；④ 删除内置源时清掉 `builtin_source_id` / `pending_builtin_source_id`，避免悬空标记把用户自建同名源当内置源覆盖；⑤ 覆盖成功文案不再谎报「重启 App 生效」（同 id 已热重载）；⑥ 覆盖目标消失时改抛可读文案 `source_update_target_missing`，不再泄露英文内部错误。
 - **第三轮（音源跟包走）**：新增 `builtin_source_app_version` 标记——**换 App 版本（升级或降级）就以内置音源为准，覆盖启用那份**（`app-version-sync`），修掉「降级包后包内音源比现有低、被 `builtin-older` 挡住不生效」的问题；同一包内重启仍只升不降，在线更新结果不会被下次启动回滚；老数据没有该标记时强制同步一次（顺带修好卡在 8.15.1 的设备）。
 - **第四轮（防误覆盖）**：新增 `builtin_source_checksum`（长度 + FNV-1a 脚本指纹）。用户手动改过同名源脚本时，启动期不再静默覆盖（`target-modified`），在线更新弹窗明示“会覆盖你的改动”；无基线（老数据）不阻断，避免老设备又被永久挡住。指纹在启动覆盖与在线更新成功后都会回写。
-- **回归**：`check_source_update_logic` 46/0（U25~U37，两轮各先红后绿）、`tsc --noEmit` 0、`check_ts_syntax` 528/0、`check_truth_gates` 全绿、健康/下载/发布态共 11 个门禁全绿。
+- **第五轮（收敛成三条判定）**：删掉 `pending` 阻断分支、`canManage` 派生、版本不可解析分支、`builtin_source_checksum` 脚本指纹与 `builtin-older` 独立状态——启动决策只剩「全新安装新增 / 换包覆盖 / 同包更高才覆盖」，其余一律不动；`check_source_update_logic` 44/0。
+- **回归**：`check_source_update_logic` 44/0（U25~U37，两轮各先红后绿）、`tsc --noEmit` 0、`check_ts_syntax` 528/0、`check_truth_gates` 全绿、健康/下载/发布态共 11 个门禁全绿。
 
 ## [审计包收尾：bundle 出库 + 闸门假绿清理 + 依赖锁 sha + 离线闸门走 API] - 2026-11-16
 
@@ -29,7 +30,7 @@
 - **versionCode 单一真相**：`package.json` 曾有 `versionCode: 80`，而 `publish/build-state.json` 是 294；`build.gradle` 默认取前者 → 不带 `APP_VERSION_CODE` 构建出的 APK 版本号低于已发布包，**Android 拒绝覆盖安装**。修法：删掉 `package.json.versionCode`，`build.gradle` 改为读 `publish/build-state.json`（env 覆盖优先），并新增 G6 门禁（键不存在=通过，加回来就必须与发布态相等）。
 - **切源超时清理定时器**：`Promise.race` 超时那一路的 `setTimeout` 在竞速结束后仍会空转，改为 `SOURCE_SWITCH_INIT_TIMEOUT` 常量 + 结束即 `clearTimeout`（G18 门禁）。
 - **打包命令跨平台**：`pack:android`/`clear` 原写死 `gradlew.bat`（Windows），`pack:android:debug` 写 `./gradlew`（Unix）→ 谁都不通用。改为按 `process.platform` 选二进制（G8 门禁）。
-- **三语键数漂移**：b135 的 `source_switch_timeout_keep_old` 让文案变 **1010 键**，文档 4 处仍写 1004；已回填（G10 门禁：改文案不更数字即红）。
+- **三语键数漂移**：b135 的 `source_switch_timeout_keep_old` 让文案变 **1009 键**，文档 4 处仍写 1004；已回填（G10 门禁：改文案不更数字即红）。
 - **闸门退出码分「未验证」**：`check_source_ci_gate.js` 与 `check_source_ci_gate_offline.js` 的「读不到」从 `exit 2` 改为 **`exit 3`**，语义收敛为 0 通过 / 1 真阻断 / 3 未验证（网络 403 不再伪装成阻断或通过）。
 - **判据去字面量**：`check_source_update_logic` U12 原断言 `!source.includes(旧写法)`，改文案就假绿；改为行为正向断言（`filter(api => api.id === storedBuiltinId)` 存在、按 `name` 筛选不存在）。
 - **新增 `scripts/check_truth_gates.js`**（8 条：G6/G7/G8/G10×2/G11/G12/G18），读不到按红处理，已接入 release.yml Checks；`docs/AUDIT_PLAN.md` 门禁脚本数 38 → 39。

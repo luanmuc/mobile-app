@@ -7,8 +7,6 @@ export const BUILTIN_SOURCE_STORAGE_KEYS = {
   pendingSourceId: 'pending_builtin_source_id',
   // 上次同步时所在的 App 版本（1.9.2-b138）：换了包（升级/降级）就以内置音源为准
   appVersion: 'builtin_source_app_version',
-  // 上次我们写进去那份脚本的指纹：对不上说明用户手动改过，不静默覆盖
-  checksum: 'builtin_source_checksum',
 } as const
 
 const HEADER_BLOCK_REGEX = /\/\*[!*][\s\S]*?\*\//
@@ -25,7 +23,6 @@ export type BuiltinTargetReason = 'stored-id' | 'active-named' | 'named-unique' 
 
 export interface BuiltinTargetResult {
   targetId: string
-  canManage: boolean
   reason: BuiltinTargetReason
 }
 
@@ -55,19 +52,19 @@ export const resolveBuiltinTarget = ({
   //    不能被 builtin_source_id 标记带到“没启用的那份”上去（否则他永远停在旧版）。
   const activeNamed = named.find(api => api.id === activeId)
   if (activeNamed) {
-    return { targetId: activeNamed.id, canManage: true, reason: named.length > 1 ? 'active-named' : 'named-unique' }
+    return { targetId: activeNamed.id, reason: named.length > 1 ? 'active-named' : 'named-unique' }
   }
 
   // 2) 没有启用同名源时，才按 id 标记认内置源（用户改名也能认）
   if (storedId && list.some(api => api.id === storedId)) {
-    return { targetId: storedId, canManage: true, reason: 'stored-id' }
+    return { targetId: storedId, reason: 'stored-id' }
   }
 
-  if (named.length === 0) return { targetId: '', canManage: !storedId, reason: 'none' }
-  if (named.length === 1) return { targetId: named[0].id, canManage: true, reason: 'named-unique' }
+  if (named.length === 0) return { targetId: '', reason: 'none' }
+  if (named.length === 1) return { targetId: named[0].id, reason: 'named-unique' }
 
   // 3) 多份同名且启用的不是它们：不猜、不冒险
-  return { targetId: '', canManage: false, reason: 'ambiguous' }
+  return { targetId: '', reason: 'ambiguous' }
 }
 
 export type OverwritableInfoKey = 'name' | 'version' | 'description' | 'author' | 'homepage'
@@ -235,27 +232,23 @@ export const decidePendingBuiltinSwitch = ({
 export type BuiltinSourceImportReason =
   | 'first-install'
   | 'app-version-sync'
-  | 'target-modified'
   | 'version-upgrade'
   | 'current'
-  | 'builtin-older'
-  | 'unknown-version'
-  | 'pending-switch'
-  | 'unmanaged'
+  | 'no-target'
 
 export interface BuiltinSourceImportInput {
-  canManage: boolean
-  hasImported: boolean
+  /** 库里有没有认到的本体（由 resolveBuiltinTarget 定位） */
   hasBuiltinSource: boolean
+  /** 用户是否导入过内置源（删过也算，删了就不再自动加回） */
+  hasImported: boolean
+  /** APK 内置源版本 */
   builtinVersion: string
+  /** 现有本体记录的版本 */
   importedVersion: string
-  pendingBlocked?: boolean
-  /** 当前运行 App 的版本（1.9.2-b138） */
+  /** 当前运行 App 版本（1.9.2-b140） */
   appVersion?: string
   /** 上次同步时记录的 App 版本；为空表示老数据 */
   importedAppVersion?: string
-  /** 目标脚本与上次写入的指纹不一致（用户改过）；无基线时为 false */
-  targetModified?: boolean
 }
 
 export interface BuiltinSourceImportDecision {
@@ -273,86 +266,35 @@ export interface BuiltinSourceImportDecision {
  * - 版本不可解析：不动。
  */
 export const decideBuiltinSourceImport = ({
-  canManage,
-  hasImported,
   hasBuiltinSource,
+  hasImported,
   builtinVersion,
   importedVersion,
-  pendingBlocked = false,
   appVersion = '',
   importedAppVersion = '',
-  targetModified = false,
 }: BuiltinSourceImportInput): BuiltinSourceImportDecision => {
   const currentBuiltinVersion = normalizeSourceVersion(builtinVersion)
   const currentImportedVersion = normalizeSourceVersion(importedVersion)
 
-  if (pendingBlocked) {
-    return { shouldImport: false, reason: 'pending-switch', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
+  // 1) 库里一份同名都没有：只有「从没导入过」才新增（全新安装/清数据）
+  if (!hasBuiltinSource) {
+    return {
+      shouldImport: !hasImported,
+      reason: hasImported ? 'no-target' : 'first-install',
+      builtinVersion: currentBuiltinVersion,
+      importedVersion: currentImportedVersion,
+    }
   }
 
-  if (!canManage) {
-    return { shouldImport: false, reason: 'unmanaged', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
-  if (!hasImported && !hasBuiltinSource) {
-    return { shouldImport: true, reason: 'first-install', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
-  if (!currentBuiltinVersion) {
-    return { shouldImport: false, reason: 'unknown-version', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
-  // 用户手动改过的同名源不静默覆盖（否则改动直接丢失）：留给他自己决定
-  if (targetModified) {
-    return { shouldImport: false, reason: 'target-modified', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
-  // 音源跟着包走：换了 App 版本（升级或降级都算），或老数据没有版本标记时，
-  // 一律以内置音源为准——这是“降级 App 后音源也得覆盖”的唯一入口。
+  // 2) 换了包（App 版本变了，升或降；老数据没有标记也算换包）：以内置源为准，直接覆盖
   if (appVersion && appVersion !== importedAppVersion) {
     return { shouldImport: true, reason: 'app-version-sync', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
   }
 
-  if (!currentImportedVersion) {
-    return { shouldImport: true, reason: 'version-upgrade', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
+  // 3) 同一个包内：内置版本严格更高才覆盖，其余一律不动（保住在线更新结果）
   const comparison = compareSourceVersions(currentBuiltinVersion, currentImportedVersion)
-  if (comparison == null) {
-    return { shouldImport: false, reason: 'unknown-version', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
-  }
-
-  if (comparison > 0) {
+  if (comparison != null && comparison > 0) {
     return { shouldImport: true, reason: 'version-upgrade', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
   }
-
-  return {
-    shouldImport: false,
-    reason: comparison < 0 ? 'builtin-older' : 'current',
-    builtinVersion: currentBuiltinVersion,
-    importedVersion: currentImportedVersion,
-  }
-}
-
-/**
- * 脚本指纹：长度 + FNV-1a 32 位散列。
- * 不依赖任何库（纯函数，可被 TS 门禁加载），用来判断“这份脚本还是不是我们上次写进去的那份”。
- */
-export const hashScript = (script: string): string => {
-  if (!script) return ''
-  let h = 0x811c9dc5
-  for (let i = 0; i < script.length; i++) {
-    h ^= script.charCodeAt(i)
-    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
-  }
-  return `${script.length.toString(16)}-${(h >>> 0).toString(16)}`
-}
-
-/**
- * 目标脚本是否被用户改过。
- * 没有基线（老数据）时一律视为未改过——否则老设备会被永久挡住，永远停在旧版。
- */
-export const isScriptModified = (storedChecksum: string, currentChecksum: string): boolean => {
-  if (!storedChecksum || !currentChecksum) return false
-  return storedChecksum !== currentChecksum
+  return { shouldImport: false, reason: 'current', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
 }

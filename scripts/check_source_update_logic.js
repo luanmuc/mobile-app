@@ -103,37 +103,37 @@ console.log('\n[升级决策]')
 
 run('U6 全新安装：无内置源导入', () => {
   const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: false, hasBuiltinSource: false, builtinVersion: '8.15.0', importedVersion: '' })
+  const d = decideBuiltinSourceImport({ hasImported: false, hasBuiltinSource: false, builtinVersion: '8.15.0', importedVersion: '' })
   assert.strictEqual(d.shouldImport, true)
   assert.strictEqual(d.reason, 'first-install')
 })
 
 run('U7 b131 状态 imported=8.14.1 + b132 内置 8.15.0 必须升级', () => {
   const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.14.1' })
+  const d = decideBuiltinSourceImport({ hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.14.1' })
   assert.strictEqual(d.shouldImport, true)
   assert.strictEqual(d.reason, 'version-upgrade')
 })
 
 run('U8 同版本不重复导入', () => {
   const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.15.0' })
+  const d = decideBuiltinSourceImport({ hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.15.0' })
   assert.strictEqual(d.shouldImport, false)
   assert.strictEqual(d.reason, 'current')
 })
 
-run('U9 在线升到 8.16.0 后，旧 APK 内置 8.15.0 不得降级', () => {
+run('U9 同包内在线升到 8.16.0 后，旧包内置 8.15.0 不得降级', () => {
   const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.16.0' })
+  const d = decideBuiltinSourceImport({ hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.16.0' })
   assert.strictEqual(d.shouldImport, false)
-  assert.strictEqual(d.reason, 'builtin-older')
+  assert.strictEqual(d.reason, 'current')
 })
 
-run('U10 内置版本不可解析时不自动覆盖现有源', () => {
+run('U10 内置版本不可解析时按“不更高”处理，不覆盖现有源', () => {
   const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '', importedVersion: '8.15.0' })
+  const d = decideBuiltinSourceImport({ hasImported: true, hasBuiltinSource: true, builtinVersion: '', importedVersion: '8.15.0' })
   assert.strictEqual(d.shouldImport, false)
-  assert.strictEqual(d.reason, 'unknown-version')
+  assert.strictEqual(d.reason, 'current')
 })
 
 console.log('\n[接线静态锁]')
@@ -248,13 +248,6 @@ run('U20 待切换源已被删除时清掉 pending 标记', () => {
   assert.strictEqual(d.action, 'clear-stale')
 })
 
-run('U21 有 pending 阻断时导入决策必须拒绝自动导入', () => {
-  const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({ canManage: true, hasImported: true, hasBuiltinSource: true, builtinVersion: '8.15.0', importedVersion: '8.14.1', pendingBlocked: true })
-  assert.strictEqual(d.shouldImport, false)
-  assert.strictEqual(d.reason, 'pending-switch')
-})
-
 console.log('\n[接线静态锁 · 原子性]')
 
 run('U22 在线升级先写 pending 再切源，成功后才清 pending', () => {
@@ -293,7 +286,6 @@ run('U25 多份同名时，覆盖目标必须是「正在启用的那份」', ()
     builtinName: '豆包定制[聚合音源]',
   })
   assert.strictEqual(t.targetId, 'user_api_b', '多份同名时未把启用中的那份作为覆盖目标')
-  assert.strictEqual(t.canManage, true)
   assert.strictEqual(t.reason, 'active-named')
 })
 
@@ -309,7 +301,6 @@ run('U26 多份同名但启用的不是同名源时不冒险，且不覆盖用�
     builtinName: '豆包定制[聚合音源]',
   })
   assert.strictEqual(t.targetId, '', '启用的不是聚合音源时不应指定覆盖目标')
-  assert.strictEqual(t.canManage, false)
   assert.strictEqual(t.reason, 'ambiguous')
 })
 
@@ -322,7 +313,6 @@ run('U27 无 id 标记但同名唯一时，目标就是那一份（兼容旧数�
     builtinName: '豆包定制[聚合音源]',
   })
   assert.strictEqual(t.targetId, 'user_api_only')
-  assert.strictEqual(t.canManage, true)
   assert.strictEqual(t.reason, 'named-unique')
 })
 
@@ -390,9 +380,10 @@ run('U33 版本基线优先取「将被覆盖那份」的版本，避免拿另�
   assert.strictEqual(base.source, 'target-script')
 })
 
-run('U34 只有“没有覆盖目标”时 pending 才阻断自动导入，避免老 pending 永久卡住升级', () => {
+run('U34 pending 不再阻断启动覆盖（覆盖不换 id，不存在多副本风险）', () => {
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(/pendingBlocked:\s*pendingBlocked\s*&&\s*!builtinApi/.test(index), 'index.ts 仍在有目标时被 pending 阻断')
+  assert.ok(!/pendingBlocked:\s*pendingBlocked/.test(index), 'index.ts 仍用 pending 阻断决策')
+  assert.ok(!index.includes('canManageBuiltin'), 'index.ts 仍保留 canManage 派生逻辑')
 })
 
 run('U35 删除内置源必须清掉悬空 id 标记，避免将来把用户自建同名源当内置源覆盖', () => {
@@ -417,7 +408,6 @@ run('U37 覆盖目标不存在时给用户可读文案，不抛英文内部错�
 run('U38 换包（含降级）：包内版本更低也必须覆盖，音源跟包走', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true,
     hasImported: true,
     hasBuiltinSource: true,
     builtinVersion: '8.16.0',
@@ -432,7 +422,6 @@ run('U38 换包（含降级）：包内版本更低也必须覆盖，音源跟�
 run('U39 同一个包内重启：内置更低仍不覆盖，保住在线更新结果', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true,
     hasImported: true,
     hasBuiltinSource: true,
     builtinVersion: '8.16.0',
@@ -441,13 +430,12 @@ run('U39 同一个包内重启：内置更低仍不覆盖，保住在线更新�
     importedAppVersion: '1.9.2-b138',
   })
   assert.strictEqual(d.shouldImport, false)
-  assert.strictEqual(d.reason, 'builtin-older')
+  assert.strictEqual(d.reason, 'current')
 })
 
 run('U40 老数据没有 App 版本标记：强制同步一次，顺带修好卡在旧版的设备', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true,
     hasImported: true,
     hasBuiltinSource: true,
     builtinVersion: '8.16.0',
@@ -466,62 +454,52 @@ run('U41 覆盖后必须记录当前 App 版本，否则下次启动又会当成
   assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'Source.tsx 未记录 app 版本标记')
 })
 
-run('U42 用户改过的同名源：不静默覆盖，判 target-modified', () => {
+run('U42 契约收敛：只保留三条判定（全新安装 / 换包覆盖 / 同包更高才覆盖）', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const reasons = new Set()
+  const cases = [
+    { hasImported: false, hasBuiltinSource: false, builtinVersion: '8.16.0', importedVersion: '' },
+    { hasImported: true, hasBuiltinSource: true, builtinVersion: '8.16.0', importedVersion: '8.15.1', appVersion: '1.9.2-b140', importedAppVersion: '1.9.2-b139' },
+    { hasImported: true, hasBuiltinSource: true, builtinVersion: '8.16.0', importedVersion: '8.15.1', appVersion: '1.9.2-b140', importedAppVersion: '1.9.2-b140' },
+    { hasImported: true, hasBuiltinSource: true, builtinVersion: '8.16.0', importedVersion: '8.17.0', appVersion: '1.9.2-b140', importedAppVersion: '1.9.2-b140' },
+    { hasImported: true, hasBuiltinSource: false, builtinVersion: '8.16.0', importedVersion: '8.16.0' },
+  ]
+  cases.forEach(c => { reasons.add(decideBuiltinSourceImport(c).reason) })
+  reasons.forEach(r => assert.ok(
+    ['first-install', 'app-version-sync', 'version-upgrade', 'current', 'no-target'].includes(r),
+    `出现计划外的判定分支：${r}`,
+  ))
+})
+
+run('U43 判定函数参数收敛：不再有 canManage / pendingBlocked / targetModified', () => {
+  const logic = read('src/core/init/userApi/builtinSource.ts')
+  ;['canManage', 'pendingBlocked', 'targetModified', 'pending-switch', 'unknown-version', 'builtin-older', 'unmanaged'].forEach(k => {
+    assert.ok(!logic.includes(k), `判定函数仍残留 ${k}`)
+  })
+})
+
+run('U44 认不到本体时不动（不猜、不新增），有本体才谈覆盖', () => {
   const { decideBuiltinSourceImport } = LOGIC()
   const d = decideBuiltinSourceImport({
-    canManage: true,
     hasImported: true,
-    hasBuiltinSource: true,
+    hasBuiltinSource: false,
     builtinVersion: '8.16.0',
     importedVersion: '8.15.1',
-    appVersion: '1.9.2-b139',
-    importedAppVersion: '1.9.2-b138',
-    targetModified: true,
+    appVersion: '1.9.2-b140',
+    importedAppVersion: '1.9.2-b139',
   })
-  assert.strictEqual(d.shouldImport, false, '改过的源被静默覆盖了')
-  assert.strictEqual(d.reason, 'target-modified')
+  assert.strictEqual(d.shouldImport, false)
+  assert.strictEqual(d.reason, 'no-target')
 })
 
-run('U43 老数据没有 checksum 基线：不阻断，否则设备永远卡在旧版', () => {
-  const { decideBuiltinSourceImport } = LOGIC()
-  const d = decideBuiltinSourceImport({
-    canManage: true,
-    hasImported: true,
-    hasBuiltinSource: true,
-    builtinVersion: '8.16.0',
-    importedVersion: '8.15.1',
-    appVersion: '1.9.2-b139',
-    importedAppVersion: '',
-    targetModified: false,
-  })
-  assert.strictEqual(d.shouldImport, true)
-  assert.strictEqual(d.reason, 'app-version-sync')
-})
-
-run('U44 脚本指纹：同内容稳定、任意位置改一个字符就变、空基线不算改动', () => {
-  const { hashScript, isScriptModified } = LOGIC()
-  const a = '/*! @version 8.16.0 */' + 'x'.repeat(2000)
-  const b = '/*! @version 8.16.0 */' + 'x'.repeat(1999) + 'y'
-  assert.strictEqual(hashScript(a), hashScript(a))
-  assert.notStrictEqual(hashScript(a), hashScript(b))
-  assert.strictEqual(isScriptModified('', hashScript(a)), false, '空基线应视为可覆盖')
-  assert.strictEqual(isScriptModified(hashScript(a), hashScript(a)), false)
-  assert.strictEqual(isScriptModified(hashScript(a), hashScript(b)), true)
-})
-
-run('U45 启动侧：读 checksum 基线、算指纹、覆盖成功后回写 checksum', () => {
+run('U45 不再有脚本指纹机制（复杂度回收）', () => {
+  const logic = read('src/core/init/userApi/builtinSource.ts')
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(index.includes('BUILTIN_SOURCE_STORAGE_KEYS.checksum'), 'index.ts 未读/写 checksum')
-  assert.ok(index.includes('isScriptModified'), 'index.ts 未做改动判定')
-  assert.ok(index.includes('targetModified'), 'index.ts 未把判定结果传给决策函数')
-  assert.ok(index.includes('hashScript'), 'index.ts 未计算脚本指纹')
-})
-
-run('U46 在线更新侧：同样回写 checksum，被改过时弹窗要提示会覆盖改动', () => {
   const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
-  assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.checksum'), 'Source.tsx 未回写 checksum')
-  assert.ok(source.includes('hashScript'), 'Source.tsx 未计算指纹')
-  assert.ok(source.includes('source_update_modified_warn'), 'Source.tsx 缺少“将覆盖改动”提示')
+  ;[logic, index, source].forEach(t => {
+    assert.ok(!t.includes('builtin_source_checksum'), '仍残留 checksum 标记')
+    assert.ok(!t.includes('hashScript'), '仍残留指纹函数')
+  })
 })
 
 console.log(`\n${checks} 项通过，${failures} 项失败`)

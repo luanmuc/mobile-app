@@ -11,7 +11,7 @@ import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, hashScript, isScriptModified } from './builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget } from './builtinSource'
 import { recordProbeEvents } from '@/core/healthLog'
 
 
@@ -553,7 +553,6 @@ export default async(setting: LX.AppSetting) => {
   // - 待切换源已是当前选中源：视为迟到成功，提升为内置源并补版本；
   // - 待切换源还在但未选中：保留孤儿源，阻止本次启动再次导入；
   // - 待切换源已被用户删除：清掉 pending，恢复正常升级流程。
-  let pendingBlocked = false
   const pendingSourceId = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)) ?? ''
   if (pendingSourceId) {
     const activeSourceId = (setting['common.apiSource'] as string | undefined) ?? ''
@@ -595,8 +594,8 @@ export default async(setting: LX.AppSetting) => {
       await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
       console.log('pending builtin source cleared:', pendingSourceId)
     } else if (pendingDecision.action === 'block-import') {
-      pendingBlocked = true
-      console.log('pending builtin source blocked auto import:', pendingSourceId)
+      // 覆盖式更新不会多出副本，这里只记录，不再阻断本次覆盖
+      console.log('pending builtin source still unselected, ignored:', pendingSourceId)
     }
   }
 
@@ -612,22 +611,6 @@ export default async(setting: LX.AppSetting) => {
   const builtinApi = builtinTarget.targetId
     ? userApiList.find(api => api.id === builtinTarget.targetId)
     : undefined
-  // 有目标就能升级；没目标只在“全新安装/可恢复”时才允许导入
-  const canManageBuiltin = builtinTarget.canManage && (!!builtinApi || !hasImportedBuiltin)
-
-  // 目标脚本是否被用户改过：有 checksum 基线且对不上 → 不静默覆盖，留给用户自己决定。
-  // 没有基线（老数据/首次）时 isScriptModified 恒为 false，不会把老设备永久挡住。
-  let targetModified = false
-  if (builtinApi) {
-    try {
-      const storedChecksum = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.checksum)) ?? ''
-      const targetScript = await getUserApiScript(builtinApi.id).catch(() => '')
-      targetModified = isScriptModified(storedChecksum, targetScript ? hashScript(targetScript) : '')
-      if (targetModified) console.log('builtin source modified by user, skip auto sync:', builtinApi.id)
-    } catch (e) {
-      console.warn('Failed to probe builtin source checksum:', e)
-    }
-  }
 
   // 版本只认 `@version` 首 token；`聚合音源 vX` 旧标记已废弃，避免与设置页/在线升级分叉。
   let builtinVer = ''
@@ -640,17 +623,12 @@ export default async(setting: LX.AppSetting) => {
 
   // 触发升级：首次安装；或内置版本严格高于已导入版本。禁止旧内置源覆盖在线升级。
   const importDecision = decideBuiltinSourceImport({
-    canManage: canManageBuiltin,
-    hasImported: hasImportedBuiltin,
     hasBuiltinSource: !!builtinApi,
+    hasImported: hasImportedBuiltin,
     builtinVersion: builtinVer,
     importedVersion,
-    // 已有明确的覆盖目标时不受 pending 阻断：新逻辑是就地覆盖，不会因此多出一份源；
-    // 老版本遗留的孤儿 pending 否则会永久卡住升级。
-    pendingBlocked: pendingBlocked && !builtinApi,
     appVersion: currentAppVersion,
     importedAppVersion: storedAppVersion,
-    targetModified,
   })
   console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
 
@@ -699,8 +677,6 @@ export default async(setting: LX.AppSetting) => {
         if (verifiedBuiltinVersion) await saveData(builtinVersionKey, verifiedBuiltinVersion)
         // 记下“这次同步发生在哪个 App 版本”，下次同包重启才不会又当成换包
         if (currentAppVersion) await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion)
-        // 记下“这份脚本是我们写的”：指纹对不上就说明用户改过，下次启动不再静默覆盖
-        await saveData(BUILTIN_SOURCE_STORAGE_KEYS.checksum, hashScript(script))
         console.log('builtin source imported/updated:', newApi.name, verifiedBuiltinVersion || '')
       }
     } catch (e) {

@@ -721,7 +721,6 @@
   "source_update_fail": "Update failed: {message}",
   "source_update_target_missing": "Target source not found. Refresh the source list and retry",
   "source_update_ambiguous": "Multiple sources share the same name, so the target cannot be determined. Please delete the duplicates first",
-  "source_update_modified_warn": "This source script was modified manually. Continuing will overwrite your changes.",
   "source_update_reload_timeout": "Script replaced but the new version was not ready within 8s. Restart the app",
   "source_update_reload_failed": "Script replaced but reload failed. Restart the app",
   "source_update_check_fail": "Update check failed: {message}",

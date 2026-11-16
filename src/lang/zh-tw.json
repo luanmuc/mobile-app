@@ -721,7 +721,6 @@
   "source_update_fail": "更新失敗：{message}",
   "source_update_target_missing": "找不到要覆蓋的音源，請重新整理音源清單後重試",
   "source_update_ambiguous": "存在多份同名音源，無法確定要覆蓋哪一份，請先刪除多餘的同名音源",
-  "source_update_modified_warn": "該音源的腳本被手動修改過，繼續更新會覆蓋你的改動",
   "source_update_reload_timeout": "腳本已覆蓋，但新版本 8 秒內未就緒，請重新啟動 App",
   "source_update_reload_failed": "腳本已覆蓋，但重新載入失敗，請重新啟動 App",
   "source_update_check_fail": "檢查更新失敗：{message}",
