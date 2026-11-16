@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b147",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- bc966074 b147 真机健康摘要回传（方案 B：设置页 PAT → GitHub Issue）\n- 88669197 docs(changelog): b146 提速实测（本地 68s / 云端 4m26s / 源仓 2.6m），计划基线升 b146",
+  "version": "1.9.2-b148",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 5cbd6918 fix(digest): 上报单飞锁，双击/启动并发不再发两条 Issue",
   "history": [
+    {
+      "version": "1.9.2-b147",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- bc966074 b147 真机健康摘要回传（方案 B：设置页 PAT → GitHub Issue）\n- 88669197 docs(changelog): b146 提速实测（本地 68s / 云端 4m26s / 源仓 2.6m），计划基线升 b146"
+    },
     {
       "version": "1.9.2-b146",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- cd2e24a0 perf(preflight,ci): 本地预检并行+缓存+文档改动跳过 lint/tsc；Android 与 lint/checks 并行，Release 仍三绿\n- 26677102 docs(changelog): 补 b145 发布与 compileSdk 35 编译证据，计划基线升 b145"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b142",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b805ac2c docs(gate): AUDIT_PLAN 脚本数 39→40（G7 口径门禁）\n- 078128a5 fix(health): 健康态跨版本恢复 + 片段交付口径"
-    },
-    {
-      "version": "1.9.2-b141",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 73016bd9 refactor(source): 启动判定收敛成三条——换包覆盖 / 全新安装新增 / 同包更高才覆盖"
     }
   ]
 }
