@@ -1,3 +1,11 @@
+## [b145 · 交接单三条收口 + compileSdk 回 35，CI 给出编译证据] - 2026-11-16
+
+- **发布**：`v1.9.2-b145` / versionCode **304**，Build `43896413859` success（Checks 50s / Lint 58s / **Android 6m58s** / Release 49s）；5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
+- **compileSdk 36 → 35 的编译证据**：Android job 绿，即 AGP 8.6.1 + compileSdk 35 实际编过（此前只有「36 能编」的证据，35 是待证项）。该改动单独成提交（`1093a91e`），失败可单点回滚，不牵连功能修复。
+- **超时定时器收口**：`raceWithTimeout` + 5 处调用点常量化（`VERSION_CHECK_TIMEOUT_MS` / `SOURCE_INIT_TIMEOUT_MS` / `COVER_TIMEOUT_MS` / `URL_FETCH_TIMEOUT_MS`），门禁 G27 守住。
+- **门禁**：G22（compileSdk↔AGP 映射，含 8.13→36）、G23（SDK 三件套自洽）、G27；共 24 条。
+- **配套**：源仓 `cae74df` 补 `engines.node`（纯声明，CI 未触发构建）；rntp `3e92033` 恢复 4 条语义门禁 + 打断恢复延时常量。
+
 ## [交接单三条未修问题收口：Promise.race 定时器 / compileSdk 越界 / engines] - 2026-11-16
 
 - **N-1168 超时定时器空转（并扩大范围；危害按实测校正）**：交接单原写「未处理拒绝、可能崩溃」——实测 `Promise.race` 对两路都挂了 `then`，后到的 reject 被静默吞掉，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 实测 3s 档进程被拖到 3002ms 才退出，清理后 24ms）与超时回调副作用对已完成任务再执行一次。修复本身不变：新增 `src/core/music/timeout.ts`（`raceWithTimeout`，finally 里 clearTimeout，支持 `onTimeout` 副作用）；`version.ts`（`VERSION_CHECK_TIMEOUT_MS=30_000`）、`utils.ts`（5 处 init 竞速统一 `SOURCE_INIT_TIMEOUT_MS=15_000`）、`downloadManager.ts`（`COVER_TIMEOUT_MS` + 超时停 `stopDownload`）、`playbackBudget.ts`（预算定时器 finally 清理）、`online.ts`（`URL_FETCH_TIMEOUT_MS`）全部收口。门禁 G27 扫描发现交接单之外的 2 处（`utils.ts` 两处重复超时、`online.ts` 裸 25_000）。

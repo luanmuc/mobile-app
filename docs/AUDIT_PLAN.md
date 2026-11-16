@@ -3,11 +3,11 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-16）**：
-> - App：`luanmuc/mobile-app` @ `ecc14d84`（已推送），v1.9.2-**b144** / versionCode **303**（Build #43864636348 success：Lint 1m16s / Checks 1m15s / Android 3m36s / Release 22s，5 APK）
+> - App：`luanmuc/mobile-app` @ `1093a91e`（已推送），v1.9.2-**b145** / versionCode **304**（Build #43896413859 success：Checks 50s / Lint 58s / **Android 6m58s** / Release 49s，5 APK；Android 绿=compileSdk 35 编译证据）
 > - 源仓：`luanmuc/backend-api` @ `c2f1ba0`（已推送），v8.16.1（5881 行 / 307085 bytes）
 > - track-player：`88b062b`（v2 分支）
 > - 硬数字：三语各 **1009 键**、TS/TSX **529 文件**、`scripts/check_*.js` **40 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 534 条**、文档 **17 篇**
-> - 本文件对应变更：b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
+> - 本文件对应变更：b145「交接单三条收口：timeout 定时器清理 + compileSdk 回 35（CI 编译证明）+ G22/G23/G27」（`1093a91e`，分两个提交）、「源仓 engines.node」（`cae74df`）；b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
 
 ---
 
