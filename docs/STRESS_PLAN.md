@@ -2,7 +2,7 @@
 
 > **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
 >
-> **基线（唯一真值，2026-11-16）**：App `1093a91e`（v1.9.2-b145 / versionCode 304，Build `43896413859` success，5 APK）；源仓 `c2f1ba0`（v8.16.1，`lx-source.js` 5881 行 / 307085 bytes）。
+> **基线（唯一真值，2026-11-16）**：App `cd2e24a0`（v1.9.2-b146 / versionCode 305，Build `43908153668` success，5 APK，4m26s）；源仓 `ff97a10`（v8.16.1）；源仓 `c2f1ba0`（v8.16.1，`lx-source.js` 5881 行 / 307085 bytes）。
 >
 > **目标**：推送/发布前，用可重复的纯 Node/内存 FS 压力用例，证明大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约、**音质政策联动**下「不崩、不越界、不泄露、不把失败伪装成通过」。
 
@@ -115,6 +115,7 @@ node scripts/docs-audit.js --dry-run
 | `npm run build-test` | rc0 |
 | `npm run preflight` | 36/36 绿（202s） |
 | `npm run preflight:all` | 41/41 绿（387.4s，含源仓 npm test 42 脚本） |
+| 云端 CI（b146 推送） | Lint 68s ∥ Checks 77s ∥ Android 3m57s → Release 25s，全程 4m26s（Android 与 lint/checks 并行） |
 | 云端 CI（b145 推送） | Checks 50s / Lint 58s / **Android 6m58s** / Release 49s，全绿（Android 绿即 compileSdk 35 的编译证据）；b144 推送为 Lint 1m16s / Checks 1m15s / Android 3m36s / Release 22s，源仓 `lx-source CI` 8m55s 绿 |
 | 三语 | 各 1009 键 |
 

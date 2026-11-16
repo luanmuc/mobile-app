@@ -1,3 +1,9 @@
+## [b146 · 提速落地实测] - 2026-11-16
+
+- **发布**：`v1.9.2-b146` / versionCode **305**，Build `43908153668` success，全程 **4m26s**（b145 为 8m53s，降 50%）：Lint 68s ∥ Checks 77s ∥ Android **3m57s** → Release 25s。5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
+- **本地预检**：280s → **68s**（代码改动、缓存命中）/ **16s**（纯文档改动）；36 项检查一条没少，`G` 门禁 24 条不变。
+- **源仓 CI**：8m55 → **2.6 分钟**（`stress-long` 因 `lx-source.js`/`src` 未变而跳过；`purge-cdn` 用 `always()`+结果判定，未因跳过而漏执行）。
+
 ## [提速：本地预检与云端 job 拓扑] - 2026-11-16
 
 - **本地预检（36 项不变，只换跑法）**：检查项继续从 `release.yml` 解析，不手抄；三处改动——① 各 check 脚本互不写盘，改为 8 路并发（`PREFLIGHT_JOBS` 可调）；② `tsc` 加 `--incremental`、`eslint` 加 `--cache`，缓存落 `node_modules/.cache`；③ 纯文档改动（`docs/**`、`*.md`、`publish/**`、`npm-version-info/**`）自动跳过 tsc/eslint——云端 `paths-ignore` 本来就不触发这两个 job，本地照跑等于白等。
