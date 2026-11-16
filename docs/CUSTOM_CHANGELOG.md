@@ -1,5 +1,6 @@
 ## [审计包收尾：bundle 出库 + 闸门假绿清理 + 依赖锁 sha + 离线闸门走 API] - 2026-11-16
 
+- **player 依赖升版**：`react-native-track-player` 由 `#88b062be7450` 升到 `#82e4e218`（b137 起生效）——b136 的 APK 里编的仍是旧 rntp，B3 那批 Java 修复（queueId 自增 / manager 复用 / 续播条件 / 链路开关 / AGP 8.6.1）要这一版才真正进包。
 - **`index.android.bundle` 出库**（V-38）：10.4MB 构建产物从索引移除，`.gitignore` 保留 `/index.android.bundle`；`git clone` 不再拖 1751 提交前的老会话缓存。
 - **闸门「跳过=红」**（N-1139 同源问题）：`check_truth_gates.js` 的 `S()` 从「⏭ 跳过」改为「❌ 无法验证并计红」——原版在读不到文件时全 skip 却报「口径全部一致」，是最危险的假绿。
 - **G20 依赖可复现性**（N-1136）：新增断言，`github:` 依赖必须锁 40 位 commit sha；`react-native-track-player#88b062b` 改全 sha `88b062be7450…f903`（短 sha 会随对象增长变歧义）。checksum 仍缺，靠 git 内容寻址兜底，已记录为限制。
