@@ -119,7 +119,7 @@
 
 | ID | 联动点 | 现状 | 性质 |
 |---|---|---|---|
-| X-L1 | **第 14 个 action `forceQualityProbe` 未进 App 契约** | 音源已实现；App `SOURCE_ACTIONS` 仍 13、`check_source_contract` 硬断言 `length===13`、`SYNC_POINTS.md` 写「13 action」 | 契约漂移（P2 暂缓，接 App 时先改断言否则 CI 拒绝） |
+| X-L1 | **第 14 个 action `forceQualityProbe`** | **已闭合并定性为「保留」**：App `SOURCE_ACTIONS` 14 个、`check_source_contract` 14 对齐；源侧 `forceQualityProbe()` 实现完整、`quality-policy-v2` 直接覆盖。App 无 UI 调用方——这是**源能力声明而非死桥接**（删除会造成跨仓契约漂移，且 K07 探路旁路是未来单源复测入口的能力基础，成本为负）。健康页已有 `probe`（全局探测）/`probeSource`（单源复测）覆盖用户可见的复测需求，不再为此新增强制高质入口 | 已闭合（2026-11-16 复核） |
 | X-L2 | **能力备档压制起跑档无 App 可见解释** | 音源 `getQualityCeiling` 压制起跑档，App 请求 flac 得 128k，UI 无「因源能力备档跳过」提示 | 体验缺口 |
 | X-L3 | **`definitiveFail`/`linkExpired` App 不消费** | 音源 byQuality 新增两字段，App `Health.tsx` 类型未含 | 源有数据 App 不展示（无害） |
 | X-L4 | `qualityConfidence` 三值 | 音源 `exact/estimated/unknown`；App 消费 `default='exact'` 仅旧源兼容 | 已对齐，继续守 |

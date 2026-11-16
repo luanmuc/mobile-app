@@ -88,6 +88,33 @@ const findForbiddenKey = (value: unknown, path: string): string | null => {
   return null
 }
 
+/** 解析 x.y.z 版本号；不可解析返回 null。 */
+const parseSourceVersion = (version: string): number[] | null => {
+  const parts = String(version).trim().split('.')
+  if (parts.length !== 3) return null
+  const nums = parts.map(p => Number(p))
+  if (nums.some(n => !Number.isInteger(n) || n < 0)) return null
+  return nums
+}
+
+/**
+ * HC：旧版本数据（结构合法）必须可恢复，未来版本数据仍拒绝。
+ *
+ * 原来用 `input.sourceVersion === expectedVersion` 精确相等：音源每升一个版本，
+ * 用户积累的熔断/短路/摘除记录就会被 readCanonical 物理删除，升级后已判定坏的源
+ * 重新参与竞速。改为数值比较——旧版本接受、同版本接受、未来版本拒绝。
+ * 返回 'older' | 'same' | 'newer' | 'unknown'。
+ */
+export const compareSourceVersion = (stateVersion: string, currentVersion: string): 'older' | 'same' | 'newer' | 'unknown' => {
+  const a = parseSourceVersion(stateVersion)
+  const b = parseSourceVersion(currentVersion)
+  if (!a || !b) return 'unknown'
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] < b[i] ? 'older' : 'newer'
+  }
+  return 'same'
+}
+
 /** 白名单校验；合法时返回原对象（不增删字段），非法时返回 reason。 */
 export const sanitizeSourceHealthState = (input: unknown, opts: {
   sourceId?: string
@@ -101,7 +128,12 @@ export const sanitizeSourceHealthState = (input: unknown, opts: {
   if (!HEALTH_STATE_ACCEPTED_VERSIONS.includes(Number(input.v))) return { ok: false, reason: 'schema version 不符' }
   const expectedVersion = opts.sourceVersion
   if (typeof input.sourceVersion !== 'string' || !input.sourceVersion) return { ok: false, reason: 'sourceVersion 非法' }
-  if (expectedVersion !== undefined && input.sourceVersion !== expectedVersion) return { ok: false, reason: 'sourceVersion 不符' }
+  if (expectedVersion !== undefined) {
+    const relation = compareSourceVersion(input.sourceVersion, expectedVersion)
+    // 旧版本可恢复（跨音源升级保留熔断/短路），同版本可恢复；未来版本与非法版本号仍拒绝。
+    if (relation === 'newer') return { ok: false, reason: 'sourceVersion 不符（快照来自更新的音源版本）' }
+    if (relation === 'unknown') return { ok: false, reason: 'sourceVersion 非法' }
+  }
   if (!isFiniteNumber(input.savedAt)) return { ok: false, reason: 'savedAt 非法' }
   const age = now - input.savedAt
   if (age < -HEALTH_STATE_FUTURE_TOLERANCE_MS || age > HEALTH_STATE_TTL_MS) return { ok: false, reason: 'savedAt 超出 TTL' }
@@ -280,7 +312,9 @@ export const restoreSourceHealth = async(
   }
   const state = await readSourceHealthState(storage, sourceId, sourceVersion, now)
   if (!state) return { restored: 0, controlsRestored, reason: control ? undefined : 'no-state' }
-  const health = { ...state }
+  // HC：快照可能来自更旧的音源版本；交给源前统一标记为当前版本，
+  // 否则源侧白名单会成为第二道误拦（旧版本数据在源侧被再次拒绝）。
+  const health = { ...state, sourceVersion }
   // 单一路径：健康态永不携带 controls，控制意图只从独立 control key 恢复。
   delete (health as any).controls
   try {

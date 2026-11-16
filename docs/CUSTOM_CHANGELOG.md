@@ -1,3 +1,32 @@
+## [跨仓健康态往返门禁：用真实产物验证"升版不丢账本"] - 2026-11-16
+
+- **为什么加**：这次缺陷的教训是「两边单测各自全绿、链路其实是断的」——源仓 v8.15.1 写了「升级不丢健康账本」白名单，App 在更前面用精确相等把快照物理删除，任何单侧测试都覆盖不到这个交点。
+- **做法**：`scripts/check_cross_repo_health_roundtrip.js` 不造假数据——App 侧用真实 `src/core/sourceHealthPersistence.ts`（tsc 转译），源侧用真实 `../lx-music-source/lx-source.js` 产物；基线账本由源仓 `exportHealthState()` 真实产出后再回拨 `sourceVersion`（手搓字段会被源侧 schema 抓成 `failureCount 非法`，那测的就不是跨版本恢复了）。
+- **四条判据**：X1 8.15.1 账本在 8.16.0 音源下恢复且熔断/摘除/短路计数仍在；X1b 源侧单独收到**不在白名单**的旧版本（8.13.0）也必须接受；X2 未来版本两仓都拒绝；X3 结构非法仍被清理。
+- **红绿双向取证**：把 App 判定改回精确相等 → X1 红（`reason=no-state`，正是线上症状）；把源仓改回白名单-only 并重建产物 → X1b 红（`sourceVersion 不符`）；两处复原后 4/0。
+- **不接 CI**：CI 只检出 App 仓，跑起来只会 SKIP，接进去等于假绿；脚本在缺源仓时显式打印 `⏭ SKIP` 并 0 退出，`docs/AGENTS.md` 已注明「仅双仓本地可用」。
+
+## [片段交付口径：试听版不再冒充完整播放成功] - 2026-11-16
+
+- **现象**：源侧只拿到试听片段时会返回 `fragment: true` + `subSourceName` 带「· 试听版」，但 App `PlayResultInput` 没有 `fragment` 字段 → App 记 `ok: true` 完整成功，源侧同时记 `PREVIEW_FRAGMENT` 失败。两边账本对不上，健康页的播放成功率被片段撑高。
+- **实现**：`PlayResultInput` / `HealthLogEntry` 增 `fragment?: boolean`（只写 `true`，缺省即完整交付，旧日志无需迁移）；`online.ts` 两条记账链路（缓存命中路径用 `cachedFragment`、真实取链路径用 `fragment`）都透传该标记。
+- **统计口径**：`aggregateHealthEvents` 把 `play_result && ok && fragment` 从播放成功率分母里摘出，单列为 `fragments.h1/h24/d7`，写进报告与摘要（「另有 N 次为试听片段（不计入成功率）」）；没有取链记录但只有片段时，摘要也会补这句，不再被吞掉。
+- **回归**：`check_health_diagnostics` 60/0（新增 H30 先红：片段被计进 `playWindows.total=3/ok=2` → 改后 `total=2/ok=1`、`fragments.h24=1`）、`check_health_ui_mapping` 12/0、`check_health_event_pipeline` 10/0、`check_health_status_refactor` 10/0、`check_ts_syntax` 528/0。
+- **顺带定性**：`forceQualityProbe` 不是死桥接——源侧实现完整且有测试覆盖，App 侧是契约声明（14 action 对齐）；健康页已有 `probe`/`probeSource` 覆盖用户复测需求，故**保留不删**，`AUDIT_PLAN` X-L1 由「契约漂移」改为已闭合。
+
+## [健康态跨音源版本恢复：旧版本按结构恢复，未来版本仍拒绝] - 2026-11-16
+
+> 用户问「v1 那套兼容到底还有没有用」时查出来的真问题：不是 v1（b117 起已被物理删除），而是**版本兼容写反了方向**。
+
+- **现象**：音源每升一个版本（8.15.1 → 8.16.0），用户已积累的熔断计数、档位短路、播放摘除记录**整体清零**。升级后已判定坏的源重新参与竞速，头几首失败率升高、取链变慢。
+- **根因**：`sanitizeSourceHealthState` 要求 `input.sourceVersion === expectedVersion` **完全相等**，而调用方传的是当前源版本 → 只要音源升版就判定不符 → `readCanonical` 直接 `removeData(HEALTH_STATE_CANONICAL_KEY)` 物理删除。源侧 `HEALTH_STATE_ACCEPTED_SOURCE_VERSIONS` 白名单（8.14.1/8.15.1/8.16.0）因此永远走不到，等于形同虚设。
+- **新语义**：`compareSourceVersion` 按 `x.y.z` 数值比较——**旧版本快照 → 接受**（后续结构校验兜底）、**同版本 → 接受**、**未来版本 → 拒绝**（快照来自更新的音源，不应回灌）、**版本号不可解析 → 拒绝**。
+- **单向归一**：`restoreSourceHealth` 在交给源之前把 `state.sourceVersion` 归一为当前版本，避免源侧白名单成为第二道误拦。
+- **源侧同步**：`HEALTH_STATE_ACCEPTED_SOURCE_VERSIONS` 白名单改为 `isAcceptedSourceVersion()`（白名单命中或数值 ≤ 当前），不再需要每升一个版本手动加一条。
+- **不变**：用户开关（control key）仍独立、不绑 `sourceVersion`、不按 7 天 TTL 过期；v1 合并态仍拒绝（b117 起已删除，无恢复对象）。
+- **协作规则**：`AGENTS.md` 协作规则新增第 9 条——**未推送前一仓只保留一个提交**（推前 `git reset --soft origin/master` 合并，`git rev-list --count origin/master..HEAD` 必须为 1）。
+- **回归**：App `check_source_health_persistence` 17/0（A8 新增 HC-1 旧版本恢复 / HC-2 未来版本拒绝 / HC-3 非法版本号拒绝，G5-A1 改跨版本恢复）、`check_health_persistence_v2` 9/0（Q3 改用未来版本表达不符）、`check_health_state_v2` 7/0、`check_health_status_refactor` 10/0、`check_health_diagnostics` 59/0、`check_health_ui_mapping` 12/0、`check_source_contract` 14/0、`check_source_config_contract` 29/0、`check_cross_repo_linkage` 8/0、`check_ts_syntax` 528/0、`check_docs_consistency` 18/0、`tsc --noEmit` rc=0、eslint rc=0；源仓 `aa-p3-persist` 10/0（A4 改为旧版本接受 + 未来拒绝）、`health-persistence-v2` 10/0、`budget-admission` PASS、`r-admission` 24/0、`npm test` rc=0、`verify:bundle` 8/0。
+
 ## [音源更新改为「就地覆盖启用中的那一份」] - 2026-11-16
 
 > 用户报的现象：b138 包内已带 v8.16.0，设备却一直显示 8.15.1；点「更新音源」不是覆盖旧版，而是**新增一份同名源**，还得手动删旧的。

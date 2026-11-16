@@ -70,9 +70,10 @@ check('Q2 save 拆分：健康 key 无 controls，control key 有 v2 控制态',
   assert(control.v === 2 && control.controls.suyinQQ.manualOff === true, 'control key 内容不符')
 })
 
-check('Q3 control 独立恢复：健康 sourceVersion 不符仍恢复用户意图', async() => {
+check('Q3 control 独立恢复：健康 sourceVersion 不符（未来版本）仍恢复用户意图', async() => {
   const st = fakeStorage()
-  const health = mkState(); health.sourceVersion = '8.12.0'
+  // HC：旧版本快照现在可恢复，因此该用例必须用“未来版本”表达版本不符
+  const health = mkState(); health.sourceVersion = '9.9.9'
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, health)
   await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinQQ: { enabled: false, manualOff: true }, suyinKuwo: { enabled: true } } })
   const calls = []

@@ -43,6 +43,9 @@ export interface PlayResultInput {
   attempts?: PlayAttempt[]
   recordPlay?: boolean
   recordChain?: boolean
+  // 片段交付（源只给了试听版，如酷我 5 秒片段）：播放是成功的，但不是“完整播放成功”，
+  // 必须单独落盘，否则试听版会把完整播放成功率撑高、也会与源侧 PREVIEW_FRAGMENT 口径打架。
+  fragment?: boolean
   // 事件来源：user=用户动作；preload=后台预加载；refresh=同一用户链路的刷新重试。
   context?: HealthContext
 }
@@ -58,6 +61,7 @@ export interface HealthLogEntry {
   code?: string
   latencyMs?: number
   sampleWeight?: number
+  fragment?: boolean
   sourceEvents?: unknown[]
   attempts?: PlayAttempt[]
   context?: HealthContext
@@ -182,6 +186,8 @@ export const buildPlayResultEntry = (input: PlayResultInput): HealthLogEntry => 
   if (input.code) entry.code = String(input.code)
   if (Number.isFinite(input.latencyMs)) entry.latencyMs = Math.round(Number(input.latencyMs))
   if (Number.isFinite(input.sampleWeight) && Number(input.sampleWeight) > 0) entry.sampleWeight = Number(input.sampleWeight)
+  // 只写 true，避免给全量日志增加无意义的 false 字段（缺省即完整交付）。
+  if (input.fragment === true) entry.fragment = true
   entry.context = resolvePlayContext(input)
   const attempts = normalizePlayAttempts(input.attempts)
   if (attempts) entry.attempts = attempts

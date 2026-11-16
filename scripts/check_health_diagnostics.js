@@ -572,6 +572,25 @@ check('H29 缓存命中单独计数，不进入取链成功率', () => {
   assert(read('src/core/music/online.ts').includes('recordCacheHit({'), '缓存命中分支未接线')
 })
 
+check('H30 片段交付（试听版）不冒充完整播放成功，单列计数', () => {
+  const events = [
+    { traceId: 'f1', event: 'play_result', sourceId: 'suyinKuwo', platform: 'kw', quality: 'flac', ok: true, fragment: true, latencyMs: 100, ts: NOW - 30 * MIN },
+    { traceId: 'f2', event: 'play_result', sourceId: 'suyinKuwo', platform: 'kw', quality: 'flac', ok: true, latencyMs: 120, ts: NOW - 20 * MIN },
+    { traceId: 'f3', event: 'play_result', sourceId: 'suyinKuwo', platform: 'kw', quality: 'flac', ok: false, code: 'NOT_FOUND', ts: NOW - 10 * MIN },
+  ]
+  const report = diag.buildHealthReport({ events, now: NOW })
+  assert(report.playWindows.h24.total === 2, `片段不应计入完整播放总量：${JSON.stringify(report.playWindows.h24)}`)
+  assert(report.playWindows.h24.ok === 1, `片段不应计入完整播放成功：${JSON.stringify(report.playWindows.h24)}`)
+  assert(report.fragments && report.fragments.h24 === 1, `片段应单列计数：${JSON.stringify(report.fragments)}`)
+  assert(String(report.summary).includes('试听片段'), `摘要未单列片段：${report.summary}`)
+  const log = read('src/core/healthLog.ts')
+  assert(log.includes('fragment?: boolean'), 'PlayResultInput 缺少 fragment 字段')
+  assert(log.includes('entry.fragment = true'), '片段标记未落盘')
+  const online = read('src/core/music/online.ts')
+  assert(online.includes('fragment: fragment === true'), 'online 成功链路未把片段标记传给记账')
+  assert(online.includes('fragment: cachedFragment'), 'online 缓存链路未把片段标记传给记账')
+})
+
 const checkAsync = async(name, fn) => {
   try {
     await fn()

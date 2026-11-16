@@ -67,9 +67,23 @@ check('A8 TTL/版本不匹配拒绝并删除', async() => {
   await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), old)
   assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '过期应拒绝')
   assert(!st.map.has(mod.sourceHealthStateKey('suyinKuwo')), '过期键应删除')
-  const bad = mkState(); bad.sourceVersion = '8.12.0'
-  await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), bad)
-  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '版本不符应拒绝')
+  // HC-1：旧版本（8.12.0 < 8.13.1）结构合法时应恢复，不得因版本号被清空
+  st.map.clear()
+  const older = mkState(); older.sourceVersion = '8.12.0'
+  await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), older)
+  const back1 = await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW)
+  assert(back1 && back1.sources.suyinKuwo, '旧版本结构合法应可恢复')
+  // HC-2：未来版本（9.9.9 > 8.13.1）仍必须拒绝，且不落盘
+  st.map.clear()
+  const future = mkState(); future.sourceVersion = '9.9.9'
+  await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), future)
+  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '未来版本应拒绝')
+  assert(!st.map.has(mod.HEALTH_STATE_CANONICAL_KEY), '未来版本不得提升为 canonical')
+  // HC-3：无法解析的版本号拒绝
+  st.map.clear()
+  const junk = mkState(); junk.sourceVersion = 'future'
+  await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), junk)
+  assert(await mod.readSourceHealthState(st, 'suyinKuwo', '8.13.1', NOW) === null, '非法版本号应拒绝')
 })
 check('A9 restore 先于读取完成，失败不阻断', async() => {
   const st = fakeStorage(); await st.saveData(mod.sourceHealthStateKey('suyinKuwo'), mkState())
@@ -157,7 +171,7 @@ check('A13 旧平台键迁移到 canonical 后可跨平台恢复', async() => {
 check('G5-A1 新源/新版本无需改持久化白名单', async() => {
   const st = fakeStorage()
   const state = mkState()
-  state.sourceVersion = '9.1.0'
+  state.sourceVersion = '8.1.0'
   state.sources.newProvider = {
     breaker: { state: 'closed', totalRequests: 1 },
     byQuality: { '128k': { req: 1, success: 1 } },
@@ -165,9 +179,12 @@ check('G5-A1 新源/新版本无需改持久化白名单', async() => {
   }
   const apis = { newProvider: { exportHealth: () => ({ promise: Promise.resolve(state) }) } }
   assert(await mod.saveSourceHealth(apis, 'newProvider', st, NOW) === true, '新源应写入成功')
-  const back = await mod.readSourceHealthState(st, 'newProvider', '9.1.0', NOW)
+  const back = await mod.readSourceHealthState(st, 'newProvider', '8.1.0', NOW)
   assert(back && back.sources.newProvider, '新源应可往返')
-  assert(await mod.readSourceHealthState(st, 'newProvider', '8.13.1', NOW) === null, '旧版本仍应拒绝')
+  // HC：旧版本快照在新版本音源下同样可恢复，不再因版本号被清空
+  assert(await mod.readSourceHealthState(st, 'newProvider', '9.1.0', NOW) !== null, '旧版本结构合法应可恢复')
+  // HC：未来版本仍拒绝
+  assert(await mod.readSourceHealthState(st, 'newProvider', '8.0.0', NOW) === null, '未来版本应拒绝')
 })
 check('B1 v2 save 拆出独立 control key，健康态不带 controls', async() => {
   const st = fakeStorage()
@@ -183,7 +200,7 @@ check('B1 v2 save 拆出独立 control key，健康态不带 controls', async() 
 
 check('B2 control 独立恢复：健康版本不符仍保留用户意图', async() => {
   const st = fakeStorage()
-  const health = mkState(); health.sourceVersion = '8.12.0'
+  const health = mkState(); health.sourceVersion = '9.9.9'
   await st.saveData(mod.HEALTH_STATE_CANONICAL_KEY, health)
   await st.saveData(mod.HEALTH_CONTROL_KEY, { v: 2, savedAt: NOW, controls: { suyinQQ: { enabled: false, manualOff: true }, suyinKuwo: { enabled: true } } })
   const calls = []
