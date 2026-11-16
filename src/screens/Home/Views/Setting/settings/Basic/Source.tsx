@@ -17,7 +17,7 @@ import { httpFetch } from '@/utils/request'
 import { importUserApi, overwriteUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline, hashScript, isScriptModified } from '@/core/init/userApi/builtinSource'
 
 // 当前运行 App 的版本（CI 注入的 1.9.2-bN）：换包与否决定启动时是否以内置音源为准
 const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
@@ -246,10 +246,20 @@ export default memo(() => {
         return
       }
 
+      // 目标脚本是否被我们原样写入过：对不上说明用户改过，弹窗里要明说“会覆盖你的改动”
+      let modified = false
+      if (target.targetId) {
+        try {
+          const storedChecksum = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.checksum).catch(() => null)
+          modified = isScriptModified(storedChecksum ?? '', targetScript ? hashScript(targetScript) : '')
+        } catch {}
+      }
+
       // 弹窗显示版本信息，用户确认后才更新
       Alert.alert(
         t('source_update_new_version_title'),
-        t('source_update_new_version_msg', { local: localLabel, remote: remoteVersion }),
+        t('source_update_new_version_msg', { local: localLabel, remote: remoteVersion }) +
+          (modified ? `\n\n${t('source_update_modified_warn')}` : ''),
         [
           {
             text: t('cancel'),
@@ -284,6 +294,8 @@ export default memo(() => {
                   await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, target.targetId).catch(() => {})
                   // 在线更新成功也记下当前 App 版本：同包重启不算“换包”，不会回滚到包内旧版
                   await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion).catch(() => {})
+                  // 覆盖写的是远端脚本：指纹跟着更新，下次启动才不会把它当成“被改过”
+                  await saveData(BUILTIN_SOURCE_STORAGE_KEYS.checksum, hashScript(remoteScript)).catch(() => {})
                   await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
                   toast(t('source_update_ok', { version: remoteVersion }), 'long')
                   return
@@ -333,6 +345,9 @@ export default memo(() => {
                 })
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion).catch(e => {
                   console.warn('Failed to persist builtin source app version:', e)
+                })
+                await saveData(BUILTIN_SOURCE_STORAGE_KEYS.checksum, hashScript(remoteScript)).catch(e => {
+                  console.warn('Failed to persist builtin source checksum:', e)
                 })
 
                 // 5) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。

@@ -7,6 +7,8 @@ export const BUILTIN_SOURCE_STORAGE_KEYS = {
   pendingSourceId: 'pending_builtin_source_id',
   // 上次同步时所在的 App 版本（1.9.2-b138）：换了包（升级/降级）就以内置音源为准
   appVersion: 'builtin_source_app_version',
+  // 上次我们写进去那份脚本的指纹：对不上说明用户手动改过，不静默覆盖
+  checksum: 'builtin_source_checksum',
 } as const
 
 const HEADER_BLOCK_REGEX = /\/\*[!*][\s\S]*?\*\//
@@ -233,6 +235,7 @@ export const decidePendingBuiltinSwitch = ({
 export type BuiltinSourceImportReason =
   | 'first-install'
   | 'app-version-sync'
+  | 'target-modified'
   | 'version-upgrade'
   | 'current'
   | 'builtin-older'
@@ -251,6 +254,8 @@ export interface BuiltinSourceImportInput {
   appVersion?: string
   /** 上次同步时记录的 App 版本；为空表示老数据 */
   importedAppVersion?: string
+  /** 目标脚本与上次写入的指纹不一致（用户改过）；无基线时为 false */
+  targetModified?: boolean
 }
 
 export interface BuiltinSourceImportDecision {
@@ -276,6 +281,7 @@ export const decideBuiltinSourceImport = ({
   pendingBlocked = false,
   appVersion = '',
   importedAppVersion = '',
+  targetModified = false,
 }: BuiltinSourceImportInput): BuiltinSourceImportDecision => {
   const currentBuiltinVersion = normalizeSourceVersion(builtinVersion)
   const currentImportedVersion = normalizeSourceVersion(importedVersion)
@@ -294,6 +300,11 @@ export const decideBuiltinSourceImport = ({
 
   if (!currentBuiltinVersion) {
     return { shouldImport: false, reason: 'unknown-version', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
+  }
+
+  // 用户手动改过的同名源不静默覆盖（否则改动直接丢失）：留给他自己决定
+  if (targetModified) {
+    return { shouldImport: false, reason: 'target-modified', builtinVersion: currentBuiltinVersion, importedVersion: currentImportedVersion }
   }
 
   // 音源跟着包走：换了 App 版本（升级或降级都算），或老数据没有版本标记时，
@@ -321,4 +332,27 @@ export const decideBuiltinSourceImport = ({
     builtinVersion: currentBuiltinVersion,
     importedVersion: currentImportedVersion,
   }
+}
+
+/**
+ * 脚本指纹：长度 + FNV-1a 32 位散列。
+ * 不依赖任何库（纯函数，可被 TS 门禁加载），用来判断“这份脚本还是不是我们上次写进去的那份”。
+ */
+export const hashScript = (script: string): string => {
+  if (!script) return ''
+  let h = 0x811c9dc5
+  for (let i = 0; i < script.length; i++) {
+    h ^= script.charCodeAt(i)
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
+  }
+  return `${script.length.toString(16)}-${(h >>> 0).toString(16)}`
+}
+
+/**
+ * 目标脚本是否被用户改过。
+ * 没有基线（老数据）时一律视为未改过——否则老设备会被永久挡住，永远停在旧版。
+ */
+export const isScriptModified = (storedChecksum: string, currentChecksum: string): boolean => {
+  if (!storedChecksum || !currentChecksum) return false
+  return storedChecksum !== currentChecksum
 }

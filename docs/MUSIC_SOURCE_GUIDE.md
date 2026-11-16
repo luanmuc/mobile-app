@@ -21,7 +21,7 @@ musicSdk（内置官方源）  ──┐
 
 1. **CI 拉取**：`.github/workflows/release.yml` 每次构建时，通过 GitHub Contents API（`?ref=master`）从 `luanmuc/backend-api` 拉取最新脚本 → **生成** `assets/builtin_source.js`（本仓库**不内置音源副本**，该文件由每次构建自动创建；仓库内若删除/不存在也由构建重建）
 2. **校验**：文件 >50KB 且包含 `@name` 声明才通过，防止拉取到损坏文件；拉取失败（curl 非 0）即构建中断，不会出无音源的包
-3. **启动导入 / 在线更新＝就地覆盖，不新增**：App 启动时读取内置脚本，按 `@version` 首 token 与 `imported_builtin_source_version` 比较；**换了 App 版本（升级或降级都算）、或没有 App 版本标记时一律以内置源为准**（`app-version-sync`，记 `builtin_source_app_version`），同一包内则只在内置版本严格更高时升级（保住在线更新结果，不因重启回滚）。覆盖目标由 `resolveBuiltinTarget` 唯一确定，**启用优先**：启用的就是聚合音源 → 覆盖它（不管 id 标记指向哪份）；没有启用同名源时才看 `builtin_source_id` 标记，再退到「同名唯一」；多份同名且启用的不是它们则放弃、不猜、不新增；未启用的手动同名旧版不动。命中目标时 `updateUserApi` 用同一 id **就地覆盖脚本**（不换 id、不删旧、不切源），版本基线取**将被覆盖那份**的版本（不拿另一份同名源的版本挡住升级）；只有库里没有任何同名源的全新安装才走“新增 + 切换 + `pending_builtin_source_id` 对账”。
+3. **启动导入 / 在线更新＝就地覆盖，不新增**：App 启动时读取内置脚本，按 `@version` 首 token 与 `imported_builtin_source_version` 比较；**换了 App 版本（升级或降级都算）、或没有 App 版本标记时一律以内置源为准**（`app-version-sync`，记 `builtin_source_app_version`），同一包内则只在内置版本严格更高时升级；**目标脚本指纹（`builtin_source_checksum`）对不上、说明用户手动改过时，启动期不静默覆盖**（`target-modified`），在线更新则在确认弹窗里明确提示“会覆盖你的改动”（保住在线更新结果，不因重启回滚）。覆盖目标由 `resolveBuiltinTarget` 唯一确定，**启用优先**：启用的就是聚合音源 → 覆盖它（不管 id 标记指向哪份）；没有启用同名源时才看 `builtin_source_id` 标记，再退到「同名唯一」；多份同名且启用的不是它们则放弃、不猜、不新增；未启用的手动同名旧版不动。命中目标时 `updateUserApi` 用同一 id **就地覆盖脚本**（不换 id、不删旧、不切源），版本基线取**将被覆盖那份**的版本（不拿另一份同名源的版本挡住升级）；只有库里没有任何同名源的全新安装才走“新增 + 切换 + `pending_builtin_source_id` 对账”。
 4. **运行时**：音源脚本在 QuickJS 中运行，向 App 注册 `musicUrl/lyric/pic` 等 actions，App 侧统一调用
 
 > ⚠️ **本仓库不再内置 `assets/builtin_source.js` 静态副本**（v1.9.1-b74 起移除）：它由每次构建自动生成并覆盖。改音源请到 [luanmuc/backend-api](https://github.com/luanmuc/backend-api)；本地调试可用最新脚本手动放置同名文件。

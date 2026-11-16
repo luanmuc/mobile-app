@@ -466,5 +466,63 @@ run('U41 覆盖后必须记录当前 App 版本，否则下次启动又会当成
   assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'Source.tsx 未记录 app 版本标记')
 })
 
+run('U42 用户改过的同名源：不静默覆盖，判 target-modified', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({
+    canManage: true,
+    hasImported: true,
+    hasBuiltinSource: true,
+    builtinVersion: '8.16.0',
+    importedVersion: '8.15.1',
+    appVersion: '1.9.2-b139',
+    importedAppVersion: '1.9.2-b138',
+    targetModified: true,
+  })
+  assert.strictEqual(d.shouldImport, false, '改过的源被静默覆盖了')
+  assert.strictEqual(d.reason, 'target-modified')
+})
+
+run('U43 老数据没有 checksum 基线：不阻断，否则设备永远卡在旧版', () => {
+  const { decideBuiltinSourceImport } = LOGIC()
+  const d = decideBuiltinSourceImport({
+    canManage: true,
+    hasImported: true,
+    hasBuiltinSource: true,
+    builtinVersion: '8.16.0',
+    importedVersion: '8.15.1',
+    appVersion: '1.9.2-b139',
+    importedAppVersion: '',
+    targetModified: false,
+  })
+  assert.strictEqual(d.shouldImport, true)
+  assert.strictEqual(d.reason, 'app-version-sync')
+})
+
+run('U44 脚本指纹：同内容稳定、任意位置改一个字符就变、空基线不算改动', () => {
+  const { hashScript, isScriptModified } = LOGIC()
+  const a = '/*! @version 8.16.0 */' + 'x'.repeat(2000)
+  const b = '/*! @version 8.16.0 */' + 'x'.repeat(1999) + 'y'
+  assert.strictEqual(hashScript(a), hashScript(a))
+  assert.notStrictEqual(hashScript(a), hashScript(b))
+  assert.strictEqual(isScriptModified('', hashScript(a)), false, '空基线应视为可覆盖')
+  assert.strictEqual(isScriptModified(hashScript(a), hashScript(a)), false)
+  assert.strictEqual(isScriptModified(hashScript(a), hashScript(b)), true)
+})
+
+run('U45 启动侧：读 checksum 基线、算指纹、覆盖成功后回写 checksum', () => {
+  const index = read('src/core/init/userApi/index.ts')
+  assert.ok(index.includes('BUILTIN_SOURCE_STORAGE_KEYS.checksum'), 'index.ts 未读/写 checksum')
+  assert.ok(index.includes('isScriptModified'), 'index.ts 未做改动判定')
+  assert.ok(index.includes('targetModified'), 'index.ts 未把判定结果传给决策函数')
+  assert.ok(index.includes('hashScript'), 'index.ts 未计算脚本指纹')
+})
+
+run('U46 在线更新侧：同样回写 checksum，被改过时弹窗要提示会覆盖改动', () => {
+  const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
+  assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.checksum'), 'Source.tsx 未回写 checksum')
+  assert.ok(source.includes('hashScript'), 'Source.tsx 未计算指纹')
+  assert.ok(source.includes('source_update_modified_warn'), 'Source.tsx 缺少“将覆盖改动”提示')
+})
+
 console.log(`\n${checks} 项通过，${failures} 项失败`)
 if (failures) process.exitCode = 1

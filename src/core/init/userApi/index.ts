@@ -11,7 +11,7 @@ import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
 import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
-import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget } from './builtinSource'
+import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, hashScript, isScriptModified } from './builtinSource'
 import { recordProbeEvents } from '@/core/healthLog'
 
 
@@ -615,6 +615,20 @@ export default async(setting: LX.AppSetting) => {
   // 有目标就能升级；没目标只在“全新安装/可恢复”时才允许导入
   const canManageBuiltin = builtinTarget.canManage && (!!builtinApi || !hasImportedBuiltin)
 
+  // 目标脚本是否被用户改过：有 checksum 基线且对不上 → 不静默覆盖，留给用户自己决定。
+  // 没有基线（老数据/首次）时 isScriptModified 恒为 false，不会把老设备永久挡住。
+  let targetModified = false
+  if (builtinApi) {
+    try {
+      const storedChecksum = (await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.checksum)) ?? ''
+      const targetScript = await getUserApiScript(builtinApi.id).catch(() => '')
+      targetModified = isScriptModified(storedChecksum, targetScript ? hashScript(targetScript) : '')
+      if (targetModified) console.log('builtin source modified by user, skip auto sync:', builtinApi.id)
+    } catch (e) {
+      console.warn('Failed to probe builtin source checksum:', e)
+    }
+  }
+
   // 版本只认 `@version` 首 token；`聚合音源 vX` 旧标记已废弃，避免与设置页/在线升级分叉。
   let builtinVer = ''
   try {
@@ -636,6 +650,7 @@ export default async(setting: LX.AppSetting) => {
     pendingBlocked: pendingBlocked && !builtinApi,
     appVersion: currentAppVersion,
     importedAppVersion: storedAppVersion,
+    targetModified,
   })
   console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
 
@@ -684,6 +699,8 @@ export default async(setting: LX.AppSetting) => {
         if (verifiedBuiltinVersion) await saveData(builtinVersionKey, verifiedBuiltinVersion)
         // 记下“这次同步发生在哪个 App 版本”，下次同包重启才不会又当成换包
         if (currentAppVersion) await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion)
+        // 记下“这份脚本是我们写的”：指纹对不上就说明用户改过，下次启动不再静默覆盖
+        await saveData(BUILTIN_SOURCE_STORAGE_KEYS.checksum, hashScript(script))
         console.log('builtin source imported/updated:', newApi.name, verifiedBuiltinVersion || '')
       }
     } catch (e) {
