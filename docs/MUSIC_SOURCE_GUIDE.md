@@ -81,6 +81,8 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 ## 四b、音源健康面板与健康分（App 侧语义）
 
+**真机摘要上报**：设置页最底部「真机摘要上报」区块（b147 起）——PAT 只存本机，启动/回前台且距上次成功 ≥20h 才上报一次；区块固定放页面末尾，不占健康状态首屏。
+
 **数据流**：音源脚本（backend-api v4.0 起）注册 `health` action → 返回 `getHealthSnapshot()` 全源快照 → App 设置页「音源健康」子页（`src/screens/Home/Views/Setting/settings/Health.tsx`）消费展示，可刷新/单源开关/手动探测。
 
 **v8.14 探测语义（2026-11-13）**：

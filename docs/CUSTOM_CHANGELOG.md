@@ -1,3 +1,16 @@
+## [b149 · 摘要区块下移（未发布）] - 2026-11-17
+
+- 按用户要求，「真机摘要上报」区块从顶部按钮区下方移到**音源健康页最底部**（源列表/诊断信息之后），避免日常查看健康状态时先被上报设置占位。
+- 仅布局调整：保存/立即上报/清除与状态文案逻辑不变；`npm run preflight` 36/0。
+
+## [b148 · 并发单飞修复（已出包）] - 2026-11-17
+
+- **真机首测暴露**：连点两次「立即上报」→ 同一秒开两个 Issue（`device+generated_at` 差 1s，去重键不同，两条都入库）。
+- **App**：`uploadDigestNow` 加 `inFlight` 单飞锁（并发复用同一 Promise，`finally` 释放）；`check_health_digest` 增 A9 断言，9/0。
+- **telemetry**：`ingest.yml` 并发组从 per-issue 改为**按仓串行**（`concurrency: ingest-digest`）+ push 被拒 `pull --rebase` 重试 3 次；`digests/*.jsonl` 声明 `merge=union`，并发追加不再解冲突。
+- **实测**：并发开 #6/#7 → 两个 workflow 均 success、Issue 均自动关闭；`node --test` 5/5。
+- 发布：`v1.9.2-b148`（CI 自动出包，含单飞锁）。
+
 ## [b147 · 真机摘要回传（未发布）] - 2026-11-17
 
 - **通道（方案 B）**：设置页填一次 fine-grained PAT（仅 `Issues: Read and write`，支持 No expiration），App 向公开仓 `luanmuc/lx-telemetry` 开 issue；APK 内**不含任何共享凭据**，PAT 只存本机 AsyncStorage。

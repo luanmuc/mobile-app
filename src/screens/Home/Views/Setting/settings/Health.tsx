@@ -539,27 +539,6 @@ export default memo(() => {
           <View style={styles.btnGap} />
           <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
         </View>
-        <View style={[styles.digestBox, { borderColor: theme['c-border-background'] }]}>
-          <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_digest_title')}</Text>
-          <Text size={11} color={theme['c-font-label']} style={{ marginTop: 4 }}>{t('health_digest_desc')}</Text>
-          <TextInput
-            value={digestToken}
-            onChangeText={setDigestTokenInput}
-            placeholder={t('health_digest_placeholder')}
-            autoCapitalize={'none'}
-            autoCorrect={false}
-            secureTextEntry
-            style={[styles.digestInput, { color: theme['c-font'], borderColor: theme['c-border-background'] }]}
-          />
-          <View style={styles.btnRow}>
-            <Button onPress={saveDigestToken} disabled={digestBusy}>{t('health_digest_save')}</Button>
-            <View style={styles.btnGap} />
-            <Button onPress={pushDigestNow} disabled={digestBusy}>{t('health_digest_now')}</Button>
-            <View style={styles.btnGap} />
-            <Button onPress={clearDigestToken} disabled={digestBusy}>{t('health_digest_clear')}</Button>
-          </View>
-          {digestStatus ? <Text size={11} color={theme['c-font-label']} style={{ marginTop: 6 }}>{digestStatus}</Text> : null}
-        </View>
         {
           probeInfo ? (
             <View style={styles.desc}>
@@ -830,6 +809,27 @@ export default memo(() => {
             </View>
           ) : null
         }
+        <View style={[styles.digestBox, { borderColor: theme['c-border-background'] }]}>
+          <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_digest_title')}</Text>
+          <Text size={11} color={theme['c-font-label']} style={{ marginTop: 4 }}>{t('health_digest_desc')}</Text>
+          <TextInput
+            value={digestToken}
+            onChangeText={setDigestTokenInput}
+            placeholder={t('health_digest_placeholder')}
+            autoCapitalize={'none'}
+            autoCorrect={false}
+            secureTextEntry
+            style={[styles.digestInput, { color: theme['c-font'], borderColor: theme['c-border-background'] }]}
+          />
+          <View style={styles.btnRow}>
+            <Button onPress={saveDigestToken} disabled={digestBusy}>{t('health_digest_save')}</Button>
+            <View style={styles.btnGap} />
+            <Button onPress={pushDigestNow} disabled={digestBusy}>{t('health_digest_now')}</Button>
+            <View style={styles.btnGap} />
+            <Button onPress={clearDigestToken} disabled={digestBusy}>{t('health_digest_clear')}</Button>
+          </View>
+          {digestStatus ? <Text size={11} color={theme['c-font-label']} style={{ marginTop: 6 }}>{digestStatus}</Text> : null}
+        </View>
       </SubTitle>
     </Section>
 
