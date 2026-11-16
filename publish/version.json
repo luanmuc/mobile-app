@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b143",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 54249f8b chore(preflight): 一条命令跑完 CI 同判据，避免再拿云端当发现问题的地方\n- 4bd2f07b docs(changelog): 记录 v1.9.2-b142 发布（内置音源 v8.16.1）",
+  "version": "1.9.2-b144",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 1b1bb838 docs(plan): 审计计划收成一份（子纲并入主计划附录 A），并加 G21 门禁锁住唯一性",
   "history": [
+    {
+      "version": "1.9.2-b143",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 54249f8b chore(preflight): 一条命令跑完 CI 同判据，避免再拿云端当发现问题的地方\n- 4bd2f07b docs(changelog): 记录 v1.9.2-b142 发布（内置音源 v8.16.1）"
+    },
     {
       "version": "1.9.2-b142",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b805ac2c docs(gate): AUDIT_PLAN 脚本数 39→40（G7 口径门禁）\n- 078128a5 fix(health): 健康态跨版本恢复 + 片段交付口径"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b138",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 22e79532 fix(player): 同步 package-lock 里的 track-player sha，让 B3 改动真正进包"
-    },
-    {
-      "version": "1.9.2-b137",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 09b28b2c chore(player): track-player 依赖升到 82e4e218（含 B3 修复）\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置"
     }
   ]
 }
