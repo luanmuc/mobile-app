@@ -24,6 +24,7 @@ import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/co
 import { buildHealthDiagnosticsView, localizeHealthFinding } from '@/core/healthDiagnosticsView'
 import { REPORT_EVENT_LIMIT, ensureHealthLogsDir, exportAndShareDiagnostics, readDiagnoseLogTail, readRecentHealthEvents } from '@/core/healthLog'
 import { clipboardWriteText, confirmDialog } from '@/utils/tools'
+import { getDigestToken, setDigestToken, uploadDigestNow } from '@/core/healthDigestUpload'
 
 // 音源健康快照（音源 getHealthSnapshot 聚合查询；v4.0：无样本 successRate/avgTime 为 null + 样本计数；v4.0：sleeping 休眠字段）
 interface HealthItem {
@@ -104,6 +105,14 @@ export default memo(() => {
   const [togglingId, setTogglingId] = useState('')
   const [expandedQuality, setExpandedQuality] = useState<string | null>(null)
   const [probeInfo, setProbeInfo] = useState('')
+  // v8.17：真机摘要上报（PAT 只存本机）
+  const [digestToken, setDigestTokenInput] = useState('')
+  const [digestStatus, setDigestStatus] = useState('')
+  const [digestBusy, setDigestBusy] = useState(false)
+
+  useEffect(() => {
+    void getDigestToken().then(token => { setDigestTokenInput(token) })
+  }, [])
   const [probingId, setProbingId] = useState('')
   // v8.0：配置编辑相关 state
   const [showConfigModal, setShowConfigModal] = useState(false)
@@ -485,6 +494,31 @@ export default memo(() => {
     )
   }
 
+  const saveDigestToken = () => {
+    setDigestBusy(true)
+    void (async() => {
+      await setDigestToken(digestToken)
+      setDigestStatus(t('health_digest_saved'))
+    })().catch(e => { setDigestStatus(String(e?.message || e)) }).finally(() => { setDigestBusy(false) })
+  }
+
+  const pushDigestNow = () => {
+    setDigestBusy(true)
+    setDigestStatus(t('health_digest_pushing'))
+    void (async() => {
+      const r = await uploadDigestNow(digestToken || undefined)
+      setDigestStatus(r.ok ? t('health_digest_ok') : `${t('health_digest_fail')} ${r.reason}${r.detail ? ' ' + r.detail : ''}`)
+    })().finally(() => { setDigestBusy(false) })
+  }
+
+  const clearDigestToken = () => {
+    void (async() => {
+      await setDigestToken('')
+      setDigestTokenInput('')
+      setDigestStatus(t('health_digest_cleared'))
+    })()
+  }
+
   return (
     <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps={'always'}>
     <Section title={t('setting_health')}>
@@ -504,6 +538,27 @@ export default memo(() => {
           <Button onPress={copyDiagnosticsReport} disabled={!diagnostics}>{t('health_copy_report')}</Button>
           <View style={styles.btnGap} />
           <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
+        </View>
+        <View style={[styles.digestBox, { borderColor: theme['c-border-background'] }]}>
+          <Text size={12} style={{ fontWeight: 'bold' }}>{t('health_digest_title')}</Text>
+          <Text size={11} color={theme['c-font-label']} style={{ marginTop: 4 }}>{t('health_digest_desc')}</Text>
+          <TextInput
+            value={digestToken}
+            onChangeText={setDigestTokenInput}
+            placeholder={t('health_digest_placeholder')}
+            autoCapitalize={'none'}
+            autoCorrect={false}
+            secureTextEntry
+            style={[styles.digestInput, { color: theme['c-font'], borderColor: theme['c-border-background'] }]}
+          />
+          <View style={styles.btnRow}>
+            <Button onPress={saveDigestToken} disabled={digestBusy}>{t('health_digest_save')}</Button>
+            <View style={styles.btnGap} />
+            <Button onPress={pushDigestNow} disabled={digestBusy}>{t('health_digest_now')}</Button>
+            <View style={styles.btnGap} />
+            <Button onPress={clearDigestToken} disabled={digestBusy}>{t('health_digest_clear')}</Button>
+          </View>
+          {digestStatus ? <Text size={11} color={theme['c-font-label']} style={{ marginTop: 6 }}>{digestStatus}</Text> : null}
         </View>
         {
           probeInfo ? (
@@ -998,6 +1053,21 @@ export default memo(() => {
 })
 
 const styles = StyleSheet.create({
+  digestBox: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 6,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  digestInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 4,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+  },
   desc: {
     marginTop: 10,
     marginBottom: 8,

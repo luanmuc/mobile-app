@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `cd2e24a0`（已推送），v1.9.2-**b146** / versionCode **305**（Build #43908153668 success：Lint 68s ∥ Checks 77s ∥ **Android 3m57s** → Release 25s，全程 **4m26s**；较 b145 的 8m53s 降 50%，因 Android 不再等 lint/checks + 同分支并发取消）
 > - 源仓：`luanmuc/backend-api` @ `c2f1ba0`（已推送），v8.16.1（5881 行 / 307085 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1009 键**、TS/TSX **529 文件**、`scripts/check_*.js` **40 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 534 条**、文档 **17 篇**
+> - 硬数字：三语各 **1020 键**、TS/TSX **531 文件**、`scripts/check_*.js` **41 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 542 条**、文档 **17 篇**
 > - 本文件对应变更：b146「本地预检提速 280s→68s/文档改动 16s + 云端 job 拓扑并行」（`cd2e24a0`）、源仓「L1.3 按变更面触发，CI 8m55→2.6m」（`ff97a10`）；b145「交接单三条收口：timeout 定时器清理 + compileSdk 回 35（CI 编译证明）+ G22/G23/G27」（`1093a91e`，分两个提交）、「源仓 engines.node」（`cae74df`）；b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
 
 ---
@@ -47,7 +47,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1009 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1020 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -107,8 +107,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1009 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **40 个**（`npm run preflight` 一键跑完 CI 同判据） | 40 脚本 rc0 / 531 条断言 | ✅ |
+| 三语国际化（1020 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **41 个**（`npm run preflight` 一键跑完 CI 同判据） | 41 脚本 rc0 / 542 条断言 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -158,11 +158,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（40 个 `check_*.js`，534 条断言）
+### 6b. 全量脚本台账（41 个 `check_*.js`，542 条断言）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 529 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 531 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -301,7 +301,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView`；finding/reason 走本地化 | H14/H18/H19/H27/H29 + 视图 25 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1009 键 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1020 键 |
 | `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ### 3. 断言矩阵（51 条）

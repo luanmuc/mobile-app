@@ -1,3 +1,11 @@
+## [b147 · 真机摘要回传（未发布）] - 2026-11-17
+
+- **通道（方案 B）**：设置页填一次 fine-grained PAT（仅 `Issues: Read and write`，支持 No expiration），App 向公开仓 `luanmuc/lx-telemetry` 开 issue；APK 内**不含任何共享凭据**，PAT 只存本机 AsyncStorage。
+- **摘要内容**（`lx-health-digest/1`）：24h 内 probe / play / chain 的次数与成功率（按源）、失败明细（码+耗时，最多 200 条）；**不含歌名、URL、账号**；`device.id` 是安装时随机 16 位 hex。
+- **节奏**：启动/回前台判断，距上次成功 ≥20h 才发；失败进本地队列（≤7 条/7 天），下次成功补发；不做后台定时器。
+- **设置页**：新增「真机摘要上报」区块（保存/立即上报/清除 + 状态文案），三语各 +11 键。
+- **契约**：`scripts/check_health_digest.js` 8/0（窗口过滤、probe 上下文不计播放、上限截断、20h 门限、队列 7 天、issue 格式、无硬编码凭据、三语键齐备）。
+
 ## [b146 · 提速落地实测] - 2026-11-16
 
 - **发布**：`v1.9.2-b146` / versionCode **305**，Build `43908153668` success，全程 **4m26s**（b145 为 8m53s，降 50%）：Lint 68s ∥ Checks 77s ∥ Android **3m57s** → Release 25s。5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。

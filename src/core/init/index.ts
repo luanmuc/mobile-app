@@ -17,6 +17,7 @@ import { checkUpdate } from '@/core/version'
 import { checkOfficialUpdate } from '@/core/officialVersion'
 import { logger } from '@/utils/logger'
 import { migrateDownloadDir } from '@/core/downloadManager'
+import { maybeUploadDigest } from '@/core/healthDigestUpload'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async() => {
@@ -93,6 +94,15 @@ export default async() => {
   bootLog('Sync inited.')
 
   // syncSetting()
+
+  // v8.17：真机健康摘要——未配 PAT 或距上次成功 <20h 时静默返回；不做后台定时器
+  void maybeUploadDigest()
+  try {
+    const { AppState } = await import('react-native')
+    AppState.addEventListener('change', (state: string) => {
+      if (state === 'active') void maybeUploadDigest()
+    })
+  } catch {}
 
   isInited ||= true
 
