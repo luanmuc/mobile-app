@@ -19,6 +19,12 @@ on:
         required: false
         default: ''
 
+# 同一分支连续推送时，只保留最新一次构建；被打断的 run 不再白跑 Android 6 分钟。
+# Release 也在这条并发组里：被取消的 run 不会留下半成品 tag（发布动作在最后一步才执行）。
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 # 仓库默认 GITHUB_TOKEN 为只读：下载 artifact 需 actions:read，创建 Release 需 contents:write
 permissions:
   contents: write
@@ -109,7 +115,8 @@ jobs:
   Android:
     name: Android
     runs-on: ubuntu-latest
-    needs: [lint, checks]
+    # 不再 needs: [lint, checks]：两者各约 1 分钟且与 Android 无数据依赖，等它们纯属白等。
+    # 但「三绿才发布」不放宽——Release 改为 needs 三个 job，lint/checks 红则照样不出包。
     outputs:
       build: ${{ steps.buildstate.outputs.build }}
       versionCode: ${{ steps.buildstate.outputs.versionCode }}
@@ -209,7 +216,8 @@ jobs:
   Release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [Android]
+    # 三个 job 全绿才发布：Android 并行省时间，发布条件不变
+    needs: [lint, checks, Android]
     steps:
       - name: Check out git repository
         # fetch-depth: 0 拉取全部历史与 tags，供 gen_change_log.py 计算"自上次 tag 以来的变更"

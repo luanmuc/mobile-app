@@ -25,7 +25,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ 健康诊断契约门禁（60 条 + 视图 25 条 + 日志目录 15 条）
       ├─ 健康状态/文案/文档一致性门禁（anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 12 + download 3 + download-restore 3 + docs 17）
       └─ 热点行为断言（播放器/同步/文件名/错误标点）
-  └─ Job Android（needs: [lint, checks]）
+  └─ Job Android（与 lint/checks **并行**，不再等待；发布门槛由 Release 把关）
       ├─ Setup Env：node_modules 命中 actions/cache（key=package-lock.json+.nvmrc）时跳过 npm ci；setup-java 缓存 Gradle wrapper/依赖
       ├─ 源仓 HEAD CI 闸门（`node scripts/check_source_ci_gate.js`）：源仓最近一次 push CI 必须为 success，且绿提交是当前 HEAD 的祖先；红/未完成/无 run/分叉均阻断，不再允许从红提交取源构建
       │    └─ 手动 `workflow_dispatch` 可选 `source_ref`：仅供红分支验证，留空默认 master；正常发布不要填
@@ -33,7 +33,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
       ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
       └─ ./gradlew assembleRelease --build-cache --parallel --no-daemon → 5 个 ABI APK → upload-artifact
-  └─ Job Release（needs: Android）
+  └─ Job Release（needs: [lint, checks, Android] —— 三绿才发布）
       ├─ 生成发布说明（scripts/gen_change_log.py：git log 自动生成本次变更 + APK MD5）
       ├─ softprops/action-gh-release：创建 tag v1.9.2-b<build>（target_commitish 固定到本次构建提交），上传 APK
       ├─ 更新 publish/version.json（版本+描述+最近历史）
@@ -43,7 +43,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 
 ## 三、发布前测试清单（改动核心代码时必做）
 
-> 健康契约与音源标签/配置/语法契约、全仓 `tsc --noEmit`、全仓 `eslint` 由 `.github/workflows/release.yml` 的 `lint` / `checks` 前置 job 自动阻塞（与 `Android` 构建并行编排，`Android` 依赖两 job 全绿）；压力/深度/视图/日志目录共 **14 + 51 + 22 + 15 = 102 条**不在发版阻塞链，挂 `.github/workflows/health-stress.yml`（每周一 UTC 周日 18:45 / 手动 dispatch）。
+> 健康契约与音源标签/配置/语法契约、全仓 `tsc --noEmit`、全仓 `eslint` 由 `.github/workflows/release.yml` 的 `lint` / `checks` 前置 job 自动阻塞（与 `Android` 构建并行编排，`Android` 与两 job 并行，`Release` 要求三者全绿）；压力/深度/视图/日志目录共 **14 + 51 + 22 + 15 = 102 条**不在发版阻塞链，挂 `.github/workflows/health-stress.yml`（每周一 UTC 周日 18:45 / 手动 dispatch）。
 
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 

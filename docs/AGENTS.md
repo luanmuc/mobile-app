@@ -55,6 +55,8 @@ node scripts/check_source_ci_gate_offline.js
 node scripts/check_quality_request_runtime.js
 # 推前一条命令跑完 CI 同判据（解析 release.yml 的 lint/checks 段，不会与 CI 漂移）
 npm run preflight      # App 侧；双仓联调加 npm run preflight:all（含源仓 self-check/docs-audit/npm test）
+                       # 检查项仍从 release.yml 解析（36 项），但本地跑法已提速：8 路并发 + tsc 增量 + eslint 缓存；
+                       # 纯文档改动会自动跳过 tsc/eslint（云端 paths-ignore 本就不触发），并发度用 PREFLIGHT_JOBS 调
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
 node scripts/docs-audit.js

@@ -1,3 +1,9 @@
+## [提速：本地预检与云端 job 拓扑] - 2026-11-16
+
+- **本地预检（36 项不变，只换跑法）**：检查项继续从 `release.yml` 解析，不手抄；三处改动——① 各 check 脚本互不写盘，改为 8 路并发（`PREFLIGHT_JOBS` 可调）；② `tsc` 加 `--incremental`、`eslint` 加 `--cache`，缓存落 `node_modules/.cache`；③ 纯文档改动（`docs/**`、`*.md`、`publish/**`、`npm-version-info/**`）自动跳过 tsc/eslint——云端 `paths-ignore` 本来就不触发这两个 job，本地照跑等于白等。
+- **实测（本机）**：280s → **68.2s**（代码改动、缓存命中）、**16.2s**（纯文档改动，34 项）；单文件 eslint 冷跑 70s/热跑 51s 是插件加载下限（`@typescript-eslint/eslint-plugin` 18s、`eslint-plugin-import` 10s、`eslint-plugin-react` 10s），与规则数无关。
+- **云端 App**：`Android` 不再 `needs: [lint, checks]`（省约 1 分钟串行等待），`Release` 改为三 job 全绿才发布，发布门槛不降；新增 `concurrency` 同分支只跑最新一次（连续推送不再各烧 9 分钟）。
+
 ## [b145 · 交接单三条收口 + compileSdk 回 35，CI 给出编译证据] - 2026-11-16
 
 - **发布**：`v1.9.2-b145` / versionCode **304**，Build `43896413859` success（Checks 50s / Lint 58s / **Android 6m58s** / Release 49s）；5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
