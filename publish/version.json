@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b136",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置",
+  "version": "1.9.2-b137",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 09b28b2c chore(player): track-player 依赖升到 82e4e218（含 B3 修复）\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置",
   "history": [
+    {
+      "version": "1.9.2-b136",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置"
+    },
     {
       "version": "1.9.2-b135",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 31440518 fix(app): 一键更新 8s 超时不再谎报「加载失败」——区分超时未就绪与明确失败，三语文案同步"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b131",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6d06e6d2 fix(player): 首次播放音质标签被 isPlay 守卫丢弃，改与 onSource 同款只防串歌\n- dd124782 docs: 回填 b130 发布事实与 5 APK"
-    },
-    {
-      "version": "1.9.2-b130",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0b06a0e6 fix(health): 收口超时竞态与旧数据/趋势弹窗遗留项\n- 3585a81e docs: 回填 b129 发布事实与内置源 v8.14.1"
     }
   ]
 }
