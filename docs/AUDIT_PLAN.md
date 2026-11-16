@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `74c3db37`（已推送），v1.9.2-b133 / versionCode 292（Build `43692249306` success）
 > - 源仓：`luanmuc/backend-api` @ `2094201`（已推送），v8.15.0（300268 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1009 键**、TS/TSX **528 文件**、`scripts/check_*.js` **39 个**（release.yml 的 Checks 队列全跑，另 9 个在 health-stress.yml 或离线）
+> - 硬数字：三语各 **1009 键**、TS/TSX **528 文件**、`scripts/check_*.js` **40 个**（release.yml 的 Checks 队列全跑，另 10 个在 health-stress.yml、离线或跨仓（`check_cross_repo_health_roundtrip` 需双仓，CI 会 SKIP））
 >
 > **对应变更**：App `a33a339f`「统一内置源版本解析并阻止升级回退」→ b133 已发布；源仓 `2094201`「v8.15.0」及 `v8.15.0` tag 已推送。
 
