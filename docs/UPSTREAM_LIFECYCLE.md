@@ -5,11 +5,13 @@
 
 ## 一、依赖清单
 
+> **升级依赖必须同时改 `package-lock.json`**：CI 的 `node_modules` 缓存以 lockfile 哈希为 key，只改 `package.json` 会命中旧缓存，编出来的 APK 里仍是旧库（b136/b137 的 dex 与 b135 之前完全相同即是证据）。校验方法：改完先 `npm install --package-lock-only`，确认 lock 无额外改动，再看构建后 dex 是否变化。
+
 | 依赖 | 关系 | 当前版本/引用 | 失效风险 |
 |---|---|---|---|
 | `lyswhut/lx-music-mobile`（上游原版） | fork 源头 | fork 点 `fb848072`（v1.9.1）；**已合并至 v1.9.2（`0669d1b6`，v1.9.2-b1）** | 中：上游持续开发，新差异从 v1.9.2 起累积 |
 | `luanmuc/backend-api`（音源） | CI 构建时拉取 | 每次构建取最新 master | 高：依赖第三方接口（K7） |
-| `luanmuc/react-native-track-player`（fork） | 播放器依赖 | commit `82e4e218…`（2026-11-16 审计包 B3：queueId 自增 / manager 复用 / 续播条件 / 链路开关恢复 / AGP 对齐；b136 起消费；b70：6 项通知栏定制 + 音频焦点幂等/暂停修复 + 音频焦点三开关（主开关 / 自动续播 / 降音量）+ 通知栏状态同步判空（b68 启动崩溃修复）+ 原生空指针全链路加固 + 艺术家行音源/音质拼接 + 播放模式按钮 + PendingIntent 加固 + 模式图标重绘；b75 升到 `eceacb5` 仅追加 `quality`/`subSource` 类型字段；b78 升到 `a0b2a87` 取 2026-11-07 全覆盖审计的修复（焦点续播不覆盖用户暂停、contentIntent 补 `FLAG_IMMUTABLE`、服务加 signature 权限、归口注释补齐） | 中：上游升级需重新应用定制补丁（K5） |
+| `luanmuc/react-native-track-player`（fork） | 播放器依赖 | commit `82e4e218…`（2026-11-16 审计包 B3：queueId 自增 / manager 复用 / 续播条件 / 链路开关恢复 / AGP 对齐；b138 起真正进包，b136/b137 因 lockfile 未同步仍编旧代码；b70：6 项通知栏定制 + 音频焦点幂等/暂停修复 + 音频焦点三开关（主开关 / 自动续播 / 降音量）+ 通知栏状态同步判空（b68 启动崩溃修复）+ 原生空指针全链路加固 + 艺术家行音源/音质拼接 + 播放模式按钮 + PendingIntent 加固 + 模式图标重绘；b75 升到 `eceacb5` 仅追加 `quality`/`subSource` 类型字段；b78 升到 `a0b2a87` 取 2026-11-07 全覆盖审计的修复（焦点续播不覆盖用户暂停、contentIntent 补 `FLAG_IMMUTABLE`、服务加 signature 权限、归口注释补齐） | 中：上游升级需重新应用定制补丁（K5） |
 | npm 包 `luanmuc-lx-music-version-info` | 更新检查数据源 | CI 自动发布 | 低：NPM_TOKEN 失效时发布失败 |
 
 ## 二、四阶段框架
