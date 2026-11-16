@@ -1,3 +1,10 @@
+## [推前预检 preflight：一条命令跑完 CI 同判据] - 2026-11-16
+
+- **动机**：一次推送耗了 50 分钟，其中约 27 分钟烧在「源仓 CI 两轮红 + 重推后再跑两轮」。根因不是云端慢，是我把清单留在记忆里：① 新增门禁脚本没跑口径门禁（G7 39≠40）→ App 首轮 CI 红；② 把日志横幅改成 `v${常量}` 派生，撞上源仓 `self-check` 依赖**字面量**版本号的开包正则（b38 教训）→ 源仓 CI `L2` 连红两轮。
+- **做法**：新增 `scripts/preflight.js`，**解析** `.github/workflows/release.yml` 的 `lint:` / `checks:` 段取命令（不手抄列表，手抄必然漂移），逐条串行执行并按条打印耗时；`--with-source` 追加源仓 `build-source` / `self-check` / `docs-audit` / `verify:bundle` / `npm test`。命名故意不带 `check_` 前缀，不进 G7 计数。
+- **入口**：`npm run preflight`（App）· `npm run preflight:all`（双仓）。`AGENTS.md` 发布 SOP 段已写明「推前一条命令」。
+- **实跑**：`npm run preflight:all` = **41 条全绿 / 0 失败 / 276.8s**（其中源仓 `npm test` 占大头）。本地跑一次 4.6 分钟，替代云端两轮 9 分钟。
+
 ## v1.9.2-b142 发布（2026-11-16）
 
 - **内置音源**：`v8.16.1`（源仓 tag `v8.16.1`；CI 拉源后跨仓闸门「指南版本 == 包内 `@version`」通过，日志实见 `跨仓版本一致 … v8.16.1`）。`versionCode 301`，5 个 APK 全量上传（Build `43843671516`，Checks / Lint / Android / Release 四 job 全绿）。

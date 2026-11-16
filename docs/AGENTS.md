@@ -53,6 +53,8 @@ node scripts/check_source_ci_gate_offline.js
 
 # 文档一致性检查（推送前必跑：扫描文档中过时版本号/依赖引用，见「文档同步规范」）
 node scripts/check_quality_request_runtime.js
+# 推前一条命令跑完 CI 同判据（解析 release.yml 的 lint/checks 段，不会与 CI 漂移）
+npm run preflight      # App 侧；双仓联调加 npm run preflight:all（含源仓 self-check/docs-audit/npm test）
 node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
 node scripts/docs-audit.js
