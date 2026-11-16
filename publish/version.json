@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b137",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 09b28b2c chore(player): track-player 依赖升到 82e4e218（含 B3 修复）\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置",
+  "version": "1.9.2-b138",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 22e79532 fix(player): 同步 package-lock 里的 track-player sha，让 B3 改动真正进包",
   "history": [
+    {
+      "version": "1.9.2-b137",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 09b28b2c chore(player): track-player 依赖升到 82e4e218（含 B3 修复）\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置"
+    },
     {
       "version": "1.9.2-b136",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 85e33559 fix(app): 落地审计包 —— versionCode 单一真相 + 闸门假绿清理 + bundle 出库 + 离线闸门走 API\n- 6e8a92a7 docs(changelog): 回填 b135 发布事实与 R44 前置"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b132",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 062870a4 fix(lint): 联动脚本与归因字段按仓库 ESLint 规则收口\n- c701c33b test(quality): 补齐 healthLog mock 的 setPendingPlayback\n- 74de2742 fix(linkage): 收口配置契约、预算归因与诊断溯源"
-    },
-    {
-      "version": "1.9.2-b131",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 6d06e6d2 fix(player): 首次播放音质标签被 isPlay 守卫丢弃，改与 onSource 同款只防串歌\n- dd124782 docs: 回填 b130 发布事实与 5 APK"
     }
   ]
 }
