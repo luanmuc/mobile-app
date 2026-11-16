@@ -1,3 +1,10 @@
+## [计划唯一性 + 4 份计划按版本重维护] - 2026-11-16
+
+- **唯一性**：`docs/AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` 并入 `AUDIT_PLAN.md` 附录 A（436 行），文件删除；新增门禁 **G21**（`AUDIT_PLAN*.md` / `STRESS_PLAN*.md` 在 `docs/` 根目录各恰 1 份）。
+- **按 b143 重维护**：`AUDIT_PLAN.md` 基线升到 App `54249f8b` / b143 / vc302、源仓 `c2f1ba0` / v8.16.1（5881 行 / 307085 bytes）；补 §6b 全量脚本台账（40 个 `check_*.js` / 531 条断言）、X-L7 健康快照版本兼容、X-L8 计划唯一性。
+- **压测计划**：`STRESS_PLAN.md` 修正 S3/S7/S11/S12 条数、补 S19 跨仓往返 4/0 与 S20 口径门禁 21，E18 标为已落地 21/0，合计压测口径 **283 条**。
+- **实跑**：`check_truth_gates` 全一致（含 G21）；`check_docs_consistency` 17 篇 0 过时引用；`npm run preflight` 36/36；`npm run preflight:all` 41/41（387.4s）。
+
 ## [推前预检 preflight：一条命令跑完 CI 同判据] - 2026-11-16
 
 - **动机**：一次推送耗了 50 分钟，其中约 27 分钟烧在「源仓 CI 两轮红 + 重推后再跑两轮」。根因不是云端慢，是我把清单留在记忆里：① 新增门禁脚本没跑口径门禁（G7 39≠40）→ App 首轮 CI 红；② 把日志横幅改成 `v${常量}` 派生，撞上源仓 `self-check` 依赖**字面量**版本号的开包正则（b38 教训）→ 源仓 CI `L2` 连红两轮。

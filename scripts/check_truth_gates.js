@@ -116,6 +116,19 @@ try {
   else P('G20', `${gh.length} 个 github: 依赖全部锁 40 位 sha（无 checksum，仍靠 git 内容寻址）`)
 } catch (e) { S('G20', e.message) }
 
+// G21 活跃计划唯一：每仓只允许一份审计计划 + 一份压力测试计划
+// 为什么要有这条：2026-11-16 检查发现 docs/ 下同时躺着 AUDIT_PLAN.md 与
+// AUDIT_PLAN_HEALTH_DIAGNOSTICS.md（自称“子纲”），以及历史轮次的 round1~5 计划散在
+// audit-plans/ 与 archive/ 里——用户的口径是「一个仓库就一套」。计划一旦分叉，
+// 审什么（主计划）和怎么验（子纲）就会各改各的，缺口永远对不上。所以把唯一性做成门禁，
+// 而不是靠约定。
+try {
+  const planFiles = fs.readdirSync(path.join(root, 'docs')).filter(f => /^AUDIT_PLAN.*\.md$/.test(f))
+  const stressFiles = fs.readdirSync(path.join(root, 'docs')).filter(f => /^STRESS_PLAN.*\.md$/.test(f))
+  if (planFiles.length === 1 && stressFiles.length === 1) P('G21', `活跃计划唯一：${planFiles[0]} / ${stressFiles[0]}`)
+  else F('G21', `活跃计划不唯一：审计 [${planFiles.join(', ') || '无'}] 压力 [${stressFiles.join(', ') || '无'}]（docs/ 根目录各只许 1 份）`)
+} catch (e) { F('G21', '无法枚举 docs/：' + e.message) }
+
 console.log(red ? `\n❌ 口径门禁：${red} 条不一致` : '\n✅ 口径门禁：全部一致')
 if (require.main === module) process.exit(red ? 1 : 0)
 module.exports = { main: () => red }
