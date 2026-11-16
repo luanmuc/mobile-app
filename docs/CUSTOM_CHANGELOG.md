@@ -4,7 +4,8 @@
 - **摘要内容**（`lx-health-digest/1`）：24h 内 probe / play / chain 的次数与成功率（按源）、失败明细（码+耗时，最多 200 条）；**不含歌名、URL、账号**；`device.id` 是安装时随机 16 位 hex。
 - **节奏**：启动/回前台判断，距上次成功 ≥20h 才发；失败进本地队列（≤7 条/7 天），下次成功补发；不做后台定时器。
 - **设置页**：新增「真机摘要上报」区块（保存/立即上报/清除 + 状态文案），三语各 +11 键。
-- **契约**：`scripts/check_health_digest.js` 8/0（窗口过滤、probe 上下文不计播放、上限截断、20h 门限、队列 7 天、issue 格式、无硬编码凭据、三语键齐备）。
+- **契约**：`scripts/check_health_digest.js` 9/0（窗口过滤、probe 上下文不计播放、上限截断、20h 门限、队列 7 天、issue 格式、无硬编码凭据、三语键齐备、上报单飞）。
+- **真机首测修正**：设备连点两次「立即上报」→ 同时开两个 Issue；`uploadDigestNow` 加 inFlight 单飞锁（并发复用同一 Promise）。telemetry 侧 `ingest.yml` 并发按仓串行（原 per-issue 分组会并行 push）+ push 失败 rebase 重试 3 次。
 
 ## [b146 · 提速落地实测] - 2026-11-16
 

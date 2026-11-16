@@ -69,7 +69,7 @@ export interface UploadResult {
   detail?: string
 }
 
-export const uploadDigestNow = async(token?: string): Promise<UploadResult> => {
+const doUpload = async(token?: string): Promise<UploadResult> => {
   const tk = token ?? await getDigestToken()
   if (!tk) return { ok: false, reason: 'no-token' }
   const last = await getData<number>(DIGEST_LAST_KEY)
@@ -106,6 +106,16 @@ export const uploadDigestNow = async(token?: string): Promise<UploadResult> => {
     await saveData(DIGEST_QUEUE_KEY, queue)
     return { ok: false, reason: 'network', detail: e?.message }
   }
+}
+
+// 单飞：启动触发与手动「立即上报」可能同时打进来，双击会生成两个 issue（同 device+时间点）。
+// 复用同一个 Promise，既防重复投递，也让双击拿到同一结果。
+let inFlight: Promise<UploadResult> | null = null
+
+export const uploadDigestNow = async(token?: string): Promise<UploadResult> => {
+  if (inFlight) return inFlight
+  inFlight = doUpload(token).finally(() => { inFlight = null })
+  return inFlight
 }
 
 /** 启动/回前台调用：没有 PAT、未满 20h 都直接静默返回 */

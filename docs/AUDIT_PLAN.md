@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `cd2e24a0`（已推送），v1.9.2-**b146** / versionCode **305**（Build #43908153668 success：Lint 68s ∥ Checks 77s ∥ **Android 3m57s** → Release 25s，全程 **4m26s**；较 b145 的 8m53s 降 50%，因 Android 不再等 lint/checks + 同分支并发取消）
 > - 源仓：`luanmuc/backend-api` @ `c2f1ba0`（已推送），v8.16.1（5881 行 / 307085 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1020 键**、TS/TSX **531 文件**、`scripts/check_*.js` **41 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 542 条**、文档 **17 篇**
+> - 硬数字：三语各 **1020 键**、TS/TSX **531 文件**、`scripts/check_*.js` **41 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 543 条**、文档 **17 篇**
 > - 本文件对应变更：b146「本地预检提速 280s→68s/文档改动 16s + 云端 job 拓扑并行」（`cd2e24a0`）、源仓「L1.3 按变更面触发，CI 8m55→2.6m」（`ff97a10`）；b145「交接单三条收口：timeout 定时器清理 + compileSdk 回 35（CI 编译证明）+ G22/G23/G27」（`1093a91e`，分两个提交）、「源仓 engines.node」（`cae74df`）；b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
 
 ---
@@ -108,7 +108,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1020 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **41 个**（`npm run preflight` 一键跑完 CI 同判据） | 41 脚本 rc0 / 542 条断言 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **41 个**（`npm run preflight` 一键跑完 CI 同判据） | 41 脚本 rc0 / 543 条断言 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -158,7 +158,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（41 个 `check_*.js`，542 条断言）
+### 6b. 全量脚本台账（41 个 `check_*.js`，543 条断言）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|

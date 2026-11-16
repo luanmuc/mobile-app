@@ -99,6 +99,13 @@ check('A8 三语摘要相关键齐备（各 11 个）', () => {
   }
 })
 
+check('A9 上报单飞：inFlight 复用，双击/启动并发不会发两条 issue', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src/core/healthDigestUpload.ts'), 'utf8')
+  assert(/let\s+inFlight\s*:\s*Promise<UploadResult>\s*\|\s*null/.test(src), '缺少 inFlight 单飞锁')
+  assert(/if\s*\(inFlight\)\s*return\s+inFlight/.test(src), 'inFlight 存在时未复用')
+  assert(/finally\(\(\)\s*=>\s*\{\s*inFlight\s*=\s*null/.test(src), '未在 finally 释放单飞锁')
+})
+
 console.log(`\n摘要契约：${passed} 通过 / ${failures.length} 失败`)
 if (require.main === module) process.exit(failures.length ? 1 : 0)
 module.exports = { failures }
