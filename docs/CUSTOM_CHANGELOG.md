@@ -1,3 +1,11 @@
+## v1.9.2-b144 发布（计划唯一性上线 + 双仓推送，2026-11-16）
+
+- **内容**：4 份计划按 b143 / 源仓 v8.16.1 重维护；`AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` 并入 `AUDIT_PLAN.md` 附录 A；新增 **G21**（`docs/` 根目录 `AUDIT_PLAN*.md` / `STRESS_PLAN*.md` 各恰 1 份）。
+- **推送**：App `1c3e47e5..1b1bb838`（plan 一次提交）→ CI 回写版本 `ecc14d84`；源仓 `c2f1ba0..e529ad7`（plan 一次提交）。
+- **云端 CI 实跑**：源仓 `lx-source CI` #43863896420 **success 8m55s**；App `Build` #43864636348 **success**（Lint 1m16s / Checks 1m15s / Android 3m36s / Release 22s），产出 **5 个 APK**（arm64 14.3MB / v7a 13.3MB / universal 29.3MB / x86 14.7MB / x86_64 14.6MB），versionCode **303**。
+- **一次竞态（非代码问题）**：首次 Build 在 1m47s 失败，`check_source_ci_gate` 见源仓 CI 仍 `in_progress` 即阻断；源仓 CI 转绿后重跑同一 Build 即全绿——闸门按设计工作。
+- **本地判据**：`npm run preflight` 36/36（214.9s）、`preflight:all` 41/41（387.4s）、源仓 `npm test` 42 脚本 rc0、`f-repo` 56/0、`verify:bundle` 8/0、变异 22 killed/0 survived。
+
 ## [计划唯一性 + 4 份计划按版本重维护] - 2026-11-16
 
 - **唯一性**：`docs/AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` 并入 `AUDIT_PLAN.md` 附录 A（436 行），文件删除；新增门禁 **G21**（`AUDIT_PLAN*.md` / `STRESS_PLAN*.md` 在 `docs/` 根目录各恰 1 份）。
