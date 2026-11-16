@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `ecc14d84`（已推送），v1.9.2-**b144** / versionCode **303**（Build #43864636348 success：Lint 1m16s / Checks 1m15s / Android 3m36s / Release 22s，5 APK）
 > - 源仓：`luanmuc/backend-api` @ `c2f1ba0`（已推送），v8.16.1（5881 行 / 307085 bytes）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1009 键**、TS/TSX **528 文件**、`scripts/check_*.js` **40 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 531 条**、文档 **17 篇**
+> - 硬数字：三语各 **1009 键**、TS/TSX **529 文件**、`scripts/check_*.js` **40 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 534 条**、文档 **17 篇**
 > - 本文件对应变更：b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
 
 ---
@@ -127,6 +127,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（529 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 
 **联动铁律**：音源新增 action/字段/枚举时，反查 App 的 `sourceContract.ts`、`Health.tsx`、`SYNC_POINTS.md`、`check_source_contract.js` 是否同步。这条正是本次 QP-L1 发现的教训。
@@ -157,11 +158,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（40 个 `check_*.js`，531 条断言）
+### 6b. 全量脚本台账（40 个 `check_*.js`，534 条断言）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 528 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 529 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -196,7 +197,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_docs_consistency` | 17 文档 | 文档真值/死引用 |
 | `check_cross_repo_linkage` | 8 | 双仓静态联动（22s vs 23s） |
 | `check_cross_repo_health_roundtrip` | 4 | X1~X3 健康态往返（需双仓） |
-| `check_truth_gates` | 21 门禁 | 含 **G21 计划唯一** |
+| `check_truth_gates` | 24 门禁 | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
 ## 7. 缺口清单（当前未覆盖）
@@ -451,7 +452,7 @@ node scripts/check_health_diagnostics_view.js     # 25/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 528 文件 0 错误
+node scripts/check_ts_syntax.js                   # 529 文件 0 错误
 node scripts/check_source_config_contract.js      # 29/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0

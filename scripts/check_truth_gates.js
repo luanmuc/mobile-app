@@ -129,6 +129,81 @@ try {
   else F('G21', `活跃计划不唯一：审计 [${planFiles.join(', ') || '无'}] 压力 [${stressFiles.join(', ') || '无'}]（docs/ 根目录各只许 1 份）`)
 } catch (e) { F('G21', '无法枚举 docs/：' + e.message) }
 
+// G22 compileSdk 必须在 AGP 支持范围内（N-1165）
+// 背景：compileSdk 36 配 AGP 8.6.1，官方支持上限 35。越界可能只是警告，也可能在
+// 独立构建/CI 上升级 SDK 解析失败——每次构建都在赌。判据写成「映射表」而不是硬编码 35，
+// 这样升 AGP 时门禁跟着放宽，不需要人记住改。
+try {
+  const top = rd('android/build.gradle')
+  const cs = Number((top.match(/compileSdkVersion\s*=\s*(\d+)/) || [])[1])
+  const agp = ((top.match(/com\.android\.tools\.build:gradle:([\d.]+)/) || [])[1] || '').split('.').slice(0, 2).join('.')
+  // AGP → 该版本官方支持的最高 compileSdk
+  const maxByAgp = Object.fromEntries([
+    ['8.3', 34], ['8.4', 34], ['8.5', 34], ['8.6', 35],
+    ['8.7', 35], ['8.8', 35], ['8.9', 35],
+    ['8.13', 36], ['9.0', 36], // 8.13 官方上限 36（agp-8-13 释放说明）；8.10~8.12 未核实，留空让门禁报「请补映射」
+  ])
+  const max = maxByAgp[agp]
+  if (!cs) F('G22', 'android/build.gradle 未声明 compileSdkVersion')
+  else if (max == null) F('G22', `AGP ${agp || '未知'} 不在映射表里，无法判定 compileSdk ${cs} 是否越界（请补映射）`)
+  else if (cs > max) F('G22', `compileSdk ${cs} 超出 AGP ${agp} 官方上限 ${max}（要么回 ${max}，要么升 AGP 并重跑 CI）`)
+  else P('G22', `compileSdk ${cs} ≤ AGP ${agp} 上限 ${max}`)
+} catch (e) { S('G22', e.message) }
+
+// G27 Promise.race 的超时定时器必须清理，延时必须具名常量（N-1168）
+// 为什么值得守：race 胜出后超时定时器仍空转到点（Node 实测会把进程拖到定时器到点才退出），
+// 且超时回调里的副作用会对已完成的任务再执行一次。注意：它**不会**造成
+// unhandledRejection（race 内部对两路都挂了 then，后到的 reject 被吞），别把这条门禁
+// 说成“防崩溃”。
+// 判据（按标识符，不按“附近有没有 clearTimeout”这种模糊窗口）：
+//   1. race 同文件里每次 setTimeout 要么被赋给变量，并且该文件存在 clearTimeout(同名变量)；
+//      匿名的 setTimeout(() => reject(...)) 一律算未清理——定时器句柄根本没保留，无从清理。
+//   2. 延时参数必须是标识符或常量成员，不能是裸数字（改值时全仓 grep 不到）。
+try {
+  const srcDir = path.join(root, 'src')
+  const files = []
+  const walk = (d) => {
+    for (const f of fs.readdirSync(d)) {
+      const full = path.join(d, f)
+      const st = fs.statSync(full)
+      if (st.isDirectory()) walk(full)
+      else if (/\.(ts|tsx)$/.test(f)) files.push(full)
+    }
+  }
+  walk(srcDir)
+  const bad = []
+  for (const f of files) {
+    const txt = fs.readFileSync(f, 'utf8')
+    if (!/Promise\.race\(/.test(txt)) continue
+    const rel = path.relative(root, f)
+    for (const m of txt.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*setTimeout\(/g)) {
+      if (!new RegExp('clearTimeout\\(\\s*' + m[1] + '\\s*\\)').test(txt)) bad.push(rel + '(' + m[1] + ' 未清理)')
+    }
+    // 匿名 setTimeout + reject 的超时（race 的典型写法）
+    if (/new Promise<never>\(\([^)]*\)\s*=>\s*\{?\s*setTimeout\(/.test(txt)) bad.push(rel + '(超时定时器未保留句柄)')
+    // 裸数字延时（只查原生 setTimeout；BackgroundTimer.setTimeout 自带 clear 语义，不算）
+    const bareDelay = /(?<![\w.])setTimeout\([^,]{0,200},\s*(\d[\d_]*)\s*\)/.exec(txt)
+    if (bareDelay) bad.push(rel + '(裸延时 ' + bareDelay[1] + ')')
+  }
+  const uniq = [...new Set(bad)]
+  if (!files.length) F('G27', 'src 下没有 .ts/.tsx，判据失效')
+  else if (uniq.length) F('G27', `${uniq.join('、')}（Promise.race 超时必须 clearTimeout 且延时用具名常量）`)
+  else P('G27', `${files.length} 个源文件：race 超时均清理定时器且用常量`)
+} catch (e) { S('G27', e.message) }
+
+// G23 SDK 三件套自洽：targetSdk ≤ compileSdk，buildTools 主版本 ≤ compileSdk
+try {
+  const top = rd('android/build.gradle')
+  const num = (re) => Number(((top.match(re) || [])[1]))
+  const cs = num(/compileSdkVersion\s*=\s*(\d+)/)
+  const ts = num(/targetSdkVersion\s*=\s*(\d+)/)
+  const bt = num(/buildToolsVersion\s*=\s*"(\d+)/)
+  if (!cs || !ts || !bt) F('G23', `SDK 配置缺项（compileSdk=${cs} targetSdk=${ts} buildTools=${bt}）`)
+  else if (ts > cs) F('G23', `targetSdk ${ts} > compileSdk ${cs}（编译期拿不到更高 API，构建会失败）`)
+  else if (bt > cs) F('G23', `buildTools ${bt} > compileSdk ${cs}（构建工具比编译 API 还新，aapt2 会报错）`)
+  else P('G23', `compileSdk ${cs} / targetSdk ${ts} / buildTools ${bt} 自洽`)
+} catch (e) { S('G23', e.message) }
+
 console.log(red ? `\n❌ 口径门禁：${red} 条不一致` : '\n✅ 口径门禁：全部一致')
 if (require.main === module) process.exit(red ? 1 : 0)
 module.exports = { main: () => red }

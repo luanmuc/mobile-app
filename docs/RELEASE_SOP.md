@@ -21,9 +21,9 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
   └─ Job lint（与 checks 并行）：全仓 ESLint 0 error / 0 warning，失败即停
   └─ Job checks（与 lint 并行）：
       ├─ TypeScript 类型检查（`tsc --noEmit` 0 error）
-      ├─ 音源标签/配置/语法/action/升级/持久化契约门禁（标签 9 + 配置 25 + 升级 12 + 音源契约 14 + 持久化 17 + 播放预算 20 + 播放所有权运行时 21 + 播放进度 4 + 发布状态 5 + 桥媒体 6 + TS 语法 528）
-      ├─ 健康诊断契约门禁（54 条 + 视图 24 条 + 日志目录 15 条）
-      ├─ 健康状态/文案/文档一致性门禁（anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 11 + download 3 + download-restore 3 + docs 18）
+      ├─ 音源标签/配置/语法/action/升级/持久化契约门禁（标签 9 + 配置 29 + 升级 12 + 音源契约 14 + 持久化 17 + 播放预算 21 + 播放所有权运行时 21 + 播放进度 4 + 发布状态 5 + 桥媒体 6 + TS 语法 529）
+      ├─ 健康诊断契约门禁（60 条 + 视图 25 条 + 日志目录 15 条）
+      ├─ 健康状态/文案/文档一致性门禁（anomaly 8 + event 10 + persistence 9 + state 7 + status 10 + ui 12 + download 3 + download-restore 3 + docs 17）
       └─ 热点行为断言（播放器/同步/文件名/错误标点）
   └─ Job Android（needs: [lint, checks]）
       ├─ Setup Env：node_modules 命中 actions/cache（key=package-lock.json+.nvmrc）时跳过 npm ci；setup-java 缓存 Gradle wrapper/依赖
@@ -49,7 +49,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 
 0. **压力测试计划**：先读 `docs/STRESS_PLAN.md`；四组命令全部 rc=0 后，才进入发布预检。
 0. **一条命令跑完（推荐）**：`npm run preflight`（App 侧，等价 release.yml 的 `lint:`+`checks:` 段，共 41 条）；双仓联调改 `npm run preflight:all`（追加源仓 `build-source` / `self-check` / `docs-audit` / `verify:bundle` / `npm test`）。**不要**只挑「相关的几条」跑——2026-11-16 那次 50 分钟推送，两个 CI 红点（脚本数 39≠40、横幅字面量）都跑在这条命令里，本地 4.6 分钟就能拦住。下面 1~N 条是逐项细则，preflight 已覆盖的部分不必重跑。
-1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（528 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
+1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（529 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
 2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。本地匿名 API 被 403 限流时，可用 `node scripts/check_source_ci_gate_offline.js` 做发布预检旁路证据（不得替代 runner 内的正式闸门）。
 3. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
 4. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮

@@ -217,6 +217,9 @@ const confirmReplaceFile = async(name: string): Promise<'replace' | 'skip'> => {
 }
 
 // 下载完成后写入音频标签（借鉴 Spotube 写元数据；失败不影响下载结果）
+// 封面下载兜底超时：超时即停掉底层任务，避免一条慢 CDN 把「已完成」拖住
+const COVER_TIMEOUT_MS = 10_000
+
 const writeAudioTagAsync = async(filePath: string, musicInfo: LX.Music.MusicInfoOnline) => {
   try {
     // 封面：下载到临时文件后随标签写入
@@ -226,15 +229,25 @@ const writeAudioTagAsync = async(filePath: string, musicInfo: LX.Music.MusicInfo
       const tmpCover = `${RNFS.TemporaryDirectoryPath}/lx-cover-${Date.now()}.jpg`
       try {
         const job = RNFS.downloadFile({ fromUrl: picUrl, toFile: tmpCover })
-        // 封面只是锦上添花：CDN 卡住会把"已完成"拖住，10s 后放弃并停掉底层任务
-        const res = await Promise.race([
-          job.promise,
-          new Promise<never>((_resolve, reject) => setTimeout(() => {
-            try { RNFS.stopDownload(job.jobId) } catch (e) {}
-            reject(new Error('cover timeout'))
-          }, 10000)),
-        ])
-        if (res.statusCode === 200 || res.statusCode === 206) coverPath = tmpCover
+        // 封面只是锦上添花：CDN 卡住会把"已完成"拖住，COVER_TIMEOUT_MS 后放弃并停掉底层任务
+        let coverTimer: ReturnType<typeof setTimeout> | undefined
+        let coverStatusCode = 0
+        try {
+          const res = await Promise.race([
+            job.promise,
+            new Promise<never>((_resolve, reject) => {
+              coverTimer = setTimeout(() => {
+                try { RNFS.stopDownload(job.jobId) } catch (e) {}
+                reject(new Error('cover timeout'))
+              }, COVER_TIMEOUT_MS)
+            }),
+          ])
+          coverStatusCode = res.statusCode
+        } finally {
+          // 封面下载胜出后清掉兜底定时器，否则到点会 reject 一个无人监听的 Promise
+          if (coverTimer != null) clearTimeout(coverTimer)
+        }
+        if (coverStatusCode === 200 || coverStatusCode === 206) coverPath = tmpCover
       } catch (e) {
         // 封面下载失败则跳过封面，只写文本标签
       }

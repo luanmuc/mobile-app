@@ -9,8 +9,8 @@
 | Node.js | 见 `.nvmrc`（18+） | 推荐 nvm 管理 |
 | npm | 随 Node | 用 `npm ci`（锁版本） |
 | JDK | 17（`microsoft` 发行版） | 与 CI 一致 |
-| Android SDK | 平台 36（compileSdk 36）、build-tools | 本地跑 debug 包需要 |
-| 真机/模拟器 | Android 5+ | 定制版 compileSdk 36 / targetSdk 29 / minSdk 21 |
+| Android SDK | 平台 35（compileSdk 35）、build-tools | 本地跑 debug 包需要 |
+| 真机/模拟器 | Android 5+ | 定制版 compileSdk 35 / targetSdk 29 / minSdk 21 |
 
 ## 二、克隆与安装
 
@@ -52,7 +52,7 @@ adb reverse tcp:8081 tcp:8081   # Metro 端口转发
 
 ## 五、语法检查（无 node_modules 也可用）
 
-全量 TS/TSX 语法检查（528 个文件），合并上游/提交前必跑：
+全量 TS/TSX 语法检查（529 个文件），合并上游/提交前必跑：
 
 ```bash
 node scripts/check_ts_syntax.js

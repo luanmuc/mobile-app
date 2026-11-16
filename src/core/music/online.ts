@@ -44,6 +44,9 @@ export const setPic = (datas: {
  */
 
 
+// 单源取链总超时（外层兜底；预算计时器须先于它触发）
+const URL_FETCH_TIMEOUT_MS = 25_000
+
 export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, onQuality = () => {}, onSource = () => {}, onFragment = () => {}, recordPlay = true }: {
   musicInfo: LX.Music.MusicInfoOnline
   quality?: LX.Quality
@@ -173,8 +176,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
     timeoutId = setTimeout(() => {
       if (!markSettled()) return
-      reject(new Error(`URL获取超时(25s): 歌=${musicInfo.name} 源=${musicInfo.source}`))
-    }, 25_000)
+      reject(new Error(`URL获取超时(${URL_FETCH_TIMEOUT_MS / 1000}s): 歌=${musicInfo.name} 源=${musicInfo.source}`))
+    }, URL_FETCH_TIMEOUT_MS)
   })
   return Promise.race([urlPromise, timeoutPromise]).catch(err => {
     // 先占位再记账：保证晚到成功在同一个 tick 内也被闸门挡住。

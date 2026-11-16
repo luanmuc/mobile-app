@@ -1,3 +1,11 @@
+## [交接单三条未修问题收口：Promise.race 定时器 / compileSdk 越界 / engines] - 2026-11-16
+
+- **N-1168 超时定时器空转（并扩大范围；危害按实测校正）**：交接单原写「未处理拒绝、可能崩溃」——实测 `Promise.race` 对两路都挂了 `then`，后到的 reject 被静默吞掉，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 实测 3s 档进程被拖到 3002ms 才退出，清理后 24ms）与超时回调副作用对已完成任务再执行一次。修复本身不变：新增 `src/core/music/timeout.ts`（`raceWithTimeout`，finally 里 clearTimeout，支持 `onTimeout` 副作用）；`version.ts`（`VERSION_CHECK_TIMEOUT_MS=30_000`）、`utils.ts`（5 处 init 竞速统一 `SOURCE_INIT_TIMEOUT_MS=15_000`）、`downloadManager.ts`（`COVER_TIMEOUT_MS` + 超时停 `stopDownload`）、`playbackBudget.ts`（预算定时器 finally 清理）、`online.ts`（`URL_FETCH_TIMEOUT_MS`）全部收口。门禁 G27 扫描发现交接单之外的 2 处（`utils.ts` 两处重复超时、`online.ts` 裸 25_000）。
+- **N-1165 compileSdk（定性：越界但实测未炸）**：官方 AGP 8.6 最高 API 35（developer.android.com 原文），而 b144 用 36 **构建成功**，说明只是越过官方支持范围、非构建阻断；`android/build.gradle` 36 → **35**，编译证据待云端 Android job，新增 **G22**（compileSdk ↔ AGP 映射，升 AGP 自动放宽）与 **G23**（compileSdk / targetSdk / buildTools 自洽）。
+- **门禁**：`check_truth_gates` G21 → **24 条**（新增 G22/G23/G27）；断言合计 531 → **534**；TS/TSX 528 → **529**（新增 timeout.ts）。
+- **实跑**：`npm run preflight` **36/36（279.6s）**；`tsc --noEmit` 0；全仓 eslint 0 error（首轮曾红：G27 的门禁自身触发 `quote-props` / `no-unreachable-loop`，已修）；`check_download_restore_runtime` 3/0、下载持久化 3/0、错误标点 7/0。
+- **一处过程事故（记录以免复踩）**：`online.ts` 顶部是 `/* export const setMusicUrl ... */` 注释块，常量初版插进注释里 → `tsc` 报 TS2304；同类脚本化插入必须检查插入点是否在注释内。
+
 ## v1.9.2-b144 发布（计划唯一性上线 + 双仓推送，2026-11-16）
 
 - **内容**：4 份计划按 b143 / 源仓 v8.16.1 重维护；`AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` 并入 `AUDIT_PLAN.md` 附录 A；新增 **G21**（`docs/` 根目录 `AUDIT_PLAN*.md` / `STRESS_PLAN*.md` 各恰 1 份）。

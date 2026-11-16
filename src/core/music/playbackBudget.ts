@@ -71,13 +71,19 @@ export const createBudgetExhaustedError = (attempts: PlaybackAttempt[]): Error =
 export const raceWithBudget = async <T>(promise: Promise<T>, budget: PlaybackBudget, attempts: PlaybackAttempt[]): Promise<T> => {
   const remaining = remainingBudgetMs(budget)
   if (remaining <= 0) return Promise.reject(createBudgetExhaustedError(attempts))
-  return await Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      const timer = setTimeout(() => { reject(createBudgetExhaustedError(attempts)) }, remaining)
-      if (typeof (timer as any).unref === 'function') (timer as any).unref()
-    }),
-  ])
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => { reject(createBudgetExhaustedError(attempts)) }, remaining)
+        if (typeof (timer as any).unref === 'function') (timer as any).unref()
+      }),
+    ])
+  } finally {
+    // 胜出方先返回时清掉预算定时器，否则到点会 reject 一个无人监听的 Promise
+    if (timer != null) clearTimeout(timer)
+  }
 }
 
 /**

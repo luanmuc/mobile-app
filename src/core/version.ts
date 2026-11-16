@@ -5,6 +5,10 @@ import { getIgnoreVersion, getIgnoreVersionFailTipTime, saveIgnoreVersion, saveI
 import { showVersionModal } from '@/navigation'
 import { Navigation } from 'react-native-navigation'
 import { toast } from '@/utils/tools'
+import { raceWithTimeout } from '@/core/music/timeout'
+
+// 检查更新的总超时：30 秒内未完成视为失败，避免网络异常时无限卡在「检查更新中」
+const VERSION_CHECK_TIMEOUT_MS = 30_000
 
 // 版本比较（支持构建序号）：如 "1.9.1" 与 "1.9.1-b8" 比较时，主版本相同则比 b 序号
 // compareVer 会把 "1.9.1-b8" 的 -b8 当作负值导致误判为更旧，这里专门处理
@@ -46,11 +50,7 @@ export const checkUpdate = async() => {
   let versionInfo: InitState['versionInfo'] = { ...versionState.versionInfo }
   try {
     // 总超时兜底：30 秒内未完成视为失败，避免网络异常时无限卡在"检查更新中"
-    const versionInfoPromise = getVersionInfo()
-    const timeoutPromise = new Promise<never>((_resolve, reject) => {
-      setTimeout(() => { reject(new Error('timeout')) }, 30000)
-    })
-    const { version, desc, history } = await Promise.race([versionInfoPromise, timeoutPromise])
+    const { version, desc, history } = await raceWithTimeout(getVersionInfo(), VERSION_CHECK_TIMEOUT_MS, { message: 'timeout' })
     versionInfo.newVersion = {
       version,
       desc,
