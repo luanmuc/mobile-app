@@ -2,7 +2,7 @@
 
 > **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
 >
-> **基线（唯一真值，2026-11-16）**：App `cd2e24a0`（v1.9.2-b146 / versionCode 305，Build `43908153668` success，5 APK，4m26s）；源仓 `ff97a10`（v8.16.1）；源仓 `c2f1ba0`（v8.16.1，`lx-source.js` 5881 行 / 307085 bytes）。
+> **基线（唯一真值，2026-11-17）**：App `51cfaf4f`（v1.9.2-b149 / versionCode 308，Build `43977912014` success，5 APK）；源仓 `d04711b`（v8.17，42 脚本 / 567 条审计断言，CI `43966054274` success）；telemetry `2cdb7f6`（公开仓，`ingest` 5/5）。
 >
 > **目标**：推送/发布前，用可重复的纯 Node/内存 FS 压力用例，证明大事件量、窗口边界、覆盖不足、隐私、日志目录、状态机、持久化、跨仓契约、**音质政策联动**下「不崩、不越界、不泄露、不把失败伪装成通过」。
 
@@ -28,8 +28,10 @@
 | S18 | 片段/下载/播放服务 | `check_source_platform_label`、`check_player_service_runtime`、`check_download_persistence`、`check_download_restore_runtime` | 9+10+3+3 | 试听标签、片段不回报成功、恢复不丢任务 | 各 0 失败 |
 | S19 | 跨仓健康态往返 | `check_cross_repo_health_roundtrip.js` | 4 | 旧版本快照按数值比较接受、白名单不放宽结构 | 4/0（需双仓） |
 | S20 | 口径门禁（含计划唯一/SDK/超时清理） | `check_truth_gates.js` | 24 | 版本/脚本数/依赖 sha/**G21**/**G22**/**G23**/**G27** | 24 门禁全一致 |
+| S21 | 真机摘要上报 | `check_health_digest.js` | 9 | 5000 事件/24h 窗口、probe 不计播放、失败明细 200 截断、20h 节流、队列 7 条 7 天、Issue 围栏格式、无硬编码凭据、三语键、**单飞锁** | 9/0 |
+| S22 | telemetry 入库契约（跨仓） | `lx-telemetry/test/ingest.test.js` | 5 | 合法入库/重复去重/围栏 JSON/非法计数字段拒收/48KB 上限 | 5/0 |
 
-**合计：14+51+25+15+10+7+12+10+9+8+29+14+17+12+21+9+10+3+3+4+24 = 307 条（其中压测口径 283 条，S20 为门禁不重复计）。**
+**合计：14+51+25+15+10+7+12+10+9+8+29+14+17+12+21+9+10+3+3+4+24+9 = 316 条（其中压测口径 292 条，S20 为门禁不重复计，S22 在 telemetry 仓）。**
 
 ## 1b. 待补套件（承接原 `STRESS_PLAN_v1.9.2-b118.md`，2026-11-15 删除前承接）
 
@@ -63,6 +65,8 @@ node scripts/check_health_anomaly_v2.js
 node scripts/check_source_config_contract.js
 node scripts/check_source_contract.js
 node scripts/check_source_health_persistence.js
+node scripts/check_health_digest.js
+node --test ../lx-telemetry/test/ingest.test.js
 # 第二梯队：音质改动压力（S16~S18）
 node scripts/check_quality_request_runtime.js
 node scripts/check_playback_budget.js
@@ -110,14 +114,16 @@ node scripts/docs-audit.js --dry-run
 |---|---|
 | S1~S13 诊断/状态/契约 | 全部 rc0（S1 14/0、S2 51/0、S3 25/0、S4 15/0、S5 10/0、S6 7/0、S7 12/0、S8 10/0、S9 9/0、S10 8/0、S11 29/0、S12 14/0、S13 17/0） |
 | S16~S20 音质/跨仓/门禁 | 全部 rc0（S16 12/0、S17 21/0、S18 25 条分项 0 失败、S19 4/0、S20 24 门禁一致） |
+| S21 真机摘要（b149） | `check_health_digest` **9/0**；telemetry `node --test` **5/5** |
+| 真机实测（24122RKC7C） | 上报 1 条：probe 24/6、play 6/6、chain 4/4；并发双击 → 两个 Issue 均自动关闭；`digests/2026-11-16.jsonl` 去重后仅 1 条 |
 | `tsc --noEmit` | 0 error |
 | `eslint .` | 0 error / 0 warning |
 | `npm run build-test` | rc0 |
-| `npm run preflight` | 36/36 绿（202s） |
+| `npm run preflight` | **36/36 绿（89.4s，b149）** |
 | `npm run preflight:all` | 41/41 绿（387.4s，含源仓 npm test 42 脚本） |
 | 云端 CI（b146 推送） | Lint 68s ∥ Checks 77s ∥ Android 3m57s → Release 25s，全程 4m26s（Android 与 lint/checks 并行） |
 | 云端 CI（b145 推送） | Checks 50s / Lint 58s / **Android 6m58s** / Release 49s，全绿（Android 绿即 compileSdk 35 的编译证据）；b144 推送为 Lint 1m16s / Checks 1m15s / Android 3m36s / Release 22s，源仓 `lx-source CI` 8m55s 绿 |
-| 三语 | 各 1009 键 |
+| 三语 | 各 **1020 键** |
 
 > 本轮完整 rc 与条数以实跑为准；历史绿不替代。
 

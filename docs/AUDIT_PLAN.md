@@ -2,12 +2,13 @@
 
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
-> **基线（唯一真值，2026-11-16）**：
-> - App：`luanmuc/mobile-app` @ `cd2e24a0`（已推送），v1.9.2-**b146** / versionCode **305**（Build #43908153668 success：Lint 68s ∥ Checks 77s ∥ **Android 3m57s** → Release 25s，全程 **4m26s**；较 b145 的 8m53s 降 50%，因 Android 不再等 lint/checks + 同分支并发取消）
-> - 源仓：`luanmuc/backend-api` @ `c2f1ba0`（已推送），v8.16.1（5881 行 / 307085 bytes）
+> **基线（唯一真值，2026-11-17）**：
+> - App：`luanmuc/mobile-app` @ `51cfaf4f`（已推送），v1.9.2-**b149** / versionCode **308**（Build [43977912014](https://github.com/luanmuc/mobile-app/actions/runs/43977912014) success；b148 单飞锁、b149 摘要区块下移均已自动出包）
+> - 源仓：`luanmuc/backend-api` @ `d04711b`（已推送），v8.17（42 脚本 / 567 条审计断言；CI [43966054274](https://github.com/luanmuc/backend-api/actions/runs/43966054274) success）
+> - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5，真机 #2 与并发 #6/#7 均实测入库并自动关闭）
 > - track-player：`88b062b`（v2 分支）
 > - 硬数字：三语各 **1020 键**、TS/TSX **531 文件**、`scripts/check_*.js` **41 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 543 条**、文档 **17 篇**
-> - 本文件对应变更：b146「本地预检提速 280s→68s/文档改动 16s + 云端 job 拓扑并行」（`cd2e24a0`）、源仓「L1.3 按变更面触发，CI 8m55→2.6m」（`ff97a10`）；b145「交接单三条收口：timeout 定时器清理 + compileSdk 回 35（CI 编译证明）+ G22/G23/G27」（`1093a91e`，分两个提交）、「源仓 engines.node」（`cae74df`）；b144「计划唯一性 + 4 份计划按 b143/v8.16.1 重维护」（`1b1bb838`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）；源仓 v8.16.1「旧版本健康快照按数值比较接受」→ App `check_cross_repo_health_roundtrip` X1~X3 4/0
+> - 本文件对应变更：b147~b149「真机摘要回传（方案 B）」+ v8.17「多样本判据/真实出链/滚动告警/真机对照」+ telemetry 仓；b146「本地预检提速 280s→68s/文档改动 16s + 云端 job 拓扑并行」（`cd2e24a0`）；b145「交接单三条收口」（`1093a91e`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）
 
 ---
 
@@ -96,6 +97,7 @@
 | 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 60/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 25/0 | ✅ |
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
+| 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 9/0；telemetry `node --test` 5/5；真机 + 并发实测 | ✅ |
 | 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
@@ -127,8 +129,9 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（529 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（531 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
+| X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；改任一侧字段即红 |
 
 **联动铁律**：音源新增 action/字段/枚举时，反查 App 的 `sourceContract.ts`、`Health.tsx`、`SYNC_POINTS.md`、`check_source_contract.js` 是否同步。这条正是本次 QP-L1 发现的教训。
 
@@ -172,6 +175,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
 | `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势弹窗 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
+| `check_health_digest` | 9 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁 |
 | `check_health_persistence_v2` | 9 | v1 拒绝 / 容量与版本边界 |
 | `check_health_anomaly_v2` | 8 | 异常分级 / 覆盖不足不宣称 |
 | `check_health_real_playback` | 10 | 真播放计数 / 多源失败证据 |
