@@ -309,9 +309,15 @@
   "play_detail_setting_lrc_offset_reset": "重置偏移",
   "play_detail_setting_playback_rate": "播放速率",
   "play_detail_setting_playback_rate_reset": "重置",
+  "play_detail_setting_playback_pitch": "音高调节",
+  "play_detail_setting_equalizer": "均衡器",
+  "play_detail_setting_equalizer_enable": "启用均衡器",
+  "play_detail_setting_equalizer_unsupported": "当前设备不支持系统均衡器",
   "play_detail_setting_show_lyric_progress_setting": "允许通过拖拽歌词调整播放进度",
   "play_detail_setting_title": "播放器设置",
   "play_detail_setting_volume": "音量大小",
+  "play_detail_setting_track_fade": "切歌淡入淡出",
+  "play_detail_setting_sleep_fade": "睡眠定时渐弱",
   "play_detail_todo_tip": "你想干嘛？不可以的，这个功能还没有实现哦😛，不过你可以试着长按来定位当前播放的歌曲（仅对播放「我的列表」里的歌曲有效哦）",
   "play_later": "稍后播放",
   "play_list_empty": "暂无播放列表",
@@ -1019,5 +1025,8 @@
   "setting_play_count_summary": "听歌统计：累计播放 {count} 次 · 今日 {day} 次 · 累计播放时长约 {time}",
   "setting_play_count_time_hm": "{h} 小时 {m} 分钟",
   "setting_play_count_time_m": "{m} 分钟",
-  "setting_source_auto_update": "音源自动更新（仅采用验签通过的版本）"
+    "setting_source_auto_update": "音源在线更新（仅采用验签通过的版本）",
+  "source_update_panel_current": "当前音源 v{version}",
+  "source_update_panel_last_check": "上次检查 {time}",
+  "source_update_panel_never": "上次检查：从未"
 }

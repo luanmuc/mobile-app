@@ -9,7 +9,7 @@
 | K2 | **进度条默认不可拖**（定制默认值） | 与部分用户习惯不一致 | `config/defaultSetting.ts` | ✅ 默认设计（用户可在设置中开启） |
 | K3 | **flac24bit 默认优先**，但多数音源不支持该音质，依赖降级链；自定义源此前还会被内置搜索 `_qualitys` 误裁成 128k | 高音质偏好用户实际拿到 flac/320k | `config/defaultSetting.ts` + `core/music/utils.ts` + 音质链 | ✅ 已修请求档（`getAvailableQualitys` 对自定义源只按 `qualityList`；设置页无源支持 flac24bit 时隐藏该档）；仍受源实际能力限制 |
 | K4 | **与上游 lyswhut 分叉**（fork 点 `fb848072`；已合并至 v1.9.2），v1.9.2 之后的新功能/修复未跟踪 | 原版后续改进缺失 | 全仓库 | 🟡 已合并 v1.9.2（v1.9.2-b1），后续差异由 [UPSTREAM_LIFECYCLE.md](./UPSTREAM_LIFECYCLE.md) 管理 |
-| K5 | **track-player fork 定制依赖**：通知栏按钮等改动基于 `luanmuc/react-native-track-player` 的 commit `a0b2a87`（沿 `5bff17b`→`eceacb5` 累积；`eceacb5` 仅追加 `quality`/`subSource` 两个可选类型字段、无运行时改动；`a0b2a87` 为 2026-11-07 全覆盖审计后的修复：焦点续播不再覆盖用户主动暂停、点通知 PendingIntent 补 `FLAG_IMMUTABLE`、`MusicService` 加 signature 级权限、定制注释补齐；当前定制：艺术家行音源/音质拼接、播放模式按钮、音频焦点三开关 + 幂等/音量还原、通知栏状态判空；随 b69/b70 合入） | 上游升级需重新应用定制补丁，升级阻塞 | `package.json` + 原生层 | 🟡 观察中（每次升上游都要重放补丁，见 UPSTREAM_LIFECYCLE） |
+| K5 | **track-player fork 定制依赖**：通知栏按钮等改动基于 `luanmuc/react-native-track-player` 的 commit `b9ecdab2`（沿 `5bff17b`→`eceacb5` 累积；`eceacb5` 仅追加 `quality`/`subSource` 两个可选类型字段、无运行时改动；`a0b2a87` 为 2026-11-07 全覆盖审计后的修复：焦点续播不再覆盖用户主动暂停、点通知 PendingIntent 补 `FLAG_IMMUTABLE`、`MusicService` 加 signature 级权限、定制注释补齐；当前定制：艺术家行音源/音质拼接、播放模式按钮、音频焦点三开关 + 幂等/音量还原、通知栏状态判空；随 b69/b70 合入） | 上游升级需重新应用定制补丁，升级阻塞 | `package.json` + 原生层 | 🟡 观察中（每次升上游都要重放补丁，见 UPSTREAM_LIFECYCLE） |
 | K6 | **内置音源由构建生成**：本仓库不内置 `assets/builtin_source.js` 静态副本（b74 起移除），每次构建 CI 从音源仓库 master 拉取最新生成；本地改同名文件会被覆盖 | 本地调试需手动放置最新脚本 | `assets/builtin_source.js`（构建生成） | ✅ 设计如此（音源唯一权威 = `luanmuc/backend-api`，见 [MUSIC_SOURCE_GUIDE.md](./MUSIC_SOURCE_GUIDE.md)） |
 | K7 | **音源依赖第三方接口**：部分平台接口不稳/IP 封禁（酷我 CDN 系、溯音咪咕） | 个别平台播放失败 | 音源仓库 `lx-source.js` | 🟡 跟踪中（音源仓库缺陷表 D 系列 + 健康探测自愈；mg 真源恢复已判否（音源 v7.0 系列实证），走跨平台兜底） |
 | K8 | **公共目录写入依赖"所有文件访问"授权**：各 ROM 判定口径不一（部分设备授权后仍判定失败） | 日志/下载公共目录不可写 | `utils/log.ts` + 下载权限矩阵 | ✅ b71 双通道根治：公共目录可用→写公共；不可用→自动降级应用私有目录（日志永不丢弃）；下载仍需公共目录时保留引导弹窗（见 [DOWNLOAD_DESIGN.md](./DOWNLOAD_DESIGN.md) 第六节） |
@@ -30,6 +30,7 @@
 | K23 | **通知栏「词」按钮状态不同步**：启动期播放器未就绪时同步会被守卫拦掉，之后没人再补 | 桌面歌词开着，通知栏「词」按钮仍是灰色，与实际状态不符 | `core/desktopLyric.ts` + `core/player/player.ts` | ✅ b70 修复（`playerInitial` 成功后补 `syncLyricButtonByState()`） |
 | K24 | **下载类 5 个设置项无界面入口**：`download.onlyWifi` / `maxTask` / `autoRetry` / `dir` / `fileName` 在设置页没有对应开关 | 能力存在但用户无法配置（仅默认值生效） | `screens/Home/Views/Download/Settings.tsx`（b71） | ✅ b71 解决（全部并入下载页折叠卡，不新增分组） |
 | K25 | **`migrateDownloadDir()` 静默失效**：引用了未导入的 `checkStoragePermissions`（运行时 ReferenceError 被外层 catch 吞掉），且更新记录时读顶层 `filePath`（实际在 `metadata.filePath`） | b64 的目录迁移在任何设备上都没执行过，老用户文件仍留在 `Download/lx-music` 根目录 | `src/core/downloadManager.ts` | ✅ 已修（补 import + 修正字段路径；b73 出包，b74–b78 已随多轮发布） |
+| K26 | **JS 侧渐变做不到 60fps**：每次 `TrackPlayer.setVolume` 都是异步跨 bridge 调用，300ms 只能压到 5 帧（60ms/帧） | 淡入淡出听感是阶梯下降而非丝滑；极端弱机可能更粗 | `src/core/player/volumeFade.ts` + `volumeFadeCurve.ts`（`FADE_STEP_MS`） | ✅ 设计取舍（要真平滑必须走原生 AudioProcessor，见 MERGE_GUIDE 高冲突区） |
 
 ## 维护规则
 

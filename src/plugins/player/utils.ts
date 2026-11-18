@@ -1,4 +1,6 @@
 import TrackPlayer, { Capability, Event, RepeatMode, State } from 'react-native-track-player'
+import { normalizePitch } from '@/core/player/pitch'
+import { cancelVolumeFade } from '@/core/player/volumeFade'
 import BackgroundTimer from 'react-native-background-timer'
 import { playMusic as handlePlayMusic } from './playList'
 import { existsFile, moveFile, privateStorageDirectoryPath, temporaryDirectoryPath } from '@/utils/fs'
@@ -175,8 +177,32 @@ export const setLoop = async(loop: boolean) => {
 export const setPause = async() => { if (!isReady()) return; await TrackPlayer.pause() }
 // export const skipToNext = () => TrackPlayer.skipToNext()
 export const setCurrentTime = async(time: number) => { if (!isReady()) return; await TrackPlayer.seekTo(time) }
-export const setVolume = async(num: number) => { if (!isReady()) return; await TrackPlayer.setVolume(num) }
+export const setVolume = async(num: number) => {
+  if (!isReady()) return
+  // 用户手动改音量优先：先作废任何进行中的渐变，否则渐变会在下一帧把用户的值覆盖回去
+  cancelVolumeFade()
+  await TrackPlayer.setVolume(num)
+}
 export const setPlaybackRate = async(num: number) => { if (!isReady()) return; await TrackPlayer.setRate(num) }
+/**
+ * 音高：与 setPlaybackRate 是 ExoPlayer PlaybackParameters 的两个独立维度。
+ * 内核侧 setPitch 会沿用当前 speed，setRate 会沿用当前 pitch，互不覆盖。
+ */
+export const getAudioSessionId = async(): Promise<number> => {
+  if (!isReady()) return 0
+  // 与 setPitch 同理：旧 sha 没有这个桥方法，守卫后返回 0（均衡器会静默跳过）
+  const player = TrackPlayer as unknown as { getAudioSessionId?: () => Promise<number> }
+  if (typeof player.getAudioSessionId != 'function') return 0
+  return player.getAudioSessionId()
+}
+export const setPlaybackPitch = async(num: number) => {
+  if (!isReady()) return
+  // setPitch 是 rntp fork 新增的桥方法（上游 npm 包 2.1.2 没有）。
+  // 这里做存在性守卫：旧包直接跳过（音高面板变成无效控件但不崩），装上新 fork 后自动生效。
+  const player = TrackPlayer as unknown as { setPitch?: (pitch: number) => Promise<void> }
+  if (typeof player.setPitch != 'function') return
+  await player.setPitch(normalizePitch(num))
+}
 export interface NowPlayingTitles {
   title?: string
   artist?: string

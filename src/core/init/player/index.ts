@@ -6,6 +6,7 @@ import initWatchList from './watchList'
 import initPlayProgress from './playProgress'
 import initPreloadNextMusic from './preloadNextMusic'
 import initLyric from './lyric'
+import initEqualizer from './equalizer'
 import { initPlayCount } from '@/core/player/playCount'
 
 export default async(setting: LX.AppSetting) => {
@@ -15,6 +16,7 @@ export default async(setting: LX.AppSetting) => {
   initPlayStatus()
   initPlayerEvent()
   initWatchList()
+  initEqualizer()
   initPlayProgress()
   initPreloadNextMusic()
   void initPlayCount()

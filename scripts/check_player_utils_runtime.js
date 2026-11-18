@@ -28,6 +28,14 @@ const loadTs = (rel, stubs) => {
   const mod = { exports: {} }
   const localRequire = (id) => {
     if (id in stubs) return stubs[id]
+    if (id.startsWith('@/')) {
+      // '@' 别名指向 src；门禁加载器原来只认相对路径，新模块用别名导入会 Cannot find module
+      const target = path.join(ROOT, 'src', id.slice(2))
+      if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)
+      if (fs.existsSync(target + '.js')) return require(target + '.js')
+      const idx = path.join(target, 'index.ts')
+      if (fs.existsSync(idx)) return loadTs(path.relative(ROOT, idx), stubs)
+    }
     if (id.startsWith('./') || id.startsWith('../')) {
       const target = path.resolve(path.dirname(file), id)
       if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)

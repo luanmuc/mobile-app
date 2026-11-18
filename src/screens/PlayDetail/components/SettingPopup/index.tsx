@@ -5,7 +5,10 @@ import { useI18n } from '@/lang'
 
 import SettingLyricProgress from './settings/SettingLyricProgress'
 import SettingVolume from './settings/SettingVolume'
+import SettingTrackFade from './settings/SettingTrackFade'
 import SettingPlaybackRate from './settings/SettingPlaybackRate'
+import SettingPlaybackPitch from './settings/SettingPlaybackPitch'
+import SettingEqualizer from './settings/SettingEqualizer'
 import SettingLrcFontSize from './settings/SettingLrcFontSize'
 import SettingLrcAlign from './settings/SettingLrcAlign'
 
@@ -44,7 +47,10 @@ export default forwardRef<SettingPopupType, SettingPopupProps>(({ direction, ...
             <View onStartShouldSetResponder={() => true}>
               <SettingLyricProgress />
               <SettingVolume />
+              <SettingTrackFade />
               <SettingPlaybackRate />
+              <SettingPlaybackPitch />
+              <SettingEqualizer />
               <SettingLrcFontSize direction={direction} />
               <SettingLrcAlign />
             </View>

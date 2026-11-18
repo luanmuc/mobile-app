@@ -26,7 +26,7 @@ git add .
 git commit -m "merge: 合并上游更新"
 
 # 4. 全量语法检查
-# 537 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
+# 546 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
 
 # 5. 推送触发云编译
 git push origin master
@@ -46,6 +46,7 @@ git push origin master
 | `src/app.ts` | 启动权限分版本引导 | 以本仓库为准 |
 | `src/utils/tools.ts` | 权限返回值语义（GRANTED→true / NEVER_ASK_AGAIN→null / 其他→false） | 以本仓库为准 |
 | `src/config/constant.ts` | FileProvider authority、底部菜单含下载页、默认首页排行榜 | 以本仓库为准 |
+| `src/core/player/volumeFade.ts` | 本仓库新建的单例音量渐变（切歌/睡眠）；与上游任何「自己改写 player.volume」的功能天然互斥 | 以本仓库为准；上游若引入独立 AudioProcessor 音量线（如 SimpMusic 的 SleepFadeAudioProcessor），评估是否替换本实现 |
 | `src/config/defaultSetting.ts` | 定制默认值 + 设置迁移版本号 | 以本仓库为准 |
 | `src/config/migrateSetting.ts` | 设置迁移块（v1→v2 结构迁移） | 以本仓库为准 |
 | `src/screens/PlayDetail/components/PlayListModal.tsx` | 本仓库新建（播放列表弹窗） | 以本仓库为准 |
@@ -63,7 +64,8 @@ git push origin master
 
 | 文件 | 为什么容易冲突 | 标准解法 |
 |---|---|---|
-| `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` | 上游经常加新翻译键，我们也加了定制键（nav_download 等） | 两边都保留：上游新增的键全合入，定制的键保留，最后检查键数一致（三语言当前 1004 键；其中 `dl_*` 前缀 102 键是定制下载页专用（含状态与失败原因键），上游不会有） |
+| `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` | 上游经常加新翻译键，我们也加了定制键（nav_download 等） | 两边都保留：上游新增的键全合入，定制的键保留，最后检查键数一致（三语言当前 1030 键；其中 `dl_*` 前缀 102 键是定制下载页专用（含状态与失败原因键），上游不会有） |
+| `src/core/player/volumeFade.ts` | 上游若有「交叉淡化/睡眠渐弱」会自己改写 `player.volume`（SimpMusic 注释原话：共用这条线要么被覆盖、要么折进每次写入） | 我们的渐变换音量必须先 `cancelVolumeFade()`；上游引入独立 AudioProcessor 音量线时才可并行 |
 | `src/config/defaultSetting.ts` | 上游改默认值，我们也改默认值（音质 flac24bit、歌词默认开等） | 以我们的定制默认值为准，上游新默认值人工评估是否合入（注意走设置迁移规则） |
 | `src/screens/Home/Views/Setting/settings/Health.tsx` | 我们新建的健康面板（v4.0），上游可能动了设置页结构 | 以我们为准；上游改了设置页布局的话，手动把健康面板挪到对应位置 |
 | `src/core/player/player.ts` | 上游改播放器核心逻辑，我们加了下载列表播放适配、`playerInitial` 后的通知栏模式 / 「词」按钮状态补同步 | 以原版逻辑为准，我们的适配与两处补同步手动补回去 |
@@ -79,7 +81,7 @@ git push origin master
 
 ## 合并后必查清单
 
-1. 全量语法检查 0 错误（537 个 TS/TSX）
+1. 全量语法检查 0 错误（546 个 TS/TSX）
 2. `APP_PROVIDER_NAME`（constant.ts）与 AndroidManifest 的 `${applicationId}.provider`、原生 shareFile/openFile 传参一致
 3. 内置音源兜底逻辑仍在（`has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id` / `pending_builtin_source_id` 四键 + `decideBuiltinSourceImport` 只升不降 + `decidePendingBuiltinSwitch` 切源失败对账）
 4. 权限三分支（<30 / 30-32 / >=33）未被上游覆盖
@@ -95,6 +97,14 @@ git push origin master
 
 ---
 
+## 设置项位置变更记录（只在 UI 挪位置、不改默认值时记这里）
+
+这类改动**不需要**走下面的版本迁移：键名和默认值都没变，老用户的值照常生效，只是入口换了地方。记下来是为了让后来的人（和用户答疑）知道「某个开关为什么找不到了」。
+
+| 时间 | 版本 | 设置项 | 原位置 | 现位置 | 备注 |
+|---|---|---|---|---|---|
+| 2026-11-18 | b157 | 音源在线更新 | 基础设置 | 音源管理页 | 与音源相关开关归口到一处；页内附 V9 状态行 |
+
 ## 设置迁移规则（改默认值时必读）
 
 **问题**：改了 `defaultSetting.ts` 的默认值后，老用户本地存的旧设置会覆盖新默认值，导致新功能不生效，必须清数据才行。
@@ -102,10 +112,10 @@ git push origin master
 **正确流程**（每次改默认值都要做）：
 
 1. 改 `src/config/defaultSetting.ts` 里的默认值
-2. 把 `defaultSetting.version` 往上加一位（**当前是 `2.3`**，下次改默认值 → `2.4`）
+2. 把 `defaultSetting.version` 往上加一位（**当前是 `2.4`**，下次改默认值 → `2.5`）
 3. 在 `src/config/setting.ts` 的 `initSetting` 里加版本迁移块（`src/config/migrateSetting.ts` 只做 v1→v2 大版本结构迁移，2.x 的迁移统一放 setting.ts）：
    ```ts
-   if (compareVer(setting.version as string, '2.3') < 0) {
+   if (compareVer(setting.version as string, '2.4') < 0) {
      setting['xxx.newSetting'] = true  // 强制覆盖老用户的旧值
    }
    ```

@@ -1,3 +1,108 @@
+## [b161 · 均衡器（P2）] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b161**、versionCode **320**。范围：一个原生模块 + 内核加一个桥方法。
+
+- **新增设置 `player.equalizer.enable`（默认关）/ `player.equalizer.bands`（默认 `"0,0,0,0,0"`）**
+  - 5 段滑块（近似中心频率 60 / 240 / 950 / 3.8k / 15k Hz），范围 **±1500 毫贝（±15dB）**，步进 50 mB；拖动实时试听、松手才落盘。
+  - 面板在播放详情设置弹窗；设备不支持时显示「不支持」提示并把开关置灰（不隐藏，避免用户以为功能丢了）。
+- **原生模块 `cn.toside.music.mobile.equalizer`**
+  - `EqualizerModule`：`bind(sessionId)` / `getInfo` / `applyBands(csv)` / `setEnabled` / `release`。
+  - **sessionId 为 0 一律拒绝**（ExoPlayer 未起播时是 0，用 0 建 `android.media.audiofx.Equalizer` 会抛异常）。
+  - **同会话复用、换会话重建**（换输出设备/重建播放器会换会话，旧 effect 挂在死会话上不生效）。
+  - 每个方法 `try/catch` 后 `resolve(false)`：部分 ROM 直接抛 `UnsupportedOperationException`，不能让 JS 崩。
+  - `EqualizerPackage` 注册进 `MainApplication`（与 cache/crypto/lyric/userApi/utils 同一处）。
+- **内核：`getAudioSessionId` 桥方法（fork `12049cd`）**
+  - media3 的 `Player` 接口**没有** `getAudioSessionId()`，只有 `ExoPlayer` 有 → `instanceof` 判断后调用，未建会话返回 `C.AUDIO_SESSION_ID_UNSET`。
+- **控制器 `src/core/player/equalizer.ts`**
+  - 开关关闭 → 只 `setEnabled(false)`，**不 release**（重开能立刻生效，省一次会话绑定）。
+  - `sessionId <= 0` 早退（未起播不建 effect）。
+  - **`gate.applying` 串行化闸**：`applyEqualizer` 里有多个 await，两次并发会各自读旧 `boundSessionId` 重复 bind；后者直接跳过是安全的（先到的已按同一份设置应用过）。
+  - 起播时应用在 `handlePlay` 里（必须等播放器起来才有有效 sessionId）；设置变化靠 `configUpdated` 订阅实时落。
+- **门禁 `scripts/check_equalizer.js`：58 条断言**（静态 44 + 数值 14），进 release.yml → preflight **43 → 44 步**。
+  - **变异测试 8/8 捕获**：删 `sessionId=0` 拒绝 / release 不清 `boundSessionId` / 非法项不再归零 / 删包注册 / 删未起播早退 / 开关永真 / 删上夹 / 删起播应用。
+  - 过程中门禁自己被抓到一次：把 `applyEqualizer` 拆成外壳+实现后，旧断言正则只匹配外壳 → 「开关关闭不做绑定」假通过。已改成盯实现体，并补一条「串行化闸存在」的断言。
+- **P2 阻塞的解法（真实编译验证，不是"看着像对"）**
+  - 云主机无 Android SDK → 用腾讯镜像手动拉 `platform-35_r02.zip`（62MB / 2.4s）拿到 `android.jar`，从 maven 镜像拉 `react-android-0.73.11-release.aar` 与 media3 1.8.0 全套。
+  - **均衡器模块 javac 真编译 RC=0**（classpath = android.jar 35 + react-android classes.jar），产出 `EqualizerModule.class` / `EqualizerPackage.class`。
+  - **rntp 新增方法用 API 契约探针 javac RC=0**：逐字复刻 `getAudioSessionId` / `setPitch` / `getPitch` / `setRate` 的方法体，在真实 media3 1.8.0 上编译通过（`instanceof ExoPlayer`、`PlaybackParameters(speed, pitch)` 全部成立）。
+  - 全仓 gradle 编译仍不可行：`R.java` 需 aapt 生成，缺完整构建链。这一点诚实记录，不冒充「已编译全仓」。
+- **硬数字回填**：三语各 **1030 键**、TS/TSX **546 文件**、`check_*.js` **49 个**、断言合计 **734 条**。
+- **待真机**：开启后 5 段拖动听感变化明显；切歌/换耳机后仍生效（会话重建）；关掉后完全恢复原声；不支持设备上不出现崩溃。
+
+## [b160 · 音高调节（P1）] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b160**、versionCode **319**。范围：rntp 内核加一个桥方法 + App 侧一个面板。
+
+- **新增设置 `player.playbackPitch`（默认 1.00，即原调）**
+  - 面板在播放详情设置弹窗里，滑块 **50% ~ 200%**（0.5 ~ 2.0），与播放速率面板手感一致（整数百分比、可拖、带回弹重置）。
+  - 拖动过程中即刻生效（试听），松手才落盘。
+- **内核：`PlaybackParameters` 是 speed + pitch 两个维度，必须互不覆盖**
+  - `ExoPlayback.setPitch(float)` 沿用当前 speed；`ExoPlayback.setRate(float)` 沿用当前 pitch（原有实现已正确，补注释固定契约）。
+  - `MusicModule` 暴露 `setPitch` / `getPitch`，走 `waitForConnection`。
+  - JS 层 `setPitch` / `getPitch` 与 `setRate` 同构。
+  - fork 提交 **`536521c`**（未推送）。App 依赖当前仍锁 `b9ecdab2`。
+- **旧 sha 优雅降级（关键）**
+  - App 侧 `setPlaybackPitch` 对 `setPitch` 做**存在性守卫**：装的是旧 sha（npm 2.1.2 或 `b9ecdab2`）时直接 return，音高面板表现为无效控件但**不会崩**。
+  - 依赖锁到 `536521c` 之后自动生效，无需再改 JS。
+- **门禁 `scripts/check_pitch.js`：39 条断言**（静态 25 + 数值 14），已作为独立 step 进 release.yml → preflight **42 → 43 步**。
+  - 跨仓断言只在能读到 `../rntp` 时执行；CI 只含 App 仓时显式标 SKIP 并计数，不伪装成通过。
+  - 数值层编译 `src/core/player/pitch.ts` 后实跑：夹取、NaN/undefined/null/脏字符串回落 1、负数夹到 0.5、结果恒落在 [0.5, 2]。
+  - **变异测试 6/6 捕获**：setPitch 不保留 speed / setRate 把 pitch 重置 1 / 去掉 normalizePitch / 去掉存在性守卫 / NaN 回落改 0 / 默认值改 0.5。
+- **顺带修**：`package-lock.json` 里 rntp 的 `resolved` 从 `git+ssh://` 改为 `git+https://`（4 处）—— 云构建环境没有 GitHub SSH key，`npm ci` 会直接失败；公开仓库走 https 无需认证。
+- **硬数字回填**：三语各 **1027 键**、TS/TSX **541 文件**、`check_*.js` **48 个**、断言合计 **676 条**。
+- **待办**：rntp `536521c` 推送 + App 依赖升到该 sha 后，音高才真正出声；真机需验"拖到 50%/200% 音高变化明显、切歌后保持、与速率同时设置互不覆盖"。
+
+## [b159 · 切歌淡入淡出 + 睡眠定时渐弱] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b159**、versionCode **318**。范围：纯 JS，不动原生、不动 rntp（依赖仍锁 `b9ecdab2`）。
+
+- **新增两个开关（默认都关）**
+  - `player.fadeOnTrackChange` 切歌淡入淡出：`playNext` / `playPrev` 先淡出到 0 → 切换 → 淡入回设置音量。
+  - `player.fadeOnSleepTimeout` 睡眠定时渐弱：到点前 `fadeDurationMs` 开始降音量，到点时音量已归 0。
+  - `player.fadeDurationMs` 时长档位 **150 / 300 / 500**，非法值回落到 300。
+  - 两个开关都关时，音量链路与改动前**完全一致**（`getFadeMs()` 返回 0，所有包装函数直接透传）。
+- **只做切歌与恢复播放，不做暂停淡出**：淡出到 0 需要 150–300ms，按暂停会感觉"停得慢半拍"。这是对交接文档的收敛，理由写在 `PLAN-P0-volume-fade.md`。
+- **睡眠渐弱只在"到点会直接退出"时触发**：`timeoutExitPlayed && 正在播` 的语义是"播完这曲再退"，把音量压到 0 会让剩下的播放变成静音，所以该分支不渐弱。
+- **共用音量线的冲突（继承自上游的已知坑）**：SimpMusic 在 `SleepFadeAudioProcessor.kt` 类注释里写明"交叉淡化自己拥有 `player.volume` 并在每次过渡改写五十次，任何共用这条线的功能要么被覆盖、要么必须折进每次写入"。我们没有第二条音频管线，因此用**单例渐变 + 用户操作优先作废**等效规避：`utils.setVolume` 先 `cancelVolumeFade()` 再写原生。
+- **实现结构**
+  - `src/core/player/volumeFadeCurve.ts`：零依赖纯函数（线性插值 + 帧序列 + 档位收敛），可被 Node 单独编译断言。
+  - `src/core/player/volumeFade.ts`：单例控制器，`generation` 作废旧链、`pendingResolve` 放掉悬挂 Promise、切歌失败用 `try/finally` 兜底淡入。
+  - `src/screens/PlayDetail/components/SettingPopup/settings/SettingTrackFade.tsx`：播放详情设置弹窗内两个开关 + 三个时长档位。
+  - 步进 **60ms**（JS→原生每次 `setVolume` 是异步跨 bridge 调用，做不到 60fps；300ms = 5 帧）。
+- **门禁**
+  - 新增 `scripts/check_volume_fade.js`：**40 条断言**（静态 21 条 + 数值 19 条），已作为独立 step 进入 release.yml checks job，因此自动进入 `preflight`。
+  - 数值层用 `tsc` 单独编译纯函数后跑断言：单调、末帧精确等于目标、帧数 = ceil(ms/60)、`ms=0` 立即到位、非法时长回落、字符串 `"300"` 被接受。
+  - **变异测试 4/4 捕获**：删用户入口 cancel / 改 at-total 插值 / 去掉切歌兜底淡入 / 开关失效（永真），四种改坏都会让门禁转红。
+- **顺带修门禁基础设施**
+  - `check_player_utils_runtime.js` / `check_player_core_runtime.js` 的加载器补 `@/` 别名解析（原来只认相对路径，新模块用别名导入会 `Cannot find module`）。
+  - `check_player_core_runtime.js` 补 `react-native-track-player` stub（`player.ts` 经 `volumeFade` 间接 import 了原生桥，Node 里无法加载真实 RN 包）。
+- **硬数字回填**：三语各 **1026 键**、TS/TSX **539 文件**、`check_*.js` **47 个**、断言合计 **637 条**。
+- **仍需真机**：开启后切歌"淡出→切换→淡入"无爆音；睡眠定时最后几秒渐弱后自然停；关掉开关时听感与 b158 完全一致。
+
+## [b158 · 音频焦点恢复改状态机 AudioFocusPolicy] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b158**、versionCode **317**。fork 依赖升到 **`b9ecdab2`**。
+
+- **起因**：真机前的深度审查发现「自动续播」只在理想路径可靠，交叉态下会 ①该续播不续播、②不该续播却续播、③音量被旧值覆盖、④挂断从扬声器外放。根因是把「打断前是什么样」压在一个布尔 `wasPlayingBeforeTransientLoss` 上，表达不了缓冲中、连续两次打断、用户干预、鸭子期间改音量这些组合。
+- **解法（B 方案）**：新增 `service/focus/AudioFocusPolicy.java`——**零 Android 依赖**的纯逻辑类，输入「事件 + 播放器快照」，输出**动作列表**；`MusicManager` 退化为「采集 → 决策 → 执行」，不再自己判断要不要续播。焦点恢复从此可以在 JVM 上穷举验证，不依赖真机复现。
+- **修掉的 6 条**：R1 `onPlay` 不再「焦点申请失败也照播」（`requestAudioFocus` 返回 boolean，失败即暂停+告警）；R2 续播欠账改**累积**（连续两次打断不再丢）；R3「意图在播」含 `BUFFERING/CONNECTING` 与 `playWhenReady`（缓冲中被打断也能续播）；R4 永久丢失改**先 PAUSE 再 ABANDON**；R5 `destroy()` 补释放焦点与状态复位（原实现整段是注释掉的）；R6 用户改音量走 `setUserVolume()`，GAIN 不再用鸭子前的旧值覆盖。
+- **顺带两条策略级修正**：`CAN_DUCK` 只在**真正在播**时才改音量（暂停态收到 CAN_DUCK 不再把音量改成 20% 卡住）；鸭子目标改**比例**（`音量×0.25`）而不是绝对 `0.2`，用户音量 60% 与 100% 的降幅体感一致。
+- **耳机保护**：`onPause()` 不再注销 `ACTION_AUDIO_BECOMING_NOISY` 广播（注销统一放 `onStop`/`destroy`），否则通话中拔耳机没人拦，挂断后的自动续播会从扬声器外放。
+- **门禁**：fork 侧新增 `scripts/check_audio_focus_policy.js`（javac 编译策略 + 场景 runner，**28 条断言**，覆盖主路径、R1~R6、连续打断、鸭子中被打断、拔线、销毁复位、两个子开关），已接入 `npm run check`；静态断言禁止策略类引入 `android.*` 与裸数字状态比较。
+- **验证**：fork 侧 `npm run check` 全绿（truth gates 4 条 + java 语法 18 文件 0 错 + 28 断言）；App 侧 `check_truth_gates` 全绿。
+- **仍需真机**：来电挂断、缓冲中来电、通话中拔耳机、挂断后 500ms 内点暂停、连续两次打断，五条清单留待出包验证。
+
+## [b157 · 音源在线更新开关迁到音源管理页 + V9 状态行] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b157**。音源侧对应 **v9.1.1**（本地已修，未推送）。
+
+- **开关可见性**：`common.sourceAutoUpdate` 原本挂在「设置 → 基础」分组中段（调试日志之后），要先进二级页再往下滚才看得到，真机反馈是「根本没发现有开关」。现整块迁到**音源管理页**（侧栏 `nav_source`，`settings/CustomSource.tsx` → `settings/Basic/Source.tsx`），与「更新音源」按钮同处——「开关在哪」和「手动更新在哪」一次解决。
+- **措辞对齐 V9**：`setting_source_auto_update` 由「音源自动更新（仅采用验签通过的版本）」改为「音源在线更新（仅采用验签通过的版本）」，三语同步。
+- **V9 状态行（新增）**：音源管理页显示「当前音源 v{version} · 上次检查 {time}／从未」。版本取自当前启用脚本的 `@version`（`getUserApiScript` → `parseSourceVersion`），时间写在新配置键 `common.sourceUpdateLastCheckAt`（默认 `0`，只在手动「更新音源」时写入，自动更新不冒充检查记录）。
+- **清理**：删除孤儿组件 `IsSourceAutoUpdate.tsx`（迁走后无任何引用）；「基础」分组不再保留重复入口。
+- **口径**：三语各 **1024 键**（1021→1024）、TS/TSX **536** 文件（迁走并删 1 个）；`preflight --fast` **41 通过 / 0 失败**、`tsc --noEmit` 0 error、`check_truth_gates` 全绿。
+- **判据类改动仍不做开关**：缓存可用性判据、取链可用判据、探针传参修复都是「判错了」的纠正，不是用户可选项；做成开关会让用户不知道该不该开、异常也无法归因。
+
 ## [b155 · 三待修项：缓存可用性判据 + 日志脱敏] - 2026-11-18
 
 > 本版底座 **1.9.2**、构建 **b155**、versionCode **314**。音源侧对应 **v9.1.0**。

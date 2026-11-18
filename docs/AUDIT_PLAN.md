@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1021 键**、TS/TSX **537 文件**、`scripts/check_*.js` **46 个**、**check 断言合计 597 条**、文档 **16 篇**（另 `archive/` 2 篇）
+> - 硬数字：三语各 **1030 键**、TS/TSX **546 文件**、`scripts/check_*.js` **49 个**、**check 断言合计 734 条**、文档 **16 篇**（另 `archive/` 2 篇）
 > - **v9 新增审计面**：`src/core/sourceUpdate/{verify,plan,fetcher,apply}.ts` 四件套 + `check_source_signing`(6) / `check_source_update_fetch`(9) / `check_source_update_apply`(12) 三脚本已接入 `release.yml` checks；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 在线自动更新（默认关）+ 版本区间语义」；升版前修掉 `plan.ts` 绝对 minor 下限（否则 9.x 会被判不兼容、在线更新整体失效）
 
@@ -49,7 +49,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1021 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1030 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -110,8 +110,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1021 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **46 个**（`npm run preflight` 一键跑完 CI 同判据） | 46 脚本 rc0 / 新门禁自带负向自检 | ✅ |
+| 三语国际化（1030 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **49 个**（`npm run preflight` 一键跑完 CI 同判据） | 49 脚本 rc0 / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -130,7 +130,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（537 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（546 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 | X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；改任一侧字段即红 |
 
@@ -162,11 +162,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（46 个 `check_*.js`）
+### 6b. 全量脚本台账（49 个 `check_*.js`）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 537 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 546 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -311,7 +311,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView`；finding/reason 走本地化 | H14/H18/H19/H27/H29 + 视图 25 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1021 键 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1030 键 |
 | `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ### 3. 断言矩阵（51 条）

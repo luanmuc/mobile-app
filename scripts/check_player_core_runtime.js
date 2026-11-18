@@ -28,6 +28,14 @@ const loadTs = (rel, stubs) => {
   const mod = { exports: {} }
   const localRequire = (id) => {
     if (id in stubs) return stubs[id]
+    if (id.startsWith('@/')) {
+      // '@' 别名指向 src；门禁加载器原来只认相对路径，新模块用别名导入会 Cannot find module
+      const target = path.join(ROOT, 'src', id.slice(2))
+      if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)
+      if (fs.existsSync(target + '.js')) return require(target + '.js')
+      const idx = path.join(target, 'index.ts')
+      if (fs.existsSync(idx)) return loadTs(path.relative(ROOT, idx), stubs)
+    }
     if (id.startsWith('./') || id.startsWith('../')) {
       const target = path.resolve(path.dirname(file), id)
       if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)
@@ -137,6 +145,20 @@ const setup = (over = {}) => {
     '@/core/desktopLyric': { syncLyricButtonByState: () => {} },
     '@/core/player/playStatus': { setStatusText: () => {} },
     './utils': { filterList: over.filterList || (async({ list, playerIndex }) => ({ filteredList: list, playerIndex })) },
+    // player.ts 经 volumeFade 间接 import 了原生桥；Node 里无法加载真实 RN 包（ESM + 原生绑定）
+    'react-native-track-player': {
+      __esModule: true,
+      default: { setVolume: async() => {}, play: async() => {}, pause: async() => {} },
+    },
+    // player.ts 经 equalizer 控制器间接 import 原生均衡器桥；Node 里没有原生模块，直接 stub 掉
+    '@/plugins/equalizer': {
+      isSupported: () => false,
+      bind: async() => false,
+      getInfo: async() => null,
+      applyBands: async() => false,
+      setEnabled: async() => false,
+      release: async() => {},
+    },
     'react-native-background-timer': {
       __esModule: true,
       default: { setTimeout: () => 1, clearTimeout: () => {} },

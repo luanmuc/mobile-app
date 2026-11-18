@@ -1,10 +1,11 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, View } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
 import CheckBox from '@/components/common/CheckBox'
 import { createStyle, toast } from '@/utils/tools'
 import { setApiSource } from '@/core/apiSource'
+import { updateSetting } from '@/core/common'
 import { useI18n } from '@/lang'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
 import { useSettingValue } from '@/store/setting/hook'
@@ -60,6 +61,12 @@ const apiSourceList = apiSourceInfo.map(api => ({
   disabled: api.disabled,
 }))
 
+const formatLastCheck = (ts: number) => {
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const useActive = (id: string) => {
   const activeLangId = useSettingValue('common.apiSource')
   const isActive = useMemo(() => activeLangId == id, [activeLangId, id])
@@ -104,6 +111,31 @@ export default memo(() => {
   const userApiListRaw = useUserApiList()
   const apiStatus = useStatus()
   const apiSourceSetting = useSettingValue('common.apiSource')
+  // v9.6：音源在线更新面板（从「基础」分组挪到音源页，语义聚合、更显眼）
+  const isSourceAutoUpdate = useSettingValue('common.sourceAutoUpdate')
+  const lastCheckAt = useSettingValue('common.sourceUpdateLastCheckAt')
+  const [currentSourceVersion, setCurrentSourceVersion] = useState('')
+  const theme = useTheme()
+  useEffect(() => {
+    if (!apiSourceSetting) { setCurrentSourceVersion(''); return }
+    let alive = true
+    getUserApiScript(apiSourceSetting)
+      .then(script => { if (alive) setCurrentSourceVersion(parseSourceVersion(script || '')) })
+      .catch(() => { /* 脚本读不到就不显示版本，不阻断面板 */ })
+    return () => { alive = false }
+  }, [apiSourceSetting])
+  const setSourceAutoUpdate = useCallback((value: boolean) => {
+    updateSetting({ 'common.sourceAutoUpdate': value })
+  }, [])
+  // 手动检查后刷新状态行：记录时间 + 重读当前版本（更新可能已覆盖脚本）
+  const markChecked = useCallback(() => {
+    updateSetting({ 'common.sourceUpdateLastCheckAt': Date.now() })
+    if (apiSourceSetting) {
+      getUserApiScript(apiSourceSetting)
+        .then(script => { setCurrentSourceVersion(parseSourceVersion(script || '')) })
+        .catch(() => {})
+    }
+  }, [apiSourceSetting])
   const userApiList = useMemo(() => {
     const getApiStatus = () => {
       let status
@@ -137,6 +169,7 @@ export default memo(() => {
   // 流程：拉取 → 比对版本 → 弹窗显示版本信息 → 用户确认后才导入
   const [updating, setUpdating] = useState(false)
   const handleUpdateSource = useCallback(async() => {
+    markChecked()
     if (updating) return
     setUpdating(true)
     toast(t('source_update_checking'))
@@ -377,6 +410,17 @@ export default memo(() => {
           userApiList.map(({ id, name, desc, statusLabel }) => <Item name={name} desc={desc} statusLabel={statusLabel} id={id} key={id} change={setApiSourceId} />)
         }
       </View>
+      {/* v9.6：在线更新面板——开关 + 当前版本 + 上次检查，与「更新音源」按钮同处 */}
+      <View style={styles.updatePanel}>
+        <CheckBox check={isSourceAutoUpdate} marginBottom={5} onChange={setSourceAutoUpdate} need>
+          <Text size={14}>{t('setting_source_auto_update')}</Text>
+        </CheckBox>
+        <Text size={13} color={theme['c-500']}>
+          {t('source_update_panel_current', { version: currentSourceVersion || t('source_version_unknown') })}
+          {' · '}
+          {lastCheckAt ? t('source_update_panel_last_check', { time: formatLastCheck(lastCheckAt) }) : t('source_update_panel_never')}
+        </Text>
+      </View>
       <View style={styles.btn}>
         <Button onPress={handleShow}>{t('setting_basic_source_user_api_btn')}</Button>
         <View style={{ width: 10 }} />
@@ -399,6 +443,9 @@ const styles = createStyle({
   btn: {
     marginTop: 10,
     flexDirection: 'row',
+  },
+  updatePanel: {
+    marginTop: 12,
   },
   sourceLabel: {
 

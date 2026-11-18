@@ -1,9 +1,10 @@
 const defaultSetting: LX.AppSetting = {
-  version: '2.3',
+  version: '2.4',
   'common.isAutoTheme': false,
   'common.langId': null,
   'common.apiSource': '',
   'common.sourceAutoUpdate': false, // v9.3：在线自动更新默认关，用户明确开启才会联网拉包
+  'common.sourceUpdateLastCheckAt': 0, // v9.6：上次手动检查时间（0=从未），仅状态展示
   'common.sourceNameType': 'real',
   'common.shareType': 'system',
   'common.isAgreePact': false,
@@ -23,7 +24,14 @@ const defaultSetting: LX.AppSetting = {
   'player.playQuality': 'flac', // 默认由 flac24bit 改为 flac——实测 20 个源无任何 flac24bit 能力，请求该档会得到空链，且降档链最多 3 档会把 128k 兜底挤掉
   'player.isSavePlayTime': true, // 默认记住播放进度
   'player.volume': 1,
+  // 新增键（不是改旧键默认值），老用户本地缺这两个键时直接用默认值，不需要走设置迁移
+  'player.fadeOnTrackChange': false,
+  'player.fadeDurationMs': 300,
+  'player.fadeOnSleepTimeout': false,
   'player.playbackRate': 1,
+  'player.playbackPitch': 1,
+  'player.equalizer.enable': false,
+  'player.equalizer.bands': '0,0,0,0,0',
   'player.cacheSize': '1024',
   'player.timeoutExit': '',
   'player.timeoutExitPlayed': true,

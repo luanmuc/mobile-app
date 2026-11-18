@@ -127,6 +127,12 @@ export const initSetting = async() => {
     if (compareVer(setting.version, '2.3') < 0) {
       if (setting['player.isEnableAudioOffload']) setting['player.isEnableAudioOffload'] = false
     }
+    // v2.4 迁移：b157 新增「音源在线更新状态」相关键，老用户本地存储里没有，补默认值。
+    // 只补缺失键，**不覆盖用户已开的开关**——在线更新默认关是给新用户的口径，不是强制关老用户的。
+    if (compareVer(setting.version, '2.4') < 0) {
+      if (setting['common.sourceUpdateLastCheckAt'] == null) setting['common.sourceUpdateLastCheckAt'] = 0
+      if (setting['common.sourceAutoUpdate'] == null) setting['common.sourceAutoUpdate'] = false
+    }
   }
 
   const updatedSetting = updateSetting(setting, true)

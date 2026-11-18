@@ -309,9 +309,15 @@
   "play_detail_setting_lrc_offset_reset": "重置偏移",
   "play_detail_setting_playback_rate": "播放速率",
   "play_detail_setting_playback_rate_reset": "重設",
+  "play_detail_setting_playback_pitch": "音高調節",
+  "play_detail_setting_equalizer": "等化器",
+  "play_detail_setting_equalizer_enable": "啟用等化器",
+  "play_detail_setting_equalizer_unsupported": "目前裝置不支援系統等化器",
   "play_detail_setting_show_lyric_progress_setting": "允許透過拖曳歌詞調整播放進度",
   "play_detail_setting_title": "播放器設定",
   "play_detail_setting_volume": "音量大小",
+  "play_detail_setting_track_fade": "切歌淡入淡出",
+  "play_detail_setting_sleep_fade": "睡眠計時漸弱",
   "play_detail_todo_tip": "你想幹嘛？不可以的，這個功能還沒有實現哦😛，不過你可以試著長按來定位目前播放的歌曲（僅對播放「我的清單」裡的歌曲有效哦）",
   "play_later": "稍後播放",
   "play_list_empty": "暫無播放列表",
@@ -1019,5 +1025,8 @@
   "setting_play_count_summary": "聽歌統計：累計播放 {count} 次 · 今日 {day} 次 · 累計播放時長約 {time}",
   "setting_play_count_time_hm": "{h} 小時 {m} 分鐘",
   "setting_play_count_time_m": "{m} 分鐘",
-  "setting_source_auto_update": "音源自動更新（僅採用驗簽通過的版本）"
+    "setting_source_auto_update": "音源線上更新（僅採用驗簽通過的版本）",
+  "source_update_panel_current": "目前音源 v{version}",
+  "source_update_panel_last_check": "上次檢查 {time}",
+  "source_update_panel_never": "上次檢查：從未"
 }

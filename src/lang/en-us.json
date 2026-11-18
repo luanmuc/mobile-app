@@ -309,9 +309,15 @@
   "play_detail_setting_lrc_offset_reset": "Reset Offset",
   "play_detail_setting_playback_rate": "Playback Rate",
   "play_detail_setting_playback_rate_reset": "Reset",
+  "play_detail_setting_playback_pitch": "Playback Pitch",
+  "play_detail_setting_equalizer": "Equalizer",
+  "play_detail_setting_equalizer_enable": "Enable equalizer",
+  "play_detail_setting_equalizer_unsupported": "System equalizer not supported on this device",
   "play_detail_setting_show_lyric_progress_setting": "Allow to adjust playback progress by drag-and-drop lyrics",
   "play_detail_setting_title": "Player Options",
   "play_detail_setting_volume": "Volume",
+  "play_detail_setting_track_fade": "Track Change Fade",
+  "play_detail_setting_sleep_fade": "Sleep Timer Fade",
   "play_detail_todo_tip": "What do you want? No, this function has not been implemented yet 😛, But you can try to locate the currently playing song by long pressing (Only valid for playing songs in \"Your Library\")",
   "play_later": "Play Later",
   "play_list_empty": "No playlist",
@@ -1019,5 +1025,8 @@
   "setting_play_count_summary": "Listening stats: {count} plays · today {day} · about {time}",
   "setting_play_count_time_hm": "{h}h {m}m",
   "setting_play_count_time_m": "{m}m",
-  "setting_source_auto_update": "Auto-update source (verified releases only)"
+    "setting_source_auto_update": "Online source update (verified releases only)",
+  "source_update_panel_current": "Current source v{version}",
+  "source_update_panel_last_check": "Last check {time}",
+  "source_update_panel_never": "Last check: never"
 }

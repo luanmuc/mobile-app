@@ -22,6 +22,8 @@ declare global {
       'common.apiSource': string
       // v9.3：内置音源在线自动更新（默认关；开启后才会向源仓 Release 拉包并验签）
       'common.sourceAutoUpdate': boolean
+      // v9.6：上次手动「更新音源」检查的时间戳（0 = 从未检查），只用于状态展示
+      'common.sourceUpdateLastCheckAt': number
 
       /**
        * 音源名称类型，原名、别名
@@ -140,9 +142,27 @@ declare global {
       'player.volume': number
 
       /**
+       * 切歌淡入淡出（关掉时音量链路与改动前完全一致）
+       */
+      'player.fadeOnTrackChange': boolean
+
+      /**
+       * 淡入淡出时长，单位 ms；只接受 150 / 300 / 500，非法值回落到 300
+       */
+      'player.fadeDurationMs': number
+
+      /**
+       * 睡眠定时到点前渐弱（仅在到点会直接退出时生效）
+       */
+      'player.fadeOnSleepTimeout': boolean
+
+      /**
        * 播放速率
        */
       'player.playbackRate': number
+      'player.playbackPitch': number
+      'player.equalizer.enable': boolean
+      'player.equalizer.bands': string
 
       /**
        * 缓存大小设置 unit MiB

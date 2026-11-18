@@ -42,7 +42,7 @@
 |---|---|---|---:|---|---|
 | E14 | 状态全枚举穷举 `check_health_state_enum.js` | L2 映射 | 22 | 待建 | 4 主状态 × reason × 手动/自动 × 播放态全组合（对应 G-A02） |
 | E15 | 错误码 16 全映射 `check_error_code_map.js` | L6 契约 | 10 | 待建 | 16 个 `ERROR_CODES` 全部有中文文案（与 G-A01 同源） |
-| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1004 键 × 三语 × tone 组合渲染 |
+| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1030 键 × 三语 × tone 组合渲染 |
 | E18 | 播放所有权运行时 `check_playback_ownership_runtime.js` | L7 运行时 | 21 | **已落地 21/0**（原「未纳入矩阵」已收回） | `fallbackOwner` 所有权交接 |
 | E19 | 下载器队列压力 `check_download_queue.js` | L7 运行时 | 12 | 待建 | 并发队列、暂停/恢复、失败重排（对应 G-A03） |
 | E20 | 类型与语法全量 | L8 长稳 | 5 | 待建 | tsc / eslint / ts_syntax 全量，反复迭代后仍绿 |
@@ -131,7 +131,7 @@ node scripts/docs-audit.js --dry-run
 | S23 在线更新三件套 | 6/0、9/0、12/0（已随 preflight 跑，`release.yml` 内同判据） |
 | `tsc --noEmit` | 0 error（22.2s） |
 | `eslint .` | 0 error / 0 warning（32.3s） |
-| 三语 | 各 **1021 键** |
+| 三语 | 各 **1024 键** |
 | TS/TSX | **536 文件** 语法 0 错误 |
 
 > 22 个压力脚本全部 rc=0；本轮 0 红。S3 表内「条数 25 / 通过 24」为历史口径差异，实际输出 25 通过 / 0 失败，以实跑为准。

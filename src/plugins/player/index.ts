@@ -1,5 +1,5 @@
 import TrackPlayer from 'react-native-track-player'
-import { updateOptions, setVolume, setPlaybackRate, migratePlayerCache } from './utils'
+import { updateOptions, setVolume, setPlaybackRate, setPlaybackPitch, migratePlayerCache } from './utils'
 
 // const listenEvent = () => {
 //   TrackPlayer.addEventListener('playback-error', err => {
@@ -16,9 +16,10 @@ import { updateOptions, setVolume, setPlaybackRate, migratePlayerCache } from '.
 //   })
 // }
 
-const initial = async({ volume, playRate, cacheSize, isHandleAudioFocus, autoResumeAfterInterrupt, duckOnTransientDuck, isEnableAudioOffload }: {
+const initial = async({ volume, playRate, playPitch, cacheSize, isHandleAudioFocus, autoResumeAfterInterrupt, duckOnTransientDuck, isEnableAudioOffload }: {
   volume: number
   playRate: number
+  playPitch: number
   cacheSize: number
   isHandleAudioFocus: boolean
   autoResumeAfterInterrupt: boolean
@@ -53,6 +54,7 @@ const initial = async({ volume, playRate, cacheSize, isHandleAudioFocus, autoRes
   await updateOptions()
   await setVolume(volume)
   await setPlaybackRate(playRate)
+  await setPlaybackPitch(playPitch)
   // listenEvent()
 }
 
@@ -65,10 +67,12 @@ export {
   isInitialized,
   setVolume,
   setPlaybackRate,
+  setPlaybackPitch,
   updateOptions,
 }
 
 export {
+  getAudioSessionId,
   setResource,
   setPause,
   setPlay,

@@ -1,3 +1,6 @@
+import { normalizeFadeMs } from '@/core/player/volumeFadeCurve'
+import { withTrackChangeFade, withResumeFade } from '@/core/player/volumeFade'
+import { applyEqualizer } from '@/core/player/equalizer'
 import { syncNotificationRepeatMode } from '@/core/player/repeatMode'
 import { syncLyricButtonByState } from '@/core/desktopLyric'
 import { isInitialized, initial as playerInitial, isEmpty, setPause, setPlay, setResource, setStop, initTrackInfo } from '@/plugins/player'
@@ -280,12 +283,15 @@ const handlePlay = async() => {
     await playerInitial({
       volume: settingState.setting['player.volume'],
       playRate: settingState.setting['player.playbackRate'],
+      playPitch: settingState.setting['player.playbackPitch'],
       cacheSize: settingState.setting['player.cacheSize'] ? parseInt(settingState.setting['player.cacheSize']) : 0,
       isHandleAudioFocus: settingState.setting['player.isHandleAudioFocus'],
       autoResumeAfterInterrupt: settingState.setting['player.autoResumeAfterInterrupt'],
       duckOnTransientDuck: settingState.setting['player.duckOnTransientDuck'],
       isEnableAudioOffload: settingState.setting['player.isEnableAudioOffload'],
     })
+    // 播放器初始化完成后补一次均衡器绑定：必须等播放器起来，audioSessionId 才是有效值
+    void applyEqualizer()
     // 播放器初始化完成后补一次模式同步（启动早期播放器未就绪时同步被跳过，见 core/init/player/player.ts）
     syncNotificationRepeatMode()
     // 同理补一次「词」按钮状态，否则桌面歌词开着时通知栏图标仍是灰的
@@ -463,7 +469,7 @@ const handlePlayNext = async(playMusicInfo: LX.Player.PlayMusicInfo) => {
  * @param isAutoToggle 是否自动切换
  * @returns
  */
-export const playNext = async(isAutoToggle = false): Promise<void> => {
+const playNextImpl = async(isAutoToggle = false): Promise<void> => {
   if (playerState.tempPlayList.length) { // 如果稍后播放列表存在歌曲则直接播放改列表的歌曲
     const playMusicInfo = playerState.tempPlayList[0]
     removeTempPlayList(0)
@@ -562,7 +568,7 @@ export const playNext = async(isAutoToggle = false): Promise<void> => {
 /**
  * 上一曲
  */
-export const playPrev = async(isAutoToggle = false): Promise<void> => {
+const playPrevImpl = async(isAutoToggle = false): Promise<void> => {
   const playMusicInfo = playerState.playMusicInfo
   if (playMusicInfo.musicInfo == null) return handleToggleStop()
   const playInfo = playerState.playInfo
@@ -646,6 +652,32 @@ export const playPrev = async(isAutoToggle = false): Promise<void> => {
   })
 }
 
+/** 切歌淡入淡出的时长；开关关闭或值非法时返回 0（0 = 完全不碰音量） */
+const getFadeMs = () => {
+  if (!settingState.setting['player.fadeOnTrackChange']) return 0
+  return normalizeFadeMs(settingState.setting['player.fadeDurationMs'])
+}
+
+/** 渐变的目标音量：用户设置值（夹到 0–1，非数字回落 1） */
+const getFadeTargetVolume = () => {
+  const volume = Number(settingState.setting['player.volume'])
+  return Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1
+}
+
+/**
+ * 下一曲（带切歌淡入淡出；开关关闭时直接透传，行为与改动前完全一致）
+ */
+export const playNext = async(isAutoToggle = false): Promise<void> => {
+  await withTrackChangeFade(getFadeMs(), getFadeTargetVolume(), async() => playNextImpl(isAutoToggle))
+}
+
+/**
+ * 上一曲（带切歌淡入淡出）
+ */
+export const playPrev = async(isAutoToggle = false): Promise<void> => {
+  await withTrackChangeFade(getFadeMs(), getFadeTargetVolume(), async() => playPrevImpl(isAutoToggle))
+}
+
 /**
  * 恢复播放
  */
@@ -655,7 +687,7 @@ export const play = () => {
     if (createGettingUrlId(playerState.playMusicInfo.musicInfo) != global.lx.gettingUrlId) setMusicUrl(playerState.playMusicInfo.musicInfo)
     return
   }
-  void setPlay()
+  void withResumeFade(getFadeMs(), getFadeTargetVolume(), setPlay)
 }
 
 /**

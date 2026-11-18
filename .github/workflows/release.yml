@@ -93,6 +93,26 @@ jobs:
           node scripts/check_release_state_contract.js
           node scripts/check_media_body.js
 
+      - name: 音高门禁（39 条断言）
+        # 只读契约：内核 setPitch 保留 speed / setRate 保留 pitch / App 侧 normalizePitch 夹取 /
+        # 旧 sha 存在性守卫 / 设置项三处闭合 / 三语言键一致。
+        # 数值层用 tsc 单独编译 pitch.ts 后在 Node 跑断言，不依赖真机；跨仓段仅在存在 ../rntp 时执行。
+        run: |
+          node scripts/check_pitch.js
+      - name: 淡入淡出契约门禁（40 条断言）
+        # 只读契约：曲线单调与末帧精度 / 非法时长回落 / 用户改音量优先作废渐变 /
+        # 切歌失败兜底淡入 / 睡眠渐弱只在「到点直接退出」时触发 / 两开关默认关闭。
+        # 数值层用 tsc 单独编译 volumeFadeCurve.ts 后在 Node 跑断言，不依赖真机。
+        run: |
+          node scripts/check_volume_fade.js
+
+      - name: 均衡器门禁（57 条断言）
+        # 原生模块契约（sessionId=0 拒绝 / 同会话复用 / 重建前 release / 异常不崩）
+        # + JS 接线（旧 sha 守卫 / 控制器早退 / 设置项三处闭合 / 三语言键）
+        # + 档位纯函数数值（夹取 / 补零 / 截断 / 非法归零 / 往返一致）。
+        run: |
+          node scripts/check_equalizer.js
+
       - name: 健康诊断契约门禁（51 条 + 真实播放 4 条 + 视图 22 条 + 日志目录 15 条）
         # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
         # 视图模型锁折叠态、错误码/其他线索分组与空态。
