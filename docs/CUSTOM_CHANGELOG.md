@@ -1,3 +1,12 @@
+## [b152 · V9 源码发布 + CI 双红修复] - 2026-11-18
+
+> b151/b152 已推送并出包：**v1.9.3-b152**（Pre-release，5 APK）。音源仓 **v9.0.0** 已建 tag/Release（`lx-source.js` 362008B + `.sig` + manifest，keyId=k1，CI 重新构建并签名，本地复核 sha256 `be790f94c3a4…` 一致）。
+
+- **源仓首推 CI 红（sign-release）**：签名 job 在 `setup-node` 后直接 `build-source.js`，而 `esbuild` 是 devDependency → `MODULE_NOT_FOUND`。补 `npm ci`（不用 `--ignore-scripts`，esbuild 需 postinstall 装平台二进制）；修复后该 job 绿并产出 `source-release-signed` artifact。
+- **App 首推 CI 红（Checks）**：`@noble/ed25519` v2 是纯 ESM，`check_source_signing` 等脚本用 `tsc --module commonjs` 编译后 `require()`，Node 18/20 不支持 `require(ESM)` → `ERR_REQUIRE_ESM`。本地 Node 22 侥幸通过，所以是「本地全绿、云端红」。
+- **两处修法**：①`check_source_signing.js` 改为 `tsc --module esnext` + 产物改 `.mjs` + 动态 `import()`（Node 18~22 全兼容）；②`release.yml` 的 **checks job 内**覆盖 `setup-node 22`，Apple/Android 构建仍走 `.nvmrc` 的 Node 18 基线不动。双保险后 Checks 绿。
+- **发布链**：源仓 `v9.0.0` tag → `871017b`，Release 上传三件资产；App 构建从源仓 master 拉 `lx-source.js`（实测 `@version 9.0.0` / 362008B）内置进 APK，跨仓版本一致。
+
 ## [b151 · V9 音源模块化 + 在线更新（未发布）] - 2026-11-18
 
 > 本版底座 **1.9.3**、构建 **b151**、versionCode **310**（`publish/build-state.json` 已回写）。音源侧对应 **v9.0.0**（362008 bytes，ed25519 签名 keyId=k1）。
