@@ -5,6 +5,7 @@ import {
   getMusicUrl as getStoreMusicUrl,
   getPlayerLyric as getStoreLyric,
   getStoreMusicSource,
+  deleteMusicUrl,
 } from '@/utils/data'
 import { langS2T, toNewMusicInfo, toOldMusicInfo } from '@/utils'
 import { assertApiSupport } from '@/utils/tools'
@@ -34,6 +35,7 @@ import {
   OTHER_SOURCE_CACHE_TTL_MS,
   OTHER_SOURCE_NEGATIVE_TTL_MS,
 } from './otherSourceCache'
+import { classifyUnusableUrl, isPlayableCandidate, sanitizeError } from './playbackGuard'
 
 // 音源初始化兜底超时：14 处调用共用，避免各写一份 15_000
 const SOURCE_INIT_TIMEOUT_MS = 15_000
@@ -205,7 +207,11 @@ export const getOnlineOtherSourceMusicUrlByLocal = async(musicInfo: LX.Music.Mus
   const quality = '128k'
 
   const cachedUrl = await getStoreMusicUrl(musicInfo, quality)
-  if (cachedUrl && !isRefresh) return { url: cachedUrl, quality, isFromCache: true }
+  // v9.1：同 online.ts —— URL 缓存无 TTL，命中也要先验形态，验不过就清掉再取链（本地歌曲导入在线链路的第三处命中点）
+  if (cachedUrl && !isRefresh && !isPlayableCandidate(cachedUrl)) {
+    await deleteMusicUrl(musicInfo, quality)
+  }
+  if (cachedUrl && !isRefresh && isPlayableCandidate(cachedUrl)) return { url: cachedUrl, quality, isFromCache: true }
 
   let reqPromise
   try {
@@ -418,7 +424,12 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
         try {
           const cachedUrl = await getStoreMusicUrl(candidate, candidateQuality)
           if (isCancelled()) throw candidateCancelled()
-          if (cachedUrl && !isRefresh) {
+          /* v9.1：URL 缓存无 TTL，命中即用会把死链一直复用（online.ts 同点同改）。
+           * 验不过就清掉这条缓存，落到下面重新取链。 */
+          if (cachedUrl && !isRefresh && !isPlayableCandidate(cachedUrl)) {
+            await deleteMusicUrl(candidate, candidateQuality)
+          }
+          if (cachedUrl && !isRefresh && isPlayableCandidate(cachedUrl)) {
             // 与主请求路径一致：缓存命中读子源键（v6.0 起双写），老缓存无子源时降级空
             const cachedSource = await getStoreMusicSource(candidate, candidateQuality)
             const cachedFragment = cachedSource?.fragment === true
@@ -434,6 +445,12 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
           }
           const { url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false } = await raceWithBudget(reqPromise, playbackBudget, playbackAttempts)
           if (isCancelled()) throw candidateCancelled()
+          const candUnusable = classifyUnusableUrl(url)
+          if (candUnusable) {
+            const candErr = new Error(`${candUnusable}: 源返回的结果不可用`) as Error & { code?: string }
+            candErr.code = candUnusable
+            throw candErr
+          }
           playbackAttempts.push({ source: subSource || candidate.source, platform: sourcePlatform || candidate.source, owner: 'host', stage: 'fallback', ok: true, code: 'OK', latencyMs: Date.now() - attemptStartedAt, requestedQuality: candidateQuality, deliveredQuality: type })
           return { musicInfo: candidate, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: candidateQuality }
         } catch (err: any) {
@@ -501,12 +518,22 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     reqPromise = Promise.reject(err)
   }
   return raceWithBudget<{ url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }>(reqPromise, playbackBudget, playbackAttempts).then(({ url, type, subSource = '', subSourceName = '', sourcePlatform = '', fragment = false, qualityConfidence = 'exact', qualityCeilingApplied = false }: { url: string, type: LX.Quality, subSource?: string, subSourceName?: string, sourcePlatform?: string, fragment?: boolean, qualityConfidence?: 'exact' | 'estimated' | 'unknown', qualityCeilingApplied?: boolean }) => {
+    /* v9.1：源返回 200 但结果是空串/HTML/JSON 时不会抛异常，旧代码会当成功返回 →
+     * 既不复用换源、也把坏结果当"播放成功"记账。这里按形态判据拦下，抛错交给下方 catch
+     * 走正常换源链路（错误码进 attempts，便于健康面板归因）。 */
+    const unusablePrimary = classifyUnusableUrl(url)
+    if (unusablePrimary) {
+      playbackAttempts.push({ source: subSource || musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: unusablePrimary, latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
+      const guardErr = new Error(`${unusablePrimary}: 源返回的结果不可用`) as Error & { code?: string }
+      guardErr.code = unusablePrimary
+      throw guardErr
+    }
     playbackAttempts.push({ source: subSource || musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: true, code: 'OK', latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality, deliveredQuality: type })
     return { musicInfo, url, quality: type, isFromCache: false, subSource, subSourceName, sourcePlatform, fragment, qualityConfidence, qualityCeilingApplied, requestedQuality: targetQuality, attempts: playbackAttempts }
   }).catch(async(err: any) => {
     playbackAttempts.push({ source: musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
-    console.log(err)
+    console.log(sanitizeError(err))
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。
     if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) {
       if (err && typeof err === 'object') err.attempts = playbackAttempts
@@ -541,13 +568,13 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     try {
       toggledResult = await tryCandidates(false)
     } catch (toggleErr) {
-      console.log('toggle source candidates failed:', toggleErr)
+      console.log('toggle source candidates failed:', sanitizeError(toggleErr))
     }
     if (!toggledResult && isRefresh) {
       try {
         toggledResult = await tryCandidates(true)
       } catch (e) {
-        console.log('force re-search other source failed:', e)
+        console.log('force re-search other source failed:', sanitizeError(e))
       }
     }
     if (toggledResult) return toggledResult
@@ -592,7 +619,7 @@ export const getOnlineOtherSourcePicUrl = async({ musicInfos, onToggleSource, is
     return { musicInfo, url, isFromCache: false }
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    console.log(err)
+    console.log(sanitizeError(err))
     return getOnlineOtherSourcePicUrl({ musicInfos, onToggleSource, isRefresh, retryedSource })
   })
 }
@@ -620,7 +647,7 @@ export const handleGetOnlinePicUrl = async({ musicInfo, isRefresh, onToggleSourc
   return reqPromise.then((url: string) => {
     return { musicInfo, url, isFromCache: false }
   }).catch(async(err: any) => {
-    console.log(err)
+    console.log(sanitizeError(err))
     if (!allowToggleSource) throw err
     onToggleSource()
     // eslint-disable-next-line @typescript-eslint/promise-function-async
@@ -683,7 +710,7 @@ export const getOnlineOtherSourceLyricInfo = async({ musicInfos, onToggleSource,
     } : Promise.reject(new Error('failed'))
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    console.log(err)
+    console.log(sanitizeError(err))
     return getOnlineOtherSourceLyricInfo({ musicInfos, onToggleSource, isRefresh, retryedSource })
   })
 }
@@ -716,7 +743,7 @@ export const handleGetOnlineLyricInfo = async({ musicInfo, onToggleSource, isRef
       isFromCache: false,
     } : Promise.reject(new Error('failed'))
   }).catch(async(err: any) => {
-    console.log(err)
+    console.log(sanitizeError(err))
     if (!allowToggleSource) throw err
 
     onToggleSource()

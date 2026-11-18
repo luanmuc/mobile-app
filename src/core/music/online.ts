@@ -4,9 +4,11 @@ import {
   saveMusicSource,
   getMusicUrl as getStoreMusicUrl,
   getStoreMusicSource,
+  deleteMusicUrl,
 } from '@/utils/data'
 import { updateListMusics } from '@/core/list'
 import settingState from '@/store/setting/state'
+import { isPlayableCandidate } from './playbackGuard'
 
 import {
   buildLyricInfo,
@@ -68,7 +70,13 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   // 一次播放请求一个 traceId；缓存命中也要用它关联后续 playerPlaying。
   const traceId = createHealthTraceId()
   const cachedUrl = await getStoreMusicUrl(musicInfo, targetQuality)
-  if (cachedUrl && !isRefresh) {
+  /* v9.1：App 的 URL 缓存（data.ts getMusicUrl）只读持久化、没有 TTL，命中即用会把死链
+   * 一直复用（注释里那句「缓存命中不证明音源当前可出链」正是这个问题的自述）。
+   * 命中后先过形态判据；判据不过就清掉这条缓存，落下去走正常取链。 */
+  if (cachedUrl && !isRefresh && !isPlayableCandidate(cachedUrl)) {
+    await deleteMusicUrl(musicInfo, targetQuality)
+  }
+  if (cachedUrl && !isRefresh && isPlayableCandidate(cachedUrl)) {
     onQuality(targetQuality)
     // v6.0：缓存命中读子源键（在线请求成功后双写，缓存播放也能显示「平台 · 子源名」）
     // v6.0：必须 await 读子源后再回调——若用 void 异步回调，player.ts 的 finally 会在播放成功

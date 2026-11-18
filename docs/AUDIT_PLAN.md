@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1021 键**、TS/TSX **536 文件**、`scripts/check_*.js` **44 个**、**check 断言合计 597 条**、文档 **16 篇**（另 `archive/` 2 篇）
+> - 硬数字：三语各 **1021 键**、TS/TSX **537 文件**、`scripts/check_*.js` **46 个**、**check 断言合计 597 条**、文档 **16 篇**（另 `archive/` 2 篇）
 > - **v9 新增审计面**：`src/core/sourceUpdate/{verify,plan,fetcher,apply}.ts` 四件套 + `check_source_signing`(6) / `check_source_update_fetch`(9) / `check_source_update_apply`(12) 三脚本已接入 `release.yml` checks；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 在线自动更新（默认关）+ 版本区间语义」；升版前修掉 `plan.ts` 绝对 minor 下限（否则 9.x 会被判不兼容、在线更新整体失效）
 
@@ -111,7 +111,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1021 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **44 个**（`npm run preflight` 一键跑完 CI 同判据） | 44 脚本 rc0 / 597 条断言 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **46 个**（`npm run preflight` 一键跑完 CI 同判据） | 46 脚本 rc0 / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -130,7 +130,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（536 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（537 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 | X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；改任一侧字段即红 |
 
@@ -162,11 +162,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（44 个 `check_*.js`，597 条断言）
+### 6b. 全量脚本台账（46 个 `check_*.js`）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 536 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 537 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -184,6 +184,8 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_source_config_contract` | 29 | 39 键 / 单位 / 三语 |
 | `check_source_contract` | 14 | 14 action / envelope / fallbackOwner |
 | `check_source_update_logic` | 44 | 更新逻辑 / 无指纹机制 |
+| `check_playback_cache_guard` | 8 | **v9.1 新增**：URL 缓存三处命中点（`online.ts:70`、`utils.ts:419`、`utils.ts:209`）必须过 `isPlayableCandidate`；判不过要 `deleteMusicUrl` 清缓存；取链结果也过 `classifyUnusableUrl`；**G7 断言 `PlaybackError` 必须清当前歌曲缓存**（否则「命中死链→失败→缓存还在」无限循环）；含负向自检 |
+| `check_log_redaction` | 4 | **v9.1 新增**：禁止裸打错误对象（`console.log(err)` 直出会泄漏带签名 URL）；历史位置冻结在 `scripts/log_redaction_baseline.json`（45 处 / 26 文件），新增即红；含负向自检 |
 | `check_source_signing` | 6 | ed25519 验签 / 内置公钥表 / 未知 keyId 拒绝 |
 | `check_source_update_fetch` | 9 | manifest→size→sha256→验签→区间 强制链路 |
 | `check_source_update_apply` | 12 | 验过的包就地覆盖 / 篡改零写入 / 回滚四态 |
@@ -477,4 +479,4 @@ node scripts/docs-audit.js --dry-run              # 待处理 0
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
-| 2026-11-18 | 基线 **v1.9.2-b153 / vc312**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |
+| 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |

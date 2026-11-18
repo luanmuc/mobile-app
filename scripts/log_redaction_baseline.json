@@ -1,0 +1,96 @@
+{
+  "components/DesktopLyricEnable.tsx": [
+    "console.log(err)"
+  ],
+  "components/MetadataEditModal/MetadataForm.tsx": [
+    "console.log(err)"
+  ],
+  "core/apiSource.ts": [
+    "console.log(err)"
+  ],
+  "core/hotSearch.ts": [
+    "console.log(err)",
+    "console.log(err)"
+  ],
+  "core/init/deeplink/playSonglist.ts": [
+    "console.error(err)"
+  ],
+  "core/init/userApi/index.ts": [
+    "console.warn('Failed to read pending builtin source version:', e)",
+    "console.warn('Failed to remove previous builtin source:', e)",
+    "console.warn('Failed to read builtin source version:', e)",
+    "console.warn('Failed to persist apiSource:', e)",
+    "console.warn('Failed to load builtin source:', e)",
+    "console.warn('source auto update failed:', e)"
+  ],
+  "core/officialVersion.ts": [
+    "console.log('checkOfficialUpdate failed:', err)"
+  ],
+  "core/search/music.ts": [
+    "console.log(error)"
+  ],
+  "core/search/songlist.ts": [
+    "console.log(error)"
+  ],
+  "core/userApi.ts": [
+    "console.warn('Failed to clear builtin source markers:', e)"
+  ],
+  "core/version.ts": [
+    "console.log('downloadUpdate failed:', err)"
+  ],
+  "plugins/sync/client/auth.ts": [
+    "console.log(err)",
+    "console.log(err)"
+  ],
+  "screens/Comment/CommentHot.tsx": [
+    "console.log(err)"
+  ],
+  "screens/Comment/CommentNew.tsx": [
+    "console.log(err)"
+  ],
+  "screens/Home/Views/Mylist/MyList/listAction.ts": [
+    "console.error('[scanDownloadDir]', e)"
+  ],
+  "screens/Home/Views/Setting/settings/Backup/actions.ts": [
+    "console.log(err)",
+    "console.log(err)"
+  ],
+  "screens/Home/Views/Setting/settings/Basic/Source.tsx": [
+    "setApiSource(id).catch(e => { console.log(e) })",
+    "console.warn('Failed to remove previous builtin source:', e)",
+    "console.warn('Failed to remove orphan pending source:', e)",
+    "console.warn('Failed to persist pending builtin source id:', e)",
+    "console.warn('Failed to persist builtin source imported flag:', e)",
+    "console.warn('Failed to persist builtin source version:', e)",
+    "console.warn('Failed to persist builtin source id:', e)",
+    "console.warn('Failed to persist builtin source app version:', e)",
+    "console.warn('Failed to remove old builtin source:', e)",
+    "console.warn('Failed to clear pending builtin source id:', e)"
+  ],
+  "screens/Home/Views/Setting/settings/Health.tsx": [
+    "console.log('health diagnostics failed:', e)",
+    "console.log('trend auto load failed:', e)",
+    "console.log(e)"
+  ],
+  "utils/musicSdk/kg/songList.js": [
+    "console.log(err)"
+  ],
+  "utils/musicSdk/kg/util.js": [
+    "console.log(err)"
+  ],
+  "utils/musicSdk/mg/utils/index.js": [
+    "console.log(err)"
+  ],
+  "utils/musicSdk/wy/leaderboard.js": [
+    "console.log(err)"
+  ],
+  "utils/musicSdk/wy/songList.js": [
+    "console.log(err)"
+  ],
+  "utils/nativeModules/crypto.ts": [
+    "console.error('生成SHA1出现问题:', error)"
+  ],
+  "utils/version.js": [
+    "console.log('cleanupOldApk failed:', err)"
+  ]
+}

@@ -19,6 +19,33 @@ let isInitialized = false
 // 不去重会把同一首歌的成功样本重复放大，污染成功率与健康分。
 let lastPlaybackReportKey = ''
 
+/**
+ * v9.1：播放失败必须清掉这首歌的 URL 缓存。
+ *
+ * 为什么必须做：App 的 URL 缓存（`@/utils/data` getMusicUrl）只读持久化、**没有 TTL**，
+ * 而播放器报错路径此前只打点、不清缓存 → 「命中死链 → 播放失败 → 缓存还在 → 再点还是它」的
+ * 无限循环（真机上表现为同一首歌反复「该请求已知失败(缓存中)」）。
+ * 清掉后下次点歌自然走重新取链；取链侧已有可用性判据（playbackGuard），不会再把坏链写进去。
+ *
+ * 清的是该歌**全档位**缓存（不指定 quality）：播放失败无法确定是档位错配还是链接失效，
+ * 而档位错配时只清当前档会漏掉真正坏的那一档。
+ * 2s 内同一首歌只清一次：PlaybackError 可能连发多条，避免重复写盘。
+ */
+let lastUrlCachePurge = { id: '', ts: 0 }
+const purgeUrlCacheOnPlaybackError = async(musicInfo: LX.Player.PlayMusicInfo['musicInfo'] | null | undefined) => {
+  try {
+    const id = musicInfo?.id
+    if (!id) return
+    const now = Date.now()
+    if (lastUrlCachePurge.id === id && now - lastUrlCachePurge.ts < 2000) return
+    lastUrlCachePurge = { id, ts: now }
+    // 惰性 require：与日志模块同理，避免播放器服务初始化期就拉起重模块
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { clearMusicUrlByMusic } = require('@/utils/data')
+    await clearMusicUrlByMusic(musicInfo)
+  } catch {}
+}
+
 // v8.14：真实播放回传。源侧 playDead 只认这个入口，不再把取链失败当播放失败。
 const reportPlayback = (ok: boolean, code?: string) => {
   try {
@@ -131,7 +158,16 @@ const registerPlaybackService = async() => {
   // })
 
   TrackPlayer.addEventListener(TPEvent.PlaybackError, async(err: any) => {
-    console.log('playback-error', err)
+    // v9.1：脱敏——err.message 常带整条带签名的直链（惰性 require 同日志模块，避免顶层拉重模块）
+    let safeErr: any = err
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { sanitizeError } = require('@/core/music/playbackGuard')
+      safeErr = sanitizeError(err)
+    } catch {}
+    console.log('playback-error', safeErr)
+    // v9.1：失败即清缓存（死链不再被无限复用），见 purgeUrlCacheOnPlaybackError 注释
+    void purgeUrlCacheOnPlaybackError(playerState.playMusicInfo?.musicInfo)
     // b70 诊断：播放器错误打点（含错误内容——静默失败时可定位）
     try {
       // 惰性 require：避免播放器服务初始化阶段与日志模块形成循环依赖

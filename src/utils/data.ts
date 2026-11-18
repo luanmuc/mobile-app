@@ -382,6 +382,12 @@ export const clearMusicUrl = async(keys?: string[]) => {
   if (sourceKeys.length) await removeDataMultiple(sourceKeys)
 }
 
+/* v9.1：清掉某首歌某档位的 URL 缓存（含平行写入的子源键）。
+ * 调用方不要自己拼 key —— key 构造只在本模块内持有，拼错就删不掉，等于没修。 */
+export const deleteMusicUrl = async(musicInfo: LX.Music.MusicInfo, type: LX.Quality) => {
+  await clearMusicUrl([`${storageDataPrefix.musicUrl}${musicInfo.id}_${type}`])
+}
+
 export const getLyric = async(musicInfo: LX.Music.MusicInfo) => getData<LX.Music.LyricInfo>(`${storageDataPrefix.lyric}${musicInfo.id}`).then(lrcInfo => lrcInfo ?? { lyric: '' })
 export const saveLyric = async(musicInfo: LX.Music.MusicInfo, lyricInfo: LX.Music.LyricInfo) => saveData(`${storageDataPrefix.lyric}${musicInfo.id}`, lyricInfo)
 export const clearLyric = async(keys?: string[]) => {

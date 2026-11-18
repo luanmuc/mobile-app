@@ -1,3 +1,14 @@
+## [b155 · 三待修项：缓存可用性判据 + 日志脱敏] - 2026-11-18
+
+> 本版底座 **1.9.2**、构建 **b155**、versionCode **314**。音源侧对应 **v9.1.0**。
+
+- **待修项一（P0，两层）**：App 的 URL 缓存 `src/utils/data.ts` `getMusicUrl` 只读持久化、**无 TTL**，三处命中点（`online.ts:70`、`utils.ts:419`、`utils.ts:209`）旧实现都是 `if (cachedUrl && !isRefresh) 直接用`；源仓跨平台缓存 TTL 10 分钟、命中前也不验。真机表现是「卡加载 → 超时」，而日志只有一个笼统失败。现 App 侧命中前过 `isPlayableCandidate`（形态级，不发网络请求；网络探测属源仓 `isAudioPlayable` 职责），判不过即 `deleteMusicUrl` 清缓存再取链；源仓侧 `13-chain-helpers.js` 命中分支补 `isAudioPlayable(cachedUrl, 2000)` 探测 + `deleteCrossFallbackCached` 清理。
+- **待修项二（P1）**：候选缓存路径原本有 `cachedUrl &&` 挡空串，但**主链路**与候选取链完全没校验——空串/HTML/JSON 会被当成功返回，既不复用换源也记成"播放成功"。现主链路与两处取链都过 `classifyUnusableUrl`，不可用即抛带 code 的错误交给 catch 走换源，错误码进 `playbackAttempts` 便于健康面板归因。缓存命中判据与取链判据**同一个函数族**（`playbackGuard.ts`），未新增第二个探测函数。
+- **待修项三（P1）**：`utils.ts` 五处 `console.log(err)`（509/595/623/686/719）改 `sanitizeError`，另把 `toggle source candidates failed` / `force re-search other source failed` 两处同样会漏 URL 的文案日志一并脱敏。`sanitizeError` 保留 `code`、URL 截成 `scheme://host/…`、不打 stack。
+- **两道新门禁**：`check_playback_cache_guard`（7 断言）、`check_log_redaction`（4 断言），二者都带**负向自检**（喂修复前的写法必须判红，防假绿），已插入 `release.yml` checks 段，`preflight` 自动跟随。日志门禁采用**基线冻结**（历史 45 处 / 26 文件入 `scripts/log_redaction_baseline.json`），只拦新增裸打。
+- **门禁抓到的真实遗漏**：`utils.ts:210`（本地歌曲导入在线链路）是第三处命中点，交接文档只列了两处，靠门禁补出并修复。
+- **本条最关键（交接文档漏项）**：`src/plugins/player/service.ts` 的 `PlaybackError` 此前**只打点不清缓存**。与「URL 缓存无 TTL」拼起来就是死循环：命中死链 → 播放失败 → 缓存还在 → 再点还是它（真机那句「该请求已知失败(缓存中)」就是这个循环）。现按当前歌曲清全档位缓存（`clearMusicUrlByMusic`，2s 内同曲只清一次），并顺手把该处裸 `console.log(err)` 脱敏。结算闭环：取链侧判据不放行坏链 + 失败侧清掉旧链。
+
 ## [b153 · 版本口径回归底座 1.9.2] - 2026-11-18
 
 > 本版底座 **1.9.2**、构建 **b153**、versionCode **312**。音源侧对应 **v9.0.0**。

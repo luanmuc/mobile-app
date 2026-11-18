@@ -82,6 +82,8 @@ jobs:
           node scripts/check_source_update_fetch.js
           node scripts/check_source_update_apply.js
           node scripts/check_source_update_logic.js
+          node scripts/check_playback_cache_guard.js
+          node scripts/check_log_redaction.js
           node scripts/check_truth_gates.js
           node scripts/check_source_health_persistence.js
           node scripts/check_source_platform_label.js
