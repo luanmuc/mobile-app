@@ -32,7 +32,7 @@ feat(download): 新增断点续传功能
 fix(player): 修复点击歌曲播放错歌的问题
 refactor(setting): 清理冗余迁移代码
 docs: 完善 MERGE_GUIDE
-chore(release): 更新版本信息 v1.9.3-b23
+chore(release): 更新版本信息 v1.9.2-b23
 ```
 
 规则：
@@ -91,3 +91,13 @@ node scripts/check_docs_consistency.js
 | GitHub secrets 管理 | ✅ | — | — |
 
 > 原则：能 push 不等于能乱 push；任何对外可见的发布（Release/npm）都由主账号把关。
+
+## 版本号批量替换是本仓最危险的文档操作（2026-11-18 教训）
+
+`5e107e10`（V9.3）里做过一次全局替换，把 `1.9.2-b` 统一改成 `1.9.3-b`，结果连**历史发布记录**（真实 tag `v1.9.2-b114`…`b148`）一起改掉了，造成「文档写 1.9.3、远端 tag 实际是 1.9.2」的长期错位；`RELEASE_SOP` 的版本口径表也被带偏，反过来又成了后续升版的"依据"。等到 b153 才查出根因：远端 `v1.9.2-b*` tag 有 102 个、`v1.9.3-b*` 只有 1 个。
+
+**规则**
+1. 底座版本**只跟随洛雪官方**（当前 `1.9.2`）。我们自己的改动只递增 `bN`，绝不因为"改动大"就抬底座主/次版本号——官方没发 1.9.3，我们就不能自称 1.9.3。
+2. 版本号替换**只能改「当前口径」位置**：`RELEASE_SOP` 版本表、`README` 底座行、`AGENTS` 发版命令、`package.json` / `build-state.json` / `version.json`。**历史 CHANGELOG 条目一律不动**。
+3. 改完必须两件事对账：`git tag | grep '^v<底座>-b' | wc -l` 与远端 `git ls-remote --tags` 计数一致；`check_release_state_contract` + `check_docs_consistency` 双门禁清零。
+4. 底座回退时 `bN` 继续递增（不回绕到旧号），`versionCode` 永远单调递增，保证覆盖安装。

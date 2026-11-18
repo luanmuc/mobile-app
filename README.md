@@ -65,7 +65,7 @@
 
 - 本软件默认设置以实用为准，建议使用前先浏览一遍设置项
 - 音乐播放列表机制说明见 [FAQ.md](./docs/FAQ.md)
-- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `1.9.3-b23`）
+- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `1.9.2-b23`）
 
 ## 贡献代码
 
@@ -82,7 +82,7 @@
 |---|---|
 | [AGENTS.md](./docs/AGENTS.md) | AI/多账号协作入口：常用命令、实证验证链 L0-L4（Copilot/豆包自动读取） |
 | [MERGE_GUIDE.md](./docs/MERGE_GUIDE.md) | 上游合并指南、高冲突区、设置迁移规则、代码地图、多账号协作 |
-| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置，当前底座 v1.9.3 至 b152） |
+| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置，当前底座 v1.9.2 至 b153） |
 | [docs/DEV_SETUP.md](./docs/DEV_SETUP.md) | 开发环境搭建（新账号上手） |
 | [docs/DEV_CONVENTIONS.md](./docs/DEV_CONVENTIONS.md) | 多账号分工、提交规范、评审流程 |
 | [docs/RELEASE_SOP.md](./docs/RELEASE_SOP.md) | 版本号规则、发布流程、测试清单、验证与回滚 |

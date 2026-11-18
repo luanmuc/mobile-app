@@ -1,6 +1,6 @@
 {
   "name": "mobile-app",
-  "version": "1.9.3",
+  "version": "1.9.2",
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",

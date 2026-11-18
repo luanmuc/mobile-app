@@ -9,7 +9,7 @@
 
 - 上游：`https://github.com/lyswhut/lx-music-mobile.git`（remote 名 `upstream`）
 - 分叉点：`fb848072`（原版 v1.9.1）
-- 上游进度：已合并至 **v1.9.2**（`0669d1b6`，2026-11-01 合入；实质变更见 [CUSTOM_CHANGELOG.md](./CUSTOM_CHANGELOG.md) v1.9.3-b1 条目），此后新差异从 v1.9.2 起累积
+- 上游进度：已合并至 **v1.9.2**（`0669d1b6`，2026-11-01 合入；实质变更见 [CUSTOM_CHANGELOG.md](./CUSTOM_CHANGELOG.md) v1.9.2-b1 条目），此后新差异从 v1.9.2 起累积
 - 定制基线：分叉点之上持续增长，**不写死数字**——用 `git rev-list --count fb848072..HEAD` 实时查询（写死的数下次提交就过期），内容包括下载管理器重写、内置音源、共存包、权限适配、默认设置预设、底座升级 v1.9.2 等，详见 README 定制功能一览
 
 ## 合并流程

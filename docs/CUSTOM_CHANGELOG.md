@@ -45,7 +45,7 @@
 - **App**：`uploadDigestNow` 加 `inFlight` 单飞锁（并发复用同一 Promise，`finally` 释放）；`check_health_digest` 增 A9 断言，9/0。
 - **telemetry**：`ingest.yml` 并发组从 per-issue 改为**按仓串行**（`concurrency: ingest-digest`）+ push 被拒 `pull --rebase` 重试 3 次；`digests/*.jsonl` 声明 `merge=union`，并发追加不再解冲突。
 - **实测**：并发开 #6/#7 → 两个 workflow 均 success、Issue 均自动关闭；`node --test` 5/5。
-- 发布：`v1.9.3-b148`（CI 自动出包，含单飞锁）。
+- 发布：`v1.9.2-b148`（CI 自动出包，含单飞锁）。
 
 ## [b147 · 真机摘要回传（未发布）] - 2026-11-17
 
@@ -58,7 +58,7 @@
 
 ## [b146 · 提速落地实测] - 2026-11-16
 
-- **发布**：`v1.9.3-b146` / versionCode **305**，Build `43908153668` success，全程 **4m26s**（b145 为 8m53s，降 50%）：Lint 68s ∥ Checks 77s ∥ Android **3m57s** → Release 25s。5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
+- **发布**：`v1.9.2-b146` / versionCode **305**，Build `43908153668` success，全程 **4m26s**（b145 为 8m53s，降 50%）：Lint 68s ∥ Checks 77s ∥ Android **3m57s** → Release 25s。5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
 - **本地预检**：280s → **68s**（代码改动、缓存命中）/ **16s**（纯文档改动）；36 项检查一条没少，`G` 门禁 24 条不变。
 - **源仓 CI**：8m55 → **2.6 分钟**（`stress-long` 因 `lx-source.js`/`src` 未变而跳过；`purge-cdn` 用 `always()`+结果判定，未因跳过而漏执行）。
 
@@ -70,7 +70,7 @@
 
 ## [b145 · 交接单三条收口 + compileSdk 回 35，CI 给出编译证据] - 2026-11-16
 
-- **发布**：`v1.9.3-b145` / versionCode **304**，Build `43896413859` success（Checks 50s / Lint 58s / **Android 6m58s** / Release 49s）；5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
+- **发布**：`v1.9.2-b145` / versionCode **304**，Build `43896413859` success（Checks 50s / Lint 58s / **Android 6m58s** / Release 49s）；5 APK：arm64 13MB / v7a 12MB / universal 27MB / x86 14MB / x86_64 13MB。
 - **compileSdk 36 → 35 的编译证据**：Android job 绿，即 AGP 8.6.1 + compileSdk 35 实际编过（此前只有「36 能编」的证据，35 是待证项）。该改动单独成提交（`1093a91e`），失败可单点回滚，不牵连功能修复。
 - **超时定时器收口**：`raceWithTimeout` + 5 处调用点常量化（`VERSION_CHECK_TIMEOUT_MS` / `SOURCE_INIT_TIMEOUT_MS` / `COVER_TIMEOUT_MS` / `URL_FETCH_TIMEOUT_MS`），门禁 G27 守住。
 - **门禁**：G22（compileSdk↔AGP 映射，含 8.13→36）、G23（SDK 三件套自洽）、G27；共 24 条。
@@ -84,7 +84,7 @@
 - **实跑**：`npm run preflight` **36/36（279.6s）**；`tsc --noEmit` 0；全仓 eslint 0 error（首轮曾红：G27 的门禁自身触发 `quote-props` / `no-unreachable-loop`，已修）；`check_download_restore_runtime` 3/0、下载持久化 3/0、错误标点 7/0。
 - **一处过程事故（记录以免复踩）**：`online.ts` 顶部是 `/* export const setMusicUrl ... */` 注释块，常量初版插进注释里 → `tsc` 报 TS2304；同类脚本化插入必须检查插入点是否在注释内。
 
-## v1.9.3-b144 发布（计划唯一性上线 + 双仓推送，2026-11-16）
+## v1.9.2-b144 发布（计划唯一性上线 + 双仓推送，2026-11-16）
 
 - **内容**：4 份计划按 b143 / 源仓 v8.16.1 重维护；`AUDIT_PLAN_HEALTH_DIAGNOSTICS.md` 并入 `AUDIT_PLAN.md` 附录 A；新增 **G21**（`docs/` 根目录 `AUDIT_PLAN*.md` / `STRESS_PLAN*.md` 各恰 1 份）。
 - **推送**：App `1c3e47e5..1b1bb838`（plan 一次提交）→ CI 回写版本 `ecc14d84`；源仓 `c2f1ba0..e529ad7`（plan 一次提交）。
@@ -106,7 +106,7 @@
 - **入口**：`npm run preflight`（App）· `npm run preflight:all`（双仓）。`AGENTS.md` 发布 SOP 段已写明「推前一条命令」。
 - **实跑**：`npm run preflight:all` = **41 条全绿 / 0 失败 / 276.8s**（其中源仓 `npm test` 占大头）。本地跑一次 4.6 分钟，替代云端两轮 9 分钟。
 
-## v1.9.3-b142 发布（2026-11-16）
+## v1.9.2-b142 发布（2026-11-16）
 
 - **内置音源**：`v8.16.1`（源仓 tag `v8.16.1`；CI 拉源后跨仓闸门「指南版本 == 包内 `@version`」通过，日志实见 `跨仓版本一致 … v8.16.1`）。`versionCode 301`，5 个 APK 全量上传（Build `43843671516`，Checks / Lint / Android / Release 四 job 全绿）。
 - **健康态跨版本恢复**：旧版本（甚至不在白名单里的 8.13.0）快照按结构恢复，未来版本（9.9.9）与非法结构仍拒绝；音源升版不再清空用户熔断 / 档位短路 / 播放摘除账本。
@@ -189,8 +189,8 @@
 - **问题**：`Promise.race([setApiSource(id), 8s])` 的输家不会被取消——超时后再 `resolve(true)` 照样发生，源可能已经切到新源。此时原逻辑抛 `source_switch_failed_keep_old`（「新音源未能加载，已保留旧音源」），对用户是**假陈述**，对账本是真隐患：`common.apiSource` 已同步写成新 id，而 `builtin_source_id` / `imported_builtin_source_version` 没写、pending 也没清。
 - **修复**：区分「明确失败」与「超时未就绪」。超时命中时抛新文案 `source_switch_timeout_keep_old`（「新音源 8 秒内未就绪，旧音源已保留（下次启动会自动对账）」），三语文案同步；明确 `false` 仍走原 `source_switch_failed_keep_old`。两条路径都不删旧源、都不写 `has_imported`/版本，pending 保留给下次启动对账。
 - **回归**：`check_source_update_logic` 24/0；`check_ts_syntax` 528 个 TS/TSX 0 错误；`check_source_config_contract` 29/0；`check_docs_consistency` 18 文档无过时引用。
-- **发布**：App `31440518` → b135（Build `43775350921` success，versionCode 294，5 APK，Release `v1.9.3-b135`）；发布前源仓 `lx-source CI` 曾连续 3 次红导致 `check_source_ci_gate` 阻断，已由源仓 `cd43810`（R44：require 安全环境侧依赖 + M9c）修复转绿后重新构建。
-- **产物**：`mobile-app-v1.9.3-b135-{arm64-v8a,armeabi-v7a,universal,x86,x86_64}.apk`，md5 已回写 `publish/changeLog.md`；`publish/build-state.json` build 134→135、versionCode 293→294；`npm-version-info` 1.0.270→1.0.271。
+- **发布**：App `31440518` → b135（Build `43775350921` success，versionCode 294，5 APK，Release `v1.9.2-b135`）；发布前源仓 `lx-source CI` 曾连续 3 次红导致 `check_source_ci_gate` 阻断，已由源仓 `cd43810`（R44：require 安全环境侧依赖 + M9c）修复转绿后重新构建。
+- **产物**：`mobile-app-v1.9.2-b135-{arm64-v8a,armeabi-v7a,universal,x86,x86_64}.apk`，md5 已回写 `publish/changeLog.md`；`publish/build-state.json` build 134→135、versionCode 293→294；`npm-version-info` 1.0.270→1.0.271。
 
 ## [音源升级原子性/基线/锚定修复（b134 已发布）] - 2026-11-15
 
@@ -212,7 +212,7 @@
 - **在线升级**：`Source.tsx` 改为 GitHub Contents API 优先、jsDelivr 兜底；远端低于当前版本时拒绝降级；成功后写 `has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id`，并只按 id 清理旧内置源，不再按“豆包定制”名字批量删。
 - **回归**：`scripts/check_source_update_logic.js` 12/0 覆盖 b131 `imported=8.14.1` → b132 `builtin=8.15.0` 必须升级、在线 8.16.0 → APK 8.15.0 不降级、缺少 `@version` 不覆盖等路径；已接入 `.github/workflows/release.yml` 的 `Checks`。
 - **文档**：同步 `docs/MUSIC_SOURCE_GUIDE.md`、`docs/SYNC_POINTS.md`、`docs/RELEASE_SOP.md` 的读取规则与门禁说明。
-- **发布**：App `a33a339f` → b133（Build `43692249306` success，versionCode 292，5 APK，Release `v1.9.3-b133`）；源仓 `v8.15.0` tag 已补。
+- **发布**：App `a33a339f` → b133（Build `43692249306` success，versionCode 292，5 APK，Release `v1.9.2-b133`）；源仓 `v8.15.0` tag 已补。
 - **文案台账**：三语各 1004 键（本轮 +2）。
 
 ## [双仓联动缺陷修复（已推送 master）] - 2026-11-15
@@ -229,14 +229,14 @@
 
 ## [HDM-3 后续修复合集（已发布 b130）] - 2026-11-15
 
-> b129 发布后剩余 4 项已知问题收口；随 App `v1.9.3-b130` 发布。
+> b129 发布后剩余 4 项已知问题收口；随 App `v1.9.2-b130` 发布。
 
 - **25s 超时竞态**：`online.ts` 增加请求级 settled 闸门；超时先定案，晚到成功只打诊断日志，不再补写 `play_result`/`chain_result`、不再留 pending、不再回放 `onQuality/onSource`。新增 `check_playback_timeout_race.js`：1 条失败账、0 条成功账、0 pending。
 - **趋势弹窗**：健康趋势弹窗改为四块：播放请求 / 实际起播 / 探测 / 后台预加载；删除重复的播放/探测块。`check_health_ui_mapping.js` U12 锁定四块。
 - **旧报告缺块**：`healthDiagnosticsView.ts` 对缺失的 `playWindows`/`probeWindows`/`preloadWindows`/`playbackWindows` 返回空窗口，不再回退到顶层取链窗口；V25 锁定。
 - **旧数据融合**：`healthDiagnostics.ts` 对无 `context` 的旧 `chain_result` 做安全回填——同 `traceId` 有 `play_result` 才归 `user`，没有配对的仍归 `legacy` 只计数；报告新增 `coverage.legacyMigrated`，E3b 锁定“1 条回填 + 1 条 legacy”。
 - **验证**：健康门禁 11 套全绿（diagnostics 59/0、deep 51/0、view 25/0、stress 14/0、real playback 10/0、timeout race 1/0 等）；契约五件套 527 TS 文件 0 错误、config 25/0、source contract 14/0、persistence 17/0、platform label 9/9；`tsc` rc=0；全仓 eslint rc=0。
-- **发布**：App `v1.9.3-b130`（Build `43671444942`，tag `v1.9.3-b130`；Checks 1m12s / Lint 1m24s / Android 4m27s / Release 17s 四 job 全绿）；5 个 APK：arm64-v8a `018d97f82b12a2e13e3d23cd7f2ce237`、armeabi-v7a `4db86c3cfe7de69c7c2fe8456737a2e3`、universal `e054abe50229fe353bc7283007c885ab`、x86 `f8fc09cee40af18f0e360dcbf016153e`、x86_64 `40b4307dbc8b0c3ff5c1fc7b8eb13f2b`；内置源仍为 `v8.14.1`。
+- **发布**：App `v1.9.2-b130`（Build `43671444942`，tag `v1.9.2-b130`；Checks 1m12s / Lint 1m24s / Android 4m27s / Release 17s 四 job 全绿）；5 个 APK：arm64-v8a `018d97f82b12a2e13e3d23cd7f2ce237`、armeabi-v7a `4db86c3cfe7de69c7c2fe8456737a2e3`、universal `e054abe50229fe353bc7283007c885ab`、x86 `f8fc09cee40af18f0e360dcbf016153e`、x86_64 `40b4307dbc8b0c3ff5c1fc7b8eb13f2b`；内置源仍为 `v8.14.1`。
 
 ## [HDM-3 健康数据分层与升级契约（已发布 b129）] - 2026-11-15
 
@@ -252,7 +252,7 @@
 - **提交后审计补修**：`PlaybackContext` 增加 `musicId`，`consumePendingPlayback` 按当前 `playerState.musicInfo.id` 校验；`fetchSourceEvents` 改为并发查询全部 `healthEvents` API 并按 JSON 去重；`SOURCE_EVENT_FIELDS` 补 `context`；源仓 controls-only 在 `applyHealthControls` 后直接返回，不再执行 `qualitySkipProbeAt.clear()`。
 - **B3 契约对齐**：`check_source_health_persistence.js` 的 B3 从“8 天 control 必须拒绝”改为“control 永久保留、未来时间与容量仍拒绝”，与 HDM-3 的 L0 永久化一致；CI 音源契约门禁 17/0。
 - **边界**：v1 仍拒绝；L1/L2 永不迁移；片段试听语义、质量压制入口、K15 真机矩阵不在本轮范围。
-- **发布**：App `v1.9.3-b129`（Build `43668044955`，tag `v1.9.3-b129`，Android 3m54s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64），内置源 `v8.14.1`；`Lint`/`Checks`/`Android`/`Release` 四 job 全绿。
+- **发布**：App `v1.9.2-b129`（Build `43668044955`，tag `v1.9.2-b129`，Android 3m54s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64），内置源 `v8.14.1`；`Lint`/`Checks`/`Android`/`Release` 四 job 全绿。
 
 ## [健康页取链/播放统计修复 + 缓存播放口径补齐（已推送 e49ab766，待发布）] - 2026-11-15
 
@@ -267,7 +267,7 @@
 
 ## [b126 发布：音源 v8.14.0 + 音质优先跨仓联动 + 审计计划重构] - 2026-11-15
 
-- **发布**：App `v1.9.3-b126` / versionCode 285（tag `59ab63bd`，Build `43619278134` success，Android 4m38s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64）；内置源 `8.14.0`（源仓 tag `v8.14.0` @ `f3a3e75`，资产 `lx-source-v8.14.0.js`，297753 bytes）。
+- **发布**：App `v1.9.2-b126` / versionCode 285（tag `59ab63bd`，Build `43619278134` success，Android 4m38s；5 个 APK：arm64-v8a / armeabi-v7a / universal / x86 / x86_64）；内置源 `8.14.0`（源仓 tag `v8.14.0` @ `f3a3e75`，资产 `lx-source-v8.14.0.js`，297753 bytes）。
 - **App 跨仓联动 `85d316ce`**：QP-L1 补齐第 14 个 action `forceQualityProbe`（`sourceContract.ts` / `check_source_contract.js` / `SYNC_POINTS.md` 14 个对齐）；QP-L2 消费源侧 `qualityCeilingApplied` 并在能力备档压制时给出可见原因；QP-L3 健康快照消费 `definitiveFail` / `linkExpired`；三语补 2 键。
 - **源仓 v8.14.0**：音质优先播放 + 真实交付档回填（`fragment` / `qualityConfidence` / `qualityCeilingApplied`）+ K08 唯一高质源 10min 探路 + K07 `forceQualityProbe` + CI `test-fast`/`stress-long`/`stress-short` 并行；`lx-source.js` 5707 行 / 297753 bytes。
 - **审计/文档**：`docs/AUDIT_PLAN.md` 重构为 v3.0、`docs/STRESS_PLAN.md` 重构为 v2.0；补 QP 跨仓联动审计面；`docs-audit.js` 规则 12 跨仓基准优先读 `mobile-app-latest`，并修复数组尾逗号 Lint 红。
@@ -300,12 +300,12 @@
 - **源仓台账 HEAD**：`docs/READTHROUGH.md` HEAD 追到 `e0a4590`；`docs-audit` 规则对本次台账提交产生的 lag=1 自指差按同步处理，lag>1 仍 🟡；实跑 0 🟡。
 - **S-01 源仓巡检 push fail-closed**：源仓 `.github/workflows/ci.yml` 的健康表写回由 `git push || { warning }` 改为 `if ! git push ...; then ::error + exit 1; fi`；push 失败不再静默绿，`test/audit/f-repo.js` 增加 Z8 静态断言（53/0）。
 - **文案台账**：三语各 997 键，`dl_*` 102 键；本轮新增 5（I-05 3 + I-07 2）。
-- **发布**：最终 `v1.9.3-b124` / versionCode 283（tag `921737f2`，Build `43569611762`，Android/Release 双绿，5 个 APK；状态回写 `9d655762`）；b123（`b5bd0770` / 282 / Build `43566246972`）为 I-05/I-07 收口版本，b122（`e5a49c6d` / 281）因回归作废。
+- **发布**：最终 `v1.9.2-b124` / versionCode 283（tag `921737f2`，Build `43569611762`，Android/Release 双绿，5 个 APK；状态回写 `9d655762`）；b123（`b5bd0770` / 282 / Build `43566246972`）为 I-05/I-07 收口版本，b122（`e5a49c6d` / 281）因回归作废。
 - **验证**：`tsc --noEmit` 0；全仓 ESLint 0 error / 0 warning；29 个 check 脚本全部 rc0（`check_source_ci_gate` 用有效 token 复跑源仓 HEAD `e0a4590` / CI `43568304962` success）；`check_docs_consistency` 18 文档通过；源仓 `test/audit/f-repo.js` 54/0、`docs-audit` rc0。
 
 ## [R-01 发布状态闭环 + 错误/进度/用户可见文案收口] - 2026-11-14
 
-> 最终发布 **v1.9.3-b121 / versionCode 280**（tag `83f80c6d`，Build `43561230482`，5 个 APK）。b120 为同一 App 代码的首次构建，Android 成功但 Release 的 `Commit version info` 因 `publish/changeLog.md` 未入提交、`git rebase` 拒绝 unstaged changes 而失败；修复 workflow 后 b121 的 Android 与 Release 双绿，版本状态已自动回写。
+> 最终发布 **v1.9.2-b121 / versionCode 280**（tag `83f80c6d`，Build `43561230482`，5 个 APK）。b120 为同一 App 代码的首次构建，Android 成功但 Release 的 `Commit version info` 因 `publish/changeLog.md` 未入提交、`git rebase` 拒绝 unstaged changes 而失败；修复 workflow 后 b121 的 Android 与 Release 双绿，版本状态已自动回写。
 
 - **R-01 发布状态回写/门禁**：`release.yml` 增加 `target_commitish` 固定 tag 到构建提交（修复 b119 tag 指向 docs 提交 `86018973`）；Release 提交前 `git fetch origin master` + `git rebase --autostash origin/master`，`git add` 纳入 `publish/changeLog.md`；`git push` 去掉 `|| echo`，失败必须 job 红。新增 `check_release_state_contract.js` 5 条断言。
 - **N1 错误提示国际化**：删除 `FAIL_CODE_ZH`，改为 `FAIL_CODE_I18N_KEY`（21 源错误码映射 18 个 key，`TIMEOUT`/`TOO_MANY_REQUESTS`/`MISMATCH` 复用别名）；`formatPlayError` 不再拼接源侧 detail，未知码只显示 code。`check_playback_ownership_runtime.js` 扩到 21 条并新增英文界面无中文断言。
@@ -322,7 +322,7 @@
 
 > 本轮为代码/文案/测试/CI/文档修复；临时审计交接单已删除，构建由收口后的 push 触发。
 
-- **发布**：App `v1.9.3-b119` / versionCode 278（tag `86018973`，Build `43554924635` success，5 个 APK）。
+- **发布**：App `v1.9.2-b119` / versionCode 278（tag `86018973`，Build `43554924635` success，5 个 APK）。
 - **P1 错误码文案**：`FAIL_CODE_ZH` 由 15 键扩到 21 键，覆盖源仓 16 个 `ERROR_CODES` 实际值（含 `SONG_MISMATCH`、`TRUNCATED_MEDIA`、`BAD_ENVELOPE`、`CONTRACT_ERROR`、`CANCELED`），并补 App 自有 `BUDGET_EXHAUSTED`；`source init failed` 走 `player__source_init_failed`；预算/取消不再拼接内部中文明细。
 - **P2 下载落盘**：新增 `stripStatusText`，`save()` 与 `migrateDownloadDir()` 二次保存都在落盘前剥离旧 `statusText`；显示层未知状态回退 `dl_status_error`，不再回退存储中文。
 - **P3 假阳性留档**：源仓当前 HEAD `4f47868` 复跑 `test/audit/f-repo.js` 为 52/0；`docs/STRESS_PLAN_v8.13.1.md` 在所有分支/历史不存在，不改门禁。
@@ -338,7 +338,7 @@
 
 > 已随本轮 App 提交 `bffaf281`；旧健康页文案不再保留，三语同步适配新版 4 主状态 + 逐档质量矩阵。
 
-- **发布**：App `v1.9.3-b118` / versionCode 277（tag `ae823b88`，Build `43531794187` success，5 个 APK）；内置源 `8.13.1`。
+- **发布**：App `v1.9.2-b118` / versionCode 277（tag `ae823b88`，Build `43531794187` success，5 个 APK）；内置源 `8.13.1`。
 
 - `health_desc` 改为“4 主状态（可用/降级/暂停/已关闭）+ 逐档质量矩阵（请求/成功/失败/均时/熔断/限流）”。
 - `health_footnote` 删除“旧 11 态/9 桶”尾注，明确待采样归入可用、降级/暂停/已关闭的 reason 清单与摘要口径。
@@ -530,7 +530,7 @@
 - 源仓：`1bec334`（删除 `getFailCached` 包装与 `safeConsole.error`；`lx-source.js` 4511→4509 行）；push CI `43175425887` success；tag/Release `v8.12.5`，资产 SHA-256 `f9980213e211e7a4ba14fdd2f00751b9c62344da98ad69553ca29c0b7ba1a028`。
 - App：`8f53b502` 同步 `MUSIC_SOURCE_GUIDE`/`AUDIT_PLAN` 到 `v8.12.5`；手动 dispatch Build `43177750140`，`源仓 HEAD CI 闸门` step **success**，Android/Release 两 job success。
 - 跨仓：APK 内 `assets/builtin_source.js` 290638 字节，SHA-256 与源仓 Release 资产完全一致，`@version 8.12.5`。
-- 发布：`v1.9.3-b115`（release id `442636986`）；5 APK：arm64 14,258,237 / armeabi-v7a 13,251,346 / universal 29,256,828 / x86 14,702,226 / x86_64 14,582,397；arm64 MD5 `717b7cfe58eff566fe573f71a2ba78f4`。
+- 发布：`v1.9.2-b115`（release id `442636986`）；5 APK：arm64 14,258,237 / armeabi-v7a 13,251,346 / universal 29,256,828 / x86 14,702,226 / x86_64 14,582,397；arm64 MD5 `717b7cfe58eff566fe573f71a2ba78f4`。
 - 边界：本次未改 App 生产代码；`v8.12.5` 的行为等价性由源仓 24 个入口全量回归与死代码静态核查保证（2026-11-12 复跑为 25 个测试入口，结论不变）。
 
 ## [P1 运行时收口：外呼计数 + 候选竞速] - 2026-11-12
@@ -542,7 +542,7 @@
 - RED：旧顺序实现 P1F-A6 返回慢候选 `kw`，不是 40ms 先成功的 `wy`；实现后 harness 5/0。
 - 边界：源 SDK 只返回 Promise、无 abort 契约，“取消”为逻辑取消（抑制晚到 attempts/缓存写入），不保证中断真实 HTTP；8MiB 真机端到端仍未实测。
 - 验证：播放所有权运行时 5/0、播放预算 20/0、`tsc` 0、语法 524/0、全仓 eslint 0、契约 13/0、桥媒体 6/0、配置 24/0、标签 9/9、健康 41/0、深度 51/0、压力 14/0、视图 22/0、日志目录 13/0。
-- 发布：`9b2414c7` → CI `43143871294` Android/Release success（日志确认 P1 运行时所有权 5/0、播放预算 20/0、语法 524/0、跨仓版本 v8.12.4）→ `v1.9.3-b114`（release id `442440318`）；5 APK：arm64 14,258,128 / armeabi-v7a 13,251,222 / universal 29,256,709 / x86 14,702,103 / x86_64 14,582,285。
+- 发布：`9b2414c7` → CI `43143871294` Android/Release success（日志确认 P1 运行时所有权 5/0、播放预算 20/0、语法 524/0、跨仓版本 v8.12.4）→ `v1.9.2-b114`（release id `442440318`）；5 APK：arm64 14,258,128 / armeabi-v7a 13,251,222 / universal 29,256,709 / x86 14,702,103 / x86_64 14,582,285。
 
 ## [验收收口：P2 错误码 + P1 owner 归因] - 2026-11-12
 
@@ -553,7 +553,7 @@
 - P1-A4 不新增机制：候选 `source` 即平台，`retryedSource` 已完成同 trace 同平台去重，补源码级断言锁定（非运行时外呼计数）。
 - 测试：源 `x-media-envelope` 8→11（X5 改 `BAD_ENVELOPE`、X9 缺片、X10 1B/1KB、X11 admit）；App `check_playback_budget` 16→20（P1E-A1~A4）；首跑 RED 源 8/2、App 16/4，实现后 GREEN 源 11/0、App 20/0。
 - 验证：App `tsc` 0、语法 524/0、全仓 eslint 0；源全量审计 a~x 全绿、`self-check` 8.12.4、docs-audit 0。
-- 发布：源仓 `1da2f56`（v8.12.4）→ App `1cf35f67` → CI `43137739681` Android/Release success（日志确认跨仓版本一致 v8.12.4、播放预算 20/0、桥媒体 6/0、语法 524/0）→ `v1.9.3-b113`（release id `442405852`）；5 APK：arm64 14,257,181 / armeabi-v7a 13,250,270 / universal 29,255,755 / x86 14,701,165 / x86_64 14,581,343。
+- 发布：源仓 `1da2f56`（v8.12.4）→ App `1cf35f67` → CI `43137739681` Android/Release success（日志确认跨仓版本一致 v8.12.4、播放预算 20/0、桥媒体 6/0、语法 524/0）→ `v1.9.2-b113`（release id `442405852`）；5 APK：arm64 14,257,181 / armeabi-v7a 13,250,270 / universal 29,255,755 / x86 14,701,165 / x86_64 14,581,343。
 
 ## [P1-A8：getOtherSource 缓存 TTL / 负缓存 / 容量] - 2026-11-12
 
@@ -563,7 +563,7 @@
 - `src/core/music/utils.ts` 的 `getOtherSource` 改为稳定 key（`source_id` / `local_id`）缓存；`isRefresh=true` 跳过读缓存但仍写回；空数组按负缓存 TTL 落盘，60s 内不再重搜。
 - `scripts/check_playback_budget.js` 从 12 条扩到 16 条，新增 P1D-A1~A4；首跑 RED 12/4（模块缺失、utils 未接线），实现后 GREEN 16/0。
 - 验证：播放预算 16/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
-- 发布：`88076d95` → CI `43134049562` Android/Release success → `v1.9.3-b112`（release id `442382357`）；5 APK：arm64 14,256,250 / armeabi-v7a 13,249,359 / universal 29,254,843 / x86 14,700,232 / x86_64 14,580,422。
+- 发布：`88076d95` → CI `43134049562` Android/Release success → `v1.9.2-b112`（release id `442382357`）；5 APK：arm64 14,256,250 / armeabi-v7a 13,249,359 / universal 29,254,843 / x86 14,700,232 / x86_64 14,580,422。
 
 ## [P1 收口：play_result 结构化 attempts] - 2026-11-12
 
@@ -573,7 +573,7 @@
 - `src/core/music/online.ts`：失败 `recordPlayResult` 透传 `err.attempts`；失败码优先取 `err.code`，其次 `CODE:` 前缀，`BUDGET_EXHAUSTED` 不再被改写成 `PLAY_FAIL`。
 - `scripts/check_playback_budget.js` 从 9 条扩到 12 条，新增 P1C-A1~A3；首跑 RED 9/3（attempts 未落盘、未接线），实现后 GREEN 12/0。
 - 验证：播放预算 12/0、健康 41/0、深度 51/0、压力 14/0、视图 22/0、`tsc --noEmit` 0、变更文件 eslint 0、docs-audit rc=0。
-- 发布：`7afbe4b6` → CI `43132044437` Android/Release success → `v1.9.3-b111`（release id `442370713`）；5 APK：arm64 14,255,579 / armeabi-v7a 13,248,688 / universal 29,254,169 / x86 14,699,578 / x86_64 14,579,747。
+- 发布：`7afbe4b6` → CI `43132044437` Android/Release success → `v1.9.2-b111`（release id `442370713`）；5 APK：arm64 14,255,579 / armeabi-v7a 13,248,688 / universal 29,254,169 / x86 14,699,578 / x86_64 14,579,747。
 
 ## [P2 桥媒体传输：base64 信封与 256KB 分片] - 2026-11-12
 
@@ -587,7 +587,7 @@
 - 新增 `test/audit/x-media-envelope.js`（源仓）：首跑 RED 2/4（信封不识别、64B `kindOf=unknown`、1MiB/8MiB 还原失败），实现后 GREEN 8/0（含 `inited.mediaEnvelope=2`、0 字节零长）。
 - CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_media_body.js`；TS 语法计数 522 → 523。
 - 验证：App 契约 13/0、播放预算 9/0、桥媒体 6/0、健康 41/0、视图 22/0、日志 13/0、配置 24/0、标签 9/9、语法 523/0、`tsc` 0、全量 eslint 0、docs-audit rc=0；源仓 W 2/2、X 8/0、R 23/23、U 10/10、V 13/13、self-check 8.12.3。
-- 发布：源仓 `5088182`（v8.12.3，含 0 字节零长修复）→ App `6ee9bbf1` → CI `43129233402` Android/Release success（日志确认语法 523/0、桥媒体 6/0、跨仓版本一致 v8.12.3）→ `v1.9.3-b110`（release id `442356718`）；5 APK：arm64 14,255,078 / armeabi 13,248,188 / universal 29,253,668 / x86 14,699,073 / x86_64 14,579,246。
+- 发布：源仓 `5088182`（v8.12.3，含 0 字节零长修复）→ App `6ee9bbf1` → CI `43129233402` Android/Release success（日志确认语法 523/0、桥媒体 6/0、跨仓版本一致 v8.12.3）→ `v1.9.2-b110`（release id `442356718`）；5 APK：arm64 14,255,078 / armeabi 13,248,188 / universal 29,253,668 / x86 14,699,073 / x86_64 14,579,246。
 - 边界：信封只覆盖 binary 响应；源侧 `toBytes` 仍保留旧 Buffer 形状兼容；尚未做真机端到端 8MiB 响应实测。
 
 ## [P1 第二刀：播放取链预算与 attempts 账本] - 2026-11-12
@@ -601,7 +601,7 @@
 - 新增 `scripts/check_playback_budget.js`：首跑 RED 0/7（模块缺失、主/候选未接线、日志无 attempts），GREEN 9/0（含两条预算 race 行为用例）。
 - CI `release.yml` 在「音源标签/配置/语法/action 契约门禁」增加 `node scripts/check_playback_budget.js`；TS 语法计数 521 → 522。
 - 边界：本刀只做预算与 attempts；并发竞速、首成功取消、`play_result.attempts[]` 结构化落盘仍留待后续。lyric/pic/local 路径未加 owner gate 的问题仍在。
-- 发布：App `c368a1ff` → CI `43119984613` Android/Release success（日志确认语法 522/0、契约 13/0、播放预算 9/0、内置源 v8.12.2）→ `v1.9.3-b108`（release id `442304517`，5 APK uploaded）。
+- 发布：App `c368a1ff` → CI `43119984613` Android/Release success（日志确认语法 522/0、契约 13/0、播放预算 9/0、内置源 v8.12.2）→ `v1.9.2-b108`（release id `442304517`，5 APK uploaded）。
 
 ## [P1 降级所有权（Fallback Owner）] - 2026-11-12
 
@@ -613,7 +613,7 @@
 - 源仓 `lx-source.js`：`sourceConfig[platform]` 5 个平台声明 `fallbackOwner:"source"`，聚合源版本 8.12.1 → 8.12.2；新增 `test/audit/w-fallback-owner.js`（RED 1/2 → GREEN 2/2）。
 - 边界：P1 第一刀只做 owner 能力与 URL 换源 gate；预算切片、`attempts[]`、首成功取消、`BUDGET_EXHAUSTED` 留到 P1 第二刀；lyric/pic/local 路径未加 owner gate。
 - 验证：App 契约 13/0、健康 41/0、`tsc` 0、全量 eslint 0、配置 24/0、标签 9/9、视图 22/0、日志 13/0、语法 521/0、docs-audit rc=0；源仓 W 2/2、U 10/10、V 13/13、self-check 8.12.2 通过。
-- 发布：源仓 `2905a77`（v8.12.2）→ App `b09115c6` → CI `43115586478` Android/Release success（日志确认内置 `@version 8.12.2`）→ `v1.9.3-b107`（release id `442281635`，5 APK uploaded）。
+- 发布：源仓 `2905a77`（v8.12.2）→ App `b09115c6` → CI `43115586478` Android/Release success（日志确认内置 `@version 8.12.2`）→ `v1.9.2-b107`（release id `442281635`，5 APK uploaded）。
 
 ## [P0 音源契约统一（Source Contract v2）] - 2026-11-12
 
@@ -712,9 +712,9 @@
 
 > 原 `docs/AUDIT_PLAN.md` 的 A–S 组停留在 2026-11-07 快照（730 键 / b78 / TS 57→14），且没有覆盖 v8.12.x 的 `sourcePlatform` 标签链路、tsc/eslint 双门禁、跨仓版本一致。本轮只改计划与验证记录，不改业务代码。
 
-- `docs/AUDIT_PLAN.md`：顶部基线改为 `v1.9.3-b99` / HEAD `a6767fa1` / 三语 874 键 / 519 TS/TSX / tsc 0 / eslint 0；新增 **T 组（T1~T12）**：`sourcePlatform` 全链路透传、实际平台优先、标签拼装回退、7 平台枚举闭合、成功缓存保留平台、关源后标签一致性、跨仓版本一致、tsc 门禁、eslint 门禁、版本号持久化、新增文案三语闭合、文档时效；附 9 条执行命令与 4 条反证口径。
+- `docs/AUDIT_PLAN.md`：顶部基线改为 `v1.9.2-b99` / HEAD `a6767fa1` / 三语 874 键 / 519 TS/TSX / tsc 0 / eslint 0；新增 **T 组（T1~T12）**：`sourcePlatform` 全链路透传、实际平台优先、标签拼装回退、7 平台枚举闭合、成功缓存保留平台、关源后标签一致性、跨仓版本一致、tsc 门禁、eslint 门禁、版本号持久化、新增文案三语闭合、文档时效；附 9 条执行命令与 4 条反证口径。
 - `scripts/check_source_platform_label.js`：标签行为矩阵扩为 **40 组合**（7 已知平台 + local + 未知 + 空 × 4 种子源名），锁住 `undefined`/双分隔符/悬挂分隔符；断言组数不变（9 组）。
-- 构建闭环：Build `42991043602` success（Android/Release 双绿，跨仓版本 v8.12.1），Release 自动回写 **v1.9.3-b100 / versionCode 259**；计划基线同步区分「审计起点 b99」与「当前发布 b100」。
+- 构建闭环：Build `42991043602` success（Android/Release 双绿，跨仓版本 v8.12.1），Release 自动回写 **v1.9.2-b100 / versionCode 259**；计划基线同步区分「审计起点 b99」与「当前发布 b100」。
 - 验证：`check_source_platform_label` 9/9；配置契约 24/0；健康诊断 22/0；诊断压测 12/0；`check_ts_syntax` 519/0；文档一致性 16 文档；`tsc --noEmit` rc=0；全仓 eslint 0/0；`docs-audit --dry-run` 待处理 0。
 
 ## [修复 eslint 门禁误扫构建产物] - 2026-11-11
@@ -883,7 +883,7 @@
 - `tsc --noEmit`：仅既存 `playCount.ts(85,40)` 1 条错误
 - `git diff --check`：无空白错误；未推送
 
-## [v1.9.3-b86] - 2026-11-09
+## [v1.9.2-b86] - 2026-11-09
 
 > 背景：推送前做跨仓契约检查时发现，音源抛的 12 个错误码里，App 只给 6 个配了中文，而且其中两个**码名对不上**——音源抛 `NETWORK_TIMEOUT` / `RATE_LIMIT`，App 表里写的是 `TIMEOUT` / `TOO_MANY_REQUESTS`。`FAIL_CODE_ZH[code] || code` 会兜底显示英文码，用户看到的是「LINK_EXPIRED：签名URL已过期」这种。
 
@@ -896,12 +896,12 @@
 - 逐码核对：音源 12 个 `ERROR_CODES` **全部有中文映射，缺失 0**
 - `tsc --noEmit`：仅 `playCount.ts(85,40)` 1 条既存错误
 
-## [v1.9.3-b85] - 2026-11-09
+## [v1.9.2-b85] - 2026-11-09
 
 > 版本号 bump（`chore: 更新版本信息`，远端已先行推送），本轮**无独立功能变更**。
 > 实际发版内容 = b85 版本号 + 下面 b84 的一键更新整改。
 
-## [v1.9.3-b84] - 2026-11-09
+## [v1.9.2-b84] - 2026-11-09
 
 > 背景：音源仓第六轮缺口审计发现，App 的「一键更新内置音源」在失败路径上会把自己逼死——旧源已经删完，新源却没加载起来，回退无处可去。
 
@@ -919,7 +919,7 @@
 - `tsc --noEmit`：仅 `playCount.ts(85,40)` 1 条**既存**错误（与本次改动无关）
 - 未推送
 
-## [v1.9.3-b83] - 2026-11-09
+## [v1.9.2-b83] - 2026-11-09
 
 > 背景：音源仓第五轮审计（审断言）收尾时发现，健康面板会把"正在 429 退避、完全不参与竞速"的源显示成**正常**。
 
@@ -934,7 +934,7 @@
 - 两版注入均能红：`rateLimitActive` 恒 false、改回 `!!rateLimited`
 - App 侧 `tsc --noEmit`：仅 `playCount.ts` 1 条**既存**错误（与本次改动无关）
 
-## [v1.9.3-b82] - 2026-11-08
+## [v1.9.2-b82] - 2026-11-08
 
 > 背景：三仓第二轮全覆盖审查收尾时补做的遗留项，以及审查结论里的 1 个 🟡 + 2 个 ⚪。
 
@@ -948,9 +948,9 @@
 
 ### 验证
 - `scripts/check_ts_syntax.js`：514 个 TS/TSX 文件 **0 错误**
-- 上述修复已随 `v1.9.3-b82` 编进 APK（b80 之后提交、b82 由手动 dispatch 产出）
+- 上述修复已随 `v1.9.2-b82` 编进 APK（b80 之后提交、b82 由手动 dispatch 产出）
 
-## [v1.9.3-b80] - 2026-11-08
+## [v1.9.2-b80] - 2026-11-08
 
 > 背景：用户反馈"听歌时间统计不准"。审查结论是**界面显示错了字段**——侧边栏文案写「今日 N 次 · 时长 X」，X 传的却是累计 `playTime`（只涨不跌）；数据层当时根本没有"今日时长"字段，界面想显示也拿不到。不是计时算法的问题。
 
@@ -969,9 +969,9 @@
 ### 验证
 - 按源码逐行复刻的模拟脚本 8 项断言全绿：单日 60s（playTime/dayTime 同步）、跨夜（今日时长只算当天 2410s、累计仍连续 3000s）、0.6s+0.6s 正确计为 1s、旧档 `dayTime=0`
 - `check_ts_syntax`：514 个 TS/TSX 文件 0 错误；`docs-audit --dry-run`：19 项无红
-- `v1.9.3-b80` / versionCode 239 由 CI 真实编译产出
+- `v1.9.2-b80` / versionCode 239 由 CI 真实编译产出
 
-## [v1.9.3-b78] - 2026-11-07
+## [v1.9.2-b78] - 2026-11-07
 
 > 背景：播放器 fork（`luanmuc/react-native-track-player`）做了一轮全覆盖审计（9 组 76 维，见该仓库 `docs/AUDIT_PLAN-2026-11-07.md` / `AUDIT_REPORT-2026-11-07.md`），查出 10 处问题并全部修复。本轮把 App 的 fork 锁定 `eceacb5` → `a0b2a87`，取回这些修复。
 
@@ -983,7 +983,7 @@
 - 定制归口注释补齐（`TrackMetadata` / `MusicModule` / `MusicBinder`，`lx-music fork:` 覆盖 5 → 8 个文件）
 
 ### 构建验证（非真机可验部分）
-- `v1.9.3-b78` / versionCode 237 由 App 侧 release CI 真实编译：gradle 直接编译 `node_modules/react-native-track-player/android` 的 Java 源码，等于把 fork 的修复跑了一遍真实编译链路
+- `v1.9.2-b78` / versionCode 237 由 App 侧 release CI 真实编译：gradle 直接编译 `node_modules/react-native-track-player/android` 的 Java 源码，等于把 fork 的修复跑了一遍真实编译链路
 - 包内实证：`resources.arsc` 含 4 个 `notify_mode_*` + `lyric` / `lyric_inactive` / `default_artwork`；Manifest 含新权限名（b77 命中 0、b78 命中 1，反向对照成立）；Hermes bundle 含 `remote-cycle-repeat` / `remote-toggle-desktop-lyric`
 - 看门狗：fork 自带的 `platform-validation.yml` 在 fork 仓库需 owner 手动启用，本轮不依赖它（App 编译链路更真实）
 
@@ -1021,7 +1021,7 @@
 - `MUSIC_SOURCE_GUIDE` 四b 补 `playDead`/`rateLimited` 快照字段说明
 - `logger.warn` 第三参数被签名丢弃（2 处）→ 改模板串，保留失败原因
 
-## [v1.9.3-b74] - 2026-11-07
+## [v1.9.2-b74] - 2026-11-07
 
 > 背景：用户反馈「下载没有进度提示」。核查后确认进度条/百分比**早已存在**（`Download/index.tsx` 的进度块、`downloadManager` 的 `progress` 回调、store 事件刷新链路都在），问题在于「看不见」而不是「没实现」。本轮只做 UI 层增强，不动下载核心。
 
@@ -1040,7 +1040,7 @@
 ### 未做
 - 剩余时间（`(total-downloaded)/speed`）：单曲秒级完成时恒显示「约 1 秒」，属噪音，批量场景 P2 已覆盖
 
-## [v1.9.3-b73] 加固轮 - 2026-11-07
+## [v1.9.2-b73] 加固轮 - 2026-11-07
 
 > 状态：**已推送并出包**（b73 版本信息提交入库，随后 b74–b78 继续迭代）。查出来的都是定制代码自身的隐性缺陷，不是新功能。
 
@@ -1075,7 +1075,7 @@
 - ESLint：`downloadManager.ts` 38 条（**与改动前基线 38 条完全一致，无新增**）；`Download/index.tsx` 0 条
 - 命名逻辑用等价 JS 复算：`歌名 - 歌手`→`晴天 - 周杰伦`；`歌名 - 歌名`→`晴天 - 晴天`（旧实现第二处不替换）；超长中文名按 100 字节截断到 33 字；40 个 emoji 截断到 50 个字符不超限
 
-## [v1.9.3-b72] - 2026-11-07
+## [v1.9.2-b72] - 2026-11-07
 
 ### 音频焦点主开关文案中性化 + 下载页三语国际化
 
@@ -1085,7 +1085,7 @@
   - `NAME_PRESETS`（`歌名 - 歌手` 等模板）与占位符校验保持中文原样：这两个词是**写入文件名模板的占位符字面量**，不是界面文案，翻译会让已存的命名规则失效
 - 校验：`tsc --noEmit` 对两个改动文件零错误；ESLint 零告警（顺带补了 `sections` useMemo 漏掉的 `t` 依赖）
 
-## [v1.9.3-b71] - 2026-11-07
+## [v1.9.2-b71] - 2026-11-07
 
 ### 下载设置全部收进「下载」页（不再占设置页分组）
 > 起因：下载类 6 个设置项（仅 WiFi / 最大并发 / 失败重试 / 目录 / 文件命名 / 完成通知）后端逻辑齐全但没有界面入口，用户要求全部整合到下载页，而不是新增设置分组。
@@ -1104,7 +1104,7 @@
 
 ---
 
-## [v1.9.3-b70] - 2026-11-07
+## [v1.9.2-b70] - 2026-11-07
 
 ### 同类隐患二次排查：播放器未初始化时的其余原生崩溃 / 异常路径
 > 起因：b69 修完启动崩溃后，要求把「播放器没初始化就调原生 / 原生没判空就解引用」这一类问题全仓过一遍。
@@ -1120,7 +1120,7 @@
 
 ---
 
-## [v1.9.3-b69] - 2026-11-07
+## [v1.9.2-b69] - 2026-11-07
 
 ### 修复：关掉音频焦点主开关后 App 启动即崩溃（b68 回归，根因在原生）
 - **现象**：把「其他应用播放声音时，自动暂停播放」关掉、重启 App，闪屏过后卡住、随即崩溃。崩溃日志为 `java.lang.NullPointerException: Attempt to invoke virtual method 'int ...t0()' on a null object reference`，栈顶是 `MusicModule.setNotificationRepeatMode` → `MetadataManager.setRepeatMode`
@@ -1132,7 +1132,7 @@
 
 ---
 
-## [v1.9.3-b68] - 2026-11-07
+## [v1.9.2-b68] - 2026-11-07
 
 ### 音频焦点拆分为三个开关
 - **主开关（沿用）**：设置 → 播放设置 → 「其他应用播放声音时，自动暂停播放」，决定是否接管音频焦点
@@ -1144,7 +1144,7 @@
 
 ---
 
-## [v1.9.3-b62] - 2026-11-06
+## [v1.9.2-b62] - 2026-11-06
 
 ### 通知栏新增播放模式按钮
 - **位置**：展开态「词」按钮之后新增一个播放模式按钮。实际可见按钮共 5 个（上一首 / 播放暂停 / 下一首 / 词 / 模式）：`rewindAction` 与 `forwardAction` 因 App 的 `notificationCapabilities` 未声明 Rewind / FastForward，`createAction` 返回 null、`addAction` 直接跳过，不会出现在通知栏
@@ -1163,7 +1163,7 @@
 
 ---
 
-## [v1.9.3-b61] - 2026-11-06
+## [v1.9.2-b61] - 2026-11-06
 
 ### 通知栏显示格式调整 + 修音源名/音质被歌词刷新覆盖
 - **显示格式**：标题只显示歌名（如「黄昏」）；音源与音质统一放到艺术家行，按「歌手 · 音源 · 音质」排列（如「周传雄 · 树音 · FLAC」）。缺项自动跳过，不会出现多余的分隔符
@@ -1180,11 +1180,11 @@
 
 - 上游（lyswhut/lx-music-mobile）的更新日志见 [CHANGELOG.md](./CHANGELOG.md)
 - 每次云编译的**实时发布说明**由 CI 从 git 提交自动生成（见 [docs/RELEASE_SOP.md](RELEASE_SOP.md)），本文件是人工维护的归档
-- 版本号规则：`1.9.3-bN`，N 为底座版本内构建序号；底座（官方原版）升版后从 b1 重新计数（如 1.9.1-b79 → 1.9.3-b1）；versionCode 由 `publish/build-state.json` 状态文件驱动持续递增，保证覆盖安装（见 [docs/RELEASE_SOP.md](RELEASE_SOP.md)）
+- 版本号规则：`1.9.3-bN`，N 为底座版本内构建序号；底座（官方原版）升版后从 b1 重新计数（如 1.9.1-b79 → 1.9.2-b1）；versionCode 由 `publish/build-state.json` 状态文件驱动持续递增，保证覆盖安装（见 [docs/RELEASE_SOP.md](RELEASE_SOP.md)）
 
 ---
 
-## [v1.9.3-b54] - 2026-11-06
+## [v1.9.2-b54] - 2026-11-06
 
 ### 通知栏定制真正接通 + 播放卡加载态修复
 - **依赖升级**：track-player fork 升到 `01f34b15`（原 `9e3a51b`）
@@ -1196,7 +1196,7 @@
 
 ---
 
-## [v1.9.3-b33] - 2026-11-05
+## [v1.9.2-b33] - 2026-11-05
 
 ### 更新音源按钮完整修复
 - **版本比对**：先拉远端版本号，和本地当前版本对比，一样就提示"已是最新版"，不重复导入
@@ -1207,7 +1207,7 @@
 
 ---
 
-## [v1.9.3-b34 ~ b37] - 2026-11-05
+## [v1.9.2-b34 ~ b37] - 2026-11-05
 
 ### 音源版本号体系同步（b34）
 - 音源版本比对改用大版本号体系（v1.0~v8.0，同步音源仓库 2026-11-05 版本重构）
@@ -1222,7 +1222,7 @@
 
 ---
 
-## [v1.9.3-b38 ~ b44] - 2026-11-05
+## [v1.9.2-b38 ~ b44] - 2026-11-05
 
 ### 音源结构同步与趋势图优化（b38）
 - **MUSIC_SOURCE_GUIDE**：音源结构同步 v8.0（补 helloworld 源、试听片段检测、次要后端说明）
@@ -1250,7 +1250,7 @@
 - **zh-tw 补全 24 个缺失词条**：v4/v8 新增的 toast/nav 词条（音源健康/音质/下载队列/悬浮窗权限等）繁体翻译未同步，现三语言 618 条键完全一致
 - 审计计划基线更新 b43 + B6 补趋势排序审计结论 + E2 备注 K1~K19 同步 + 统计修正
 
-## [v1.9.3-b45 ~ b48] - 2026-11-05
+## [v1.9.2-b45 ~ b48] - 2026-11-05
 
 ### 文档同步 Hook（b45）
 - **提交时自动提示必同步文档清单**：入库 git hook（`scripts/hooks/` + `scripts/doc-sync-map.js`），改代码即列出本次需同步的文档（含跨仓库提示），与提交一起更新
@@ -1266,16 +1266,16 @@
 
 ### 发布记录清理与自动发布重建验证（b48）
 - **GitHub Releases/tags/编译记录清零**（2026-11-05，历史发布页与安装包归档删除）
-- **自动发布机制保留**：手动触发编译重建 Release `v1.9.3-b48` + tag + 5 个 APK（arm64-v8a/armeabi-v7a/universal/x86/x86_64），版本计数由 `build-state.json` 驱动（b47 → b48）
+- **自动发布机制保留**：手动触发编译重建 Release `v1.9.2-b48` + tag + 5 个 APK（arm64-v8a/armeabi-v7a/universal/x86/x86_64），版本计数由 `build-state.json` 驱动（b47 → b48）
 
-## [v1.9.3-b32] - 2026-11-05
+## [v1.9.2-b32] - 2026-11-05
 
 ### 更新音源按钮超时控制
 - **加 15 秒超时**：网络慢时用户不用一直等，超时直接提示"拉取超时（15秒），请检查网络"
 
 ---
 
-## [v1.9.3-b31] - 2026-11-05
+## [v1.9.2-b31] - 2026-11-05
 
 ### 更新音源按钮修复
 - **双重 toast 修复**：之前用 `handleImportScript` 导入，它内部已经有 toast 提示，导致用户看到两个提示（"导入成功" + "音源已更新到 vX.X"）。改成直接用 `importUserApi`，自己处理 toast，只弹一次
@@ -1285,7 +1285,7 @@
 
 ---
 
-## [v1.9.3-b30] - 2026-11-05
+## [v1.9.2-b30] - 2026-11-05
 
 ### 音源管理页面加"更新音源"按钮
 - **一键更新音源**：音源管理页面底部加了"更新音源"按钮，点击后自动从 GitHub 拉取最新 lx-source.js，自动导入为自定义音源
@@ -1294,7 +1294,7 @@
 
 ---
 
-## [v1.9.3-b24] - 2026-11-04
+## [v1.9.2-b24] - 2026-11-04
 
 ### 深度审计修复（12 个问题）
 - **提前预警显示源名称**：之前显示的是源 id（"gdWy"），现在从健康快照里映射成中文名（"GD 网易"）——和趋势图保持一致
@@ -1304,7 +1304,7 @@
 
 ---
 
-## [v1.9.3-b23] - 2026-11-04
+## [v1.9.2-b23] - 2026-11-04
 
 ### 提前预警（主动通知）
 - **健康分连续下降预警条**：健康面板加载时自动获取趋势历史数据，判断每个源最近 3 次探测健康分是否连续下降 ≥5 分
@@ -1320,14 +1320,14 @@
 
 ---
 
-## [v1.9.3-b21] - 2026-11-04
+## [v1.9.2-b21] - 2026-11-04
 
 ### 关键 bug 修复
 - **JSX 语法错误**：趋势图图例里 `异常(<-5分)` 的 `<` 被 JSX 当成标签开始，导致编译失败（b21 修复：改成"异常(低于-5分)"）
 
 ---
 
-## [v1.9.3-b20] - 2026-11-04
+## [v1.9.2-b20] - 2026-11-04
 
 ### 健康面板新增「配置」「趋势」按钮（v8.0 + v8.0）
 - **配置热更新**（v8.0）：健康面板加「配置」按钮，弹出 Modal 编辑 14 个运行参数（缓存 TTL、熔断阈值、并发数、探测间隔等），保存后音源内存热更新即时生效，无需重载音源
@@ -1348,7 +1348,7 @@
 
 ---
 
-## [v1.9.3-b12 ~ b14 补记] - 2026-11-04
+## [v1.9.2-b12 ~ b14 补记] - 2026-11-04
 
 > 本节为历史补记：b8~b20 的实现过程已合并记录于 b20 条目，此处补上 b20 条目未覆盖的两项过程性修复。
 
@@ -1362,7 +1362,7 @@
 
 ---
 
-## [v1.9.3-b5] - 2026-11-01
+## [v1.9.2-b5] - 2026-11-01
 
 ### 音源健康分改 10 分制（更直观）
 - 音源快照 `healthScore` 由 0~1 改为 **0~10**（一位小数，如 8.5）——内部评分/排序/熔断逻辑不变，仅输出 ×10 换算；负分保留（异常源标红）
@@ -1371,13 +1371,13 @@
 
 ---
 
-## [v1.9.3-b1] - 2026-11-01
+## [v1.9.2-b1] - 2026-11-01
 
 ### 底座升级：跟随官方原版 v1.9.2（fork 点 fb848072 之后的 6 个上游提交）
 - **kg 歌单修复**（同步上游 `e6be258c`）：重启用新接口 `get_other_list_file` + 重写分页逻辑，修复无法打开 kg 歌单 / 部分歌单歌曲丢失的问题（仅合入 `kg/songList.js`，跳过上游 changelog）
 - **默认禁用音频卸载**（同步上游 `025d7822` + `b3afb18c`）：`defaultSetting` 默认值 `true→false`，设置版本 `2.2→2.3`，老用户升级自动关闭（设置项保留，可手动重开）
 - **track-player fork 升级**（`0f0acb4→001e2dd`）：移除音频卸载参数中的不必要设置（注释 `setIsGaplessSupportRequired(true)`，同步上游 `d76fe8f`，让更多设备/格式可进入卸载模式）
-- **版本号体系调整**：底座升 1.9.2 后 bN 从 **b1 重新计数**（1.9.3-b1）；versionCode 改由 `publish/build-state.json` 驱动（159→160）持续递增，老用户可正常覆盖安装
+- **版本号体系调整**：底座升 1.9.2 后 bN 从 **b1 重新计数**（1.9.2-b1）；versionCode 改由 `publish/build-state.json` 驱动（159→160）持续递增，老用户可正常覆盖安装
 - 上游其余 3 个提交（1.9.3-beta.0 版本号 / 发布 v1.9.2 / CHANGELOG）为纯发布记录，定制版有独立 bN 体系，未合并
 
 ---
