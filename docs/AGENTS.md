@@ -29,7 +29,7 @@ publish/                    CI 生成的版本信息（勿手改，构建时自�
 ## 常用命令
 
 ```bash
-# 语法检查（531 个 TS/TSX，每次改动后必跑）
+# 语法检查（536 个 TS/TSX，每次改动后必跑）
 node scripts/check_ts_syntax.js
 
 # 音源标签实际平台契约（9 条：preload→userApi→utils→online→PlayInfo/通知栏 + 拼装矩阵）
@@ -61,7 +61,7 @@ node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
 node scripts/docs-audit.js
 
-# 提交 + 推送（push 即触发云编译发版 v1.9.2-bN；push 前必须先 fetch 检查远端，见协作规则第 8 条）
+# 提交 + 推送（push 即触发云编译发版 v1.9.3-bN；push 前必须先 fetch 检查远端，见协作规则第 8 条）
 git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push origin master
 ```
 
@@ -79,7 +79,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 ## 版本推进协议（任一账号说「发布」即按此执行）
 
 1. 确认代码改动已完成 + 语法检查 0 错误 + 文档一致性检查通过；
-2. push master 即触发云编译发版（`v1.9.2-bN`，bN 自动递增）；
+2. push master 即触发云编译发版（`v1.9.3-bN`，bN 自动递增）；
 3. 编译完成后 Release 自动创建 APK 附件；
 4. 一次发布 = 一次 push = 一个 bN；用户说"重新编译"则直接 push 或 workflow_dispatch。
 
@@ -110,13 +110,13 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 
 | 层级 | 验证内容 | 方法 | 能发现 |
 |---|---|---|---|
-| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（531 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
+| L0 静态 | 语法/类型/lint/结构 | `node scripts/check_ts_syntax.js`（536 文件 0 错误）+ `node node_modules/typescript/bin/tsc --noEmit`（0 error）+ `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx`（0 error / 0 warning）+ `git diff` 自查 | 语法错误、类型错误、调试残留 |
 | L1 逻辑 | 行为/状态流 | 代码走查、必要时补单测 | 逻辑缺陷、状态机错误 |
 | L2 接口 | 依赖/音源 | curl/实测（音源接口、上游 API、npm 包） | 接口失效、协议不匹配 |
 | L3 真机 | 端到端 | 装包实测（下载/播放/权限/更新） | 宿主差异、集成问题 |
 | L4 回归 | 全量 | `docs/RELEASE_SOP.md` 发布前测试清单 | 回归破坏 |
 
-> 发布构建（`release.yml` 的 `lint` / `checks` 前置 job，`Android` 依赖其全绿后构建）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 29 条只读/运行时门禁 `check_ts_syntax.js`（529 文件）、`check_source_config_contract.js`（29 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_update_logic.js`（24 条，b131→b132 升级、在线高版本不被旧内置源覆盖、缺 @version 不覆盖、升级基线锚定内置源、pending 切源对账、@version 锚定文件头、二次读 assets 回填）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）+ `check_health_event_pipeline.js`（10 条，源事件白名单、去重、三块隔离、落盘脱敏）+ `check_health_state_v2.js`（7 条，4 主状态 + 本地化 reason）+ `check_health_ui_mapping.js`（12 条，主状态 UI、reason 本地化、质量矩阵三语）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（21 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_quality_request_runtime.js`（12 条，自定义源按 qualityList 请求、内置源双裁剪、设置档不越级/不升档、端到端实收 type=flac/attempts、P1-CACHE 片段缓存回读）+ `check_playback_ownership_runtime.js`（21 条，mock 外呼计数、16 源错误码全覆盖与候选竞速取消、英文界面无中文）+ `check_player_progress_runtime.js`（4 条，setProgress 以 totalTime 为分母）+ `check_release_state_contract.js`（5 条，tag/回写/push fail-closed）、`check_media_body.js`（6 条，base64 信封与 256KB 分片）+ 健康诊断契约 `check_health_diagnostics.js`（60 条，含 H30 片段不冒充完整成功）+ 视图模型 `check_health_diagnostics_view.js`（24 条）+ 日志目录 `check_log_directory.js`（15 条）+ 健康状态/文案/文档一致性 8 条（`check_health_anomaly_v2` 8、`check_health_event_pipeline` 10、`check_health_persistence_v2` 9、`check_health_state_v2` 7、`check_health_status_refactor` 10、`check_health_ui_mapping` 11、`check_download_persistence` 3、`check_download_restore_runtime` 3、`check_player_core_runtime` 15、`check_player_service_runtime` 10、`check_player_hook_runtime` 7、`check_file_name_template_runtime` 11、`check_download_error_i18n` 7、`check_player_utils_runtime` 7、`check_sync_client_runtime` 4、`check_docs_consistency` 18 文档）。
+> 发布构建（`release.yml` 的 `lint` / `checks` 前置 job，`Android` 依赖其全绿后构建）额外阻塞：`tsc --noEmit`（0 error）+ 全仓 `eslint`（0 error / 0 warning）+ 29 条只读/运行时门禁 `check_ts_syntax.js`（529 文件）、`check_source_config_contract.js`（29 条）、`check_source_contract.js`（14 条，含 P1 fallbackOwner 与 P3 持久化 action）、`check_source_update_logic.js`（24 条，b131→b132 升级、在线高版本不被旧内置源覆盖、缺 @version 不覆盖、升级基线锚定内置源、pending 切源对账、@version 锚定文件头、二次读 assets 回填）、`check_source_health_persistence.js`（17 条，canonical key、旧键迁移、v2 拆分、存储异常降级、五平台并发、G5 动态源/版本）+ `check_health_persistence_v2.js`（9 条，control 独立 key、v1 兼容、迁移、TTL/64KB）+ `check_health_event_pipeline.js`（10 条，源事件白名单、去重、三块隔离、落盘脱敏）+ `check_health_state_v2.js`（7 条，4 主状态 + 本地化 reason）+ `check_health_ui_mapping.js`（12 条，主状态 UI、reason 本地化、质量矩阵三语）、`check_source_platform_label.js`（9 条）、`check_playback_budget.js`（21 条，24s 预算、attempts、play_result 落盘与候选缓存）+ `check_quality_request_runtime.js`（12 条，自定义源按 qualityList 请求、内置源双裁剪、设置档不越级/不升档、端到端实收 type=flac/attempts、P1-CACHE 片段缓存回读）+ `check_playback_ownership_runtime.js`（21 条，mock 外呼计数、16 源错误码全覆盖与候选竞速取消、英文界面无中文）+ `check_player_progress_runtime.js`（4 条，setProgress 以 totalTime 为分母）+ `check_release_state_contract.js`（5 条，tag/回写/push fail-closed）、`check_media_body.js`（6 条，base64 信封与 256KB 分片） + V9 在线更新四件套 `check_source_signing.js`（6 条，Node crypto 签→noble 验的跨实现验证、篡改/未知 keyId/非法长度/换密钥失效/base64 一致）+ `check_source_update_fetch.js`（9 条，源仓真实产物 + 真签名跑 manifest→size→sha256→验签→区间判定全链路，含开关关闭零请求）+ `check_source_update_apply.js`（12 条，验过的包就地覆盖/无源时新增/篡改零写入/回滚四态）+ 健康诊断契约 `check_health_diagnostics.js`（60 条，含 H30 片段不冒充完整成功）+ 视图模型 `check_health_diagnostics_view.js`（24 条）+ 日志目录 `check_log_directory.js`（15 条）+ 健康状态/文案/文档一致性 8 条（`check_health_anomaly_v2` 8、`check_health_event_pipeline` 10、`check_health_persistence_v2` 9、`check_health_state_v2` 7、`check_health_status_refactor` 10、`check_health_ui_mapping` 11、`check_download_persistence` 3、`check_download_restore_runtime` 3、`check_player_core_runtime` 15、`check_player_service_runtime` 10、`check_player_hook_runtime` 7、`check_file_name_template_runtime` 11、`check_download_error_i18n` 7、`check_player_utils_runtime` 7、`check_sync_client_runtime` 4、`check_docs_consistency` 18 文档）。
 > **跨仓往返门禁（仅双仓本地可用，故意不接 CI）**：`check_cross_repo_health_roundtrip.js`（4 条，X1/X1b/X2/X3）用**真实** App 持久化模块 + **真实**源仓 `lx-source.js` 跑「旧版本账本 → 升版音源 → 恢复 → 导出计数仍在」的端到端往返。CI 只检出 App 仓，跑起来只会 SKIP，接进去等于假绿，所以只在本地双仓联调时跑；只检出 App 仓时脚本显式打印 `⏭ SKIP` 并以 0 退出，不伪造通过。
 
 ### 任务类型分流
@@ -184,7 +184,7 @@ node scripts/docs-audit.js   # 文档一致性检查：过时引用清零才可�
 
 ## 发布
 
-- push master 即触发云编译发版（`v1.9.2-bN`）；`publish/**`、`npm-version-info/**` 不触发。
+- push master 即触发云编译发版（`v1.9.3-bN`）；`publish/**`、`npm-version-info/**` 不触发。
 - 构建前先跑源仓 HEAD CI 闸门：源仓最近一次 push CI 非 success、未完成、无 run，或绿提交不是当前 HEAD 祖先时，直接阻断取源。
 - 本地打包：`npm run pack:android` / `pack:android:debug` / `clear` 都按 `process.platform` 选 `gradlew`(Unix) 或 `gradlew.bat`(Windows)，不再是单平台写死；版本号取自 `publish/build-state.json`（可用 `APP_VERSION_CODE` 覆盖）。
 - CI 依赖缓存：`.github/actions/setup` 缓存 `node_modules`（key=package-lock.json+.nvmrc，命中跳过 npm ci）；`setup-java` 缓存 Gradle wrapper/依赖；`android/gradle.properties` 开启 `org.gradle.caching/parallel/workers.max=4`，构建命令 `./gradlew assembleRelease --build-cache --parallel --no-daemon`。改依赖锁定文件后缓存自动失效，无需手动清理。

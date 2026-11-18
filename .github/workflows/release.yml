@@ -69,6 +69,9 @@ jobs:
           node scripts/check_source_config_contract.js
           node scripts/check_cross_repo_linkage.js
           node scripts/check_source_contract.js
+          node scripts/check_source_signing.js
+          node scripts/check_source_update_fetch.js
+          node scripts/check_source_update_apply.js
           node scripts/check_source_update_logic.js
           node scripts/check_truth_gates.js
           node scripts/check_source_health_persistence.js

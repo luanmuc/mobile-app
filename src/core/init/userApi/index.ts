@@ -12,8 +12,13 @@ import { logger } from '@/utils/logger'
 import { storageDataPrefix } from '@/config/constant'
 import { normalizeSourceInfo, unwrapSourceResult } from './sourceContract'
 import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, decideBuiltinSourceImport, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget } from './builtinSource'
+import { applySourceUpdate } from '../../sourceUpdate/apply'
 import { recordProbeEvents } from '@/core/healthLog'
 
+
+// v9.3：在线更新取源仓 Release 的 latest 资产。用 latest 而不是固定 tag：
+// 源仓每次发版都会传 lx-source.js + 两个签名文件，latest 永远指向最新已发布包。
+const SOURCE_UPDATE_BASE_URL = 'https://github.com/luanmuc/backend-api/releases/latest/download'
 
 export default async(setting: LX.AppSetting) => {
   const healthStorage: HealthStorage = { getData, saveData, removeData }
@@ -683,5 +688,39 @@ export default async(setting: LX.AppSetting) => {
       console.warn('Failed to load builtin source:', e)
     }
   }
+  // v9.3：内置源在线更新（默认关）。整段包在 try/catch 里——更新只是"让音源变新一点"的增强项，
+  // 它失败绝不能让 App 起不来，也不能影响已经导入好的内置源。
+  // 顺序上放在内置导入之后：先保证有一份能用的内置源，再尝试升级到远端验签包。
+  if (setting['common.sourceAutoUpdate']) {
+    try {
+      const httpGet = async(url: string) => {
+        const res = await fetch(url, { headers: { 'User-Agent': 'lx-music-mobile' } })
+        return {
+          status: res.status,
+          text: async() => res.text(),
+          bytes: async() => res.arrayBuffer().then(buf => new Uint8Array(buf)),
+        }
+      }
+      const currentBuiltinVersion = builtinVer || parseSourceVersion(await RNFS.readFileAssets('builtin_source.js', 'utf8'))
+      const updateResult = await applySourceUpdate({
+        baseUrl: SOURCE_UPDATE_BASE_URL,
+        get: httpGet,
+        enabled: true,
+        builtinVersion: currentBuiltinVersion,
+        builtinSourceId: builtinTarget.targetId || null,
+        overwrite: async(id, script) => {
+          const info = await overwriteUserApi(id, script)
+          const idx = userApiList.findIndex(api => api.id === id)
+          if (idx >= 0) userApiList.splice(idx, 1, info)
+          return info
+        },
+        add: async(script) => addUserApi(script),
+      })
+      console.log('source auto update:', updateResult.action, updateResult.reason, updateResult.version ?? '-')
+    } catch (e) {
+      console.warn('source auto update failed:', e)
+    }
+  }
+
   setUserApiList(userApiList)
 }

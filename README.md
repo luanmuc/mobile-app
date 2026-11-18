@@ -22,7 +22,7 @@
 
 ## 下载安装
 
-- 前往 [GitHub Releases](https://github.com/luanmuc/mobile-app/releases) 下载最新 `v1.9.2-bN` 安装包（发布记录于 2026-11-05 清理，CI 自动发布随下次构建重建）
+- 前往 [GitHub Releases](https://github.com/luanmuc/mobile-app/releases) 下载最新 `v1.9.3-bN` 安装包（发布记录于 2026-11-05 清理，CI 自动发布随下次构建重建）
 - 按 ABI 选择：`arm64-v8a`（主流新机）/ `armeabi-v7a`（老机）/ `x86_64` / `x86`（模拟器）/ `universal`（全兼容大包），每次构建产出 5 个 APK
 - App 内「设置 → 软件更新」可在线检查更新并自动下载安装
 
@@ -65,7 +65,7 @@
 
 - 本软件默认设置以实用为准，建议使用前先浏览一遍设置项
 - 音乐播放列表机制说明见 [FAQ.md](./docs/FAQ.md)
-- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `1.9.2-b23`）
+- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `1.9.3-b23`）
 
 ## 贡献代码
 
@@ -73,7 +73,7 @@
 
 1. 新账号接手前先读 [MERGE_GUIDE.md](./docs/MERGE_GUIDE.md)（开发协作规范）和 [docs/DEV_SETUP.md](./docs/DEV_SETUP.md)（环境搭建）
 2. 开发规范见 [docs/DEV_CONVENTIONS.md](./docs/DEV_CONVENTIONS.md)
-3. 改动提交到 master 后推送，CI 自动编译发布新版本（`v1.9.2-bN`）
+3. 改动提交到 master 后推送，CI 自动编译发布新版本（`v1.9.3-bN`）
 4. 发布流程见 [docs/RELEASE_SOP.md](./docs/RELEASE_SOP.md)
 
 ### 开发文档索引
@@ -82,7 +82,7 @@
 |---|---|
 | [AGENTS.md](./docs/AGENTS.md) | AI/多账号协作入口：常用命令、实证验证链 L0-L4（Copilot/豆包自动读取） |
 | [MERGE_GUIDE.md](./docs/MERGE_GUIDE.md) | 上游合并指南、高冲突区、设置迁移规则、代码地图、多账号协作 |
-| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置，当前底座 v1.9.2 至 b150） |
+| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置，当前底座 v1.9.3 至 b151） |
 | [docs/DEV_SETUP.md](./docs/DEV_SETUP.md) | 开发环境搭建（新账号上手） |
 | [docs/DEV_CONVENTIONS.md](./docs/DEV_CONVENTIONS.md) | 多账号分工、提交规范、评审流程 |
 | [docs/RELEASE_SOP.md](./docs/RELEASE_SOP.md) | 版本号规则、发布流程、测试清单、验证与回滚 |

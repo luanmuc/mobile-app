@@ -19,6 +19,7 @@
 | **subSource 透出**<br>播放页显示音源子源 | ① 播放页 UI（竖屏 + 横屏）<br>② 底部播放栏<br>③ 通知栏附加信息 | 音源侧 musicUrl 返回 subSource 字段，App 侧要接住并显示；v8.12.0 起同时返回 sourcePlatform，标签按实际平台显示（旧音源缺字段时回退主平台） |
 | **音质档位表**<br>128k / 320k / flac / flac24bit / high | 音质选择弹窗 / 播放页音质标签 | 音源侧支持的音质档位，App 侧音质标签要能对应显示 |
 | **版本号（统一读取规则）**<br>`@version` 首 token | ① `src/screens/Home/Views/Setting/settings/Basic/Source.tsx`（`parseSourceVersion`）<br>② `src/core/init/userApi/index.ts`（`parseSourceVersion` + `decideBuiltinSourceImport`） | 内置与在线升级都只认 `@version` 第一个 token；`@description` / `logInfo` 只作说明，不再作为启动导入真值。启动导入只在内置版本严格更高或首次安装时执行，在线升级成功后写 `imported_builtin_source_version`，较旧 APK 内置源不得反向覆盖。发布前核对 `@version` 与 `docs/MUSIC_SOURCE_GUIDE.md`；`check_source_update_logic.js` 看护 b131→b132 升级与 8.16→8.15 不降级。 |
+| **发布签名 / 公钥（v9 新增）**<br>ed25519 · keyId | ① 源仓 `scripts/sign-release.js`（私钥来自 CI secret `LX_SIGNING_KEY`，keyId 写在 manifest）<br>② App `src/core/sourceUpdate/verify.ts` 的 `SOURCE_PUBLIC_KEYS`（内置 SPKI 公钥 + keyId） | 源仓换钥后**必须**把新公钥填进 App 公钥表并追加新 keyId，且旧 keyId 保留一段时间（否则旧签名的包被 App 整批拒收）；两边 keyId 必须逐一对得上，**测试专用 keyId 不得与生产 keyId 同名**（同 id 会命中真公钥造成假绿）。改区间口径动 `src/core/sourceUpdate/plan.ts`，并跑 `check_source_signing.js` / `check_source_update_fetch.js` / `check_source_update_apply.js` 与源仓 `cross-repo-version.js`（X1~X5）。 |
 
 ---
 

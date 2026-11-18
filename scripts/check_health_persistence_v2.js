@@ -144,7 +144,8 @@ check('Q9 源仓已移除 v1 回滚开关', async() => {
     console.log('  （跳过）源仓不在同一工作区')
     return
   }
-  const src = fs.readFileSync(legacy, 'utf8')
+  // v9.3-b：拼接源口径（legacy.js + core/*.js），否则已迁走的逻辑会被误判为消失
+  const src = require('./lib/source-static').readSourceAll(path.join(ROOT, '..', 'lx-music-source'))
   assert(!src.includes('healthV2Enabled'), '源仓仍保留 healthV2Enabled 回滚开关')
   assert(src.includes('HEALTH_STATE_ACCEPTED_VERSIONS'), '源仓缺少 v2 版本表')
 })

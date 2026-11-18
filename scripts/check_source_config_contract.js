@@ -94,13 +94,13 @@ section('contract', () => {
     assert.strictEqual(c.BOOL_CONFIG_KEYS.length, 9)
     assert.strictEqual(c.SOURCE_CONFIG_KEYS.length, 39)
   })
-  run('与源仓 ALLOWED_KEYS 对表（34 数字键，4 个 source-only 显式登记）', () => {
+  run('与源仓 ALLOWED_KEYS 对表（35 数字键，5 个 source-only 显式登记）', () => {
     const sourcePath = path.join(ROOT, '..', 'lx-music-source', 'src', 'legacy.js')
     if (!fs.existsSync(sourcePath)) {
       console.log('    （跳过：未检出源仓，CI 单仓环境不强制）')
       return
     }
-    const source = fs.readFileSync(sourcePath, 'utf-8')
+    const source = require('./lib/source-static').readSourceAll(path.join(ROOT, '..', 'lx-music-source')) || fs.readFileSync(sourcePath, 'utf-8')
     const match = source.match(/const ALLOWED_KEYS\s*=\s*\[([\s\S]*?)\]/)
     assert(match, '源仓 ALLOWED_KEYS 未找到')
     const sourceKeys = [...match[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1])
@@ -110,8 +110,9 @@ section('contract', () => {
       'probeTierCoreInterval',
       'probeTierSecondaryInterval',
       'qualityShortCircuitUniqueProbeMs',
+      'crossPlatformGraceMs',
     ]
-    assert.strictEqual(sourceKeys.length, 34, `源仓数字键应为 34，实际 ${sourceKeys.length}`)
+    assert.strictEqual(sourceKeys.length, 35, `源仓数字键应为 35，实际 ${sourceKeys.length}`)
     assert.strictEqual(appKeys.length, 30, `App 数字键应为 30，实际 ${appKeys.length}`)
     for (const key of appKeys) assert(sourceKeys.includes(key), `App 键不在源仓白名单：${key}`)
     const diff = sourceKeys.filter(key => !appKeys.includes(key)).sort()

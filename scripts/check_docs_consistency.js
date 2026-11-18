@@ -26,7 +26,7 @@ const tpCurrent = tpMatch ? tpMatch[1] : null
 const DOC_GLOBS = [
   'README.md', 'AGENTS.md', 'FAQ.md', 'MERGE_GUIDE.md', 'docs/**/*.md',
 ]
-const EXCLUDE = ['CUSTOM_CHANGELOG.md', 'CHANGELOG.md'] // 历史归档，允许出现旧版本号
+const EXCLUDE = ['CUSTOM_CHANGELOG.md', 'CHANGELOG.md', 'AUDIT_REPORT-2026-11-07.md'] // 历史归档（含 docs/archive/ 下带日期的报告），允许出现旧版本号
 
 // 规则：每个规则 = { name, test(内容行, 行号上下文) -> 匹配行数组 }
 // 通用取行号函数
@@ -39,7 +39,8 @@ function lineMatches(content, regex) {
 }
 
 // 历史锚点豁免词：行内含这些词时视为"历史事实/时间点"描述（如 "v1.9.1-b74 起移除"），不算过时
-const HISTORY_MARK = /起|至|自|以来|当时|曾|历史|归档|→/
+// v9.5：补「此前 / 上一版 / 已推送」——这些行明确在叙述历史，不是当前口径残留。
+const HISTORY_MARK = /起|至|自|以来|当时|曾|历史|归档|→|此前|上一版|已推送|（20\d\d-/
 
 const RULES = []
 if (baseVersion) {

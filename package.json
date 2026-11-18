@@ -1,6 +1,6 @@
 {
   "name": "mobile-app",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",
@@ -46,6 +46,8 @@
   "homepage": "https://github.com/luanmuc/mobile-app#readme",
   "dependencies": {
     "@craftzdog/react-native-buffer": "^6.1.2",
+    "@noble/ed25519": "^2.3.0",
+    "@noble/hashes": "^1.8.0",
     "@react-native-async-storage/async-storage": "~2.1.2",
     "@react-native-clipboard/clipboard": "^1.14.3",
     "@react-native-community/slider": "^4.5.7",

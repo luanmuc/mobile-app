@@ -2,13 +2,14 @@
 
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
-> **基线（唯一真值，2026-11-17）**：
-> - App：`luanmuc/mobile-app` @ `51cfaf4f`（已推送），v1.9.2-**b149** / versionCode **308**（Build [43977912014](https://github.com/luanmuc/mobile-app/actions/runs/43977912014) success；b148 单飞锁、b149 摘要区块下移均已自动出包）
-> - 源仓：`luanmuc/backend-api` @ `d04711b`（已推送），v8.17（42 脚本 / 567 条审计断言；CI [43966054274](https://github.com/luanmuc/backend-api/actions/runs/43966054274) success）
-> - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5，真机 #2 与并发 #6/#7 均实测入库并自动关闭）
+> **基线（唯一真值，2026-11-18）**：
+> - App：`luanmuc/mobile-app` @ 本地单提交（**未推送**），**v1.9.3-b151** / versionCode **310**（线上最后 Release 为 v1.9.2-b150）；`npm run preflight --fast` **39 通过 / 0 失败**
+> - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
+> - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1020 键**、TS/TSX **531 文件**、`scripts/check_*.js` **41 个**（`npm run preflight` 逐条跑；`check_source_ci_gate` 需网络，CI 用自带 token）、**check 断言合计 543 条**、文档 **17 篇**
-> - 本文件对应变更：b147~b149「真机摘要回传（方案 B）」+ v8.17「多样本判据/真实出链/滚动告警/真机对照」+ telemetry 仓；b146「本地预检提速 280s→68s/文档改动 16s + 云端 job 拓扑并行」（`cd2e24a0`）；b145「交接单三条收口」（`1093a91e`）；b143「preflight 一条命令跑完 CI 同判据」（`54249f8b`）
+> - 硬数字：三语各 **1021 键**、TS/TSX **536 文件**、`scripts/check_*.js` **44 个**、**check 断言合计 597 条**、文档 **16 篇**（另 `archive/` 2 篇）
+> - **v9 新增审计面**：`src/core/sourceUpdate/{verify,plan,fetcher,apply}.ts` 四件套 + `check_source_signing`(6) / `check_source_update_fetch`(9) / `check_source_update_apply`(12) 三脚本已接入 `release.yml` checks；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
+> - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 在线自动更新（默认关）+ 版本区间语义」；升版前修掉 `plan.ts` 绝对 minor 下限（否则 9.x 会被判不兼容、在线更新整体失效）
 
 ---
 
@@ -48,7 +49,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1020 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1021 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -109,8 +110,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1020 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **41 个**（`npm run preflight` 一键跑完 CI 同判据） | 41 脚本 rc0 / 543 条断言 | ✅ |
+| 三语国际化（1021 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **44 个**（`npm run preflight` 一键跑完 CI 同判据） | 44 脚本 rc0 / 597 条断言 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -129,7 +130,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（531 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（536 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 | X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；改任一侧字段即红 |
 
@@ -161,11 +162,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（41 个 `check_*.js`，543 条断言）
+### 6b. 全量脚本台账（44 个 `check_*.js`，597 条断言）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 531 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 536 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -183,6 +184,9 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_source_config_contract` | 29 | 39 键 / 单位 / 三语 |
 | `check_source_contract` | 14 | 14 action / envelope / fallbackOwner |
 | `check_source_update_logic` | 44 | 更新逻辑 / 无指纹机制 |
+| `check_source_signing` | 6 | ed25519 验签 / 内置公钥表 / 未知 keyId 拒绝 |
+| `check_source_update_fetch` | 9 | manifest→size→sha256→验签→区间 强制链路 |
+| `check_source_update_apply` | 12 | 验过的包就地覆盖 / 篡改零写入 / 回滚四态 |
 | `check_source_platform_label` | 9 | 实际平台优先 / 试听标签 |
 | `check_quality_request_runtime` | 12 | 请求档双裁剪 / 片段缓存回读 |
 | `check_playback_budget` | 21 | 24s 预算 / attempts |
@@ -222,7 +226,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | G-A08 | 真机验收 blocked | 无 `adb` / 无 `/dev/kvm` / `ANDROID_HOME` 未设 | blocked |
 | G-A09 | tx 完整曲目 blocked（上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`） | 上游限制 | blocked |
 
-> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」。**2026-11-15 已逐条对当前代码复核，无「待复核」项**：G-A01/G-A03/G-A04/G-A06 四条**不成立**（b118 之后已修或本就误判），G-A02/G-A05/G-A07 **仍成立**（待补项），G-A08/G-A09 为**环境 blocked**。即 b118 草稿的高危缺口已全部消失，剩余仅是待补测试与真机限制。
+> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.3-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」。**2026-11-15 已逐条对当前代码复核，无「待复核」项**：G-A01/G-A03/G-A04/G-A06 四条**不成立**（b118 之后已修或本就误判），G-A02/G-A05/G-A07 **仍成立**（待补项），G-A08/G-A09 为**环境 blocked**。即 b118 草稿的高危缺口已全部消失，剩余仅是待补测试与真机限制。
 
 ---
 
@@ -305,7 +309,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView`；finding/reason 走本地化 | H14/H18/H19/H27/H29 + 视图 25 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1020 键 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1021 键 |
 | `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ### 3. 断言矩阵（51 条）
@@ -466,3 +470,11 @@ node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
 退出标准：上述命令全部 rc=0；健康契约 60/0；深度审计 51/0；诊断压力 14/0；视图 25/0；日志目录 15/0；配置契约 29/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+
+---
+
+## 维护记录（只记基线变更，不堆历史）
+
+| 日期 | 变更 | 实跑证据 |
+|---|---|---|
+| 2026-11-18 | 基线升到 **v1.9.3-b151 / vc310**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |

@@ -48,8 +48,23 @@ check('attempt 带平台归因，成功源写实际子源', (() => {
 })(), 'utils.ts')
 
 const sourceRoot = path.join(ROOT, '..', 'lx-music-source')
+// v9.3-b：源仓 v9.0 已把逻辑拆到 src/core/*.js，只扫 legacy.js 会把"已迁走"误判成"消失"。
+// 口径改为拼接源：legacy.js + 全部 core 模块（与源仓门禁 STATIC_SRC 同一口径）。
+const readSourceAll = () => {
+  const parts = []
+  const legacy = path.join(sourceRoot, 'src', 'legacy.js')
+  if (fs.existsSync(legacy)) parts.push(fs.readFileSync(legacy, 'utf8'))
+  const coreDir = path.join(sourceRoot, 'src', 'core')
+  if (fs.existsSync(coreDir)) {
+    for (const f of fs.readdirSync(coreDir).filter(x => x.endsWith('.js')).sort()) {
+      parts.push(fs.readFileSync(path.join(coreDir, f), 'utf8'))
+    }
+  }
+  return parts.join('\n')
+}
+
 if (fs.existsSync(path.join(sourceRoot, 'src', 'legacy.js'))) {
-  const s = fs.readFileSync(path.join(sourceRoot, 'src', 'legacy.js'), 'utf8')
+  const s = readSourceAll()
   check('源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', s.includes('BUDGET_EXHAUSTED') && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
   check('源仓预算不 bump resolveDead', /BUDGET:\s*\{[^}]*resolveDead:\s*false/.test(s), 'legacy.js')
   check('源仓跨平台最坏 22s 在 App 桥 23s 内', s.includes('BUDGET_TOTAL_HARD_LIMIT_MS = 16000') && s.includes('resolveColdStartTimeout') && read('src/core/init/userApi/index.ts').includes('}, 23_000),'), 'legacy.js + userApi/index.ts')

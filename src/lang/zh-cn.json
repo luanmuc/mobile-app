@@ -1018,5 +1018,6 @@
   "choose_path_read_dir_failed": "读取目录失败：{msg}",
   "setting_play_count_summary": "听歌统计：累计播放 {count} 次 · 今日 {day} 次 · 累计播放时长约 {time}",
   "setting_play_count_time_hm": "{h} 小时 {m} 分钟",
-  "setting_play_count_time_m": "{m} 分钟"
+  "setting_play_count_time_m": "{m} 分钟",
+  "setting_source_auto_update": "音源自动更新（仅采用验签通过的版本）"
 }
