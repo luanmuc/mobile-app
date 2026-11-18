@@ -57,6 +57,15 @@ jobs:
       - name: Setup Env
         uses: ./.github/actions/setup
 
+      - name: Setup Node 22（仅 Checks）
+        # 为什么这里要覆盖：scripts/check_source_signing.js 等把 @noble/* 验签实现编译成 CJS
+        # 再 require()，而 @noble/ed25519 v2 是纯 ESM —— 需要 Node ≥22 的 require(ESM)。
+        # 具名步骤走 .nvmrc 的 v18 会让 Checks 必红（而 Android 构建仍需 Node 18 基线，
+        # 故只在 checks job 内覆盖，不抬全集）。依赖包是纯 JS，Node 18 装好、Node 22 跑没问题。
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: TypeScript 类型检查
         # 全仓 tsc --noEmit 必须 0 error；语法检查只能发现 parse 错误，类型检查补 TS 类型/接口契约。
         run: node node_modules/typescript/bin/tsc --noEmit
