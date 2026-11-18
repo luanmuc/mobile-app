@@ -159,7 +159,10 @@ const VersionModal = ({ componentId }: { componentId: string }) => {
     hideModal(componentId)
   }
   const handleIgnore = () => {
-    setIgnoreVersion(ignoreVersion != versionInfo.newVersion!.version ? versionInfo.newVersion!.version : null)
+    // A10-008：newVersion 在 state 里声明为可空（VersionInfo | null），原来用非空断言抹掉这个事实。
+    // 当前分支组合下 newVersion 必有值所以没炸，但状态机一改（比如放开忽略按钮的可用条件）就是 NPE。
+    const newVersion = versionInfo.newVersion?.version ?? null
+    setIgnoreVersion(newVersion != null && ignoreVersion != newVersion ? newVersion : null)
     // handleCancel()
   }
 

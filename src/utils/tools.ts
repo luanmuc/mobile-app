@@ -138,7 +138,22 @@ export const toast = (message: string, duration: 'long' | 'short' = 'short', pos
   ToastAndroid.showWithGravityAndOffset(message, _duration, _position, 0, offset)
 }
 
-export const openUrl = async(url: string): Promise<void> => Linking.canOpenURL(url).then(async() => Linking.openURL(url))
+export const openUrl = async(url: string): Promise<void> => {
+  // A08-008：原实现忽略 canOpenURL 的布尔结果、且整条链没有 catch —— 设备无对应协议处理器时
+  // openURL 仍会被调用并 reject，成为未处理 Promise 拒绝（用户无反馈、日志难定位）。
+  try {
+    const canOpen = await Linking.canOpenURL(url)
+    if (!canOpen) {
+      // 日志脱敏门禁（check_log_redaction）禁止裸打 url / 错误对象 —— 外链可能带签名或私密参数，
+      // 错误对象也可能挂载完整 url。只记录"没有处理器"这件事本身。
+      console.warn('[openUrl] no handler for the url')
+      return
+    }
+    await Linking.openURL(url)
+  } catch {
+    console.warn('[openUrl] failed to open')
+  }
+}
 
 export const assertApiSupport = (source: LX.Source): boolean => {
   return source == 'local' || global.lx.qualityList[source] != null

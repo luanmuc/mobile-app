@@ -18,6 +18,7 @@ export default {
     return { source: 'bd', list: this.filterList(body.result) }
   },
   filterList(rawList) {
-    return rawList.map(item => item.word)
+    // A07-022：body.result 缺失时 rawList 是 undefined，直接 .map 会 TypeError。
+    return (Array.isArray(rawList) ? rawList : []).map(item => item.word)
   },
 }

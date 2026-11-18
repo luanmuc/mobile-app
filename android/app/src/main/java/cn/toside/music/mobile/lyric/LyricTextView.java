@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.util.Log;
 import android.view.Gravity;
 import android.widget.TextView;
 
@@ -44,7 +43,10 @@ public class LyricTextView extends TextView {
 
   @Override
   protected void onDetachedFromWindow() {
+    // A11-021：原来只移除 mStartScrollRunnable，漏了 onDraw 自循环 post 的 invalidateRunnable ——
+    // 脱离窗口后仍持续重绘（泄漏 + 白耗电）。两个都移除。
     removeCallbacks(mStartScrollRunnable);
+    removeCallbacks(invalidateRunnable);
     super.onDetachedFromWindow();
   }
 
@@ -118,7 +120,8 @@ public class LyricTextView extends TextView {
   protected void onDraw(Canvas canvas) {
     float mSpeed = speed;
     if (text != null) {
-      Log.d("Lyric", "getHeight: " + getHeight() + " y: " + y);
+      // A11-021：这行 Log.d 在 onDraw 内，滚动时每帧都写 logcat —— release 包也在刷，
+      // 属性能与日志噪音，删除。
       canvas.drawText(text, getDrawX(), y, mPaint);
       if (getText().length() >= 20) {
         mSpeed += mSpeed;

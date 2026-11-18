@@ -318,29 +318,44 @@ export const cleanupOldHealthFiles = async(now: Date = new Date()): Promise<numb
   }
 }
 
+// A01-012：健康日志的写入串行化。`appendHealthEvent` 的「stat → readFile → writeFile(裁剪)
+// → appendFile」整段都跨 await，两个并发调用会在同一段里交错：都读到裁剪前的全文、各自
+// writeFile 互相覆盖、再各自 append —— 先写的那条尾部被吃掉，且 catch 静默返回 null，
+// 成功率/错误码统计会偏低却查不出原因。这里用一条 Promise 链把所有写入排成队列。
+let healthWriteChain: Promise<unknown> = Promise.resolve()
+// 注意：必须是 async 函数（`@typescript-eslint/promise-function-async`）；
+// 返回 Promise 的普通函数会被 lint 判红，CI 的 lint 步骤会挂。
+const serialHealthWrite = async<T>(fn: () => Promise<T>): Promise<T> => {
+  const next = healthWriteChain.then(fn, fn)
+  healthWriteChain = next.then(() => undefined, () => undefined)
+  return next
+}
+
 export const appendHealthEvent = async(entry: HealthLogEntry): Promise<string | null> => {
-  try {
-    const fs = getFs()
-    const dir = getLogsDir()
-    await ensureDir(dir)
+  return serialHealthWrite(async() => {
     try {
-      const logMod = require('../utils/log')
-      if (typeof logMod.ensureAllLogFiles === 'function') await logMod.ensureAllLogFiles(dir)
-    } catch {}
-    await cleanupOldHealthFiles()
-    const path = dir + '/' + healthFileName(new Date(entry.ts || Date.now()))
-    try {
-      const stat = await fs.stat(path)
-      if (stat && stat.size > HEALTH_FILE_MAX_BYTES) {
-        const text = await fs.readFile(path, 'utf8')
-        await fs.writeFile(path, trimJsonlTail(text, HEALTH_FILE_MAX_BYTES - 4096), 'utf8')
-      }
-    } catch {}
-    await fs.appendFile(path, JSON.stringify(entry) + '\n', 'utf8')
-    return path
-  } catch {
-    return null
-  }
+      const fs = getFs()
+      const dir = getLogsDir()
+      await ensureDir(dir)
+      try {
+        const logMod = require('../utils/log')
+        if (typeof logMod.ensureAllLogFiles === 'function') await logMod.ensureAllLogFiles(dir)
+      } catch {}
+      await cleanupOldHealthFiles()
+      const path = dir + '/' + healthFileName(new Date(entry.ts || Date.now()))
+      try {
+        const stat = await fs.stat(path)
+        if (stat && stat.size > HEALTH_FILE_MAX_BYTES) {
+          const text = await fs.readFile(path, 'utf8')
+          await fs.writeFile(path, trimJsonlTail(text, HEALTH_FILE_MAX_BYTES - 4096), 'utf8')
+        }
+      } catch {}
+      await fs.appendFile(path, JSON.stringify(entry) + '\n', 'utf8')
+      return path
+    } catch {
+      return null
+    }
+  })
 }
 
 export const readRecentHealthEvents = async(limit = 800, now: Date = new Date()): Promise<HealthLogEntry[]> => {

@@ -12,9 +12,13 @@ export default ({ isEdit, onHide }: {
 }) => {
   const [text, setText] = useState('')
   const inputRef = useRef<InputType>(null)
+  // A09-004：onBlur 与 onSubmitEditing 会同时触发（键盘提交后紧接失焦），
+  // 原来没有幂等守卫，同一次输入可能连续创建两个歌单。用 ref 做一次性提交闸门。
+  const submittedRef = useRef(false)
   const t = useI18n()
 
   useEffect(() => {
+    submittedRef.current = false
     if (isEdit) {
       setText('')
       requestAnimationFrame(() => {
@@ -24,6 +28,8 @@ export default ({ isEdit, onHide }: {
   }, [isEdit])
 
   const handleSubmitEditing = async() => {
+    if (submittedRef.current) return
+    submittedRef.current = true
     onHide()
     const name = text.trim()
     if (!name.length || (listState.userList.some(l => l.name == name) && !(await confirmDialog({

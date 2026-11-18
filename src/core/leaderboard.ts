@@ -35,7 +35,15 @@ const LIST_LOAD_LIMIT = 30
 export const getBoardsList = async(source: LX.OnlineSource) => {
   // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
   if (leaderboardState.boards[source]) return leaderboardState.boards[source].list
-  const board = await (musicSdk[source]?.leaderboard.getBoards() as Promise<Board>)
+  // A01-011：可选链只保护 musicSdk[source]，没保护 .leaderboard —— 源未实现排行榜时
+  // `undefined.getBoards()` 抛 TypeError，页面拿到的是未捕获异常而不是受控失败。
+  const sdkLeaderboard = musicSdk[source]?.leaderboard
+  if (!sdkLeaderboard?.getBoards) {
+    const err = new Error('NO_LEADERBOARD') as Error & { code?: string }
+    err.code = 'NO_LEADERBOARD'
+    throw err
+  }
+  const board = await (sdkLeaderboard.getBoards() as Promise<Board>)
   setBoard(board, source)
   return leaderboardState.boards[source]!.list
 }
@@ -60,7 +68,15 @@ const getListLimit = async(source: LX.OnlineSource, bangId: string, page: number
     if (prevPageData) sourcePage = prevPageData.sourcePage
   }
 
-  return musicSdk[source]?.leaderboard.getList(bangId, sourcePage + 1).then((result: ListDetailInfo) => {
+  // A01-011：与 getBoardsList 同源问题 —— `.leaderboard` 未判空时源缺能力会抛 TypeError；
+  // 这里改为受控 reject（NO_LEADERBOARD），调用方按"该源不支持排行榜"提示。
+  const sdkLeaderboard = musicSdk[source]?.leaderboard
+  if (!sdkLeaderboard?.getList) {
+    const err = new Error('NO_LEADERBOARD') as Error & { code?: string }
+    err.code = 'NO_LEADERBOARD'
+    return Promise.reject(err)
+  }
+  return sdkLeaderboard.getList(bangId, sourcePage + 1).then((result: ListDetailInfo) => {
     if (listCache !== cache.get(listKey)) return
     result.list = deduplicationList(result.list.map(m => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
     let p = page
@@ -95,7 +111,14 @@ const getListLimit = async(source: LX.OnlineSource, bangId: string, page: number
       })
       p++
     } while (result.list.length > 0)
-    return (listCache.get(`${source}__${bangId}__${page}`) as PageCache).data
+    // A01-011：缓存页未命中时不能非空断言（会 TypeError）；回源重建一次再取。
+    const hit = listCache.get(`${source}__${bangId}__${page}`) as PageCache | undefined
+    if (!hit) {
+      const err = new Error('LIST_CACHE_MISS') as Error & { code?: string }
+      err.code = 'LIST_CACHE_MISS'
+      throw err
+    }
+    return hit.data
   }) ?? Promise.reject(new Error('source not found'))
 }
 

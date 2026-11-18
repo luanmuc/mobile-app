@@ -303,6 +303,9 @@ export function pushSonglistDetailScreen(componentId: string, info: ListInfoItem
     })
   })
 }
+// A10-003：孤儿路由。定制版把播放页的评论入口改成了播放列表（见 CUSTOM_CHANGELOG「播放列表弹窗」），
+// 因此 COMMENT_SCREEN / registerScreens 里仍然注册着这一页，但全仓已没有任何 pushCommentScreen 调用方。
+// 保留注册是为了不动路由表（删页面涉及 Comment 全套组件）；新增功能时不要再往这里接线。
 export function pushCommentScreen(componentId: string) {
   /*
     Navigation.setDefaultOptions({

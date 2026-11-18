@@ -171,7 +171,9 @@ export default {
         })
 
         let img = data.img3 || data.img2 || data.img1 || null
-        if (img && !/https?:/.test(data.img3)) img = 'http://d.musicapp.migu.cn' + img
+        // A07-024：前缀判定原本检测 data.img3，与真正选中的 img 不一致 ——
+        // img3 为空而 img2/img1 已是绝对 URL 时会被错误拼上域名（封面裂图）。改为检测 img。
+        if (img && !/https?:/.test(img)) img = 'http://d.musicapp.migu.cn' + img
 
         list.push({
           singer: formatSingerName(data.singerList),
@@ -205,7 +207,9 @@ export default {
       const songResultData = result.songResultData || { resultList: [], totalCount: 0 }
 
       let list = this.filterData(songResultData.resultList)
-      if (list == null) return this.search(str, page, limit, retryNum)
+      // A07-026：`list == null` 永不成立（filterData 只 return 数组；且 songResultData 上面
+      // 已兜底成 { resultList: [] }）→ 原重试分支是死代码，去掉。
+      // 接口层失败的重试由上面的 code !== '000000' 分支负责。
 
       this.total = parseInt(songResultData.totalCount)
       this.page = page

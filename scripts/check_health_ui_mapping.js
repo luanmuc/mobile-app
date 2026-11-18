@@ -12,7 +12,15 @@ const fs = require('fs')
 const path = require('path')
 const Module = require('module')
 const ROOT = path.resolve(__dirname, '..')
-const ts = require(path.join(ROOT, 'node_modules', 'typescript'))
+// A12-005：原来只按仓库内绝对路径取 typescript —— 依赖未装/被提升走全局时脚本启动即崩，
+// 崩溃退 1 与"断言失败退 1"同码，CI 里分不清是环境问题还是真回归。补全局回退。
+const ts = (() => {
+  try {
+    return require(path.join(ROOT, 'node_modules', 'typescript'))
+  } catch {
+    return require('typescript')
+  }
+})()
 const loadTs = rel => {
   const file = path.join(ROOT, rel)
   const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), {

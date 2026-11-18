@@ -69,8 +69,9 @@ export default {
     return this.musicSearch(str, page, limit).then(result => {
       if (!result || result.error_code !== 22000) return this.search(str, page, limit, retryNum)
       let list = this.handleResult(result.result.song_info.song_list)
-
-      if (list == null) return this.search(str, page, limit, retryNum)
+      // A07-026：这里原来有 `if (list == null) return this.search(...)`，但 handleResult 的
+      // 空数据路径 return 的是 `[]`（非 null），该重试分支永不触发 = 死代码。
+      // 去掉它，避免给人「空结果会重试」的错误预期；接口层错误的重试由上面 error_code 分支负责。
 
       this.total = result.result.song_info.total
       this.page = page

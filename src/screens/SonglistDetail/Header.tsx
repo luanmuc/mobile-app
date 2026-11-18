@@ -27,8 +27,10 @@ const CountText = memo(({ count }: { count: string }) => {
       ],
     }} numberOfLines={ 1 }>{count}</AnimatedText>
   )
+// A06-010：比较器原来无条件 return true，等于永久跳过重渲染。playCount 从空串变成真实
+// 播放量（详情接口晚于列表接口返回）时 CountText 不刷新，首帧动画也只跑一次。
 }, (prevProps, nextProps) => {
-  return true
+  return prevProps.count === nextProps.count
 })
 
 const Pic = ({ componentId, playCount, imgUrl }: {

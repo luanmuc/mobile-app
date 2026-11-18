@@ -17,7 +17,8 @@ export default songmid => {
   })
   requestObj.promise = requestObj.promise.then(({ body }) => {
     // console.log(body)
-    if (body.code !== 200 || !body.songs.length) return Promise.reject(new Error('获取歌曲信息失败'))
+    // A08-005：body.songs 可能是 undefined（接口异常返回），直接读 .length 会抛 TypeError。
+    if (body.code !== 200 || !Array.isArray(body.songs) || !body.songs.length) return Promise.reject(new Error('获取歌曲信息失败'))
     return body.songs[0]
   })
   return requestObj

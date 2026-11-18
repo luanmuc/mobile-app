@@ -17,10 +17,21 @@
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
-const SRC_DIR = path.resolve(ROOT, '..', 'lx-music-source')
+// A13-P1-03：与 check_source_update_fetch/apply 同口径支持路径覆盖 + 强制开关。
+const SRC_DIR = process.env.LX_SOURCE_ROOT
+  ? path.resolve(process.env.LX_SOURCE_ROOT)
+  : path.resolve(ROOT, '..', 'lx-music-source')
 const SRC_BUNDLE = path.join(SRC_DIR, 'lx-source.js')
 
-const ts = require(path.join(ROOT, 'node_modules', 'typescript'))
+// A12-005：原来只按仓库内绝对路径取 typescript —— 依赖未装/被提升走全局时脚本启动即崩，
+// 崩溃退 1 与"断言失败退 1"同码，CI 里分不清是环境问题还是真回归。补全局回退。
+const ts = (() => {
+  try {
+    return require(path.join(ROOT, 'node_modules', 'typescript'))
+  } catch {
+    return require('typescript')
+  }
+})()
 const loadTs = rel => {
   const file = path.join(ROOT, rel)
   const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
@@ -34,7 +45,12 @@ const loadTs = rel => {
 }
 
 if (!fs.existsSync(SRC_BUNDLE)) {
-  console.log('⏭ SKIP 跨仓健康态往返（未检出源仓 ../lx-music-source/lx-source.js）')
+  if (process.env.LX_REQUIRE_SOURCE === '1') {
+    console.error('✗ 跨仓健康态往返不允许跳过：LX_REQUIRE_SOURCE=1 但未找到源仓产物')
+    console.error('  已查找：' + SRC_BUNDLE)
+    process.exit(1)
+  }
+  console.log('⏭ SKIP 跨仓健康态往返（未检出源仓产物；设 LX_SOURCE_ROOT=<源仓路径> 可强制执行）')
   process.exit(0)
 }
 

@@ -85,25 +85,40 @@ const doUpload = async(token?: string): Promise<UploadResult> => {
     now: Date.now(),
   })
 
+  // A01-006：统一的入队助手。此前只有「网络异常」才入队，HTTP 非 2xx（401 PAT 过期 /
+  // 429 限流 / 5xx）直接 return，本次 24h 摘要既没发出去也没进队列 → 永久丢失。
+  const enqueue = async(target: HealthDigest) => {
+    const q = pruneDigestQueue((await getData<Array<{ at: number, digest: HealthDigest }>>(DIGEST_QUEUE_KEY)) ?? [])
+    q.push({ at: Date.now(), digest: target })
+    await saveData(DIGEST_QUEUE_KEY, q)
+  }
+
   try {
     const res = await postIssue(tk, digest)
     if (res.ok) {
       await saveData(DIGEST_LAST_KEY, Date.now())
-      // 补发历史队列（忽略单条失败，避免阻塞本次成功）
+      // A01-007：补发历史队列时**只移除真正发送成功的条目**。原实现 `try { await postIssue } catch {}`
+      // 后无条件 `saveData(QUEUE, [])`，某条因限流/网络失败会连同其它条目一起被清掉，下次不再补发。
       const queue = pruneDigestQueue((await getData<Array<{ at: number, digest: HealthDigest }>>(DIGEST_QUEUE_KEY)) ?? [])
+      const remained: typeof queue = []
       for (const item of queue) {
-        try { await postIssue(tk, item.digest) } catch {}
+        try {
+          const r = await postIssue(tk, item.digest)
+          if (!r.ok) remained.push(item)
+        } catch {
+          remained.push(item)
+        }
       }
-      await saveData(DIGEST_QUEUE_KEY, [])
+      if (remained.length !== queue.length) await saveData(DIGEST_QUEUE_KEY, remained)
       return { ok: true, reason: 'ok' }
     }
+    // A01-006：鉴权失败 / 限流 / 5xx 也要把本次摘要留在队列里（token 换了或限流解除后仍可补发）
+    await enqueue(digest)
     if (res.status === 401 || res.status === 403) return { ok: false, reason: 'auth', detail: `HTTP ${res.status}` }
     if (res.status === 429) return { ok: false, reason: 'rate-limit', detail: 'HTTP 429' }
     return { ok: false, reason: 'error', detail: `HTTP ${res.status}` }
   } catch (e: any) {
-    const queue = pruneDigestQueue((await getData<Array<{ at: number, digest: HealthDigest }>>(DIGEST_QUEUE_KEY)) ?? [])
-    queue.push({ at: Date.now(), digest })
-    await saveData(DIGEST_QUEUE_KEY, queue)
+    await enqueue(digest)
     return { ok: false, reason: 'network', detail: e?.message }
   }
 }

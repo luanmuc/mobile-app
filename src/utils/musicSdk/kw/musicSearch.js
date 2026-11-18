@@ -30,7 +30,10 @@ export default {
     // console.log(rawData)
     for (let i = 0; i < rawData.length; i++) {
       const info = rawData[i]
-      let songId = info.MUSICRID.replace('MUSIC_', '')
+      // A07-022：个别条目缺 MUSICRID（或不是字符串）时 .replace 会 TypeError，整页搜索直接失败。
+      // 没有可用 id 的条目直接跳过，保留其余结果。
+      if (typeof info.MUSICRID !== 'string') continue
+      const songId = info.MUSICRID.replace('MUSIC_', '')
       // const format = (info.FORMATS || info.formats).split('|')
 
       if (!info.N_MINFO) {

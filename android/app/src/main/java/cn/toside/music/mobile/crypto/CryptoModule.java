@@ -34,6 +34,11 @@ public class CryptoModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void generateRsaKey(Promise promise) {
     KeyPair kp = RSA.getKeyPair();
+    // A11-006：getKeyPair() 在算法不可用/生成失败时返回 null，原实现直接 kp.getPublic() 必 NPE。
+    if (kp == null) {
+      promise.reject("-1", "failed to generate RSA key pair");
+      return;
+    }
     String publicKeyBytesBase64 = new String(Base64.encode(kp.getPublic().getEncoded(), Base64.DEFAULT));
 
     KeyFactory keyFac;
@@ -60,7 +65,15 @@ public class CryptoModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void rsaEncrypt(String text, String key, String padding, Promise promise) {
-    promise.resolve(RSA.encryptRSAToString(text, key, padding));
+    // A11-005：AES/RSA 内部 catch 只 printStackTrace 后 return ""，桥接层原来无条件 resolve ——
+    // 密钥非法/密文损坏时 JS 拿到空串且状态是成功，无法区分「空结果」与「失败」。
+    // 非空输入却得到空结果，按失败 reject。
+    String result = RSA.encryptRSAToString(text, key, padding);
+    if (result.isEmpty() && !text.isEmpty()) {
+      promise.reject("-1", "RSA encrypt failed");
+      return;
+    }
+    promise.resolve(result);
     //    TaskRunner taskRunner = new TaskRunner();
     //    try {
     //      taskRunner.executeAsync(new GzipModule.UnGzip(source, target, force), (String errMessage) -> {
@@ -75,7 +88,13 @@ public class CryptoModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void rsaDecrypt(String text, String key, String padding, Promise promise) {
-    promise.resolve(RSA.decryptRSAToString(text, key, padding));
+    // A11-005：同上，解密失败不再伪装成成功返回空串。
+    String result = RSA.decryptRSAToString(text, key, padding);
+    if (result.isEmpty() && !text.isEmpty()) {
+      promise.reject("-1", "RSA decrypt failed");
+      return;
+    }
+    promise.resolve(result);
     //    TaskRunner taskRunner = new TaskRunner();
     //    try {
     //      taskRunner.executeAsync(new GzipModule.UnGzip(source, target, force), (String errMessage) -> {
@@ -100,7 +119,13 @@ public class CryptoModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void aesEncrypt(String text, String key, String iv, String mode, Promise promise) {
-    promise.resolve(AES.encrypt(text, key, iv, mode));
+    // A11-005：同上。
+    String result = AES.encrypt(text, key, iv, mode);
+    if (result.isEmpty() && !text.isEmpty()) {
+      promise.reject("-1", "AES encrypt failed");
+      return;
+    }
+    promise.resolve(result);
     //    TaskRunner taskRunner = new TaskRunner();
     //    try {
     //      taskRunner.executeAsync(new GzipModule.UnGzip(source, target, force), (String errMessage) -> {
@@ -115,7 +140,13 @@ public class CryptoModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void aesDecrypt(String text, String key, String iv, String mode, Promise promise) {
-    promise.resolve(AES.decrypt(text, key, iv, mode));
+    // A11-005：同上。
+    String result = AES.decrypt(text, key, iv, mode);
+    if (result.isEmpty() && !text.isEmpty()) {
+      promise.reject("-1", "AES decrypt failed");
+      return;
+    }
+    promise.resolve(result);
     //    TaskRunner taskRunner = new TaskRunner();
     //    try {
     //      taskRunner.executeAsync(new GzipModule.UnGzip(source, target, force), (String errMessage) -> {

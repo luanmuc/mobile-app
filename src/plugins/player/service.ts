@@ -3,7 +3,8 @@ import TrackPlayer, { State as TPState, Event as TPEvent } from 'react-native-tr
 // import { store } from '@/store'
 // import { action as playerAction, STATUS } from '@/store/modules/player'
 import { isTempId, isEmpty } from './utils'
-// import { play as lrcPlay, pause as lrcPause } from '@/core/lyric'
+// A03-P1-1：歌词时间轴需要跟随焦点中断 —— core/lyric 实际导出的是 handlePlay/pause（历史注释里的 play 不存在）
+import { handlePlay as lrcPlay, pause as lrcPause } from '@/core/lyric'
 import { exitApp, updateSetting } from '@/core/common'
 import { getCurrentTrackId } from './playList'
 import { pause, play, playNext, playPrev } from '@/core/player/player'
@@ -144,18 +145,21 @@ const registerPlaybackService = async() => {
     syncNotificationRepeatMode(mode)
   })
 
-  // TrackPlayer.addEventListener(TPEvent.RemoteDuck, async({ permanent, paused, ducking }) => {
-  //   console.log('remote-duck')
-  //   if (paused) {
-  //     store.dispatch(playerAction.setStatus({ status: STATUS.pause, text: '已暂停' }))
-  //     lrcPause()
-  //   } else {
-  //     store.dispatch(playerAction.setStatus({ status: STATUS.playing, text: '播放中...' }))
-  //     TrackPlayer.getPosition().then(position => {
-  //       lrcPlay(position * 1000)
-  //     })
-  //   }
-  // })
+  // A03-P1-1：监听整段曾被注释掉 —— 播放态本身由 native 的 AudioFocusPolicy 状态机全权处理
+  // （MusicManager.java:136-177 dispatch→focusPolicy.handle→execute，MusicManager.java:462/504 emit remote-duck），
+  // JS 侧**不能**再改播放状态，否则会和 native 双写冲突（这也是旧实现被注释的原因）。
+  // 但歌词时间轴必须跟着停/走：否则来电打断后歌词会继续往前跑（用户可感的同步错误）。
+  // 所以这里只做歌词同步，tmp/ducking（只压低音量不暂停）时不动歌词。
+  TrackPlayer.addEventListener(TPEvent.RemoteDuck, async({ paused }) => {
+    try {
+      if (paused) {
+        lrcPause()
+      } else {
+        const position = await TrackPlayer.getPosition()
+        lrcPlay(position * 1000)
+      }
+    } catch {}
+  })
 
   TrackPlayer.addEventListener(TPEvent.PlaybackError, async(err: any) => {
     // v9.1：脱敏——err.message 常带整条带签名的直链（惰性 require 同日志模块，避免顶层拉重模块）

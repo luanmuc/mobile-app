@@ -186,7 +186,10 @@ export const userListsUpdatePosition = (position: number, ids: string[]) => {
   const map = new Map<string, LX.List.UserListInfo>()
   for (const item of newUserLists) map.set(item.id, item)
   for (const id of ids) {
-    const listInfo = map.get(id)!
+    // A07-004：传入 id 可能已不在当前列表（并发增删 / 过期拖拽事件 / 跨列表移动残留），
+    // 非空断言会把 undefined 塞进 updateLists，后续持久化/render 解引用必崩。缺失就跳过。
+    const listInfo = map.get(id)
+    if (!listInfo) continue
     listInfo.locationUpdateTime = Date.now()
     updateLists.push(listInfo)
     map.delete(id)
@@ -303,7 +306,10 @@ export const listMusicUpdatePosition = async(listId: string, position: number, i
   const map = new Map<string, LX.Music.MusicInfo>()
   for (const item of targetList) map.set(item.id, item)
   for (const id of ids) {
-    infos.push(map.get(id)!)
+    // A07-004：同 userListsUpdatePosition —— 缺失 id 不能推入 undefined。
+    const info = map.get(id)
+    if (!info) continue
+    infos.push(info)
     map.delete(id)
   }
   const list = targetList.filter(mInfo => map.has(mInfo.id))

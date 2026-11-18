@@ -47,14 +47,15 @@ export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
     meta.qualitys = oldMusicInfo.types
     meta._qualitys = oldMusicInfo._types
     meta.albumId = oldMusicInfo.albumId
-    if (meta._qualitys.flac32bit && !meta._qualitys.flac24bit) {
+    // A07-012：历史脏数据可能缺 _types / types，原来直接解引用会 TypeError 打断整批迁移。
+    if (meta._qualitys?.flac32bit && !meta._qualitys.flac24bit) {
       meta._qualitys.flac24bit = meta._qualitys.flac32bit
       delete meta._qualitys.flac32bit
 
-      meta.qualitys = (meta.qualitys as any[]).map(quality => {
+      meta.qualitys = (meta.qualitys as any[] | undefined)?.map(quality => {
         if (quality.type == 'flac32bit') quality.type = 'flac24bit'
         return quality
-      })
+      }) ?? meta.qualitys
     }
 
     switch (oldMusicInfo.source) {
@@ -129,18 +130,19 @@ export const toOldMusicInfo = (minfo: LX.Music.MusicInfo): any => {
 export const fixNewMusicInfoQuality = (musicInfo: LX.Music.MusicInfo) => {
   if (musicInfo.source == 'local') return musicInfo
 
+  // A07-012：同上，脏数据缺 _qualitys / qualitys 时跳过迁移，不抛 TypeError。
   // @ts-expect-error
-  if (musicInfo.meta._qualitys.flac32bit && !musicInfo.meta._qualitys.flac24bit) {
+  if (musicInfo.meta._qualitys?.flac32bit && !musicInfo.meta._qualitys.flac24bit) {
     // @ts-expect-error
     musicInfo.meta._qualitys.flac24bit = musicInfo.meta._qualitys.flac32bit
     // @ts-expect-error
     delete musicInfo.meta._qualitys.flac32bit
 
-    musicInfo.meta.qualitys = musicInfo.meta.qualitys.map(quality => {
+    musicInfo.meta.qualitys = musicInfo.meta.qualitys?.map(quality => {
       // @ts-expect-error
       if (quality.type == 'flac32bit') quality.type = 'flac24bit'
       return quality
-    })
+    }) ?? musicInfo.meta.qualitys
   }
 
   return musicInfo

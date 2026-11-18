@@ -58,7 +58,9 @@ export default ({ musicInfo, onPress }: {
   const allList = useMyList()
   const itemWidth = useMemo(() => {
     let w = Math.floor(windowSize.width * 0.9 - PADDING)
-    let n = Math.floor(w / MIN_WIDTH)
+    // A09-022：窄屏/大字号缩放下 w 可能小于 MIN_WIDTH，此时 Math.floor(w / MIN_WIDTH) = 0，
+    // 下一步 Math.floor((w - 1) / n) 退化成除零 → Infinity/NaN，条目宽度直接坏掉。兜到 1 列。
+    let n = Math.max(1, Math.floor(w / MIN_WIDTH))
     if (n > 10) n = 10
     return Math.floor((w - 1) / n)
   }, [windowSize])

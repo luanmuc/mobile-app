@@ -111,7 +111,15 @@ export default memo(() => {
   const [digestBusy, setDigestBusy] = useState(false)
 
   useEffect(() => {
-    void getDigestToken().then(token => { setDigestTokenInput(token) })
+    isUnmountedRef.current = false
+    return () => { isUnmountedRef.current = true }
+  }, [])
+
+  useEffect(() => {
+    void getDigestToken().then(token => {
+      if (isUnmountedRef.current) return
+      setDigestTokenInput(token)
+    })
   }, [])
   const [probingId, setProbingId] = useState('')
   // v8.0：配置编辑相关 state
@@ -135,12 +143,15 @@ export default memo(() => {
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // A05-009：页面快速退出时在途 promise 仍会回写 state（本文件原先只有 timerRef，没有卸载标志）。
+  const isUnmountedRef = useRef(false)
 
   const refreshDiagnostics = useCallback(async(snap: HealthSnapshot | null, history: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>) => {
     try {
       await ensureHealthLogsDir()
       const events = await readRecentHealthEvents(REPORT_EVENT_LIMIT)
       const report = buildHealthReport({ events, snapshot: (snap ?? {}), trend: history, now: Date.now(), truncated: events.length >= REPORT_EVENT_LIMIT })
+      if (isUnmountedRef.current) return
       setDiagnostics(report)
     } catch (e) {
       console.log('health diagnostics failed:', e)
@@ -203,6 +214,7 @@ export default memo(() => {
       }
       const { promise } = querier()
       const data = await promise as HealthSnapshot
+      if (isUnmountedRef.current) return
       setSnapshot(data)
       // 成功拿到数据说明音源支持 health action，之前的 error（如"未检测到音源"）是误报，清空
       setError('')
@@ -215,6 +227,7 @@ export default memo(() => {
           const trendResult = await trendPromise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
           // 历史快照结构固定为 { timestamp, sources }，显式声明类型，避免下游 entry/s 变成隐式 any
           const history = trendResult?.history ?? []
+          if (isUnmountedRef.current) return
           setTrendData(history)
           void refreshDiagnostics(data, history)
         }
@@ -353,6 +366,7 @@ export default memo(() => {
     try {
       const { promise } = querier()
       const res = await promise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
+      if (isUnmountedRef.current) return
       setTrendData(res?.history ?? [])
       setShowTrendModal(true)
     } catch (e: any) {

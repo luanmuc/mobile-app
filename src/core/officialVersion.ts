@@ -29,7 +29,9 @@ export const checkOfficialUpdate = async(showModalIfNew = true) => {
     checking: false,
   })
   if (showModalIfNew && latest != null && !isLatest) {
-    const shown = await getOfficialVersionShown()
+    // A02-016：这行在 try 之外 —— 读取「已提示版本号」失败会让整个检查流程抛错。
+    // 读取失败时按「没提示过」处理，不阻塞更新提示。
+    const shown = await getOfficialVersionShown().catch(() => null)
     if (shown !== latest) {
       saveOfficialVersionShown(latest)
       officialVersionActions.setOfficialInfo({ showModal: true })

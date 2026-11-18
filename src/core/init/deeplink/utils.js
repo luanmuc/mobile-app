@@ -31,7 +31,8 @@ export const dataVerify = (rules, data) => {
     if (val != null) {
       if (rule.types && !rule.types.includes(typeof val)) throw new Error(rule.key + ' type no match')
       if (rule.max && String(val).length > rule.max) throw new Error(rule.key + ' max length no match')
-      if (rule.min && String(val).length > rule.min) throw new Error(rule.key + ' min length no match')
+      // A01-008：原来写成 `> rule.min` —— 长度超过下限才报错，短于下限反而放行，最小长度约束失效。
+      if (rule.min && String(val).length < rule.min) throw new Error(rule.key + ' min length no match')
     }
     newData[rule.key] = val
   }

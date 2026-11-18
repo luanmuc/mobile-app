@@ -120,43 +120,41 @@ export const buildLyricInfo = async(lyricInfo: MakeOptional<LX.Player.LyricInfo,
     return { ...lyricInfo, rawlrcInfo: { ...lyricInfo } }
   }
 
-  if (settingState.setting['player.isS2t']) {
-    const tasks = [
-      lyricInfo.lyric ? langS2T(lyricInfo.lyric) : Promise.resolve(''),
-      lyricInfo.tlyric ? langS2T(lyricInfo.tlyric) : Promise.resolve(''),
-      lyricInfo.rlyric ? langS2T(lyricInfo.rlyric) : Promise.resolve(''),
-      lyricInfo.lxlyric ? langS2T(lyricInfo.lxlyric) : Promise.resolve(''),
-    ]
-    if (lyricInfo.rawlrcInfo) {
-      tasks.push(lyricInfo.lyric ? langS2T(lyricInfo.lyric) : Promise.resolve(''))
-      tasks.push(lyricInfo.tlyric ? langS2T(lyricInfo.tlyric) : Promise.resolve(''))
-      tasks.push(lyricInfo.rlyric ? langS2T(lyricInfo.rlyric) : Promise.resolve(''))
-      tasks.push(lyricInfo.lxlyric ? langS2T(lyricInfo.lxlyric) : Promise.resolve(''))
-    }
-    return Promise.all(tasks).then(([lyric, tlyric, rlyric, lxlyric, lyric_raw, tlyric_raw, rlyric_raw, lxlyric_raw]) => {
-      const rawlrcInfo = lyric_raw ? {
-        lyric: lyric_raw,
-        tlyric: tlyric_raw,
-        rlyric: rlyric_raw,
-        lxlyric: lxlyric_raw,
-      } : {
-        lyric,
-        tlyric,
-        rlyric,
-        lxlyric,
-      }
-      return {
-        lyric,
-        tlyric,
-        rlyric,
-        lxlyric,
-        rawlrcInfo,
-      }
-    })
+  // A02-003：原写法是 `if (settingState.setting['player.isS2t']) { ... }`，但上面的
+  // `if (!...) { return }` 已经处理完相反分支，这个条件恒真；其后的收尾 return 因此不可达。
+  // 去掉冗余包裹与死代码。
+  const tasks = [
+    lyricInfo.lyric ? langS2T(lyricInfo.lyric) : Promise.resolve(''),
+    lyricInfo.tlyric ? langS2T(lyricInfo.tlyric) : Promise.resolve(''),
+    lyricInfo.rlyric ? langS2T(lyricInfo.rlyric) : Promise.resolve(''),
+    lyricInfo.lxlyric ? langS2T(lyricInfo.lxlyric) : Promise.resolve(''),
+  ]
+  if (lyricInfo.rawlrcInfo) {
+    tasks.push(lyricInfo.lyric ? langS2T(lyricInfo.lyric) : Promise.resolve(''))
+    tasks.push(lyricInfo.tlyric ? langS2T(lyricInfo.tlyric) : Promise.resolve(''))
+    tasks.push(lyricInfo.rlyric ? langS2T(lyricInfo.rlyric) : Promise.resolve(''))
+    tasks.push(lyricInfo.lxlyric ? langS2T(lyricInfo.lxlyric) : Promise.resolve(''))
   }
-
-  // @ts-expect-error
-  return lyricInfo.rawlrcInfo ? lyricInfo : { ...lyricInfo, rawlrcInfo: { ...lyricInfo } }
+  return Promise.all(tasks).then(([lyric, tlyric, rlyric, lxlyric, lyric_raw, tlyric_raw, rlyric_raw, lxlyric_raw]) => {
+    const rawlrcInfo = lyric_raw ? {
+      lyric: lyric_raw,
+      tlyric: tlyric_raw,
+      rlyric: rlyric_raw,
+      lxlyric: lxlyric_raw,
+    } : {
+      lyric,
+      tlyric,
+      rlyric,
+      lxlyric,
+    }
+    return {
+      lyric,
+      tlyric,
+      rlyric,
+      lxlyric,
+      rawlrcInfo,
+    }
+  })
 }
 
 export const getCachedLyricInfo = async(musicInfo: LX.Music.MusicInfo): Promise<LX.Player.LyricInfo | null> => {

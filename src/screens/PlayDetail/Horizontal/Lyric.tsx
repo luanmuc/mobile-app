@@ -178,6 +178,14 @@ export default () => {
         clearTimeout(scrollTimoutRef.current)
         scrollTimoutRef.current = null
       }
+      // A06-011：scrollTo 返回的取消句柄原来只在「换行/重设」时调用，卸载段漏了 ——
+      // 进行中的平滑滚动动画会在组件卸载后继续向已卸载的 FlatList 写偏移。
+      // ref 是稳定引用，不需要进依赖数组。
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (scrollCancelRef.current) {
+        scrollCancelRef.current()
+        scrollCancelRef.current = null
+      }
     }
   }, [])
 
@@ -221,6 +229,9 @@ export default () => {
       return
     }
 
+    // A06-003：重设前先清掉上一句的延迟滚动句柄 —— 快速连切两句或 seek 时旧 timer 仍会在
+    // 600ms 后触发，把已过期的 active 行滚进视野（表现为歌词突然跳一下）。
+    if (delayScrollTimeout.current != null) clearTimeout(delayScrollTimeout.current)
     delayScrollTimeout.current = setTimeout(() => {
       delayScrollTimeout.current = null
       handleScrollToActive()

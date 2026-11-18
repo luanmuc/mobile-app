@@ -70,7 +70,22 @@ jobs:
         # 全仓 tsc --noEmit 必须 0 error；语法检查只能发现 parse 错误，类型检查补 TS 类型/接口契约。
         run: node node_modules/typescript/bin/tsc --noEmit
 
+      - name: 检出音源仓（跨仓断言必需）
+        id: lx-source-clone
+        # A13-P1-03：cross-repo 断言（篡改包 SHA256_MISMATCH / 假签名 / REMOTE_OLDER / SIZE_MISMATCH /
+        # 未知 keyId / 健康态往返）过去因为源仓缺失被无条件 process.exit(0) 跳过，
+        # 而本 workflow 只在 Android job 用 Contents API 取单个 lx-source.js，从不 clone 源仓，
+        # 等于这些断言从未在 CI 跑过。这里完整 clone 源仓，并用 LX_REQUIRE_SOURCE=1 禁止跳过。
+        run: |
+          set -e
+          git clone --depth 1 https://github.com/luanmuc/backend-api.git "${GITHUB_WORKSPACE}/_source"
+          test -f "${GITHUB_WORKSPACE}/_source/lx-source.js"
+          echo "源仓产物已就位：$(wc -c < "${GITHUB_WORKSPACE}/_source/lx-source.js") bytes"
+
       - name: 音源标签/配置/语法/action 契约门禁
+        env:
+          LX_SOURCE_ROOT: ${{ github.workspace }}/_source
+          LX_REQUIRE_SOURCE: '1'
         # 只读契约：sourcePlatform 全链路透传 / 音源配置键表 / 11 个 action 权威表与 v2 envelope / 525 个 TS 文件语法 / 播放 24s 预算与 attempts / 桥媒体 base64 信封与 256KB 分片。
         # 失败即停在本步，不进入构建与 Release，避免发出标签、配置或 action 契约回退的 APK。
         run: |
@@ -90,6 +105,8 @@ jobs:
           node scripts/check_playback_budget.js
           node scripts/check_playback_ownership_runtime.js
           node scripts/check_player_progress_runtime.js
+          node scripts/check_quality_request_runtime.js
+          node scripts/check_cross_repo_health_roundtrip.js
           node scripts/check_release_state_contract.js
           node scripts/check_media_body.js
 
@@ -134,6 +151,7 @@ jobs:
           node scripts/check_health_ui_mapping.js
           node scripts/check_download_persistence.js
           node scripts/check_download_restore_runtime.js
+          node scripts/check_health_digest.js
           node scripts/check_docs_consistency.js
 
       - name: 热点行为断言（播放器/同步/文件名/错误标点）
@@ -144,6 +162,7 @@ jobs:
           node scripts/check_player_hook_runtime.js
           node scripts/check_sync_client_runtime.js
           node scripts/check_file_name_template_runtime.js
+          node scripts/check_playback_timeout_race.js
           node scripts/check_download_error_i18n.js
 
   Android:

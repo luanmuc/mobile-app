@@ -12,6 +12,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 
 import com.whl.quickjs.android.QuickJSLoader;
 import com.whl.quickjs.wrapper.QuickJSContext;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -42,10 +43,14 @@ public class QuickJS {
   private String getPreloadScript() {
     try {
       InputStream inputStream = this.reactContext.getAssets().open("script/user-api-preload.js");
-      byte[] buffer = new byte[inputStream.available()];
-      inputStream.read(buffer);
+      // A11-025：available() 不保证等于真实长度，read(buffer) 也不保证一次读完 ——
+      // 脚本被截断会导致 preload 语法错误、音源整体不可用。改成循环读。
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      byte[] chunk = new byte[4096];
+      int read;
+      while ((read = inputStream.read(chunk)) != -1) buffer.write(chunk, 0, read);
       inputStream.close();
-      return new String(buffer, StandardCharsets.UTF_8);
+      return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
     } catch (Exception e) {
       return null;
     }
@@ -98,7 +103,10 @@ public class QuickJS {
         byte[] md5Bytes = md.digest(str.getBytes(StandardCharsets.UTF_8));
         StringBuilder md5String = new StringBuilder();
         for (byte b : md5Bytes) {
-          md5String.append(String.format("%02x", b));
+          // A11-001：显式做无符号化。Java 的 byte 是有符号的，负字节走 %02x 时行为依赖
+          // Formatter 对 byte 重载的处理（不同实现/工具链可能给出 8 位 hex），MD5 串一旦变长
+          // 签名参数就整体错位。`b & 0xFF` 保证恒为两位小写 hex。
+          md5String.append(String.format("%02x", b & 0xFF));
         }
         return md5String.toString();
       } catch (Exception e) {
@@ -214,7 +222,14 @@ public class QuickJS {
   }
 
   public void destroy () {
-    this.jsContext.destroy();
+    // A11-002：jsContext 可能为 null（loadScript 失败/重复 destroy）——直接 .destroy() 必 NPE。
+    // 注意 callJS 有 try/catch 兜底，destroy 过去没有，这里是真正的崩溃点。
+    if (this.jsContext == null) return;
+    try {
+      this.jsContext.destroy();
+    } catch (Exception e) {
+      Log.w("UserApi [quickjs]", "destroy failed: " + e.getMessage());
+    }
     this.jsContext = null;
   }
 }

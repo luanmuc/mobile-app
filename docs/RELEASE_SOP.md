@@ -7,7 +7,7 @@
 | 项 | 值 | 说明 |
 |---|---|---|
 | `package.json` 的 `version` | **与底座同步（当前 `1.9.2`）** | 底座（官方原版）升版时随 merge 同步 bump；日常构建由 CI 注入构建号，**禁止手改** |
-| 发布版本名 | `1.9.3-bN` | `N` = **底座版本内构建序号**，由 `publish/build-state.json` 状态文件驱动；底座升版后从 `b1` 重新计数（如 `1.9.1-b79` → `1.9.2-b1`） |
+| 发布版本名 | `1.9.2-bN` | `N` = **底座版本内构建序号**，由 `publish/build-state.json` 状态文件驱动；底座升版后从 `b1` 重新计数（如 `1.9.1-b79` → `1.9.2-b1`） |
 | `versionCode` | `build-state.json` 持续递增 | 每次构建 +1（持续递增，当前值见 publish/build-state.json），`android/app/build.gradle` 优先读环境变量、否则读 `publish/build-state.json`（`package.json` 已不保留 versionCode）；保证老用户可覆盖安装 |
 | Release tag | `v1.9.2-bN` | 每次构建唯一，prerelease 标记 |
 | 内置音源 | 每次构建自动拉取 | 来自 `luanmuc/backend-api` 最新版（`?ref=master`），与代码解耦；**仓库不内置音源副本**，由构建生成 `assets/builtin_source.js` |
@@ -31,11 +31,11 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
       │    └─ 手动 `workflow_dispatch` 可选 `source_ref`：仅供红分支验证，留空默认 master；正常发布不要填
       ├─ 拉最新内置音源（GitHub Contents API ?ref=master → 生成 assets/builtin_source.js，>50KB + @name 校验；仓库不内置副本）
       ├─ Compute build number：读 publish/build-state.json → baseVersion 与 package.json version 不同则重置 build=0 → build+1、versionCode+1 → 回写状态文件，输出 outputs.build / outputs.versionCode
-      ├─ 注入 APP_VERSION_NAME=1.9.3-b<build>、versionCode=<versionCode>、buildNumber.ts
+      ├─ 注入 APP_VERSION_NAME=1.9.2-b<build>、versionCode=<versionCode>、buildNumber.ts
       └─ ./gradlew assembleRelease --build-cache --parallel --no-daemon → 5 个 ABI APK → upload-artifact
   └─ Job Release（needs: [lint, checks, Android] —— 三绿才发布）
       ├─ 生成发布说明（scripts/gen_change_log.py：git log 自动生成本次变更 + APK MD5）
-      ├─ softprops/action-gh-release：创建 tag v1.9.3-b<build>（target_commitish 固定到本次构建提交），上传 APK
+      ├─ softprops/action-gh-release：创建 tag v1.9.2-b<build>（target_commitish 固定到本次构建提交），上传 APK
       ├─ 更新 publish/version.json（版本+描述+最近历史）
       ├─ 更新并发布 npm 版本信息包（luanmuc-lx-music-version-info）
       └─ 提交 version.json + build-state.json + npm-version-info/package.json + README.md（底座 bN 同步）回 master（不再触发构建）；push 前先 fetch/rebase，push 失败必须让 job 红，不再用 `|| echo` 吞错
@@ -66,7 +66,7 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 1. ✅ `Android` Job 编译成功（5 个 APK）
 2. ✅ `Release` Job 全部步骤绿
 3. ✅ 新 Release 已生成：tag `v1.9.2-bN`，发布说明 = 本次真实变更，包含 5 个 APK + MD5
-4. ✅ `publish/version.json` 已更新并提交回 master（最新提交为 "chore: 更新版本信息 v1.9.3-bN"），`README.md` 的「当前底座 v1.9.2 至 bN」已同提交更新，且 `publish/build-state.json` 已被回写（baseVersion/build/versionCode 递增）
+4. ✅ `publish/version.json` 已更新并提交回 master（最新提交为 "chore: 更新版本信息 v1.9.2-bN"），`README.md` 的「当前底座 v1.9.2 至 bN」已同提交更新，且 `publish/build-state.json` 已被回写（baseVersion/build/versionCode 递增）
 5. ✅ npm 包 `luanmuc-lx-music-version-info` 版本已发布（若 NPM_TOKEN 失效会有 `::error::` 提示，需更换 secret）
 6. ✅ 全部通过后才通知用户
 

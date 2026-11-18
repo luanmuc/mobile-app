@@ -41,11 +41,17 @@ export default forwardRef<MetadataEditType, MetadataEditProps>((props, ref) => {
   const handleShow = (filePath: string) => {
     alertRef.current?.setVisible(true)
     void Promise.all([
-      readMetadata(filePath),
+      // A09-007：readPic/readLyric 都有 catch，唯独 readMetadata 没有 —— 它 reject 时整个
+      // Promise.all 变成未处理拒绝，弹窗已打开但表单是空的、也不关闭。这里补空值兜底。
+      readMetadata(filePath).catch(() => null),
       readPic(filePath).catch(() => ''),
       readLyric(filePath, false).catch(() => ''),
     ]).then(async([_metadata, pic, lyric]) => {
-      if (!_metadata) return
+      if (!_metadata) {
+        toast(global.i18n.t('list_edit_action_tip_move_failed'))
+        alertRef.current?.setVisible(false)
+        return
+      }
       if (isUnmounted.current) return
       metadata.current = {
         name: _metadata.name,

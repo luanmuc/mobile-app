@@ -184,6 +184,8 @@ export default {
     let lrcArr = []
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim()
+      // A07-018：timeExp 带 /g，exec 后 lastIndex 残留会让下一行匹配失败 → 歌词隔行丢
+      timeExp.lastIndex = 0
       let result = timeExp.exec(line)
       if (result) {
         const text = line.replace(timeExp, '').trim()

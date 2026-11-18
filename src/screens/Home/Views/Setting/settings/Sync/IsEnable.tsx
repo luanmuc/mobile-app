@@ -93,6 +93,9 @@ export default memo(({ host, setHost }: {
     switch (syncStatus.message) {
       case SYNC_CODE.authFailed:
         toast(t('setting_sync_code_fail'))
+        // A05-001：原来缺 break，直接穿透到 missingAuthCode 分支 ——
+        // 鉴权失败（不可恢复）还会额外弹出「输入验证码」对话框，把用户误导进另一条失败路径。
+        break
       case SYNC_CODE.missingAuthCode:
         confirmAlertRef.current?.setVisible(true)
         break
@@ -147,7 +150,8 @@ export default memo(({ host, setHost }: {
   const handleSetCode = useCallback(() => {
     // const code = authCode.trim()
     // if (code.length != 6) return
-    void connectServer(host, authCode)
+    // A05-011：connectServer 未 catch —— 连接失败时 reject 变 unhandled rejection。
+    void connectServer(host, authCode).catch(() => {})
     setAuthCode('')
     confirmAlertRef.current?.setVisible(false)
   }, [host, authCode])

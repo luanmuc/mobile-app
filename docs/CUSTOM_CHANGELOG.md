@@ -1,3 +1,50 @@
+## [P2 复核：i18n 缺口与均衡器文案] - 2026-11-19
+
+> 纯文案与组件修复，不改运行时行为、不升版本（底座仍 1.9.2 / b161 / vc320）。
+> i18n 键数 **1033 → 1040**（+7），已同步 `AUDIT_PLAN.md` 硬数字。
+
+- **搜索占位语走 i18n**（A04-012）
+  - `SearchInput.tsx`、`Mylist/MusicList/ListSearchBar.tsx` 两处硬编码 `"Search for something..."`
+    改为 `t('search_placeholder')`；前者补 `useI18n()`，后者在第一个 `SearchInput` 子组件里补 `t`
+    （原来 `t` 只声明在第二个组件里，直接用会 `Cannot find name 't'`）。
+
+- **About 页功能性文案走 i18n**（A04-012）
+  - 新增 `setting_about_free_desc` / `_current_version` / `_check_update` / `_latest_download` / `_faq_hint` 五键。
+  - **免责声明类长段落按既定口径保留中文原文、不做机翻**（既定要求不机翻法律/声明文本），
+    已在源码加注释，避免后续被当成漏翻再改一次。
+
+- **i18n 键名修正**（A05-016）
+  - `setting_list_show interval`（键名中段是空格）→ `setting_list_show_interval`，三语同步；
+    改的是键名不是键数，键总量不变。
+
+- **均衡器面板四处收口**（A06-015）
+  - `BAND_LABELS` 取下标补兜底（当前 `EQ_BAND_COUNT` 恒 5 与标签等长，属防御性）。
+  - 重置按钮原来复用 `play_detail_setting_playback_rate_reset`（倍速重置文案）→ 新增独立
+    `play_detail_setting_equalizer_reset`。
+  - `isEqualizerSupported()` 由「每次渲染都过一趟 native」改为 `useMemo(..., [])` 缓存。
+  - 删除空实现 `handleSlidingStart` 及其 `onSlidingStart` 传参。
+
+## [CI 门禁接线（P0×2）] - 2026-11-19
+
+> 纯门禁修复，不改运行时行为、不升版本（底座仍 1.9.2 / b161 / vc320）。
+
+- **`check_health_digest.js` 接入 CI**（A12-001）
+  - 此前 9 条摘要契约（A1~A9）在任何 workflow 里都没有执行点，而 `AUDIT_PLAN.md` 该行已标 ✅ → 推送/周计划流水线不会因摘要契约回归变红。
+  - 现挂在 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步（`check_download_restore_runtime.js` 之后、`check_docs_consistency.js` 之前）。
+  - **变异验证**：`healthDigest.ts:121` 的 20h 阈值改 18h → A4 变红、8 通过/1 失败、exit 1；恢复后 9/0、exit 0。
+
+- **`check_playback_timeout_race.js` 接入 CI + 修脚本自身两处缺陷**（A12-002）
+  - ① `require(path.join(ROOT,'node_modules','typescript'))` 无回退，依赖路径一变即 `Cannot find module`（CI/Linux 下必崩）；改为 `try/catch` 双路径回退，与 `check_media_body.js` 同范式。
+  - ② `localRequire` 未模拟 `./playbackGuard`，而 `online.ts:10` 已新增 `import { isPlayableCandidate } from './playbackGuard'` → 直接抛「未模拟依赖：./playbackGuard」。改为递归转译真实 `src/core/music/playbackGuard.ts`（纯函数、无 import），不手抄正则以免语义漂移。
+  - ③ 从未接入任何 workflow；现挂在「热点行为断言」步（`check_file_name_template_runtime.js` 之后、`check_download_error_i18n.js` 之前）。
+  - **变异验证**：`online.ts:143` 的 settled 闸门短路（`if (false && requestSettled)`）→ T1 变红、0 passed/1 failed、`play_result` 由 1 条变 2 条、exit 1；恢复后 1/0、exit 0。
+
+- **接线后可达性**：`scripts/preflight.js:72` 用 `for (const cmd of jobCommands('checks')) add(...)` 解析 `release.yml`，故本地 preflight 自动带上这两条，不需要额外登记。
+
+## [b162 · 版本信息归档] - 2026-11-18
+
+> 仅版本信息提交（`31e842f2`）：`publish/build-state.json` → baseVersion **1.9.2** / build **162** / versionCode **321**，同步 `README.md`、`publish/version.json`、`npm-version-info`、`publish/changeLog.md`。实质改动见 b157~b161 各条，本版无代码变更。
+
 ## [b161 · 均衡器（P2）] - 2026-11-18
 
 > 本版底座 **1.9.2**、构建 **b161**、versionCode **320**。范围：一个原生模块 + 内核加一个桥方法。
@@ -26,7 +73,7 @@
   - **均衡器模块 javac 真编译 RC=0**（classpath = android.jar 35 + react-android classes.jar），产出 `EqualizerModule.class` / `EqualizerPackage.class`。
   - **rntp 新增方法用 API 契约探针 javac RC=0**：逐字复刻 `getAudioSessionId` / `setPitch` / `getPitch` / `setRate` 的方法体，在真实 media3 1.8.0 上编译通过（`instanceof ExoPlayer`、`PlaybackParameters(speed, pitch)` 全部成立）。
   - 全仓 gradle 编译仍不可行：`R.java` 需 aapt 生成，缺完整构建链。这一点诚实记录，不冒充「已编译全仓」。
-- **硬数字回填**：三语各 **1030 键**、TS/TSX **546 文件**、`check_*.js` **49 个**、断言合计 **734 条**。
+- **硬数字回填**：三语各 **1033 键**（原 1030；本轮 A01-002 新增 `dl_share_title`、A04-001 新增 `leaderboard_load_error`、A06-005 新增 `songlist_action_failed`，每语 +3）、TS/TSX **546 文件**、`check_*.js` **49 个**、断言合计 **734 条**。
 - **待真机**：开启后 5 段拖动听感变化明显；切歌/换耳机后仍生效（会话重建）；关掉后完全恢复原声；不支持设备上不出现崩溃。
 
 ## [b160 · 音高调节（P1）] - 2026-11-18

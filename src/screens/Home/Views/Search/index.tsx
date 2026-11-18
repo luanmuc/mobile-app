@@ -71,7 +71,12 @@ export default () => {
     listRef.current?.loadList(searchState.searchText, source, searchInfo.current.searchType)
   }
   const handleTipSearch: HeaderBarProps['onTipSearch'] = (text) => {
-    setTimeout(() => {
+    // A04-014：上游原样把这个 setTimeout 的句柄直接丢弃，handleHideTipList 只清
+    // handleShowTipList 存下的那个 —— 输入后 500ms 内提交/失焦时，延时回调仍会执行
+    // 并打开联想列表。纳入同一个 timeoutRef 统一管理。
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null
       searchTipListRef.current?.search(text, layoutHeightRef.current)
     }, 500)
   }

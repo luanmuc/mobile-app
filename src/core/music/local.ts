@@ -22,7 +22,11 @@ const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handl
   result = await getOtherSource(musicInfo)
   if (result.length) try { return await handler(result) } catch {}
   if (musicInfo.name.includes('-')) {
-    const [name, singer] = musicInfo.name.split('-').map(val => val.trim())
+    // A02-018：原来 `const [name, singer] = split('-')` —— 「A-B-C」这种名字第三段被直接丢弃
+    // （歌手名或版本后缀丢失）。改成首个 '-' 之前为歌名，其余整体作歌手。
+    const parts = musicInfo.name.split('-').map(val => val.trim())
+    const name = parts[0]
+    const singer = parts.slice(1).join('-')
     result = await getOtherSource({
       ...musicInfo,
       name,

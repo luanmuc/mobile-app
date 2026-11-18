@@ -26,7 +26,7 @@ git add .
 git commit -m "merge: 合并上游更新"
 
 # 4. 全量语法检查
-# 546 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
+# 545 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
 
 # 5. 推送触发云编译
 git push origin master
@@ -64,7 +64,7 @@ git push origin master
 
 | 文件 | 为什么容易冲突 | 标准解法 |
 |---|---|---|
-| `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` | 上游经常加新翻译键，我们也加了定制键（nav_download 等） | 两边都保留：上游新增的键全合入，定制的键保留，最后检查键数一致（三语言当前 1030 键；其中 `dl_*` 前缀 102 键是定制下载页专用（含状态与失败原因键），上游不会有） |
+| `src/lang/zh-cn.json` / `zh-tw.json` / `en-us.json` | 上游经常加新翻译键，我们也加了定制键（nav_download 等） | 两边都保留：上游新增的键全合入，定制的键保留，最后检查键数一致（三语言当前 1033 键；其中 `dl_*` 前缀 102 键是定制下载页专用（含状态与失败原因键），上游不会有） |
 | `src/core/player/volumeFade.ts` | 上游若有「交叉淡化/睡眠渐弱」会自己改写 `player.volume`（SimpMusic 注释原话：共用这条线要么被覆盖、要么折进每次写入） | 我们的渐变换音量必须先 `cancelVolumeFade()`；上游引入独立 AudioProcessor 音量线时才可并行 |
 | `src/config/defaultSetting.ts` | 上游改默认值，我们也改默认值（音质 flac24bit、歌词默认开等） | 以我们的定制默认值为准，上游新默认值人工评估是否合入（注意走设置迁移规则） |
 | `src/screens/Home/Views/Setting/settings/Health.tsx` | 我们新建的健康面板（v4.0），上游可能动了设置页结构 | 以我们为准；上游改了设置页布局的话，手动把健康面板挪到对应位置 |
@@ -81,7 +81,7 @@ git push origin master
 
 ## 合并后必查清单
 
-1. 全量语法检查 0 错误（546 个 TS/TSX）
+1. 全量语法检查 0 错误（545 个 TS/TSX）
 2. `APP_PROVIDER_NAME`（constant.ts）与 AndroidManifest 的 `${applicationId}.provider`、原生 shareFile/openFile 传参一致
 3. 内置音源兜底逻辑仍在（`has_imported_builtin_source` / `imported_builtin_source_version` / `builtin_source_id` / `pending_builtin_source_id` 四键 + `decideBuiltinSourceImport` 只升不降 + `decidePendingBuiltinSwitch` 切源失败对账）
 4. 权限三分支（<30 / 30-32 / >=33）未被上游覆盖

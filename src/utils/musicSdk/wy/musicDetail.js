@@ -18,8 +18,10 @@ export default {
       const types = []
       const _types = {}
       let size
+      // A08-003/A08-004：原写法先解引用 privilege.id 再判空 —— privileges[index] 缺项时直接 TypeError，
+      // 整份歌单/详情解析崩溃。改为先判空再比对。
       let privilege = privileges[index]
-      if (privilege.id !== item.id) privilege = privileges.find(p => p.id === item.id)
+      if (!privilege || privilege.id !== item.id) privilege = privileges.find(p => p.id === item.id)
       if (!privilege) return
 
       if (privilege.maxBrLevel == 'hires') {

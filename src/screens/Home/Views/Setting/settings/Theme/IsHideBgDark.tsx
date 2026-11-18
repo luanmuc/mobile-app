@@ -15,10 +15,11 @@ export default memo(() => {
   const isHideBgDark = useSettingValue('theme.hideBgDark')
   const setIsAutoTheme = (isHideBgDark: boolean) => {
     updateSetting({ 'theme.hideBgDark': isHideBgDark })
+    // A05-020：同 IsAutoTheme，getTheme 缺 catch 会产生 unhandled rejection。
     void getTheme().then(theme => {
       if (!theme.isDark && !settingState.setting['common.isAutoTheme']) return
       applyTheme(theme)
-    })
+    }).catch(() => {})
   }
 
 

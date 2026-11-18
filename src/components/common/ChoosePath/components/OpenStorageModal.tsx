@@ -99,8 +99,10 @@ export default forwardRef<OpenDirModalType, { onOpenDir: (dir: string) => Promis
         return
       }
       void onOpenDir(text)
+      // A09-012：上游原样把 saveOpenStoragePath 放在 if 之外 —— 输入为空时会把空串
+      // 写入已存路径，下次打开直接落到无效路径。只在校验通过的路径上保存。
+      void saveOpenStoragePath(text)
     }
-    void saveOpenStoragePath(text)
     confirmAlertRef.current?.setVisible(false)
   }
   const removeSelectStoragePath = (path: string) => {

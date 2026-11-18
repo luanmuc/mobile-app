@@ -70,3 +70,6 @@ buck-out/
 
 # RN 构建产物：10.4MB 二进制，历史上被入库过（保留索引，仅防新增）
 /index.android.bundle
+
+# CI 生成的音源产物（release.yml 编译前下载/生成，不应入库）
+/android/app/src/main/assets/builtin_source.js

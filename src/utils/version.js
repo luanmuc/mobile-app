@@ -31,10 +31,13 @@ const request = async(url, retryNum = 0) => {
       timeout: 5000,
     }, (err, resp, body) => {
       if (err || resp.statusCode != 200) {
+        // A08-006：原写法 `++retryNum >= 1 ? ...` 是「先自增再比较」，第 0 次进来 retryNum 变 1、
+        // 判定 1>=1 恒为 true → 永远走 reject，重试分支实际不可达（注释写的"每源最多重试 1 次"没生效）。
+        // 改为比较当前值，重试时把计数 +1 传进去。
         // 快速失败切换源：每源最多重试 1 次，避免长时间卡在"检查更新中"
-        ++retryNum >= 1
+        retryNum >= 1
           ? reject(err || new Error(resp.statusMessage || resp.statusCode))
-          : request(url, retryNum).then(resolve).catch(reject)
+          : request(url, retryNum + 1).then(resolve).catch(reject)
       } else resolve(body)
     })
   })

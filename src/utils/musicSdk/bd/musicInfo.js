@@ -10,8 +10,11 @@ export default {
     requestObj.promise = requestObj.promise.then(({ body }) => {
       // console.log(body)
       if (body.error_code == 22000) {
-        this.cache[songmid] = body.result.songinfo
-        return body.result.songinfo
+        // A07-022：error_code 正常但 result 缺失（接口降级/风控页）时，body.result.songinfo 会 TypeError。
+        const info = body.result && body.result.songinfo
+        if (!info) return Promise.reject(new Error('获取音乐信息失败'))
+        this.cache[songmid] = info
+        return info
       }
       return Promise.reject(new Error('获取音乐信息失败'))
     })

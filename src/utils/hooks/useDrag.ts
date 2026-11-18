@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { type LayoutChangeEvent } from 'react-native'
 
 export const useDrag = (onSetProgress: (progress: number) => void, onDragState: (drag: boolean) => void, setDragProgress: (progress: number) => void) => {
@@ -10,10 +10,22 @@ export const useDrag = (onSetProgress: (progress: number) => void, onDragState: 
     progressWidth: 0,
   })
 
+  // A07-011：拖拽途中组件被卸载（切页/关弹层）时没人收尾，父级会一直停在「拖拽中」。
+  // 卸载时把状态复位一次。
+  useEffect(() => () => {
+    if (!info.current.isDraging) return
+    info.current.isDraging = false
+    onDragState(false)
+    // ref 是稳定引用，onDragState 变化不需要重挂清理
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const onDragStart = useCallback((offsetX: number, locationX: number) => {
     info.current.isDraging = true
     info.current.dragStartX = offsetX
 
+    // progressWidth 还没测量（为 0）时除零会把进度直接顶到 1，直接忽略这次按下。
+    if (!info.current.progressWidth) return
     let val = locationX / info.current.progressWidth
     if (val < 0) val = 0
     if (val > 1) val = 1

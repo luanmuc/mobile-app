@@ -103,8 +103,10 @@ export const requestStoragePermission = async() => {
   const isGranted = await checkStoragePermissions()
   if (isGranted) return isGranted
 
+  // A01-018：selectManagedFolder 走到第三方 native 模块，用户取消选择时返回的是
+  // null/undefined —— 原来直接取 uri.isDirectory 会 TypeError。加守卫。
   const uri = await selectManagedFolder()
-  if (!uri.isDirectory) return false
+  if (!uri?.isDirectory) return false
   await setSelectedManagedFolder(uri.path)
   return true
 }

@@ -29,6 +29,8 @@ export default () => {
   const boardsListRef = useRef<BoardsListType>(null)
   const headerBarRef = useRef<HeaderBarType>(null)
   const boundInfo = useRef<{ source: LX.OnlineSource, id: string | null }>({ source: 'kw', id: null })
+  // A04-002：同 Horizontal —— 快速切源/切换榜单时丢弃过期响应，避免旧数据覆盖新选中项。
+  const reqSeq = useRef(0)
   // const [width, setWidth] = useState(0)
 
   const handleBoundChange = (source: LX.OnlineSource, id: string) => {
@@ -40,8 +42,11 @@ export default () => {
   }
   const onBoundChange: BoardsListProps['onBoundChange'] = (id) => {
     boundInfo.current.id = id
+    const seq0 = ++reqSeq.current
     void getBoardsList(boundInfo.current.source).then(list => {
+      if (seq0 !== reqSeq.current) return
       requestAnimationFrame(() => {
+        if (seq0 !== reqSeq.current) return
         const bound = list.find(l => l.id == id)
         headerBarRef.current?.setBound(boundInfo.current.source, id, bound?.name ?? 'Unknown')
       })
@@ -66,15 +71,19 @@ export default () => {
   }
   const onSourceChange: HeaderBarProps['onSourceChange'] = (source) => {
     boundInfo.current.source = source
+    const seq = ++reqSeq.current
     void getBoardsList(source).then(list => {
+      if (seq !== reqSeq.current) return
       // 接口返回空列表时直接跳过，避免 list[0] 下标越界
       if (!list.length) return
       const id = list[0].id
       const name = list[0].name
       requestAnimationFrame(() => {
+        if (seq !== reqSeq.current) return
         boardsListRef.current?.setList(list, id)
         headerBarRef.current?.setBound(source, id, name ?? 'Unknown')
         requestAnimationFrame(() => {
+          if (seq !== reqSeq.current) return
           handleBoundChange(source, id)
         })
       })

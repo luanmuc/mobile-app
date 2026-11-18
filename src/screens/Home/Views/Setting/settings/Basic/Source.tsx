@@ -116,6 +116,12 @@ export default memo(() => {
   const lastCheckAt = useSettingValue('common.sourceUpdateLastCheckAt')
   const [currentSourceVersion, setCurrentSourceVersion] = useState('')
   const theme = useTheme()
+  // A05-009：markChecked 的回写走 useCallback（没有 cleanup 时机），用组件级卸载标志兜住。
+  const isUnmountedRef = useRef(false)
+  useEffect(() => {
+    isUnmountedRef.current = false
+    return () => { isUnmountedRef.current = true }
+  }, [])
   useEffect(() => {
     if (!apiSourceSetting) { setCurrentSourceVersion(''); return }
     let alive = true
@@ -132,8 +138,11 @@ export default memo(() => {
     updateSetting({ 'common.sourceUpdateLastCheckAt': Date.now() })
     if (apiSourceSetting) {
       getUserApiScript(apiSourceSetting)
-        .then(script => { setCurrentSourceVersion(parseSourceVersion(script || '')) })
-        .catch(() => {})
+        .then(script => {
+          if (isUnmountedRef.current) return
+          setCurrentSourceVersion(parseSourceVersion(script || ''))
+        })
+        .catch(() => { /* 与上面的版本读取同口径：读不到就不更新，不阻断面板 */ })
     }
   }, [apiSourceSetting])
   const userApiList = useMemo(() => {

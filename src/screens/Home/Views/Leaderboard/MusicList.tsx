@@ -17,6 +17,8 @@ export interface MusicListType {
 export default forwardRef<MusicListType, {}>((props, ref) => {
   const listRef = useRef<OnlineListType>(null)
   const isUnmountedRef = useRef(false)
+  // A04-002：loadList 的代际号 —— 快速切换榜单时，先发出的详情请求后返回会覆盖新榜单的歌曲列表。
+  const reqSeq = useRef(0)
   useImperativeHandle(ref, () => ({
     async loadList(source, id) {
       const listDetailInfo = boardState.listDetailInfo
@@ -28,15 +30,17 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
       } else {
         listRef.current?.setStatus('loading')
         const page = 1
+        const seq = ++reqSeq.current
         setListDetailInfo(id)
         return getListDetail(id, page).then((listDetail) => {
+          if (isUnmountedRef.current || seq !== reqSeq.current) return
           const result = setListDetail(listDetail, id, page)
-          if (isUnmountedRef.current) return
           requestAnimationFrame(() => {
             listRef.current?.setList(result.list)
             listRef.current?.setStatus(boardState.listDetailInfo.maxPage <= page ? 'end' : 'idle')
           })
         }).catch(() => {
+          if (isUnmountedRef.current || seq !== reqSeq.current) return
           if (boardState.listDetailInfo.list.length && page == 1) clearListDetail()
           listRef.current?.setStatus('error')
         })

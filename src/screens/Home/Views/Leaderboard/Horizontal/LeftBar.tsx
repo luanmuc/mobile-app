@@ -7,7 +7,7 @@ import SourceSelector, {
 } from '@/components/SourceSelector'
 import BoardsList, { type BoardsListType, type BoardsListProps } from '../BoardsList'
 import { BorderWidths } from '@/theme'
-import { createStyle } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 import { handleCollect, handlePlay } from '../listAction'
 import boardState, { type InitState } from '@/store/leaderboard/state'
 import { useTheme } from '@/store/theme/hook'
@@ -30,12 +30,20 @@ export default forwardRef<LeftBarType, LeftBarProps>(({ onChangeList }, ref) => 
   const sourceSelectorRef = useRef<SourceSelectorType>(null)
   const boardsListRef = useRef<BoardsListType>(null)
   const boundInfo = useRef<{ source: LX.OnlineSource, id: string | null }>({ source: 'kw', id: null })
+  // A04-002：请求代际号 —— 快速切源时先发出的旧请求可能后返回，会把新源已选中的列表覆盖成旧源数据。
+  const reqSeq = useRef(0)
   useImperativeHandle(ref, () => ({
     setBound(source, listId) {
       boundInfo.current = { source, id: listId }
       sourceSelectorRef.current?.setSourceList(boardState.sources, source)
+      // A04-001：原 `void getBoardsList()` 不接 catch —— 网络异常/源不可用时榜单永远空白，
+      // 用户分不清「加载失败」还是「该源没有榜单」，也没有重试入口。
+      const seq = ++reqSeq.current
       void getBoardsList(source).then(list => {
+        if (seq !== reqSeq.current) return
         boardsListRef.current?.setList(list, listId)
+      }).catch(() => {
+        toast(global.i18n.t('leaderboard_load_error'))
       })
     },
   }), [])
@@ -43,16 +51,23 @@ export default forwardRef<LeftBarType, LeftBarProps>(({ onChangeList }, ref) => 
 
   const onSourceChange = (source: LX.OnlineSource) => {
     boundInfo.current.source = source
+    const seq = ++reqSeq.current
     void getBoardsList(source).then(list => {
+      if (seq !== reqSeq.current) return
       // 接口返回空列表时直接跳过，避免 list[0] 下标越界
       if (!list.length) return
       const id = list[0].id
       requestAnimationFrame(() => {
+        if (seq !== reqSeq.current) return
         boardsListRef.current?.setList(list, id)
         requestAnimationFrame(() => {
+          if (seq !== reqSeq.current) return
           onChangeList(source, id)
         })
       })
+    }).catch(() => {
+      // A04-001：切换榜单源失败时同样要反馈，否则切到无榜单/异常源是一片空白
+      toast(global.i18n.t('leaderboard_load_error'))
     })
   }
   const onBoundChange: BoardsListProps['onBoundChange'] = (id) => {

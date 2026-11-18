@@ -12,10 +12,14 @@ import { toOldMusicInfo } from '@/utils'
 import { clearMusicUrlByMusic } from '@/utils/data'
 
 export const handlePlay = (musicInfo: LX.Music.MusicInfoOnline) => {
+  // A09-006：原实现只有 .then，addListMusics 失败（写库异常/列表不存在）被静默吞掉 ——
+  // 用户点了没反应也没有提示。补 catch。
   void addListMusics(LIST_IDS.DEFAULT, [musicInfo], settingState.setting['list.addMusicLocationType']).then(() => {
     const index = getListMusicSync(LIST_IDS.DEFAULT).findIndex(m => m.id == musicInfo.id)
     if (index < 0) return
     void playList(LIST_IDS.DEFAULT, index)
+  }).catch(() => {
+    toast(global.i18n.t('list_edit_action_tip_move_failed'))
   })
 }
 export const handlePlayLater = (musicInfo: LX.Music.MusicInfoOnline, selectedList: LX.Music.MusicInfoOnline[], onCancelSelect: () => void) => {

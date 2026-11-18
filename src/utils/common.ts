@@ -35,6 +35,9 @@ export const toDateObj = (date?: number | string | Date): Date | '' => {
       break
     default: return ''
   }
+  // A07-008：非法字符串/越界时间戳经 new Date() 得到 Invalid Date，原来直接返回，
+  // 下游 dateFormat 继续取 getFullYear() 等会拼出 "NaN/NaN/NaN" 并显示在 UI 上。
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
   return date
 }
 

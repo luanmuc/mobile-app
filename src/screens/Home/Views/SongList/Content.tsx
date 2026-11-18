@@ -42,11 +42,14 @@ export default () => {
   }
 
   const handleSourceChange: HeaderBarProps['onSourceChange'] = (source) => {
-    songlistInfo.current.source = source
-    songlistInfo.current.tagId = ''
+    // A05-007：原来先把 source/tagId 写进 songlistInfo 再判 firstSort，缺失时直接 return ——
+    // 头部与列表还停在旧源，ref 状态和 songlistInfo.current 已经不一致（"头部是 B、列表是 A"）。
+    // 改为先取排序项，缺失就整体不动，保持旧源状态自洽。
     // sortList 里该源可能为空，用可选链兜住后再判空，避免 [0] 越界
     const firstSort = songlistState.sortList[source]?.[0]
     if (!firstSort) return
+    songlistInfo.current.source = source
+    songlistInfo.current.tagId = ''
     songlistInfo.current.sortId = firstSort.id
     void saveSongListSetting({ sortId: songlistInfo.current.sortId, source, tagId: '', tagName: '' })
     headerBarRef.current?.setSource(source, songlistInfo.current.sortId, '', songlistInfo.current.tagId)

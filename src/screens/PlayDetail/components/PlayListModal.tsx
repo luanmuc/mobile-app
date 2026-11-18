@@ -50,11 +50,11 @@ export default forwardRef<ModalType, {}>((props, ref) => {
   const t = useI18n()
 
   const listId = playerState.playInfo.playerListId
-  const list = useMemo(() => {
-    const l = getList(listId)
-    return (l || []) as LX.Music.MusicInfo[]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId, playerState.playInfo.playIndex])
+  // A06-006：原 useMemo 只依赖 listId + playIndex，而「增删歌曲 / 拖拽排序」只改
+  // listState.allMusicList 里的数组、既不动 listId 也不动 playIndex —— 弹窗打开后列表内容
+  // 会一直停在打开那一刻，删除的歌曲还在、排序也不更新。
+  // getList 只是读 Map，代价极低，这里直接每次渲染取最新，彻底消除滞后。
+  const list = (getList(listId) || []) as LX.Music.MusicInfo[]
   const currentId = playerState.playMusicInfo.musicInfo?.id
 
   const listName = useMemo(() => {

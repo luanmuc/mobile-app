@@ -2,7 +2,7 @@ import { useRef, useImperativeHandle, forwardRef, useState } from 'react'
 import ConfirmAlert, { type ConfirmAlertType } from '@/components/common/ConfirmAlert'
 import Text from '@/components/common/Text'
 import { InteractionManager, View } from 'react-native'
-import { createStyle } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 import { useI18n } from '@/lang'
 import CheckBox from '@/components/common/CheckBox'
 import { getListMusics, setFetchingListStatus, updateListMusicPosition } from '@/core/list'
@@ -119,17 +119,25 @@ export default forwardRef<ListMusicSortType, {}>((props, ref) => {
     // console.log(type, name)
     if (!type || (!name && type != 'random')) return
     const id = selectedListInfo.current.id
-    let list = [...(await getListMusics(id))]
-    setFetchingListStatus(id, true)
-    requestAnimationFrame(() => {
-      void InteractionManager.runAfterInteractions(() => {
-        list = sortListMusicInfo(list, type, name!, global.i18n.locale)
-        void updateListMusicPosition(id, 0, list.map(m => m.id))
-        setFetchingListStatus(id, false)
+    // A04-005：getListMusics / updateListMusicPosition 原来都没有 catch ——
+    // 后者 reject 时 setFetchingListStatus(id, false) 被跳过，排序 fetching 永久卡住；
+    // 两者失败也都没有任何用户反馈。
+    try {
+      let list = [...(await getListMusics(id))]
+      setFetchingListStatus(id, true)
+      requestAnimationFrame(() => {
+        void InteractionManager.runAfterInteractions(() => {
+          list = sortListMusicInfo(list, type, name!, global.i18n.locale)
+          void updateListMusicPosition(id, 0, list.map(m => m.id))
+            .catch(() => { toast(global.i18n.t('list_edit_action_tip_move_failed')) })
+            .finally(() => { setFetchingListStatus(id, false) })
+        })
       })
-    })
-
-    alertRef.current?.setVisible(false)
+      alertRef.current?.setVisible(false)
+    } catch {
+      toast(global.i18n.t('list_edit_action_tip_move_failed'))
+      setFetchingListStatus(id, false)
+    }
   }
 
   return (

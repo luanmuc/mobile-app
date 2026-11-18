@@ -11,6 +11,7 @@ import Text from '@/components/common/Text'
 import { useI18n } from '@/lang'
 import { COMPONENT_IDS } from '@/config/constant'
 import { setComponentId } from '@/core/common'
+import { usePlayMusicInfo } from '@/store/player/hook'
 import PageContent from '@/components/PageContent'
 import playerState from '@/store/player/state'
 import { scaleSizeH } from '@/utils/pixelRatio'
@@ -83,6 +84,7 @@ export default memo(({ componentId }: {
   const pagerViewRef = useRef<PagerView>(null)
   const [activeId, setActiveId] = useState<ActiveId>('hot')
   const [musicInfo, setMusicInfo] = useState<LX.Music.MusicInfo | null>(getMusicInfo(playerState.playMusicInfo.musicInfo))
+  const playMusicInfo = usePlayMusicInfo()
   const t = useI18n()
   const theme = useTheme()
   const [total, setTotal] = useState({ hot: 0, new: 0 })
@@ -91,6 +93,14 @@ export default memo(({ componentId }: {
     setComponentId(COMPONENT_IDS.comment, componentId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // A06-002：原来 musicInfo 只在 useState 初始化时读一次，页面停在前台时切歌，
+  // 标题与两个列表都还停在上一首 —— 评论内容和当前播放曲对不上。
+  // 订阅 playMusicInfo 的变化把 musicInfo 同步过去（子组件 useMemo 依赖 musicInfo，会自动重载）。
+  useEffect(() => {
+    const next = getMusicInfo(playMusicInfo.musicInfo)
+    setMusicInfo(next)
+  }, [playMusicInfo.musicInfo])
 
   const tabs = useMemo(() => {
     return [
@@ -115,6 +125,9 @@ export default memo(({ componentId }: {
 
     if (musicInfo && musicInfo.id == playerMusicInfo.id) {
       toast(t('comment_refresh', { name: musicInfo.name }))
+      // A06-002：同一首歌点刷新原来只 toast 就 return，评论根本没重新拉。
+      // 子组件的 useMemo 依赖 musicInfo 引用，这里造一个新对象引用即可触发真正的重载。
+      setMusicInfo({ ...playerMusicInfo })
       return
     }
     setMusicInfo(playerMusicInfo)

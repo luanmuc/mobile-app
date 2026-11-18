@@ -52,10 +52,12 @@ export default forwardRef<HistorySearchType, HistorySearchProps>((props, ref) =>
 
   useImperativeHandle(ref, () => ({
     show() {
+      // A04-009：getSearchHistory 未 catch —— 读取失败时 reject 变 unhandled rejection，
+      // 历史列表停在空态且无任何提示。
       void getSearchHistory().then((list) => {
         if (isUnmountedRef.current) return
         setList(list)
-      })
+      }).catch(() => {})
     },
   }), [])
 
@@ -64,15 +66,17 @@ export default forwardRef<HistorySearchType, HistorySearchProps>((props, ref) =>
     setList([])
   }
 
+  // A04-010：原实现把存储副作用写在 setState updater 内，且 indexOf 未命中时
+  // splice(-1, 1) 会误删最后一个词条；updater 在 StrictMode 下还可能被调用两次。
+  // 现在改为按当前 list 定位、命中才删，副作用移出 updater。
   const handleRemove = useCallback((keyword: string) => {
-    setList(list => {
-      list = [...list]
-      const index = list.indexOf(keyword)
-      list.splice(index, 1)
-      removeHistoryWord(index)
-      return list
-    })
-  }, [])
+    const index = list.indexOf(keyword)
+    if (index === -1) return
+    const next = [...list]
+    next.splice(index, 1)
+    setList(next)
+    removeHistoryWord(index)
+  }, [list])
 
   return (
     list.length

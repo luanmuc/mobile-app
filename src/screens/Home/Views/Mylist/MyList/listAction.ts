@@ -193,18 +193,26 @@ const handleUpdateMusics = async(filePaths: string[],
 }
 export const handleImportMediaFile = async(listInfo: LX.List.MyListInfo, path: string) => {
   setFetchingListStatus(listInfo.id, true)
-  const files = await scanAudioFiles(path)
-  if (files.length) {
-    const throttleUpdateMusics = createThrottleAddMusics(async(listId, musicInfos) => {
-      return updateListMusics(musicInfos.map(info => ({ id: listId, musicInfo: info })))
-    }, async(listId, errorPath) => {
-      return removeListMusics(listId, errorPath)
-    }, listInfo.id)
-    await addListMusics(listInfo.id, files.map(buildLocalMusicInfoByFilePath), settingState.setting['list.addMusicLocationType'])
-    toast(global.i18n.t('list_select_local_file_temp_add_tip', { total: files.length }), 'long')
-    await handleUpdateMusics(files.map(f => f.path), throttleUpdateMusics)
-  } else toast(global.i18n.t('list_select_local_file_empty_tip'), 'long')
-  setFetchingListStatus(listInfo.id, false)
+  // A04-005：整条 await 链原来没有 catch —— scanAudioFiles / addListMusics / handleUpdateMusics
+  // 任一抛错，下面的 setFetchingListStatus(false) 就永远不执行：歌单 fetching 标志卡死，
+  // 菜单的 local_file / sync 被禁用，用户也收不到任何失败提示。
+  try {
+    const files = await scanAudioFiles(path)
+    if (files.length) {
+      const throttleUpdateMusics = createThrottleAddMusics(async(listId, musicInfos) => {
+        return updateListMusics(musicInfos.map(info => ({ id: listId, musicInfo: info })))
+      }, async(listId, errorPath) => {
+        return removeListMusics(listId, errorPath)
+      }, listInfo.id)
+      await addListMusics(listInfo.id, files.map(buildLocalMusicInfoByFilePath), settingState.setting['list.addMusicLocationType'])
+      toast(global.i18n.t('list_select_local_file_temp_add_tip', { total: files.length }), 'long')
+      await handleUpdateMusics(files.map(f => f.path), throttleUpdateMusics)
+    } else toast(global.i18n.t('list_select_local_file_empty_tip'), 'long')
+  } catch {
+    toast(global.i18n.t('list_import_tip__failed'))
+  } finally {
+    setFetchingListStatus(listInfo.id, false)
+  }
 }
 
 // 本地音乐管理（借鉴 MusicFree 本地音乐）：一键扫描下载目录并导入歌单

@@ -12,7 +12,10 @@ const crypto = require('crypto')
 const { execFileSync } = require('child_process')
 
 const ROOT = path.resolve(__dirname, '..')
-const SOURCE_ROOT = path.join(ROOT, '..', 'lx-music-source')
+// A13-P1-03：路径可覆盖，便于 CI 把源仓 clone 到任意位置（默认仍是 ../lx-music-source）。
+const SOURCE_ROOT = process.env.LX_SOURCE_ROOT
+  ? path.resolve(process.env.LX_SOURCE_ROOT)
+  : path.join(ROOT, '..', 'lx-music-source')
 const SRC = path.join(ROOT, 'src/core/sourceUpdate/fetcher.ts')
 
 function compile() {
@@ -32,7 +35,16 @@ const verifyMod = require(path.join(outDir, 'verify.js'))
 // CI 的 checks job 不 checkout 源仓（与 check_cross_repo_linkage 同口径）：整仓缺失时跳过。
 // 但源仓在、产物却不在 → 说明忘了 build，必须报错而不是静默跳过。
 if (!fs.existsSync(SOURCE_ROOT)) {
-  console.log('（跳过：未检出源仓，CI 单仓环境不强制）')
+  // A13-P1-03：原实现无条件 exit 0 —— release.yml 又从不 clone 源仓，导致
+  // 篡改包 SHA256_MISMATCH / 假签名 / REMOTE_OLDER / SIZE_MISMATCH / 未知 keyId
+  // 这些断言在 CI 里从来没跑过。现在 CI 必须传 LX_REQUIRE_SOURCE=1，缺失即失败。
+  if (process.env.LX_REQUIRE_SOURCE === '1') {
+    console.error('✗ 跨仓断言不允许跳过：LX_REQUIRE_SOURCE=1 但未找到源仓')
+    console.error('  已查找：' + SOURCE_ROOT)
+    console.error('  请设 LX_SOURCE_ROOT 指向源仓（或把源仓 clone 到该位置）')
+    process.exit(1)
+  }
+  console.log('（跳过：未检出源仓；设 LX_SOURCE_ROOT=<源仓路径> 可强制执行，CI 用 LX_REQUIRE_SOURCE=1 强制）')
   process.exit(0)
 }
 const realScript = path.join(SOURCE_ROOT, 'lx-source.js')

@@ -44,13 +44,18 @@ public class Lyric extends LyricPlayer {
     // checkA2DPConnection(reactContext);
   }
 
+  // A11-008：接收器原来是局部变量，注册后没有任何引用，也就永远无法反注册 ——
+  // 实例销毁后接收器仍持有 Context，脚本重载/重复建实例会重复注册。提到字段以便注销。
+  private BroadcastReceiver screenOnOffReceiver = null;
+
   private void registerScreenBroadcastReceiver() {
+    if (screenOnOffReceiver != null) return;
     final IntentFilter theFilter = new IntentFilter();
     /** System Defined Broadcast */
     theFilter.addAction(Intent.ACTION_SCREEN_ON);
     theFilter.addAction(Intent.ACTION_SCREEN_OFF);
 
-    BroadcastReceiver screenOnOffReceiver = new BroadcastReceiver() {
+    screenOnOffReceiver = new BroadcastReceiver() {
       @Override
       public void onReceive(Context context, Intent intent) {
         String strAction = intent.getAction();
@@ -69,6 +74,25 @@ public class Lyric extends LyricPlayer {
     };
 
     reactAppContext.registerReceiver(screenOnOffReceiver, theFilter);
+  }
+
+  /** A11-008：实例销毁时反注册接收器并释放悬浮窗，避免挂在死实例上。 */
+  public void destroy() {
+    unregisterScreenBroadcastReceiver();
+    if (lyricView != null) {
+      lyricView.destroy();
+      lyricView = null;
+    }
+  }
+
+  /** A11-008：实例销毁时反注册，避免接收器挂在死实例上。 */
+  public void unregisterScreenBroadcastReceiver() {
+    if (screenOnOffReceiver == null) return;
+    try {
+      reactAppContext.unregisterReceiver(screenOnOffReceiver);
+    } catch (Throwable ignored) {
+    }
+    screenOnOffReceiver = null;
   }
 
   // private void checkA2DPConnection(Context context) {

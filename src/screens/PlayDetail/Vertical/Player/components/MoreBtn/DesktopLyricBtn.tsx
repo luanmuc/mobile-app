@@ -15,9 +15,11 @@ export default memo(() => {
   }
   const updateLock = () => {
     const isLock = !settingState.setting['desktopLyric.isLock']
+    // A06-012：上游原样缺 catch —— 原生调用失败时 then 不执行，锁定设置既不落库
+    // 也不给用户任何反馈，同时留下 unhandled rejection。失败时保持原状态。
     void toggleDesktopLyricLock(isLock).then(() => {
       updateSetting({ 'desktopLyric.isLock': isLock })
-    })
+    }).catch(() => {})
   }
 
   return (

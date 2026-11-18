@@ -10,9 +10,13 @@ export default {
     const { body, statusCode } = await _requestObj.promise
     if (statusCode != 200 || body.code !== '000000') throw new Error('获取热搜词失败')
     // console.log(body, statusCode)
-    return { source: 'mg', list: this.filterList(body.data.hotwords[0].hotwordList) }
+    // A07-022：data / hotwords 缺失或空数组时，[0].hotwordList 会 TypeError。
+    const hotwordList = body.data && Array.isArray(body.data.hotwords) && body.data.hotwords[0]
+      ? body.data.hotwords[0].hotwordList
+      : []
+    return { source: 'mg', list: this.filterList(hotwordList) }
   },
   filterList(rawList) {
-    return rawList.filter(item => item.resourceType == 'song').map(item => item.word)
+    return (Array.isArray(rawList) ? rawList : []).filter(item => item.resourceType == 'song').map(item => item.word)
   },
 }

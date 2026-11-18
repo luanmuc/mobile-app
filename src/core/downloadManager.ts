@@ -332,8 +332,10 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
         if (progress - lastProgress < 0.05) return
         lastProgress = progress
 
+        // A01-005：原来以闭包里的旧 task 为底展开，会把中途写入的 total / 状态字段整体覆盖掉
+        // （同一函数上面的持久化分支用的是最新 current）。统一用 current 为底。
         updateItem({
-          ...task,
+          ...current,
           status: 'run',
           statusText: global.i18n.t('dl_status_running'),
           statusKey: 'dl_status_running',
@@ -352,7 +354,8 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
       if (result.statusCode !== 200 && result.statusCode !== 206) {
         // 下载失败，删除缓存残件（正式路径不受影响）
         void RNFS.unlink(partPath).catch(() => {})
-        reject(new Error(`下载失败 (HTTP ${result.statusCode})`))
+        // A01-002：error 只存原始报错（HTTP 码），中文只由 UI 按语言渲染
+        reject(new Error(`HTTP ${result.statusCode}`))
         return
       }
 
@@ -361,7 +364,10 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
         await moveFile(partPath, filePath)
       } catch (e) {
         void RNFS.unlink(partPath).catch(() => {})
-        reject(new Error('保存文件失败'))
+        // A01-002：同上，只带结构化 code，不再写死中文文案
+        const err = new Error('E_SAVE') as Error & { code?: string }
+        err.code = 'SAVE_FAILED'
+        reject(err)
         return
       }
 
@@ -514,14 +520,18 @@ const runTask = async(task: LX.Download.ListItem) => {
     // 权限类错误不自动重试：用户未授权时重试只会反复弹权限弹窗，直接标记失败等待用户处理后手动重试
     const errorMsg = (err as Error)?.message ?? ''
     const errCode = (err as { code?: string })?.code
-    // 优先按错误码分类；没有码的历史/底层错误再退回文本匹配
-    const isPermissionError = errCode === 'PERMISSION' || errorMsg.includes('权限') || errorMsg.includes('访问')
+    // A01-001：分类只认 code（`makeError` 抛的码 / 底层技术字面量）；
+    // 中文子串（'权限'/'访问'/'存储空间'/'空间不足'/'网络'）已删——切英文/繁中后
+    // 底层错误文本不含这些词，兜底会静默失效并把权限/空间错误降级成 network/unknown。
+    // 无 code 的底层错误统一归 unknown，由 UI 提示用户重试或反馈。
+    const isPermissionError = errCode === 'PERMISSION'
     const failReason: LX.Download.DownloadErrorReason = errCode === 'PERMISSION' ? 'noWrite'
       : errCode === 'NO_SPACE' ? 'noSpace'
         : errCode === 'NO_SOURCE' || errCode === 'NO_URL' ? 'noSource'
-          : errorMsg.includes('存储空间') || errorMsg.includes('空间不足') ? 'noSpace'
-            : /HTTP 4\d\d/.test(errorMsg) ? 'noSource'
-              : errorMsg.includes('ENOTFOUND') || errorMsg.includes('timeout') || errorMsg.includes('EAI_AGAIN') || errorMsg.includes('网络') || /HTTP \d\d\d/.test(errorMsg) ? 'network'
+          : /HTTP 4\d\d/.test(errorMsg) ? 'noSource'
+            : errCode === 'SAVE_FAILED' ? 'noSpace'
+              // 下面这些是技术字面量（Node/RN 网络错误码），与界面语言无关，可以继续用作兜底
+              : errCode === 'ENOTFOUND' || errCode === 'ETIMEDOUT' || errCode === 'EAI_AGAIN' || errCode === 'ECONNREFUSED' || errCode === 'ECONNRESET' || /HTTP \d\d\d/.test(errorMsg) ? 'network'
                 : 'unknown'
     const retryCount = task.retryCount ?? 0
     if (!isPermissionError && settingState.setting['download.autoRetry'] && retryCount < MAX_RETRY_COUNT) {
@@ -529,10 +539,11 @@ const runTask = async(task: LX.Download.ListItem) => {
         ...task,
         retryCount: retryCount + 1,
         status: 'waiting',
-        statusText: `等待重试 (${retryCount + 1}/${MAX_RETRY_COUNT})`,
+        statusText: global.i18n.t('dl_status_retrying', { num: retryCount + 1, max: MAX_RETRY_COUNT }),
         statusKey: 'dl_status_retrying',
         statusParams: { num: retryCount + 1, max: MAX_RETRY_COUNT },
-        error: errorMsg || '下载失败',
+        // A01-002：error 只存原始报错，无报错时留空（中文兜底会跨语言残留）
+        error: errorMsg,
         errorCode: failReason,
       })
       save()
@@ -742,7 +753,9 @@ export const migrateDownloadDir = async() => {
           // 迁移写回同样剥离 statusText，否则旧中文会从这条旁路继续留在存储里
           await saveData(DOWNLOAD_STORAGE_KEY, updated.map(stripStatusText))
           // 若内存列表已加载，同步更新
-          if (downloadState.list.length) downloadState.list = updated
+          // A01-003：必须走 action —— 直接给 state.list 赋值不会 emit `downloadListUpdated`，
+          // 已加载的下载页 UI（useDownloadList 只在事件里更新）会停在迁移前的旧路径，点开报文件不存在。
+          if (downloadState.list.length) downloadActions.setList(updated)
         }
       }
     }
@@ -931,7 +944,7 @@ export const shareDownloadedFile = async(taskId: string) => {
     }
     if (Platform.OS === 'android') {
       // Android：原生 FileProvider 分享文件（Share.share 的 url 字段安卓不支持）
-      await nativeShareFile(task.metadata.filePath, '分享歌曲', task.metadata.musicInfo.name)
+      await nativeShareFile(task.metadata.filePath, global.i18n.t('dl_share_title'), task.metadata.musicInfo.name)
     } else {
       await Share.share({
         url: `file://${task.metadata.filePath}`,

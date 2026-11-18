@@ -11,7 +11,15 @@
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
-const ts = require(path.join(ROOT, 'node_modules', 'typescript'))
+// A12-005：原来只按仓库内绝对路径取 typescript —— 依赖未装/被提升走全局时脚本启动即崩，
+// 崩溃退 1 与"断言失败退 1"同码，CI 里分不清是环境问题还是真回归。补全局回退。
+const ts = (() => {
+  try {
+    return require(path.join(ROOT, 'node_modules', 'typescript'))
+  } catch {
+    return require('typescript')
+  }
+})()
 const loadTs = rel => {
   const file = path.join(ROOT, rel)
   const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
@@ -26,8 +34,14 @@ const loadTs = rel => {
 const assert = (c, m) => { if (!c) throw new Error(m) }
 let passed = 0
 const failures = []
+// A12-003：原实现是 fire-and-forget —— 每个用例的 Promise 不收集，退码在 100ms 定时器里
+// 按"当时已收到的 failures"决定。任一用例超过 100ms 才失败就会被漏计（结构性假绿窗口）。
+// 改为收集 task，末尾 Promise.all 收口后再判退码。
+const tasks = []
 const check = (name, fn) => {
-  Promise.resolve().then(fn).then(() => { passed++; console.log(`✓ ${name}`) }).catch(e => { failures.push(`${name} — ${e.message}`); console.log(`✗ ${name} — ${e.message}`) })
+  tasks.push(
+    Promise.resolve().then(fn).then(() => { passed++; console.log(`✓ ${name}`) }).catch(e => { failures.push(`${name} — ${e.message}`); console.log(`✗ ${name} — ${e.message}`) }),
+  )
 }
 const mod = loadTs('src/core/sourceHealthPersistence.ts')
 const NOW = Date.now()
@@ -150,8 +164,11 @@ check('Q9 源仓已移除 v1 回滚开关', async() => {
   assert(src.includes('HEALTH_STATE_ACCEPTED_VERSIONS'), '源仓缺少 v2 版本表')
 })
 
-setTimeout(() => {
+Promise.all(tasks).then(() => {
   console.log(`\n${passed} passed, ${failures.length} failed`)
-  if (failures.length) process.exit(1)
+  if (failures.length) {
+    for (const f of failures) console.log(`  ✗ ${f}`)
+    process.exit(1)
+  }
   process.exit(0)
-}, 100)
+})

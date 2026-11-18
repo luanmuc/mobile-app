@@ -753,7 +753,7 @@ export default [
         "bg-image-position": "center",
         "bg-image-size": "cover",
         "c-badge-primary": "var(c-primary)",
-        "c-badge-secondary": "rgba(66.6, 150.7, 171, 1)",
+        "c-badge-secondary": "rgba(67, 151, 171, 1)",
         "c-badge-tertiary": "rgba(54, 196, 231, 1)"
       }
     }

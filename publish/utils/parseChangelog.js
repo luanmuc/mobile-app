@@ -21,7 +21,9 @@ export const parseChangelog = async(text) => {
         })
       }
       currentVersion = versionMatch[1]
-      currentDate = versionMatch[3]
+      // A13-P2-04：该正则只有两个捕获组（1=版本、2=日期），原代码取 [3] 恒为 undefined，
+      // 生成的历史条目全部缺日期。
+      currentDate = versionMatch[2]
       currentDesc = ''
     } else {
       currentDesc += `${line}\n`

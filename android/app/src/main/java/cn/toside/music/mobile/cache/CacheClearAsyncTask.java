@@ -22,12 +22,20 @@ public class CacheClearAsyncTask extends AsyncTask<Integer,Integer,String> {
   @Override
   protected void onPostExecute(String s) {
     super.onPostExecute(s);
-    promise.resolve(null);
+    // A11-023：doInBackground 抛异常时 onPostExecute 不会拿到错误，Promise 永远不 settle，
+    // JS 侧 await clearAppCache() 会一直挂起。失败信息由 doInBackground 带回这里 reject。
+    if (s == null) promise.resolve(null);
+    else promise.reject("clear_cache_failed", s);
   }
 
   @Override
   protected String doInBackground(Integer... params) {
-    cacheModule.clearCache();
-    return null;
+    // A11-023：把异常转成可回传的字符串，避免 Promise 悬挂。
+    try {
+      cacheModule.clearCache();
+      return null;
+    } catch (Exception e) {
+      return e.getMessage() != null ? e.getMessage() : e.toString();
+    }
   }
 }

@@ -70,7 +70,9 @@ export default {
     if (tryNum > 2) return Promise.reject(new Error('try max num'))
 
     const { id, cookie } = await this.getListId(rawId)
-    if (cookie) this.cookie = cookie
+    // A08-020：cookie 是模块级字段，只有拿到新 token 才覆盖 —— 上一个带 token 的歌单会把
+    // cookie 泄漏到后面所有不带 token 的请求里。没有 token 时回落到默认值。
+    this.cookie = cookie ?? 'MUSIC_U='
 
     const requestObj_listDetail = httpFetch('https://music.163.com/api/linux/forward', {
       method: 'post',
@@ -133,8 +135,10 @@ export default {
       const types = []
       const _types = {}
       let size
+      // A08-003/A08-004：原写法先解引用 privilege.id 再判空 —— privileges[index] 缺项时直接 TypeError，
+      // 整份歌单/详情解析崩溃。改为先判空再比对。
       let privilege = privileges[index]
-      if (privilege.id !== item.id) privilege = privileges.find(p => p.id === item.id)
+      if (!privilege || privilege.id !== item.id) privilege = privileges.find(p => p.id === item.id)
       if (!privilege) return
 
       if (privilege.maxBrLevel == 'hires') {
@@ -295,7 +299,9 @@ export default {
     })
     return this._requestObj_hotTags.promise.then(({ body }) => {
       // console.log(JSON.stringify(body))
-      if (body.code !== this.successCode) return this.getTag(++tryNum)
+      // A08-007：失败重试必须仍打 hottags 接口 —— 原来写的是 this.getTag()（普通分类接口），
+      // 其结果会被 filterHotTagInfo(body.tags) 当热门标签解析（body.tags 通常缺失，直接抛错或出现错误分类项）。
+      if (body.code !== this.successCode) return this.getHotTag(++tryNum)
       return this.filterHotTagInfo(body.tags)
     })
   },

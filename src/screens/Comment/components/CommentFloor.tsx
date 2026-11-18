@@ -44,8 +44,9 @@ const CommentFloor = memo(({ comment, isLast }: {
       </View>
     )
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // A06-014：依赖原来是空数组（只靠 eslint-disable 压住），但内部读 comment.reply 与 theme
+  // → 评论对象更新（新回复 / 点赞数变化）或切换主题后派生节点不重算，边框色与楼层内容停留旧值。
+  }, [comment, theme])
 
   const likedCount = useMemo(() => {
     if (comment.likedCount == null) return null
@@ -55,8 +56,7 @@ const CommentFloor = memo(({ comment, isLast }: {
         <Text style={styles.likedCount} size={12} color={ theme['c-450'] }>{comment.likedCount}</Text>
       </View>
     )
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [comment, theme])
 
   return (
     <View style={{ ...styles.container, borderBottomColor: theme['c-list-header-border-bottom'], borderBottomWidth: isLast ? 0 : BorderWidths.normal, paddingBottom: isLast ? 0 : GAP }}>

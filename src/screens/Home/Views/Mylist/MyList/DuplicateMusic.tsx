@@ -1,6 +1,6 @@
 import { useRef, useImperativeHandle, forwardRef, useState, useCallback, memo, useEffect } from 'react'
 import Text from '@/components/common/Text'
-import { createStyle } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 import Dialog, { type DialogType } from '@/components/common/Dialog'
 import { FlatList, TouchableOpacity, View, type FlatListProps as _FlatListProps } from 'react-native'
 import { scaleSizeH } from '@/utils/pixelRatio'
@@ -147,7 +147,6 @@ const List = ({ listId }: { listId: string }) => {
       return
     }
     let newList = [...list]
-    let curItem = list[index]
     const rmItem = handleRemoveList(newList, index)
     let newSelectList = [...selectedList]
     for (const item of rmItem) {
@@ -158,7 +157,12 @@ const List = ({ listId }: { listId: string }) => {
     setSelectedList(dataRef.current[1] = newSelectList)
 
     requestAnimationFrame(() => {
-      void removeListMusics(listId, [curItem.musicInfo.id])
+      // A04-004：handleRemoveList 在两两同组时一次会移除 2 条（本地 newList 已去掉两条），
+      // 但落库只删了 curItem 一条 → 存储里还留着同组另一条，弹窗列表与真实歌单错配。
+      // 改为把本次实际移除的所有 id 一起落库。
+      void removeListMusics(listId, rmItem.map(item => item.musicInfo.id)).catch(() => {
+        toast(global.i18n.t('list_edit_action_tip_move_failed'))
+      })
     })
     setList(dataRef.current[0] = newList)
   }, [listId])

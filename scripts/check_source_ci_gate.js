@@ -13,7 +13,7 @@
  *   SOURCE_REPO=luanmuc/backend-api SOURCE_REF=master node scripts/check_source_ci_gate.js
  *   SOURCE_REF=<sha> node scripts/check_source_ci_gate.js   # 复现指定提交的闸门结论
  *
- * 退出码：0 通过；1 阻断；2 查询失败/无法判定。
+ * 退出码：0 通过；1 阻断；3 查询失败/无法判定（与 check_source_ci_gate_offline.js 保持一致）。
  */
 'use strict'
 

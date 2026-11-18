@@ -35,6 +35,16 @@ public class EqualizerModule extends ReactContextBaseJavaModule {
     return "EqualizerModule";
   }
 
+  /**
+   * A11-007：JS 侧 `releaseEqualizer` 导出后没有任何调用点，切歌/换设备重建会话时旧 effect 会挂死
+   * 原会话并一直持有 audiofx 实例。在 ReactContext 销毁时兜底释放，保证进程内不泄漏。
+   */
+  @Override
+  public void onCatalystInstanceDestroy() {
+    super.onCatalystInstanceDestroy();
+    releaseInternal();
+  }
+
   private synchronized void releaseInternal() {
     if (equalizer != null) {
       try {

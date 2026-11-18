@@ -627,7 +627,9 @@ export const removeUserApi = async(ids: string[]) => {
     if (ids.includes(userApis[index].id)) {
       _ids.push(`${userApiPrefix}${userApis[index].id}`)
       userApis.splice(index, 1)
-      ids.splice(index, 1)
+      // A07-009：这里原本还 ids.splice(index, 1) —— index 是 userApis 的下标，
+      // 用它去改入参 ids 既会污染调用方数组，两个数组长度不同时还会删错项。
+      // ids 只用于成员判断（ids.includes），不需要同步删除。
     }
   }
   await saveData(userApiPrefix, userApis)

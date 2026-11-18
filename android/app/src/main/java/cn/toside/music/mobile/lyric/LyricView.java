@@ -600,6 +600,10 @@ public class LyricView extends Activity implements View.OnTouchListener {
   }
 
   public void destroy() {
+    // A11-004：横竖屏变更会 postDelayed 300ms 的 fixViewPositionRunnable；销毁时若不撤掉待发回调，
+    // 这 300ms 内关闭桌面歌词，回调仍会在主线程执行并对已置 null 的 windowManager/layoutParams
+    // 解引用 → 主线程 NPE 崩溃。
+    fixViewPositionHandler.removeCallbacks(fixViewPositionRunnable);
     destroyView();
     windowManager = null;
     layoutParams = null;

@@ -55,7 +55,9 @@ const defaultThemes = [
       'bg-image-size': 'cover',
 
       'c-badge-primary': 'var(c-primary)',
-      'c-badge-secondary': 'rgba(66.6, 150.7, 171, 1)',
+      // A10-006：rgb/rgba 通道必须是 0-255 整数，原来的 66.6 / 150.7 是非法值，
+      // 不同 RN 版本/平台的颜色解析器对小数的取舍不一致，存在 badge 色解析失败回退默认色的风险。
+      'c-badge-secondary': 'rgba(67, 151, 171, 1)',
       'c-badge-tertiary': 'rgba(54, 196, 231, 1)',
     },
   },

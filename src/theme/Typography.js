@@ -3,6 +3,9 @@
  * This contains all the typography config for the application
  * #Note: color and font size are defaulted as they can be overridden
  *        as required.
+ *
+ * A10-005：LEGACY —— FontWeights / FontSizes 已无 import 方，且 FontWeights 里写死了 color: '#000'
+ * （暗色模式下会直接变成黑字）。请勿引用；字号请用 theme 的 font 尺寸键。
  */
 
 export const FontWeights = {

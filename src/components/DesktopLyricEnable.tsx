@@ -7,6 +7,7 @@ import { toast } from '@/utils/tools'
 import { useI18n } from '@/lang'
 import { checkDesktopLyricOverlayPermission, hideDesktopLyric, openDesktopLyricOverlayPermissionActivity, showDesktopLyric } from '@/core/desktopLyric'
 import { updateSetting } from '@/core/common'
+import { logger } from '@/utils/logger'
 
 export interface DesktopLyricEnableType {
   setEnabled: (enabled: boolean) => void
@@ -39,12 +40,14 @@ export default forwardRef<DesktopLyricEnableType, {}>((props, ref) => {
         await checkDesktopLyricOverlayPermission()
         await showDesktopLyric()
       } catch (err) {
-        console.log(err)
+        // A05-012：原为 console.log(err)，调试残留且裸打错误对象（脱敏门禁不允许）。改走 logger。
+        logger.warn('桌面歌词开启失败', (err as { code?: string } | null)?.code ?? typeof err)
         handleShowModal()
-        // return false
+        // A09-005：开启失败（无悬浮窗权限 / native 拒绝）时不能把 enable 落成 true ——
+        // 设置会显示"已开启"但桌面歌词实际没显示。这里直接返回，保持原值（false）。
+        return
       }
     } else await hideDesktopLyric()
-    // return true
     updateSetting({ 'desktopLyric.enable': isEnable })
   }
 

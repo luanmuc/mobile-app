@@ -18,6 +18,17 @@ import { type PathItem } from './components/ListItem'
 const parentDirInfo = new Map<string, string>()
 const caches = new Map<string, PathItem[]>()
 
+// A09-014：这两个 Map 挂在模块级，会话内只增不删 —— 目录浏览越多内存越长（缓存的是整份
+// 目录列表）。加容量上限 + 简易 LRU（Map 的迭代顺序就是插入顺序，超限删最早的一条）。
+const MAX_DIR_CACHE = 200
+const setBounded = <V,>(map: Map<string, V>, key: string, value: V) => {
+  if (map.size >= MAX_DIR_CACHE && !map.has(key)) {
+    const oldest = map.keys().next().value
+    if (oldest != null) map.delete(oldest)
+  }
+  map.set(key, value)
+}
+
 const handleReadDir = async(path: string, dirOnly: boolean, filter?: string[], isRefresh = false) => {
   let filterRxp = filter?.length ? new RegExp(`\\.(${filter.join('|')})$`, 'i') : null
   const cacheKey = `${path}_${dirOnly ? 'true' : 'false'}_${filter ? filter.toString() : 'null'}`
@@ -63,7 +74,7 @@ const handleReadDir = async(path: string, dirOnly: boolean, filter?: string[], i
         return false
       }
     }), ...fileList]
-    caches.set(cacheKey, list)
+    setBounded(caches, cacheKey, list)
     return list
   })
 }
@@ -93,6 +104,8 @@ export default forwardRef<ListType, ListProps>(({
   const isUnmountedRef = useRef(true)
   const readOptions = useRef<ReadOptions>(initReadOptions as ReadOptions)
   const [isReading, setIsReading] = useState(false)
+  // A09-008：正在进行的读取 Promise。后到的读取请求改为排队等待，而不是被静默丢弃。
+  const readingPromiseRef = useRef<Promise<unknown> | null>(null)
   const modalRef = useRef<ModalType>(null)
   const theme = useTheme()
   const t = useI18n()
@@ -125,11 +138,13 @@ export default forwardRef<ListType, ListProps>(({
   }, [])
 
   const readDir = async(newPath: string, dirOnly: boolean, filter?: string[], isRefresh?: boolean, isOpen?: boolean): Promise<PathItem[]> => {
-    if (isReading) return []
+    // A09-008：原来 `if (isReading) return []` 把后到的请求静默丢弃 —— 快速进出目录/连续刷新时
+    // 界面停在旧目录也没有任何提示，用户要再手动进一次。改为等前一次读完再执行，保证每次都真读。
+    if (readingPromiseRef.current) await readingPromiseRef.current.catch(() => {})
     setIsReading(true)
-    return handleReadDir(newPath, dirOnly, filter, isRefresh).then(list => {
+    const task = handleReadDir(newPath, dirOnly, filter, isRefresh).then(list => {
       if (isUnmountedRef.current) return []
-      if (!isOpen && newPath != path && newPath.startsWith(path)) parentDirInfo.set(newPath, path)
+      if (!isOpen && newPath != path && newPath.startsWith(path)) setBounded(parentDirInfo, newPath, path)
       setList(list)
       setPath(newPath)
       return list
@@ -141,7 +156,10 @@ export default forwardRef<ListType, ListProps>(({
       return []
     }).finally(() => {
       setIsReading(false)
+      if (readingPromiseRef.current === task) readingPromiseRef.current = null
     })
+    readingPromiseRef.current = task
+    return task
   }
 
   const onSetPath = (pathInfo: PathItem) => {

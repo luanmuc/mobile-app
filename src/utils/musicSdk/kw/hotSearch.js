@@ -17,6 +17,7 @@ export default {
     return { source: 'kw', list: this.filterList(body.tagvalue) }
   },
   filterList(rawList) {
-    return rawList.map(item => item.key)
+    // A07-022：body.tagvalue 缺失时 rawList 是 undefined。
+    return (Array.isArray(rawList) ? rawList : []).map(item => item.key)
   },
 }

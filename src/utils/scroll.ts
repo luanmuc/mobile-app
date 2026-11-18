@@ -18,6 +18,13 @@ type ScrollElement<T> = {
 } & T
 
 const handleScrollY = (element: ScrollElement<FlatList<any>>, info: NativeSyntheticEvent<NativeScrollEvent>['nativeEvent'], to: number, duration = 300, fn = noop): Noop => {
+  // A08-014：easeInOutQuad 里 `t /= d / 2`，duration 为 0 时退化成 0/0 = NaN，
+  // 偏移量变成 NaN 后 scrollToOffset 行为未定义。duration<=0 直接落点。
+  if (duration <= 0) {
+    element.scrollToOffset({ offset: to, animated: false })
+    fn()
+    return noop
+  }
   if (element == null) {
     fn()
     return noop

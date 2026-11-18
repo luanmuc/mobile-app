@@ -38,7 +38,13 @@ const writeLog = async(level: LogLevel, tag: string, message: string, force = fa
       if (!await RNFS.exists(dir)) {
         await RNFS.mkdir(dir)
       }
-    } catch {}
+    } catch (e) {
+      // A07-015：目录创建失败原来是空 catch，接着照常 appendFile，外层再吞一次 ——
+      // 结果是日志静默不落盘、调用方完全无感知（调试时最容易怀疑「是不是没走到」）。
+      // logger 是底层模块（不能 import log.ts，会循环依赖），这里用 console 留一条痕迹。
+      const code = (e as { code?: string } | null)?.code
+      console.warn('logger: 日志目录创建失败，后续写入可能静默失败', code ?? typeof e)
+    }
 
     // 检查文件大小，超过则清空
     try {

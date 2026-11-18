@@ -39,8 +39,13 @@ export const requestNotificationPermission = async() => new Promise<boolean>((re
       void isNotificationsEnabled().then(resolve)
     }, 1000)
   })
+  // A08-018：上游原样缺 catch —— native 调用 reject 时 Promise 永不 resolve
+  // （返回前台后的检查也不再执行），AppState 订阅句柄永久泄漏。
   UtilsModule.openNotificationPermissionActivity().then((result: boolean) => {
     if (result) return
+    subscription.remove()
+    resolve(false)
+  }).catch(() => {
     subscription.remove()
     resolve(false)
   })
@@ -101,8 +106,12 @@ export const requestIgnoreBatteryOptimization = async() => new Promise<boolean>(
       void isIgnoringBatteryOptimization().then(resolve)
     }, 1000)
   })
+  // A08-018：同 requestNotificationPermission，缺 catch 会导致 Promise 悬挂 + 订阅泄漏。
   UtilsModule.requestIgnoreBatteryOptimization().then((result: boolean) => {
     if (result) return
+    subscription.remove()
+    resolve(false)
+  }).catch(() => {
     subscription.remove()
     resolve(false)
   })

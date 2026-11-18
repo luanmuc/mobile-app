@@ -29,7 +29,7 @@ export default forwardRef<ListImportExportType, {}>((props, ref) => {
   const [visible, setVisible] = useState(false)
   const choosePathRef = useRef<ChoosePathType>(null)
   const selectInfoRef = useRef<SelectInfo>((initSelectInfo as SelectInfo))
-  console.log('render import export')
+  // A04-011：上游原样残留的渲染调试日志（每次渲染都打），删除。
 
   useImperativeHandle(ref, () => ({
     import() {

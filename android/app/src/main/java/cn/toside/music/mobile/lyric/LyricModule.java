@@ -43,6 +43,19 @@ public class LyricModule extends ReactContextBaseJavaModule {
     return "LyricModule";
   }
 
+  /**
+   * A11-008：lyric 实例是懒建的，原来没有任何销毁路径 —— ReactContext 销毁后
+   * 悬浮窗 + 屏幕开关广播接收器都还挂在死实例上。这里补齐销毁入口。
+   */
+  @Override
+  public void onCatalystInstanceDestroy() {
+    super.onCatalystInstanceDestroy();
+    if (lyric != null) {
+      lyric.destroy();
+      lyric = null;
+    }
+  }
+
 //  @Override
 //  public Map<String, Object> getConstants() {
 //    return constants;
@@ -191,7 +204,10 @@ public class LyricModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void checkOverlayPermission(Promise promise) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(reactContext)) {
+      // A11-009：reject 之后没有 return —— 同一个 Promise 又被 resolve(null)，
+      // 属于「Promise 双状态调用」：JS 侧既可能拿到 rejection 也可能拿到成功，行为不确定。
       promise.reject(new Exception("Permission denied"));
+      return;
     }
     promise.resolve(null);
   }

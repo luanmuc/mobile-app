@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 方案 6.3 状态 v2 契约（S1~S8）
+ * 方案 6.3 状态 v2 契约（S1~S8，S6 为历史移除用例、编号保留不复用）
  *
  * 覆盖：4 主状态 + reason 单一模型、摘要汇总、UI 消费、三语键齐备、reason 可显示。
  * 旧 11 态 / 9 桶已删除，不再有第二套状态。
@@ -12,7 +12,15 @@ const fs = require('fs')
 const path = require('path')
 const Module = require('module')
 const ROOT = path.resolve(__dirname, '..')
-const ts = require(path.join(ROOT, 'node_modules', 'typescript'))
+// A12-005：原来只按仓库内绝对路径取 typescript —— 依赖未装/被提升走全局时脚本启动即崩，
+// 崩溃退 1 与"断言失败退 1"同码，CI 里分不清是环境问题还是真回归。补全局回退。
+const ts = (() => {
+  try {
+    return require(path.join(ROOT, 'node_modules', 'typescript'))
+  } catch {
+    return require('typescript')
+  }
+})()
 const loadTs = rel => {
   const file = path.join(ROOT, rel)
   const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
@@ -76,6 +84,7 @@ check('S5 用户关闭 / 默认关闭 = 手动关闭', () => {
   assert(d.state === 'off' && d.reason === 'DEFAULT_OFF', `DEFAULT_OFF 映射错误：${JSON.stringify(d)}`)
 })
 
+// A12-012：S6 为历史移除用例（原「旧 11 态映射」随状态机重构删除），编号保留不复用，避免断言标签错位。
 check('S7 汇总只给 4 主状态计数，合计等于源数', () => {
   const items = [
     { ...base },

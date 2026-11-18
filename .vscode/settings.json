@@ -11,5 +11,7 @@
     "google"
   ],
   "i18n-ally.sortKeys": true,
-  "typescript.tsdk": "packages/shared/eslint/node_modules/typescript/lib",
+  // A13-P2-08：原值 "packages/shared/eslint/node_modules/typescript/lib" 是上游 monorepo 的路径，
+  // 本仓不是 monorepo，该目录不存在（VS Code 会静默回退到内置 TS）。改为本仓实际路径。
+  "typescript.tsdk": "node_modules/typescript/lib",
 }

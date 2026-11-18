@@ -19,6 +19,7 @@ const getAllLists = async() => {
 }
 const importOldListData = async(lists: any[]) => {
   const allLists = await getAllLists()
+  const failed: string[] = []
   for (const list of lists) {
     try {
       const targetList = allLists.find(l => l.id == list.id)
@@ -36,15 +37,21 @@ const importOldListData = async(lists: any[]) => {
         allLists.push(listInfo as LX.List.UserListInfoFull)
       }
     } catch (err) {
-      console.log(err)
+      // 只记序号，避免对 any 取值触发 unsafe 规则；完整错误进日志便于排查
+      failed.push(`第${failed.length + 1}项`)
+      log.error(err instanceof Error ? err.message : String(err))
     }
   }
-  const defaultList = allLists.shift()!.list
-  const loveList = allLists.shift()!.list
+  // A05-003：原 allLists.shift()! 在过滤后为空时会解引用 undefined（运行期 TypeError）；
+  // 且逐条 try/catch 把坏列表静默跳过，用户不知道备份数据有部分没导进来。
+  if (failed.length) log.warn(`[backup] 导入时跳过 ${failed.length} 个异常列表：${failed.join(', ')}`)
+  const defaultList = allLists.shift()?.list ?? []
+  const loveList = allLists.shift()?.list ?? []
   await overwriteListFull({ defaultList, loveList, userList: allLists as LX.List.UserListInfoFull[] })
 }
 const importNewListData = async(lists: Array<LX.List.MyDefaultListInfoFull | LX.List.MyLoveListInfoFull | LX.List.UserListInfoFull>) => {
   const allLists = await getAllLists()
+  const failed: string[] = []
   for (const list of lists) {
     try {
       const targetList = allLists.find(l => l.id == list.id)
@@ -62,11 +69,16 @@ const importNewListData = async(lists: Array<LX.List.MyDefaultListInfoFull | LX.
         allLists.push(data as LX.List.UserListInfoFull)
       }
     } catch (err) {
-      console.log(err)
+      // 只记序号，避免对 any 取值触发 unsafe 规则；完整错误进日志便于排查
+      failed.push(`第${failed.length + 1}项`)
+      log.error(err instanceof Error ? err.message : String(err))
     }
   }
-  const defaultList = allLists.shift()!.list
-  const loveList = allLists.shift()!.list
+  // A05-003：原 allLists.shift()! 在过滤后为空时会解引用 undefined（运行期 TypeError）；
+  // 且逐条 try/catch 把坏列表静默跳过，用户不知道备份数据有部分没导进来。
+  if (failed.length) log.warn(`[backup] 导入时跳过 ${failed.length} 个异常列表：${failed.join(', ')}`)
+  const defaultList = allLists.shift()?.list ?? []
+  const loveList = allLists.shift()?.list ?? []
   await overwriteListFull({ defaultList, loveList, userList: allLists as LX.List.UserListInfoFull[] })
 }
 
@@ -191,11 +203,10 @@ const exportAllList = async(path: string) => {
     data: await getAllLists(),
   }))
 
-  try {
-    await handleSaveFile(path + '/lx_list.lxmc', data)
-  } catch (error: any) {
-    log.error(error.stack)
-  }
+  // A05-002：原实现 catch 吞错后正常返回，导致 handleExportList 的 .then 仍然弹「导出成功」，
+  // 而 .catch 永远不会触发 —— 权限/磁盘满/路径不可写时用户看到成功但文件没落盘（静默失效 + 反向提示）。
+  // 这里不再吞错，交给 handleExportList 的 .catch 弹失败 toast。
+  await handleSaveFile(path + '/lx_list.lxmc', data)
 }
 export const handleExportList = (path: string) => {
   toast(global.i18n.t('setting_backup_part_export_list_tip_zip'))

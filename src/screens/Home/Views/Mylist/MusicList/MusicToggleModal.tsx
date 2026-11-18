@@ -303,6 +303,9 @@ const Modal = forwardRef<ModalType, {}>((props, ref) => {
   const [source, setSource] = useState<LX.OnlineSource | ''>('')
   const dialogRef = useRef<DialogType>(null)
   const isUnmountedRef = useUnmounted()
+  // A04-006：请求代际号 —— 快速连续打开不同歌曲的换源弹窗时，先发出的旧搜索可能后返回，
+  // 把当前歌曲的候选列表/源标签覆盖成上一首的结果（弱网下会把错误版本换进歌单）。
+  const reqSeq = useRef(0)
   const [toggleSource, setToggleSource] = useState<LX.Music.MusicInfoOnline | null>(null)
 
   const handlePlay = useCallback((musicInfo: LX.Music.MusicInfoOnline) => {
@@ -314,12 +317,13 @@ const Modal = forwardRef<ModalType, {}>((props, ref) => {
 
   const loadData = useCallback((selectInfo: SelectInfo = infoRef.current) => {
     setSourceInfo({ sourceInfo: [], lists: {}, loading: true, error: false })
+    const seq = ++reqSeq.current
     searchMusic({
       name: selectInfo.musicInfo.name,
       singer: selectInfo.musicInfo.singer,
       source: '',
     }).then((result: Array<{ source: LX.OnlineSource, list: LX.Music.MusicInfoOnline[] }>) => {
-      if (isUnmountedRef.current) return
+      if (isUnmountedRef.current || seq !== reqSeq.current) return
       const tags: LX.OnlineSource[] = []
       const lists: Partial<Record<LX.OnlineSource, LX.Music.MusicInfoOnline[]>> = {}
       for (const s of result) {
@@ -329,7 +333,7 @@ const Modal = forwardRef<ModalType, {}>((props, ref) => {
       setSourceInfo({ sourceInfo: tags, lists, loading: false, error: false })
       if (tags.length) setSource(tags[0])
     }).catch(() => {
-      if (isUnmountedRef.current) return
+      if (isUnmountedRef.current || seq !== reqSeq.current) return
       setSourceInfo({ ...sourceInfo, error: true })
     })
   }, [isUnmountedRef, sourceInfo])

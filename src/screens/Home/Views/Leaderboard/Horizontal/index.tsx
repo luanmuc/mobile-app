@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { View } from 'react-native'
-import { createStyle } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 
 import LeftBar, { type LeftBarType, type LeftBarProps } from './LeftBar'
 import MusicList, { type MusicListType } from '../MusicList'
@@ -25,9 +25,12 @@ export default () => {
 
   useEffect(() => {
     isUnmountedRef.current = false
+    // A04-001：读榜单设置失败时原来静默 → 整页停在空白。补 catch + 提示。
     void getLeaderboardSetting().then(({ source, boardId }) => {
       leftBarRef.current?.setBound(source, boardId)
       musicListRef.current?.loadList(source, boardId)
+    }).catch(() => {
+      toast(global.i18n.t('leaderboard_load_error'))
     })
 
     return () => {

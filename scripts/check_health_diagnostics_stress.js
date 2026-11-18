@@ -11,7 +11,7 @@
  *   U6 200 个错误码时 findings 仍 ≤12
  *   U7 证据包 5 键与脱敏
  *   U8 traceId 格式与唯一性
- *   U9 成功 1/20 采样边界
+ *   U9 成功采样边界（现行口径为 1/1 全量记录；1/20 是旧口径，已随 SUCCESS_SAMPLE_RATE=1 废止）
  *   U10 播放结果条目不含歌名/URL
  *
  * 运行：node scripts/check_health_diagnostics_stress.js

@@ -37,6 +37,8 @@ export default forwardRef<ListType, ListProps>(({ onTagChange }, ref) => {
       if (id != activeId) setActiveId(id)
       if (source != prevSource.current) {
         setList([{ name: '', list: [{ name: t('songlist_tag_default'), id: '', parent_id: '', parent_name: '', source }] }])
+        // A05-021：getTags 未 catch —— 取标签失败时 reject 变 unhandled rejection，
+        // 列表停在空态且没有任何提示。
         void getTags(source).then(tagInfo => {
           if (isUnmountedRef.current) return
           prevSource.current = source
@@ -45,7 +47,7 @@ export default forwardRef<ListType, ListProps>(({ onTagChange }, ref) => {
             { name: t('songlist_tag_hot'), list: [...tagInfo.hotTag] },
             ...tagInfo.tags,
           ].filter(t => t.list.length))
-        })
+        }).catch(() => {})
       }
     },
   }))

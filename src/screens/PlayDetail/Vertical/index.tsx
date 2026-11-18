@@ -56,8 +56,11 @@ export default memo(({ componentId }: { componentId: string }) => {
     })
 
     const handleComponentIdsChange = (ids: CommonState['componentIds']) => {
+      // A06-013：上游原样这里少了 showLyricRef 判断 —— AppState 分支要求「显示歌词页
+      // 且无评论页」，本分支只要无评论就开常亮。停在第 1 页（封面/播放器页）关掉评论后
+      // 会错误地保持屏幕常亮（白耗电）。补齐与 AppState 分支一致的条件。
       if (ids.comment) screenUnkeepAwake()
-      else if (AppState.currentState == 'active') screenkeepAwake()
+      else if (showLyricRef.current && AppState.currentState == 'active') screenkeepAwake()
     }
 
     global.state_event.on('componentIdsUpdated', handleComponentIdsChange)

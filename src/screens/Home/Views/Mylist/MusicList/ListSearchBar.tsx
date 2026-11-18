@@ -15,6 +15,7 @@ interface SearchInputProps {
 type SearchInputType = InputType
 
 const SearchInput = forwardRef<SearchInputType, SearchInputProps>(({ onSearch }, ref) => {
+  const t = useI18n()
   const [text, setText] = useState('')
 
   const handleChangeText = (text: string) => {
@@ -25,7 +26,7 @@ const SearchInput = forwardRef<SearchInputType, SearchInputProps>(({ onSearch },
   return (
     <Input
       onChangeText={handleChangeText}
-      placeholder="Search for something..."
+      placeholder={t('search_placeholder')}
       value={text}
       style={styles.input}
       // onFocus={showTipList}

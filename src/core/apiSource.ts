@@ -14,7 +14,9 @@ import apiSourceInfo from '@/utils/musicSdk/api-source-info'
  * apiInitPromise[0] 上 resolve——成功走 userApi/index.ts 的 init 事件，
  * 失败走 setUserApi 的 catch。调用方若要"等切好再做事"，必须 await 返回值。
  */
-export const setApiSource = async(apiId: string): Promise<boolean> => {
+// A01-017：失败回退递归没有深度上限 —— 回退目标按「第一个未禁用源」选，而 setting 里的
+// 值并未更新，条件恒成立时会在同一源上无限递归。加深度上限。
+export const setApiSource = async(apiId: string, retryDepth = 0): Promise<boolean> => {
   if (global.lx.apiInitPromise[1]) {
     global.lx.apiInitPromise[0] = new Promise(resolve => {
       global.lx.apiInitPromise[1] = false
@@ -30,7 +32,8 @@ export const setApiSource = async(apiId: string): Promise<boolean> => {
       console.log(err)
       let api = apiSourceInfo.find(api => !api.disabled)
       if (!api) return
-      if (api.id != settingState.setting['common.apiSource']) void setApiSource(api.id)
+      // A01-017：最多回退 3 层，避免同一失败源被反复重试造成无限递归。
+      if (api.id != settingState.setting['common.apiSource'] && retryDepth < 3) void setApiSource(api.id, retryDepth + 1)
     })
   } else {
     // @ts-expect-error

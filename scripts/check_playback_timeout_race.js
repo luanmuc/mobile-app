@@ -7,7 +7,12 @@
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
-const ts = require(path.join(ROOT, 'node_modules', 'typescript'))
+let ts
+try {
+  ts = require(path.resolve(ROOT, 'node_modules', 'typescript'))
+} catch (e) {
+  ts = require('typescript')
+}
 
 const loadTs = rel => {
   const file = path.join(ROOT, rel)
@@ -43,6 +48,9 @@ const loadTs = rel => {
         return { log: { diagnose: () => {} } }
       case '@/core/healthLog':
         return healthMock
+      case './playbackGuard':
+        // 纯函数模块（无 import），直接转译真实实现，避免手抄正则导致语义漂移。
+        return loadTs('src/core/music/playbackGuard.ts')
       default:
         throw new Error(`未模拟依赖：${name}`)
     }

@@ -123,7 +123,10 @@ export default {
     requestObj.promise = requestObj.promise.then(({ body, statusCode }) => {
       if (statusCode !== 200) {
         if (tryNum > 5) return Promise.reject(new Error('歌词获取失败'))
-        let tryRequestObj = this.getLyric(id, accessKey, fmt, ++tryNum)
+        // A07-017：这里下的是歌词下载接口，重试必须递归自身（getLyricDownload）。
+        // 原写法调 this.getLyric，而它形参是 songInfo（内部读 songInfo.name/hash），
+        // 传字符串 id/accessKey/fmt 进去字段全 undefined，重试必然再失败或取错歌词。
+        let tryRequestObj = this.getLyricDownload(id, accessKey, fmt, ++tryNum)
         requestObj.cancelHttp = tryRequestObj.cancelHttp.bind(tryRequestObj)
         return tryRequestObj.promise
       }

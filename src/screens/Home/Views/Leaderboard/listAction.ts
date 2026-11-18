@@ -41,7 +41,13 @@ export const handleCollect = async(id: string, name: string, source: LX.OnlineSo
       confirmButtonText: global.i18n.t('confirm_button_text'),
     })
     if (!confirm) return
-    void syncSourceList(targetList)
+    // A02-001：确认同步后若源接口/网络失败，原来 `void syncSourceList()` 不接 catch →
+    // 用户以为已同步、错误只进未处理 rejection。补成功/失败提示（对齐 Mylist 的既有范式）。
+    void syncSourceList(targetList).then(() => {
+      toast(global.i18n.t('list_update_success', { name: targetList.name }))
+    }).catch(() => {
+      toast(global.i18n.t('list_update_error', { name: targetList.name }))
+    })
     return
   }
 

@@ -15,6 +15,9 @@ const filterExtendedLyricLabel = (lrcTimeLabels: Set<string>, extendedLyric: str
   const lines: string[] = []
   for (let i = 0; i < extendedLines.length; i++) {
     let line = extendedLines[i].trim()
+    // A07-001：timeFieldExp 带 /g，exec 成功会把 lastIndex 停在匹配末尾，下一行从该偏移继续，
+    // ^ 锚点必然失败返回 null → 歌词隔行丢失。每次 exec 前重置。
+    timeFieldExp.lastIndex = 0
     let result = timeFieldExp.exec(line)
     if (!result) continue
 
@@ -44,6 +47,8 @@ const parseLrcTimeLabel = (lrc: string) => {
   const length = lines.length
   for (let i = 0; i < length; i++) {
     const line = lines[i].trim()
+    // A07-001：同上游缺陷，exec 前重置 lastIndex
+    timeFieldExp.lastIndex = 0
     let result = timeFieldExp.exec(line)
     if (result) {
       const timeField = result[0]

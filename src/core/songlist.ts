@@ -11,6 +11,18 @@ type CacheValue = LimitDetailCache | ListInfo
 const cache = new Map<string, CacheValue>()
 const LIST_LOAD_LIMIT = 30
 
+// A02-009：这个模块级 cache 原来无 TTL、无容量淘汰 —— 长会话里浏览过的每个歌单详情
+// （含整份歌曲列表分页）会一直堆在内存里，与 otherSourceCache.ts 的「50 条 LRU + TTL」口径不一致。
+// 这里加外层容量上限 + 简易 LRU（Map 迭代顺序即插入顺序，超限删最早的一条）。
+const MAX_LIST_CACHE = 50
+const setListCache = (key: string, value: CacheValue) => {
+  if (cache.size >= MAX_LIST_CACHE && !cache.has(key)) {
+    const oldest = cache.keys().next().value
+    if (oldest != null) cache.delete(oldest)
+  }
+  cache.set(key, value)
+}
+
 
 /**
  * 获取排序列表
@@ -99,7 +111,7 @@ const getListDetailLimit = async(source: LX.OnlineSource, id: string, page: numb
   const tempListKey = `sdetail__${source}__${id}__temp`
 
   let listCache = cache.get(listKey) as LimitDetailCache
-  if (!listCache) cache.set(listKey, listCache = new Map())
+  if (!listCache) setListCache(listKey, listCache = new Map())
   let sourcePage = 0
   {
     const prevPageData = listCache.get(prevPageKey) as DetailPageCache
@@ -176,7 +188,7 @@ export const getListDetail = async(id: string, source: LX.OnlineSource, page: nu
 
   let listCache = cache.get(listKey) as LimitDetailCache
   if (!listCache || isRefresh) {
-    cache.set(listKey, listCache = new Map())
+    setListCache(listKey, listCache = new Map())
   }
 
   let pageCache = listCache.get(pageKey) as DetailPageCache
@@ -197,7 +209,7 @@ export const getListDetailAll = async(source: LX.OnlineSource, id: string, isRef
   const listKey = `sdetail__${source}__${id}`
   let listCache = cache.get(listKey) as LimitDetailCache
   if (!listCache || isRefresh) {
-    cache.set(listKey, listCache = new Map())
+    setListCache(listKey, listCache = new Map())
   }
 
   const loadData = async(page: number): Promise<ListDetailInfo> => {

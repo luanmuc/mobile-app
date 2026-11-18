@@ -91,17 +91,34 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
     }
   }
 
-  const failures = inWindow
+  // 2026-11-19（实测线索）：上报产物里同一 (at, kind, source, code, ms) 的失败事件出现过重复
+  // （digests/2026-11-16.jsonl 的 recent_events 18 条去重后仅 11 条，7 组同毫秒 ×2）。
+  // 音源侧探测路径已确认不会双记，重复更可能来自触发侧重复调用或归一环节；
+  // 这里在产出侧去重，保证上报样本不重复（不改事件采集本身）。
+  const sortedFailEvents = inWindow
     .filter(e => e && e.ok === false && e.event !== 'cache_hit')
     .sort((a, b) => b.ts - a.ts)
-    .slice(0, DIGEST_RECENT_EVENTS_MAX)
-    .map(e => ({
+  const seenFailureKeys = new Set<string>()
+  const failures: Array<{
+    at: string
+    kind: string
+    source?: string
+    code?: string
+    ms?: number
+  }> = []
+  for (const e of sortedFailEvents) {
+    const key = `${e.ts}|${e.event}|${e.sourceId ?? e.platform ?? ''}|${e.code ?? ''}|${Math.round(e.latencyMs ?? 0)}`
+    if (seenFailureKeys.has(key)) continue
+    seenFailureKeys.add(key)
+    failures.push({
       at: new Date(e.ts).toISOString().slice(0, 40),
       kind: clip(e.event, 40) ?? 'unknown',
       source: clip(e.sourceId ?? e.platform, 40),
       code: clip(e.code, 40),
       ms: typeof e.latencyMs === 'number' ? Math.max(0, Math.min(999999, Math.round(e.latencyMs))) : undefined,
-    }))
+    })
+    if (failures.length >= DIGEST_RECENT_EVENTS_MAX) break
+  }
 
   return {
     schema: DIGEST_SCHEMA,

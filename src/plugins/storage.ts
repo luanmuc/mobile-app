@@ -48,8 +48,33 @@ export const saveData = async(key: string, value: any) => {
   buildData(key, value, datas)
 
   try {
-    await removeData(key)
+    // A03-P2-8：原来是「先 removeData(key) 再 multiSet」——两步之间崩溃/断电就同时丢了
+    // 旧分片和索引，等于数据直接消失。改为「先只读旧索引、再整体写新、最后清理旧残留」：
+    //   · 写入前不删除任何键 → 崩溃窗口内旧数据仍然完整可读；
+    //   · 新数据（含新索引）一次性 multiSet → 读取侧要么看到旧版要么看到新版；
+    //   · 最后只删「旧索引里有、新数据里没有」的分片（分片数变少时的空间回收）。
+    const newKeys = datas.map(([k]) => k)
+    let staleKeys: string[] = []
+    try {
+      const oldIndex = await AsyncStorage.getItem(key)
+      if (oldIndex && partKeyPrefixRxp.test(oldIndex)) {
+        const oldParts = oldIndex.replace(partKeyPrefixRxp, '').split(keySplit)
+        staleKeys = oldParts.filter(k => !newKeys.includes(k))
+      }
+    } catch (e: any) {
+      // 读旧索引失败不影响本次写入（旧分片最多留成孤儿，读取侧以新索引为准）
+      log.error('storage error[saveData]: 读旧索引失败', key, e.message)
+    }
+
     await AsyncStorage.multiSet(datas)
+
+    if (staleKeys.length) {
+      try {
+        await AsyncStorage.multiRemove(staleKeys)
+      } catch (e: any) {
+        log.error('storage error[saveData]: 清理旧分片失败', key, e.message)
+      }
+    }
   } catch (e: any) {
     // saving error
     log.error('storage error[saveData]:', key, e.message)

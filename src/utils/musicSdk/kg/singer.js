@@ -10,10 +10,14 @@ export default {
       returnList.push({
         name: albumInfo.albumname,
         author: albumInfo.singername,
-        img: albumInfo.replaceAll('{size}', '480'),
+        // A07-016：albumInfo 是接口返回的对象，不是字符串 —— 原写法在对象上调用 replaceAll
+        // 必抛 TypeError；封面字段是 img（带 {size} 占位）。
+        img: albumInfo.img ? albumInfo.img.replaceAll('{size}', '480') : '',
         album_id: albumInfo.albumid,
       })
     })
+    // A07-016：原来漏了 return —— filterAlbum 返回 undefined，歌手专辑列表整条不可用。
+    return returnList
   },
   async getSingerInfo(singerid) {
     if (singerid == 0) throw new Error('歌手不存在') // kg源某些歌曲在歌手没被kg收录时返回的歌手id为0

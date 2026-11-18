@@ -43,9 +43,11 @@ export default memo(() => {
       confirmButtonText: t('list_remove_tip_button'),
     }).then(confirm => {
       if (!confirm) return
+      // A05-013：action 只有 finally 没有 catch —— 清理失败时 reject 变成
+      // unhandled rejection（success 提示本身的抑制是对的，保持）。
       void action().then(() => {
         toast(t('setting_other_cache_clear_success_tip'))
-      }).finally(() => {
+      }).catch(() => {}).finally(() => {
         handleGetSize()
       })
     })

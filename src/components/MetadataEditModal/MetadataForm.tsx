@@ -12,6 +12,7 @@ import { useUnmounted } from '@/utils/hooks'
 import { getLyricInfo, getPicUrl } from '@/core/music/local'
 import settingState from '@/store/setting/state'
 import { buildLyrics } from '@/utils/lrcTools'
+import { logger } from '@/utils/logger'
 
 export interface Metadata {
   name: string // 歌曲名
@@ -49,10 +50,12 @@ export default forwardRef<MetadataFormType, {}>((props, ref) => {
     setForm(path, data) {
       filePath.current = path
       // setPath(path)
+      // A09-021：stat 未 catch —— 路径不存在/无权限时 reject 变成 unhandled rejection，
+      // 文件名也不会回填。失败时直接跳过（保持表单原样）。
       void stat(path).then(info => {
         if (isUnmounted.current) return
         setFileName(info.name)
-      })
+      }).catch(() => {})
       setData(data)
     },
     getForm() {
@@ -121,7 +124,8 @@ export default forwardRef<MetadataFormType, {}>((props, ref) => {
         })
       })
     }).catch((err) => {
-      console.log(err)
+      // A09-007：原为 console.log(err)，调试残留且裸打错误对象。改走 logger。
+      logger.warn('封面匹配失败', (err as { code?: string } | null)?.code ?? typeof err)
       if (isUnmounted.current || path != filePath.current) return
       toast(t('metadata_edit_modal_form_match_pic_failed'))
     }).finally(() => {

@@ -197,9 +197,16 @@ const fetchData = (url, { timeout = 15000, ...options }) => {
             return resp
           })
         } else {
+          const rawBody = resp.body
           try {
-            resp.body = JSON.parse(resp.body)
-          } catch {}
+            resp.body = JSON.parse(rawBody)
+          } catch {
+            // A08-019：原来这里是空 catch。响应不是 JSON（网关错误页、限流页、编码异常）时
+            // 静默把字符串留给下游 —— 下游 SDK 统一读 body.code / body.data，在字符串上取属性
+            // 恒 undefined，多数靠一次重试掩盖，排查时看不到任何线索。
+            // 这里只记固定文案 + 状态码 + 片段长度（不打 URL、不打响应体，避免泄露与脱敏门禁）。
+            console.warn('request: response is not JSON', resp.statusCode, typeof rawBody === 'string' ? rawBody.length : typeof rawBody)
+          }
           return resp
         }
       }).catch(err => {

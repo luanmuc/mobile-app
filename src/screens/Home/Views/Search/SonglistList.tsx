@@ -18,6 +18,8 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
   const listRef = useRef<SonglistType>(null)
   const searchInfoRef = useRef<{ text: string, source: Source }>({ text: '', source: 'kw' })
   const isUnmountedRef = useRef(false)
+  // A04-008：同 MusicList —— 搜索/切源竞态代际守卫。
+  const reqSeq = useRef(0)
   useImperativeHandle(ref, () => ({
     async loadList(text, source) {
       // const listDetailInfo = searchSonglistState.listDetailInfo
@@ -31,14 +33,16 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
         const page = 1
         searchInfoRef.current.text = text
         searchInfoRef.current.source = source
+        const seq = ++reqSeq.current
         return search(text, page, source).then((list) => {
           // const result = setListInfo(listDetail, id, page)
-          if (isUnmountedRef.current) return
+          if (isUnmountedRef.current || seq !== reqSeq.current) return
           requestAnimationFrame(() => {
             listRef.current?.setList(list, source == 'all')
             listRef.current?.setStatus(searchSonglistState.maxPages[searchSonglistState.source] == page ? 'end' : 'idle')
           })
         }).catch(() => {
+          if (isUnmountedRef.current || seq !== reqSeq.current) return
           listRef.current?.setStatus('error')
         })
       }

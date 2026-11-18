@@ -49,6 +49,10 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
   }
   const AES_MODE = {
     CBC_128_PKCS7Padding: 'AES/CBC/PKCS7Padding',
+    // 注：这里传简写 'AES' 是上游 v1.9.2 的既定行为（Cipher.getInstance('AES') 实际解析成
+    // AES/ECB/PKCS5Padding，而 native 侧常量名叫 AES_MODE_ECB_NoPadding，两边口径本身不一致）。
+    // 已核实：本仓音源（backend-api）不调用 utils.crypto.aesEncrypt，改动无实际收益，
+    // 却会改变第三方音源拿到的密文字节数 → 按「不改上游既有行为」原则保持原样。
     ECB_128_NoPadding: 'AES',
   }
   const nativeCall = (action, data) => {
@@ -99,9 +103,16 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
       } else if (byte >= 192 && byte < 224) {
         result += String.fromCharCode(((byte & 31) << 6) | (bytes[i + 1] & 63))
         i += 2
-      } else {
+      } else if (byte >= 224 && byte < 240) {
         result += String.fromCharCode(((byte & 15) << 12) | ((bytes[i + 1] & 63) << 6) | (bytes[i + 2] & 63))
         i += 3
+      } else {
+        // A11-019：4 字节序列（emoji / 生僻字，首字节 240-247）原来落进 3 字节分支，
+        // 只取前三个字节 → 往返后乱码。UTF-16 用代理对表示，这里拆成高低两半。
+        const cp = ((byte & 7) << 18) | ((bytes[i + 1] & 63) << 12) | ((bytes[i + 2] & 63) << 6) | (bytes[i + 3] & 63)
+        const v = cp - 0x10000
+        result += String.fromCharCode(0xd800 + (v >> 10), 0xdc00 + (v & 1023))
+        i += 4
       }
     }
     return result
@@ -116,6 +127,16 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
       } else if (charCode < 2048) {
         bytes.push((charCode >> 6) | 192)
         bytes.push((charCode & 63) | 128)
+      } else if (charCode >= 0xd800 && charCode <= 0xdbff && i + 1 < inputString.length &&
+                 inputString.charCodeAt(i + 1) >= 0xdc00 && inputString.charCodeAt(i + 1) <= 0xdfff) {
+        // A11-019：代理对（emoji 等）原来被拆成两个独立 3 字节序列，等于编码错。
+        // 这里合并成码点再按 4 字节编码。
+        const cp = 0x10000 + ((charCode - 0xd800) << 10) + (inputString.charCodeAt(i + 1) - 0xdc00)
+        bytes.push((cp >> 18) | 240)
+        bytes.push(((cp >> 12) & 63) | 128)
+        bytes.push(((cp >> 6) & 63) | 128)
+        bytes.push((cp & 63) | 128)
+        i++
       } else {
         bytes.push((charCode >> 12) | 224)
         bytes.push(((charCode >> 6) & 63) | 128)
@@ -415,7 +436,17 @@ globalThis.lx_setup = (key, id, name, description, version, author, homepage, ra
     writable: false,
     value: (_key, action, data) => {
       if (key != _key) return 'Invalid key'
-      return data == null ? jsCall(action) : jsCall(action, JSON.parse(data))
+      if (data == null) return jsCall(action)
+      // A11-020：native 侧传坏 JSON 时原来的 JSON.parse 会把异常直接抛进桥回调，
+      // 表现为一次跨语言栈的崩溃。这里兜住并回错误响应，由上层按正常错误处理。
+      let parsed
+      try {
+        parsed = JSON.parse(data)
+      } catch (err) {
+        console.error('__lx_native__ parse error', action, err)
+        return 'Invalid data'
+      }
+      return jsCall(action, parsed)
     },
   })
 

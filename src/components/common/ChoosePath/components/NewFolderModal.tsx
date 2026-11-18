@@ -75,15 +75,17 @@ export default forwardRef<NewFolderType, { onRefreshDir: (dir: string) => Promis
     }
     const newPath = `${pathRef.current}/${text}`
     mkdir(newPath).then(() => {
+      // A09-013：上游原样把 setVisible(false) 放在 then/catch 之外，mkdir 失败也关弹窗，
+      // 用户以为建好了；刷新链也没有 catch，二级刷新失败会变成 unhandled rejection。
       void onRefreshDir(pathRef.current).then((list) => {
         const target = list.find(item => item.name == text)
-        if (target) void onRefreshDir(target.path)
-      })
+        if (target) void onRefreshDir(target.path).catch(() => {})
+      }).catch(() => {})
       nameInputRef.current?.setName('')
+      confirmAlertRef.current?.setVisible(false)
     }).catch((err: any) => {
       toast(global.i18n.t('choose_path_create_failed', { msg: err.message as string }))
     })
-    confirmAlertRef.current?.setVisible(false)
   }
 
   return (

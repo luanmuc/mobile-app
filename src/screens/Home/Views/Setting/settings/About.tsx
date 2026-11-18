@@ -64,31 +64,33 @@ export default memo(() => {
   return (
     <Section title={t('setting_about')}>
       <View style={styles.part}>
-        <Text style={styles.text} >本软件完全免费，代码已开源。开源地址：</Text>
+        <Text style={styles.text}>{t('setting_about_free_desc')}</Text>
         <TouchableOpacity onPress={openHomePage}>
           <Text style={textLinkStyle}>https://github.com/luanmuc/mobile-app</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.part}>
-        <Text style={styles.text}>当前版本：</Text>
+        <Text style={styles.text}>{t('setting_about_current_version')}</Text>
         <Text style={styles.boldText}>{process.versions.app}</Text>
         <Text style={styles.text}> </Text>
         <TouchableOpacity onPress={() => { checkUpdate().catch(() => {}) }}>
-          <Text style={textLinkStyle}>检查更新</Text>
+          <Text style={textLinkStyle}>{t('setting_about_check_update')}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.part}>
-        <Text style={styles.text}>最新版下载地址：</Text>
+        <Text style={styles.text}>{t('setting_about_latest_download')}</Text>
         <TouchableOpacity onPress={openGHReleasePage}>
           <Text style={textLinkStyle}>GitHub Releases</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.part}>
-        <Text style={styles.text} >软件的常见问题可转至：</Text>
+        <Text style={styles.text}>{t('setting_about_faq_hint')}</Text>
         <TouchableOpacity onPress={openFAQPage}>
           <Text style={textLinkStyle}>移动版常见问题</Text>
         </TouchableOpacity>
       </View>
+      {/* A04-012：以下免责声明类长段落按既定口径保留中文原文、不做机翻
+          （用户明确要求不机翻法律/声明类文本）。功能性文案已抽到 i18n 键。 */}
       <View style={styles.part}>
         <Text style={styles.text}><Text style={styles.boldText}>本软件没有客服</Text>，但我们整理了一些常见的使用问题。<Text style={styles.boldText} >仔细、仔细、仔细</Text>地阅读常见问题后，</Text>
         <Text style={styles.text}>仍有问题可到 GitHub </Text>

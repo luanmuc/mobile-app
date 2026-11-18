@@ -14,7 +14,12 @@ export interface ParseNameProps {
 }
 
 const parsePath = (fileName: string) => {
-  return fileName.substring(0, fileName.lastIndexOf('.')).split('-').map(name => name.trim())
+  // A09-023：上游原样对无扩展名的文件名取 lastIndexOf('.') 得 -1，
+  // substring(0, -1) 会被当成 substring(0, 0) 返回空串 —— 上层 onNameChanged('')
+  // 直接把歌名清空（用户点「解析」后歌名消失）。无扩展名时整体参与拆分。
+  const dot = fileName.lastIndexOf('.')
+  const base = dot > 0 ? fileName.substring(0, dot) : fileName
+  return base.split('-').map(name => name.trim())
 }
 
 export default memo(({ fileName, onNameChanged, onSingerChanged }: ParseNameProps) => {

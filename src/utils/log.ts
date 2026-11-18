@@ -65,12 +65,25 @@ const TEXT_LOG_SUFFIX = ['.log', '.txt', '.jsonl']
 const isTextLogFile = (name: string): boolean => TEXT_LOG_SUFFIX.some(ext => name.endsWith(ext))
 const migrationLock = { active: false }
 
+// A07-003：unlink 在部分 ROM 上会失败/延迟。失败后 src 残留，下次迁移会把同一份内容再
+// append/copy 一次 → 公共日志出现重复段落。失败时把 src 改名成隐藏的 .pending，
+// 既保住内容（不丢日志），又因为枚举时跳过 '.' 开头而不会被再次迁移。
+const parkPending = async(src: string, name: string): Promise<void> => {
+  const dir = src.slice(0, src.length - name.length - 1)
+  await RNFS.moveFile(src, dir + '/.' + name + '.pending').catch(() => {})
+}
+
 const copyThenRemove = async(src: string, dest: string): Promise<void> => {
+  const name = src.split('/').pop() ?? ''
   try {
     await RNFS.moveFile(src, dest)
   } catch {
     await RNFS.copyFile(src, dest)
-    await RNFS.unlink(src)
+    try {
+      await RNFS.unlink(src)
+    } catch {
+      await parkPending(src, name)
+    }
   }
 }
 
@@ -97,7 +110,12 @@ export const migratePrivateLogsToPublic = async(): Promise<number> => {
         }
         if (isTextLogFile(name)) {
           await RNFS.appendFile(dest, await RNFS.readFile(src, 'utf8'), 'utf8')
-          await RNFS.unlink(src)
+          // A07-003：先确保「已并入」不会因 unlink 失败被重复追加
+          try {
+            await RNFS.unlink(src)
+          } catch {
+            await parkPending(src, name)
+          }
           moved++
           continue
         }
@@ -244,6 +262,17 @@ export const clearLogs = async(category?: LogCategory) => {
 
 const getTime = () => new Date().toLocaleString()
 
+// A07-005：日志方法常在异常路径被调用，它自己不能抛。
+// 传入含循环引用 / 自定义 toJSON 抛错的对象时，JSON.stringify 会 TypeError，
+// 而异常发生在 writeLog() 的 .catch 之外 → 日志调用点直接崩。
+const stringifySafe = (m: unknown) => {
+  try {
+    return JSON.stringify(m)
+  } catch {
+    try { return String(m) } catch { return '[Unserializable]' }
+  }
+}
+
 // 日志分类接口（各来源各写各的文件）：
 //   log.error    → error.log    全局错误（errorHandle 异常捕获）
 //   log.source   → source.log   音源日志（userApi 聚合音源）
@@ -251,22 +280,40 @@ const getTime = () => new Date().toLocaleString()
 // 调试日志（debug）由 utils/logger.ts 走同一公共目录 lx_debug_log.txt
 export const log = {
   error(...msgs: unknown[]) {
-    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
+    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : stringifySafe(m)).join(' ')
     if (msg.startsWith('%c')) return
-    if (tempLog.length) tempLog.push({ category: 'error', time: getTime(), text: msg })
-    else void writeLog('error', `${getTime()} ERROR ${msg}`).catch(() => {})
+    // A07-002：原写法是「缓冲已有内容才继续缓冲」——init 未完成时 tempLog 为空，首条日志走
+    // writeLog，而 writeLog 在 hasPermission == null 时直接 return，首条日志既没入缓冲也没落盘。
+    // 改为「init 未完成就一律入缓冲」，由 writeLog 的兜底冲刷在 init 后一次性写盘。
+    if (hasPermission == null) {
+      tempLog.push({ category: 'error', time: getTime(), text: msg })
+      return
+    }
+    void writeLog('error', `${getTime()} ERROR ${msg}`).catch(() => {})
   },
   source(...msgs: unknown[]) {
-    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
+    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : stringifySafe(m)).join(' ')
     if (msg.startsWith('%c')) return
-    if (tempLog.length) tempLog.push({ category: 'source', time: getTime(), text: msg })
-    else void writeLog('source', `${getTime()} LOG ${msg}`).catch(() => {})
+    // A07-002：原写法是「缓冲已有内容才继续缓冲」——init 未完成时 tempLog 为空，首条日志走
+    // writeLog，而 writeLog 在 hasPermission == null 时直接 return，首条日志既没入缓冲也没落盘。
+    // 改为「init 未完成就一律入缓冲」，由 writeLog 的兜底冲刷在 init 后一次性写盘。
+    if (hasPermission == null) {
+      tempLog.push({ category: 'source', time: getTime(), text: msg })
+      return
+    }
+    void writeLog('source', `${getTime()} LOG ${msg}`).catch(() => {})
   },
   diagnose(...msgs: unknown[]) {
-    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
+    const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : stringifySafe(m)).join(' ')
     if (msg.startsWith('%c')) return
-    if (tempLog.length) tempLog.push({ category: 'diagnose', time: getTime(), text: msg })
-    else void writeLog('diagnose', `${getTime()} LOG ${msg}`).catch(() => {})
+    // A07-002：原写法是「缓冲已有内容才继续缓冲」——init 未完成时 tempLog 为空，首条日志走
+    // writeLog，而 writeLog 在 hasPermission == null 时直接 return，首条日志既没入缓冲也没落盘。
+    // 改为「init 未完成就一律入缓冲」，由 writeLog 的兜底冲刷在 init 后一次性写盘。
+    if (hasPermission == null) {
+      tempLog.push({ category: 'diagnose', time: getTime(), text: msg })
+      return
+    }
+    void writeLog('diagnose', `${getTime()} LOG ${msg}`).catch(() => {})
   },
   // 兼容原 log.info/log.warn（各处排障日志）→ 归类到运行诊断
   info(...msgs: unknown[]) {

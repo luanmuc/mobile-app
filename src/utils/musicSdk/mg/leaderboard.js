@@ -143,7 +143,10 @@ export default {
   successCode: '000000',
   requestBoardsObj: null,
   getBoardsData() {
-    if (this.requestBoardsObj) this._requestBoardsObj.cancelHttp()
+    // A07-023：原写 `this._requestBoardsObj.cancelHttp()` —— 守卫判的是 requestBoardsObj，
+    // 取消的却是不存在的 `_requestBoardsObj`（undefined）→ 直接抛 TypeError 或什么都不做，
+    // 旧榜单请求永不取消，快速切榜单时旧响应会覆盖新响应。字段名已统一。
+    if (this.requestBoardsObj) this.requestBoardsObj.cancelHttp()
     this.requestBoardsObj = httpFetch('https://app.c.nf.migu.cn/pc/bmw/rank/rank-index/v1.0', {
     // this.requestBoardsObj = httpFetch('https://app.c.nf.migu.cn/MIGUM3.0/v1.0/template/rank-list/release', {
     // this.requestBoardsObj = httpFetch('https://app.c.nf.migu.cn/MIGUM2.0/v2.0/content/indexrank.do?templateVersion=8', {

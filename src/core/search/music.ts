@@ -18,7 +18,10 @@ export const clearListInfo: typeof searchMusicActions.clearListInfo = (source) =
 
 
 export const search = async(text: string, page: number, sourceId: Source): Promise<LX.Music.MusicInfoOnline[]> => {
-  const listInfo = searchMusicState.listInfos[sourceId]!
+  // A02-015：上游原样用非空断言取 listInfos[sourceId] —— 源不在表里（未注册/已移除）时
+  // listInfo 是 undefined，下面 listInfo.key = key 直接 TypeError。改成显式守卫。
+  const listInfo = searchMusicState.listInfos[sourceId]
+  if (!listInfo) return []
   if (!text) return []
   const key = `${page}__${text}`
   if (sourceId == 'all') {

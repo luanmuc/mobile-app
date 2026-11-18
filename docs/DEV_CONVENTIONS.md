@@ -101,3 +101,59 @@ node scripts/check_docs_consistency.js
 2. 版本号替换**只能改「当前口径」位置**：`RELEASE_SOP` 版本表、`README` 底座行、`AGENTS` 发版命令、`package.json` / `build-state.json` / `version.json`。**历史 CHANGELOG 条目一律不动**。
 3. 改完必须两件事对账：`git tag | grep '^v<底座>-b' | wc -l` 与远端 `git ls-remote --tags` 计数一致；`check_release_state_contract` + `check_docs_consistency` 双门禁清零。
 4. 底座回退时 `bN` 继续递增（不回绕到旧号），`versionCode` 永远单调递增，保证覆盖安装。
+
+## 八、上游基座对照规则（强制，v1.9.2 起）
+
+本仓库基于 `lyswhut/lx-music-mobile` **v1.9.2**（commit `0669d1b`）定制。
+**任何"这里是不是问题"的判定，以上游原码为准，不得凭"代码看起来不合理"动手。**
+教训来源：A11-017（AES 加密模式）曾按"常量名才是意图"改掉上游行为，核实后发现我方音源根本不调用、
+改动零收益却会改变第三方音源拿到的密文长度 → 已完整还原。
+
+### 8.1 动手前三步（顺序不可跳）
+
+1. **定位**：先在上游源码里找对应代码（路径见 [`UPSTREAM_BASELINE.md`](UPSTREAM_BASELINE.md)）。
+   - 查询命令：`node scripts/check_upstream_divergence.js --file=src/<路径>`
+   - 看差异：`diff -u $LX_UPSTREAM_ROOT/src/<路径> src/<路径>`
+2. **判定**：按 8.2 的 A/B/C 三档定性。
+3. **执行**：**只有 A 档才改**，且代码内必须留编号注释。
+
+### 8.2 三档判据
+
+| 档 | 判据 | 动作 |
+|---|---|---|
+| **A 上游真缺陷** | 上游原码在**合法输入**下会产生错误结果 / 崩溃 / 数据丢失 / 契约不符 | 可改。代码内补 `// A<两位>-<编号>：上游原样<缺/错> xxx —— <后果>` |
+| **B 上游有意设计** | 多策略探测链、体验取舍（如坏图不显示）、精度取舍、按业务约定留空 | **不改**。只登记，不回滚上游原样 |
+| **C 我们的口径不同** | 上游逻辑没错，但本项目要求不同（缓存上限、原子写入等） | 需写明影响面。**若第三方可观察（第三方音源拿到的密文/返回结构、用户脚本 API）→ 不得擅改** |
+
+### 8.3 硬红线
+
+- **上游存在且零差异的文件**：默认不得改动。确需改动必须属 A 档并留注释。
+- **"看起来不合理"≠ 缺陷**：空 catch 可能是探测链设计；缺兜底可能是体验取舍。
+- **改了第三方可观察行为**：必须先论证「我方收益 > 对外破坏」，否则不动（A11-017 教训）。
+- **不许把 B 档当 A 档修**：给上游探测链加日志、给坏图加占位，都是零收益改动。
+
+### 8.4 留痕要求
+
+改动上游存在的文件，代码内必须有二选一的留痕：
+
+```js
+// 方式一（缺陷修复，推荐）：编号 + 上游原样描述 + 后果
+// A07-024：前缀判定原本检测 data.img3，与真正选中的 img 不一致 —— img3 为空而
+// img2/img1 已是绝对 URL 时会被错误拼上域名（封面裂图）。改为检测 img。
+if (img && !/https?:/.test(img)) img = ...
+
+// 方式二（功能改造，非缺陷）：标明这是定制改造
+// LX 定制：通知栏「词」按钮状态同步（原生 setLyricButtonActive）
+```
+
+### 8.5 审计脚本
+
+```bash
+node scripts/check_upstream_divergence.js            # 全仓分档统计
+node scripts/check_upstream_divergence.js --list     # 列出全部「有差异但无留痕」
+node scripts/check_upstream_divergence.js --file=src/xxx.ts  # 单文件基座状态查询
+node scripts/check_upstream_divergence.js --strict   # 存在无留痕改动时退 1（可选接入 CI）
+```
+
+输出四档：定制文件（上游无）/ 已改动有留痕 / 已改动无留痕（待复核）/ 零差异。
+脚本是**审计工具**：日常不阻塞，复核阶段用。

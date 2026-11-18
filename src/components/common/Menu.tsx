@@ -1,5 +1,5 @@
 import { useImperativeHandle, forwardRef, useMemo, useRef, useState, type Ref } from 'react'
-import { View, Animated, TouchableHighlight } from 'react-native'
+import { View, ScrollView, TouchableHighlight } from 'react-native'
 import { useWindowSize } from '@/utils/hooks'
 
 import Modal, { type ModalType } from './Modal'
@@ -128,7 +128,9 @@ const Menu = ({
   // console.log(menuItemStyle)
   return (
     <View style={{ ...styles.menu, ...menuStyle, backgroundColor: theme['c-content-background'] }} onStartShouldSetResponder={() => true}>
-      <Animated.ScrollView keyboardShouldPersistTaps={'always'}>
+      {/* A09-020：原来是 Animated.ScrollView，但这里没有任何 Animated.Value 绑定（唯一一处
+          动画相关代码在上方被注释掉了），多余一层动画容器。改回普通 ScrollView。 */}
+      <ScrollView keyboardShouldPersistTaps={'always'}>
         {
           menus.map((menu, index) => (
             menu.disabled
@@ -162,7 +164,7 @@ const Menu = ({
 
           ))
         }
-      </Animated.ScrollView>
+      </ScrollView>
     </View>
   )
 }

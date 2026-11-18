@@ -84,13 +84,17 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     }
   }
 
+  // A11-008：同 Lyric.java —— 接收器字段化，才能在 onCatalystInstanceDestroy 里反注册。
+  private BroadcastReceiver screenOnOffReceiver = null;
+
   private void registerScreenBroadcastReceiver() {
+    if (screenOnOffReceiver != null) return;
     final IntentFilter theFilter = new IntentFilter();
     /** System Defined Broadcast */
     theFilter.addAction(Intent.ACTION_SCREEN_ON);
     theFilter.addAction(Intent.ACTION_SCREEN_OFF);
 
-    BroadcastReceiver screenOnOffReceiver = new BroadcastReceiver() {
+    screenOnOffReceiver = new BroadcastReceiver() {
       @Override
       public void onReceive(Context context, Intent intent) {
         String strAction = intent.getAction();
@@ -112,6 +116,18 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     };
 
     reactContext.registerReceiver(screenOnOffReceiver, theFilter);
+  }
+
+  /** A11-008：ReactContext 销毁时兜底反注册。 */
+  @Override
+  public void onCatalystInstanceDestroy() {
+    super.onCatalystInstanceDestroy();
+    if (screenOnOffReceiver == null) return;
+    try {
+      reactContext.unregisterReceiver(screenOnOffReceiver);
+    } catch (Throwable ignored) {
+    }
+    screenOnOffReceiver = null;
   }
 
   @ReactMethod

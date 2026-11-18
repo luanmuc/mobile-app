@@ -100,7 +100,8 @@ export default {
       headers: this.defaultHeaders,
     })
     return requestObj_listDetailInfo.promise.then(({ body }) => {
-      if (body.code !== this.successCode) return this.getListDetail(id, ++tryNum)
+      // A07-020：同 A07-019 —— 重试递归自身 getListDetailInfo，不能跨调到 getListDetail。
+      if (body.code !== this.successCode) return this.getListDetailInfo(id, ++tryNum)
       // console.log(JSON.stringify(body))
       // console.log(body)
       const cachedDetailInfo = this.cachedDetailInfo[id] = {

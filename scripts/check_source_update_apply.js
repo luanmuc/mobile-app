@@ -11,11 +11,21 @@ const crypto = require('crypto')
 const { execFileSync } = require('child_process')
 
 const ROOT = path.resolve(__dirname, '..')
-const SOURCE_ROOT = path.join(ROOT, '..', 'lx-music-source')
+// A13-P1-03：路径可覆盖，便于 CI 把源仓 clone 到任意位置（默认仍是 ../lx-music-source）。
+const SOURCE_ROOT = process.env.LX_SOURCE_ROOT
+  ? path.resolve(process.env.LX_SOURCE_ROOT)
+  : path.join(ROOT, '..', 'lx-music-source')
 const SRC = path.join(ROOT, 'src/core/sourceUpdate/apply.ts')
 
 if (!fs.existsSync(SOURCE_ROOT)) {
-  console.log('（跳过：未检出源仓，CI 单仓环境不强制）')
+  // A13-P1-03：同上 —— 缺失即跳过等于让「安装/应用更新」的跨仓断言永远不执行。
+  if (process.env.LX_REQUIRE_SOURCE === '1') {
+    console.error('✗ 跨仓断言不允许跳过：LX_REQUIRE_SOURCE=1 但未找到源仓')
+    console.error('  已查找：' + SOURCE_ROOT)
+    console.error('  请设 LX_SOURCE_ROOT 指向源仓（或把源仓 clone 到该位置）')
+    process.exit(1)
+  }
+  console.log('（跳过：未检出源仓；设 LX_SOURCE_ROOT=<源仓路径> 可强制执行，CI 用 LX_REQUIRE_SOURCE=1 强制）')
   process.exit(0)
 }
 const realScript = path.join(SOURCE_ROOT, 'lx-source.js')

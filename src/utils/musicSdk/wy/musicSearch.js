@@ -105,12 +105,15 @@ export default {
 
       this.total = result.data.totalCount || 0
       this.page = page
-      this.allPage = Math.ceil(this.total / this.limit)
+      // A08-012：上游原样用实例默认 this.limit 做分母，忽略本次传入的 limit ——
+      // 调用方传 20 条/页时实际按 30 估算，页数偏少，后面的页永远翻不到。
+      this.allPage = Math.ceil(this.total / limit)
 
       return {
         list,
         allPage: this.allPage,
-        limit: this.limit,
+        // A08-012：同上，返回本次实际生效的 limit，而不是实例默认值
+        limit,
         total: this.total,
         source: 'wy',
       }

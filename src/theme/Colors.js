@@ -1,6 +1,10 @@
 /**
  * Material Colors following material design guidelines for
  * miscellaneous colors
+ *
+ * A10-005：LEGACY —— 本文件（AppColors / MaterialColors）已无实际 import 方。
+ * 里面的色值都是固定浅色，没有暗色变体；请勿在新代码引用，主题色一律走 useTheme() 的语义键
+ * （c-content-background / c-primary 等），否则暗色模式下会出现硬编码浅底或黑字。
  */
 
 export const MaterialColors = {

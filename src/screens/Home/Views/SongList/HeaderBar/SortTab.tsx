@@ -26,7 +26,9 @@ export default forwardRef<SortTabType, SortTabProps>(({ onSortChange }, ref) => 
   useImperativeHandle(ref, () => ({
     setSource(source, activeTab) {
       scrollViewRef.current?.scrollTo({ x: 0 })
-      setSortList(songlistState.sortList[source]!)
+      // A05-006：state 的 sortList 是 Partial<Record<...>>（允许缺键），非空断言会把
+      // undefined 直接塞进 state → 下面的 sortList.map 运行期崩。与 Content 的 ?.[0] 口径对齐。
+      setSortList(songlistState.sortList[source] ?? [])
       setActiveId(activeTab)
     },
   }))

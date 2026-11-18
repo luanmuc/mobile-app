@@ -101,7 +101,9 @@ async function main() {
 
 // 退出码语义（与源仓 docs/TESTING.md 的约定一致）：
 //   0 通过 / 1 真阻断（读到了，但绿提交不是当前 HEAD 祖先）/ 3 未验证（读不到、结构变了、run 未完成）
-const UNVERIFIED = /HTTP \d+|未验证|未完成|fetch failed|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|结构可能已变/
+// A13-P2-15：源仓目录缺失时 execFileSync 抛 ENOENT / 'no such file or directory'，
+// 这属于「未验证」而不是「闸门不成立」，必须归入 3 而非 1。
+const UNVERIFIED = /HTTP \d+|未验证|未完成|fetch failed|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ENOENT|no such file or directory|结构可能已变/i
 main().catch(e => {
   const unverified = UNVERIFIED.test(String(e && e.message))
   console.error(`❌ 离线闸门${unverified ? '未验证' : '失败'}：${e.message}`)

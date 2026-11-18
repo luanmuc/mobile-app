@@ -57,9 +57,11 @@ const PreassBar = memo(({ onDragState, setDragProgress, onSetProgress }: {
       onPanResponderRelease: () => {
         onDragEnd()
       },
-      // onPanResponderTerminate: (evt, gestureState) => {
-      //   onDragEnd()
-      // },
+      // A09-002：手势被系统/父容器接管（Terminate）时原来没有处理 —— 拖动态卡在 isDraging=true，
+      // 进度不提交、UI 一直显示"拖动中"。补上与 Release 一致的回调。
+      onPanResponderTerminate: () => {
+        onDragEnd()
+      },
     }),
   ).current
 

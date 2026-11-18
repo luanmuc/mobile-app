@@ -197,7 +197,10 @@ export default {
     if (tryNum > 2) return Promise.reject(new Error('try max num'))
     const requestObj = httpFetch(`http://qukudata.kuwo.cn/q.k?op=query&cont=ninfo&node=${id}&pn=0&rn=1&fmt=json&src=mbox&level=2`)
     return requestObj.promise.then(({ statusCode, body }) => {
-      if (statusCode != 200 || !body.child) return this.getListDetail(id, ++tryNum)
+      // A07-019：本方法是「取歌单 meta」的轻量链路，重试必须递归自身；
+      // 原来跨调到 getListDetail（完整详情链路，会再次解析链接 id、tryNum 位置也不一致），
+      // 重试语义错乱且可能重复请求。
+      if (statusCode != 200 || !body.child) return this.getListDetailDigest5Info(id, ++tryNum)
       // console.log(body)
       return body.child.length ? body.child[0].sourceid : null
     })

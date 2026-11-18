@@ -23,7 +23,8 @@ const wy = {
   },
   getPic(songInfo) {
     const requestObj = getMusicInfo(songInfo.songmid)
-    return requestObj.promise.then(info => info.al.picUrl)
+    // A08-005：详情缺 al 字段时 info.al.picUrl 抛 TypeError；封面应能"取不到就返回空"。
+    return requestObj.promise.then(info => info?.al?.picUrl ?? '')
   },
   getMusicDetailPageUrl(songInfo) {
     return `https://music.163.com/#/song?id=${songInfo.songmid}`

@@ -66,9 +66,10 @@ export const showDesktopLyric = async() => {
   }
   await setLyric(lrc, tlrc, rlrc)
   if (playerState.isPlay && !global.lx.gettingUrlId) {
+    // A01-020：上游原样缺 catch —— 取位置失败时保持原位置、避免 unhandled rejection
     void getPosition().then(position => {
       void play(position * 1000)
-    })
+    }).catch(() => {})
   }
   syncLyricButtonState(true)
 }
@@ -124,9 +125,10 @@ export const showRemoteLyric = async(isSend: boolean) => {
     }
     await setLyric(lrc, tlrc, rlrc)
     if (playerState.isPlay && !global.lx.gettingUrlId) {
+      // A01-020：上游原样缺 catch —— 同上
       void getPosition().then(position => {
         void play(position * 1000)
-      })
+      }).catch(() => {})
     }
   }
 }

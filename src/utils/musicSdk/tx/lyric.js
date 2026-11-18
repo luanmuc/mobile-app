@@ -207,11 +207,19 @@ export default {
     if (songIdMap.has(songmid)) return songIdMap.get(songmid)
     if (promises.has(songmid)) return (await promises.get(songmid)).songId
     const promise = getMusicInfo(songmid)
-    promises.set(promise)
-    const info = await promise
-    songIdMap.set(songmid, info.songId)
-    promises.delete(songmid)
-    return info.songId
+    // A08-001：原来把 promise 对象当键写入，而 has/get 都用 songmid —— 并发去重完全失效，
+    // 同 songmid 会重复请求，且 delete(songmid) 删不掉以 promise 为键的条目（Map 泄漏）。
+    promises.set(songmid, promise)
+    try {
+      const info = await promise
+      // A08-002：musicInfo 在缺 media_mid 时返回 null（VIP/下架/试听残片），
+      // 直接读 info.songId 会抛 TypeError，歌词链路以崩溃而非干净错误失败。
+      if (!info || info.songId == null) throw new Error('获取歌曲信息失败')
+      songIdMap.set(songmid, info.songId)
+      return info.songId
+    } finally {
+      promises.delete(songmid)
+    }
   },
   async parseLyric(lrc, tlrc, rlrc) {
     const { lyric, tlyric, rlyric } = await decodeLyric(lrc, tlrc, rlrc)
