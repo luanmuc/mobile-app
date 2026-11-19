@@ -37,7 +37,8 @@ export default () => {
   // v6.0：实际交付链接的子源（平台名 + 子源名；子源未知时仅平台名）
   const playSource = usePlaySource()
   const playMusicInfo = usePlayMusicInfo()
-  const src = (playMusicInfo?.musicInfo as any)?.source
+  // G-A07：同竖屏，`PlayMusic` 联合里只有 `MusicInfo` 有 `source`，用精确成员替代 `as any`
+  const src = (playMusicInfo?.musicInfo as LX.Music.MusicInfo | undefined)?.source
   // v8.12.0：跨平台兜底后显示实际交付平台（sourcePlatform），旧音源无该字段时回退主平台
   const actualPlatform = resolvePlayPlatform(playSource, src as string | undefined)
   const platformKey = getPlatformNameKey(actualPlatform)

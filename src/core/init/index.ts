@@ -62,8 +62,9 @@ export default async() => {
     if (savedConfig && Object.keys(savedConfig).length) {
       const filtered = filterConfigForInjection(savedConfig)
       if (Object.keys(filtered).length) {
-        ;(globalThis as any).__lxSourceConfig = {
-          ...(globalThis as any).__lxSourceConfig,
+        // G-A07：`__lxSourceConfig` 已在 `src/types/app.d.ts` 的 `declare global` 声明，不再需要 `as any`
+        globalThis.__lxSourceConfig = {
+          ...globalThis.__lxSourceConfig,
           ...filtered,
         }
         logger.info('App', `音源配置已注入：${Object.keys(filtered).length} 项`)

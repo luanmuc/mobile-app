@@ -77,7 +77,10 @@ export const raceWithBudget = async <T>(promise: Promise<T>, budget: PlaybackBud
       promise,
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(() => { reject(createBudgetExhaustedError(attempts)) }, remaining)
-        if (typeof (timer as any).unref === 'function') (timer as any).unref()
+        // G-A07：RN 的 timer 是 number、Node 的返回带 `unref` 的对象；这里只声明用到的那一个可选方法，
+        // 比 `as any` 明确（换成别的属性名会立刻编译失败）
+        const t = timer as unknown as { unref?: () => void }
+        if (typeof t.unref === 'function') t.unref()
       }),
     ])
   } finally {

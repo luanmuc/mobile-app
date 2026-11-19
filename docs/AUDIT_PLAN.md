@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **49 个**、**断言合计见 6b 台账逐脚本条数**（原「734 条」汇总口径已在 B2 删两脚本后失效，未重算）、文档 **17 篇**（另 `archive/` 2 篇）
+> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **49 个**、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -124,8 +124,8 @@
 | ID | 联动点 | 现状 | 性质 |
 |---|---|---|---|
 | X-L1 | **第 14 个 action `forceQualityProbe`** | **已闭合并定性为「保留」**：App `SOURCE_ACTIONS` 14 个、`check_source_contract` 14 对齐；源侧 `forceQualityProbe()` 实现完整、`quality-policy-v2` 直接覆盖。App 无 UI 调用方——这是**源能力声明而非死桥接**（删除会造成跨仓契约漂移，且 K07 探路旁路是未来单源复测入口的能力基础，成本为负）。健康页已有 `probe`（全局探测）/`probeSource`（单源复测）覆盖用户可见的复测需求，不再为此新增强制高质入口 | 已闭合（2026-11-16 复核） |
-| X-L2 | **能力备档压制起跑档无 App 可见解释** | 音源 `getQualityCeiling` 压制起跑档，App 请求 flac 得 128k，UI 无「因源能力备档跳过」提示 | 体验缺口 |
-| X-L3 | **`definitiveFail`/`linkExpired` App 不消费** | 音源 byQuality 新增两字段，App `Health.tsx` 类型未含 | 源有数据 App 不展示（无害） |
+| X-L2 | **能力备档压制起跑档无 App 可见解释** | 音源 `getQualityCeiling` 压制起跑档，App 请求 flac 得 128k，UI 无「因源能力备档跳过」提示 | 体验缺口。**2026-11-19 评估**：修复需新增播放页/音质选择处文案，会新增 i18n 键（三语 1043 键硬数字随之变动并触发多文档连锁），且无真机可验视觉效果 → 暂不动，等产品定文案与位置 | 待产品决策 |
+| ~~X-L3~~ **定性为「功能未建」** | 原记「`definitiveFail`/`linkExpired` App 不消费，`Health.tsx` 类型未含」 | **2026-11-19 复核**：类型已含 —— `src/core/healthStatus.ts:105-106` 声明 `definitiveFail`/`linkExpired` 并纳入 `hasSample` 判定（`:139`），`Health.tsx:59-60` 亦在 `byQuality` 类型中声明；但**整个 `byQuality` 质量矩阵从未渲染**（全文件仅类型定义，无 UI）。故不是「类型未含」的数据缺口，而是「质量矩阵 UI 未建」的产品功能缺口 → 不按缺陷修，待产品决策 | 定性完成，不做改动 |
 | X-L4 | `qualityConfidence` 三值 | 音源 `exact/estimated/unknown`；App 消费 `default='exact'` 仅旧源兼容 | 已对齐，继续守 |
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
@@ -230,7 +230,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | ~~G-A04~~ **不成立** | 原记「诊断错误码分组只认 12 个码」 | **2026-11-15 复核不成立**：`src/core/healthDiagnostics.ts` 无任何码白名单，统计一律动态取 `String(e.code)`（232 / 401 / 410 / 445 行），未知码落 `UNKNOWN`，新错误码判定也基于动态 `Set` | 已覆盖，任意码可用 |
 | G-A05 | 无 jest / testing-library，纯函数无系统单测 | `package.json` | 仍成立（全仓 node 脚本形态） |
 | ~~G-A06~~ **不成立** | 原记 `Health.tsx` 有 4 处硬编码中文 | **2026-11-15 复核不成立**：`src/screens/Home/Views/Setting/settings/Health.tsx` 的字符串字面量中文全部出现在 `//` 注释行（42/66/69/197），无 JSX 文本中文、无模板字符串中文 | 已覆盖，界面文案全走 i18n |
-| G-A07 | `as any` / `@ts-ignore` 未量化建档 | 当前实测 22 处 | 仍成立（有数量、无明细建档） |
+| ~~G-A07~~ **已建档+已消除 14 处** | 原记「`as any` / `@ts-ignore` 未量化建档（实测 22 处）」 | **2026-11-19 两轮完成**：口径修正为实际 37 处（22 次 `as any` 里 5 处是注释 → 17 处代码；21 次 `@ts-ignore` 里 1 处被再注释 → 20 处）；逐条建档见附录 B；**已把 14 处 `as any` 换成精确类型 → 剩 3 处**（`Backup/actions.ts` ×2 依赖上游 `any[]` 签名、`userApi:93` 畸形数据兜底，均判定不动）+ 20 处 `@ts-ignore` = **23 处**；`tsc --noEmit` 0 error、3 个变异全被抓红 | 剩余 23 处均已在附录 B 标注归类与不动理由 |
 | G-A08 | 真机验收 blocked | 无 `adb` / 无 `/dev/kvm` / `ANDROID_HOME` 未设 | blocked |
 | G-A09 | tx 完整曲目 blocked（上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`） | 上游限制 | blocked |
 
@@ -479,10 +479,112 @@ node scripts/docs-audit.js --dry-run              # 待处理 0
 
 退出标准：上述命令全部 rc=0；健康契约 60/0；深度审计 51/0；诊断压力 14/0；视图 25/0；日志目录 15/0；配置契约 29/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
 
+## 附录 B：类型逃逸建档（G-A07，2026-11-19）
+
+> 触发：`§7` 原记「`as any` / `@ts-ignore` 未量化建档（当前实测 22 处）」。
+> 复核发现 22 这个数把**注释里的示例代码**也算进去了：实际代码是 17 处 `as any` + 20 处 `@ts-ignore`。
+> 已分两轮把 14 处 `as any` 换成精确类型，剩余 **3 处 `as any` + 20 处 `@ts-ignore` = 23 处**。
+
+### B.1 口径与统计
+
+| 项 | grep 出现 | 注释中的示例 | 实际代码 | 本轮消除 | 剩余 |
+|---|---:|---:|---:|---:|---:|
+| `as any` | 22 | 5 | 17 | 14 | **3** |
+| `@ts-ignore` / `@ts-expect-error` | 21 | 1 | 20 | 0 | **20** |
+| 合计 | 43 | 6 | 37 | 14 | **23** |
+
+> 注释示例位置：`core/init/common.ts:16,20`、`core/init/deeplink/playerAction.ts:31`、`core/music/index.ts:47`、`core/player/player.ts:161`（`as any`）；`store/setting/action.ts:8`（`@ts-expect-error`，整行被注释）。
+
+### B.2 分类定义与处置原则
+
+| 类 | 含义 | 处置原则 |
+|---|---|---|
+| **A 外部契约** | 全局对象注入、第三方库未声明的字段（RNFS 下载回调 / RN `Platform.constants`）、Node 与 RN 的 timer 差异 | 必须 cast。根治要补 `global.d.ts` 统一声明出口（当前没有，属结构债，单独立项） |
+| **B 动态索引** | 用运行时字符串索引对象（`obj[key]`）、动态 i18n key、旧备份结构 | 必须 cast。可逐步替换为 `Record<string, T>` 或在调用侧用 `keyof` 约束 |
+| **C 历史值** | 已被类型删除的旧枚举值（`flac32bit`）仍需比较/迁移 | 必须 cast 或用 `String()` 比较；随脏数据淘汰可整段删 |
+| **D 可消除** | 类型本可表达，只是没写（懒） | 应消除：换精确类型或直接访问，`tsc` 即为验收 |
+
+### B.3 逐条清单（剩余 33 处）
+
+**`as any`（3 处，均已判定为「不动」）**
+
+| # | 位置 | 用途 | 类 | 不动的理由 |
+|---|---|---|---|---|
+| 1 | `screens/Home/Views/Setting/settings/Backup/actions.ts:27` | `list.list as any[]`（旧备份结构升级） | B | 上游函数签名 `importOldListData(lists: any[])` 本身就是 `any[]`；单改调用点只会把 `any` 挪到 `.map` 参数（实测触发 TS7006）。真要收口需先重定义旧备份契约，单独立项 |
+| 2 | `screens/Home/Views/Setting/settings/Backup/actions.ts:32` | 同上（覆盖写回路径） | B | 同上 |
+| 3 | `utils/nativeModules/userApi.ts:93` | `event.data = {} as any`（畸形数据兜底） | C | 此处语义就是「JSON 解析失败、按空对象继续」，`data` 的声明类型来自 `Actions` 映射，任何精确类型都与运行时畸形值不符 → 刻意保留 |
+
+**`@ts-ignore` / `@ts-expect-error`（20 处）**
+
+| # | 位置 | 抑制的代码 | 类 |
+|---|---|---|---|
+| 1 | `components/common/Icon.tsx:48` | `style={newStyle}`（Image/View 样式类型差异） | D |
+| 2 | `config/globalData.ts:10` | `process.versions = { app: versionLabel }`（扩展全局） | A |
+| 3 | `config/setting.ts:38` | `originSettingCopy[key] = targetValue`（动态 key） | B |
+| 4 | `config/setting.ts:52` | 同上（恢复默认值路径） | B |
+| 5 | `core/apiSource.ts:39` | `global.lx.qualityList = ...`（扩展 lx 全局） | A |
+| 6 | `core/music/utils.ts:118` | `if (lyricInfo.rawlrcInfo) return lyricInfo`（判断未声明字段） | D |
+| 7 | `lang/index.ts:41` | `const messages: Messages = {}`（空对象初始化） | D |
+| 8 | `plugins/player/hook.ts:102` | `pollTrackPlayerStates.includes(playerState)`（收窄） | D |
+| 9 | `screens/Home/Views/Setting/settings/Basic/Source.tsx:103` | `t(\`setting_basic_source_${s.id}\`)`（动态 i18n key） | B |
+| 10 | `screens/Home/Views/SongList/components/Songlist/List.tsx:138` | `source: ''`（空串不满足 `Source` 联合） | D |
+| 11 | `store/player/action.ts:39` | `state.musicInfo[key] = val`（动态 key） | B |
+| 12 | `utils/index.ts:138` | `_qualitys?.flac32bit` 旧值判断 | C |
+| 13 | `utils/index.ts:140` | `_qualitys.flac24bit = _qualitys.flac32bit` | C |
+| 14 | `utils/index.ts:142` | `delete _qualitys.flac32bit` | C |
+| 15 | `utils/index.ts:146` | `quality.type == 'flac32bit'` | C |
+| 16 | `utils/tools.ts:29` | `Platform.constants.Release`（RN 内部字段） | A |
+| 17 | `utils/tools.ts:475` | 样式属性名数组字面量 `'fontSize'` | D |
+| 18 | `utils/tools.ts:477` | 同上 `'lineHeight'` | D |
+| 19 | `utils/tools.ts:528` | `newStyle[p] = setSpText(v)`（动态 key） | B |
+| 20 | `utils/tools.ts:541` | `StyleSheet.create(newStyle as StyleSheet.NamedStyles<T>)` | D |
+
+**分类计数**：A 3（`globalData.ts:10`、`apiSource.ts:39`、`tools.ts:29`）· B 7（`setting.ts` ×2、`Basic/Source.tsx:103`、`player/action.ts:39`、`tools.ts:528`、`Backup/actions.ts:27,32`）· C 5（`utils/index.ts:138/140/142/146` + `userApi.ts:93`）· D 8（`Icon.tsx:48`、`music/utils.ts:118`、`lang/index.ts:41`、`player/hook.ts:102`、`List.tsx:138`、`tools.ts:475/477/541`）= **23**。
+
+### B.4 已消除（11 组 14 处，`tsc --noEmit` 为验收）
+
+| 位置 | 原写法 | 改后 | 为什么可消 |
+|---|---|---|---|
+| `core/downloadManager.ts:227` | `(musicInfo.meta as any)?.picUrl` | `musicInfo.meta?.picUrl` | `picUrl` 已在 `MusicInfoMetaBase` 声明（`string \| null`），cast 纯属多余 |
+| `screens/PlayDetail/Vertical/.../PlayInfo.tsx:38` | `(playMusicInfo?.musicInfo as any)?.source` | `as LX.Music.MusicInfo \| undefined` | `PlayMusic = MusicInfo \| Download.ListItem`，只有前者有 `source`；精确到联合成员后字段名仍受校验 |
+| `screens/PlayDetail/Horizontal/.../PlayInfo.tsx:40` | 同上 | 同上 | 同上 |
+| `utils/index.ts:55` | `(meta.qualitys as any[])` | `as LX.Music.MusicQualityType[] \| undefined` + `String(quality.type)` 比较 | 原 `any[]` 的真实原因不是「懒」，而是要比较**已从类型删除**的 `flac32bit`（直接 `===` 会 TS2367）；`String()` 比较既保留元素类型校验又能覆盖旧值 |
+
+| `screens/Home/Views/Setting/settings/Health.tsx:84,90`（2 处） | `(global as any).lx?.apis` | `global.lx?.apis` | `global.lx` 已由 `app.d.ts` 的 `declare global { var lx: GlobalData }` 声明，`(global as any)` 是纯多余的 |
+| `plugins/player/service.ts:62` | `(global.lx.apis as any)?.[platform]?.reportPlayback` | `apis[platform as LX.Source] as (UserApiSourceInfo & { reportPlayback?: ReportPlaybackFn })` | `UserApiSourceInfo` 只声明 `actions` 白名单、方法挂在运行时对象上；交叉 cast 表达该事实，`platform` 索引与字段名仍受校验 |
+| `core/init/index.ts:65,66`（2 处） | `(globalThis as any).__lxSourceConfig` | `globalThis.__lxSourceConfig` | 在 `app.d.ts` 补 `var __lxSourceConfig: Record<string, unknown> \| undefined` |
+| `core/sourceHealthPersistence.ts:319,341`（2 处） | `delete (health as any).controls` | `delete (health as Partial<typeof health>).controls` | `controls` 是必需属性，TS 禁止 delete 必需成员；`Partial` 精确表达「删除可选化」 |
+| `core/music/playbackBudget.ts:80`（2 处） | `(timer as any).unref` | `timer as unknown as { unref?: () => void }` | RN timer 是 number、Node 返回带 `unref` 的对象；只声明用到的那一个可选方法 |
+| `core/downloadManager.ts:299,300`（2 处） | `(res as any).totalBytesWritten` / `totalBytesExpectedToWrite` | `res as typeof res & { totalBytesWritten?: number, totalBytesExpectedToWrite?: number }` | 原生侧字段 RNFS 类型未声明；`typeof res &` 交叉保留原有字段校验 |
+
+**变异验证（证明精确类型仍在受校验）**：
+
+| 变异 | 期望 | 实得 |
+|---|---|---|
+| M1 `meta?.picUrl` → `meta?.picUrlTypo` | TS2339 | **2 处报错** |
+| M2 `legacyRes.totalBytesWritten` → `totalBytesWrote` | TS2339 | **1 处报错** |
+| M3 `String(quality.type) === 'flac32bit'` 改回 `===` | TS2367 | **1 处报错** |
+| 还原 | 0 error | **0 error** |
+
+### B.5 复核命令
+
+```bash
+# `as any`：排除「整行被注释」的示例代码
+grep -rn "as any" src/ --include=*.ts --include=*.tsx | grep -vc "^[^:]*:[0-9]*: *//"
+# `@ts-ignore`：它本身就是注释指令，不能按「以 // 开头」过滤（会全被排除），
+# 只能排除「被再注释一层」的（形如 `//     // @ts-expect-error`）
+grep -rn "@ts-ignore\|@ts-expect-error" src/ --include=*.ts --include=*.tsx | grep -vc "^[^:]*:[0-9]*: *// *//"
+# 类型闸门
+npx tsc --noEmit
+```
+
+> 实测这两个命令当前分别输出 **3** 与 **20**（合计 23），与 B.1 表一致。
+
 ---
 
 ## 维护记录（只记基线变更，不堆历史）
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-19 | 断言合计口径重算 → **662 条**（6b 台账逐行实算；历史 734/597 均已失效：734 系 B2 删两脚本前口径、597 为旧台账） | 抽验 `check_health_status_refactor`=14、`check_health_real_playback`=11 与台账逐行一致；preflight **47/47** |
 | 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |

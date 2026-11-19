@@ -72,6 +72,10 @@ declare global {
   var dislike_event: DislikeEventTypes
   var state_event: StateEventTypes
 
+  // G-A07：音源配置注入出口（`src/core/init/index.ts` 写入、音源脚本加载时读取）。
+  // 以前靠 `(globalThis as any)` 访问，等于放弃字段名校验；这里显式声明。
+  var __lxSourceConfig: Record<string, unknown> | undefined
+
   var Buffer: typeof _Buffer
 
   module NodeJS {

@@ -316,7 +316,9 @@ export const restoreSourceHealth = async(
   // 否则源侧白名单会成为第二道误拦（旧版本数据在源侧被再次拒绝）。
   const health = { ...state, sourceVersion }
   // 单一路径：健康态永不携带 controls，控制意图只从独立 control key 恢复。
-  delete (health as any).controls
+  // G-A07：`controls` 在类型上是必需属性，TS 不允许 delete 必需成员；用 `Partial` 收窄表达「删除可选化」，
+  // 比 `as any` 精确（其余字段仍受校验）
+  delete (health as Partial<typeof health>).controls
   try {
     const res = await api(health).promise
     if (res && res.ok) return { restored: res.restored ?? 1, controlsRestored }
@@ -338,7 +340,8 @@ export const saveSourceHealth = async(
     const state = await api().promise
     const controls = state?.controls ? { v: HEALTH_CONTROL_VERSION, savedAt: state.savedAt, controls: state.controls } : null
     const health = { ...state }
-    delete (health as any).controls
+    // G-A07：同 L319，用 `Partial` 收窄而非 `as any`
+    delete (health as Partial<typeof health>).controls
     const healthOk = await writeSourceHealthState(storage, sourceId, health, now)
     const controlOk = controls ? await writeSourceHealthControls(storage, controls, now) : true
     return healthOk && controlOk

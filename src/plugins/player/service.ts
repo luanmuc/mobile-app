@@ -59,7 +59,11 @@ const reportPlayback = (ok: boolean, code?: string) => {
     const key = `${String(global.lx.playerTrackId || '')}|${ps.id}|${platform}|${String(playerState.playQuality || '128k')}|${ok ? 'ok' : 'fail'}|${code ?? ''}`
     if (key === lastPlaybackReportKey) return
     lastPlaybackReportKey = key
-    const api = (global.lx.apis as any)?.[platform]?.reportPlayback
+    // G-A07：`LX.UserApi.UserApiSourceInfo` 只声明 `actions` 白名单（含 'reportPlayback'），
+    // 具体方法挂在运行时 API 对象上；这里用「原类型 & 方法签名」的交叉 cast 表达该事实，
+    // 而不是 `as any`（后者会连带让 `platform` 索引与返回值全部失去校验）
+    type ReportPlaybackFn = (id: string, opts: { ok: boolean, quality: string, code?: string }) => { promise?: Promise<unknown> }
+    const api = (global.lx.apis[platform as LX.Source] as (LX.UserApi.UserApiSourceInfo & { reportPlayback?: ReportPlaybackFn }) | undefined)?.reportPlayback
     if (!api) return
     const res = api(ps.id, { ok, quality: playerState.playQuality || '128k', code })
     void res?.promise?.catch?.(() => {})

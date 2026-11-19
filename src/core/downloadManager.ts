@@ -224,7 +224,8 @@ const writeAudioTagAsync = async(filePath: string, musicInfo: LX.Music.MusicInfo
   try {
     // 封面：下载到临时文件后随标签写入
     let coverPath = ''
-    const picUrl = (musicInfo.meta as any)?.picUrl
+    // G-A07：`picUrl` 已在 `MusicInfoMetaBase` 上声明，这里原先的 `as any` 是多余的，去掉后 TS 仍可校验字段名
+    const picUrl = musicInfo.meta?.picUrl
     if (picUrl) {
       const tmpCover = `${RNFS.TemporaryDirectoryPath}/lx-cover-${Date.now()}.jpg`
       try {
@@ -296,8 +297,11 @@ const runDownload = async(task: LX.Download.ListItem): Promise<void> => {
         if (!current || current.status === 'pause') return
 
         // 兼容不同版本 react-native-fs 的字段名
-        const currentBytes = res.bytesWritten ?? (res as any).totalBytesWritten ?? 0
-        const totalBytes = res.contentLength ?? (res as any).totalBytesExpectedToWrite ?? 0
+        // G-A07：`totalBytes*` 是原生侧字段、RNFS 类型未声明；用「自身类型 & 可选补充字段」表达，
+        // 不用 `as any`（其余字段名写错仍会编译失败）
+        const legacyRes = res as typeof res & { totalBytesWritten?: number, totalBytesExpectedToWrite?: number }
+        const currentBytes = res.bytesWritten ?? legacyRes.totalBytesWritten ?? 0
+        const totalBytes = res.contentLength ?? legacyRes.totalBytesExpectedToWrite ?? 0
         const progress = totalBytes > 0 ? currentBytes / totalBytes : 0
 
         // 首次拿到总大小即持久化一次：重启恢复任务时可据此判断文件是否完整，

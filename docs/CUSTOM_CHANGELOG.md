@@ -1,3 +1,36 @@
+## [G-A07 第二轮：as any 13→3，补 global 声明与精确 cast] - 2026-11-19
+
+> 承接同日第一轮建档（13 处剩余）。本轮把能靠「类型表达」消掉的全部消掉，剩 3 处均判定为「不该动」。
+
+- **消除 10 处**（`as any` 13 → **3**，累计 14/17）：
+  - `Health.tsx:84,90` ×2：`(global as any).lx?.apis` → `global.lx?.apis`（`global.lx` 早在 `app.d.ts` 声明过，cast 纯多余）
+  - `service.ts:62`：交叉 cast `UserApiSourceInfo & { reportPlayback?: ReportPlaybackFn }`（`UserApiSourceInfo` 只列 `actions` 白名单，方法在运行时对象上）
+  - `init/index.ts:65,66` ×2：`app.d.ts` 新增 `var __lxSourceConfig: Record<string, unknown> | undefined`
+  - `sourceHealthPersistence.ts:319,341` ×2：`delete (health as Partial<typeof health>).controls`（必需属性不能 delete）
+  - `playbackBudget.ts:80` ×2：`timer as unknown as { unref?: () => void }`（RN timer 是 number）
+  - `downloadManager.ts:299,300` ×2：`res as typeof res & { totalBytesWritten?, totalBytesExpectedToWrite? }`（原生字段 RNFS 未声明）
+- **保留 3 处**（判定不动）：`Backup/actions.ts:27,32`（上游 `importOldListData(lists: any[])` 签名就是 `any[]`，单改调用点会把 any 挪到 `.map` 参数并触发 TS7006，实测过）；`userApi.ts:93`（JSON 解析失败的畸形数据兜底，任何精确类型都与运行时值不符）
+- **变异验证**（证明精确类型仍在受校验）：M1 `picUrl`→`picUrlTypo` 报 2 处 TS2339；M2 `totalBytesWritten`→`totalBytesWrote` 报 1 处；M3 比较改回 `quality.type === 'flac32bit'` 报 TS2367；还原后 0 error
+- **账本更新**：附录 B 统计 37 处 → 已消 14 → 剩 **23 处**（3 `as any` + 20 `@ts-ignore`），B.5 复核命令实测输出 3 / 20
+
+---
+
+## [G-A07 类型逃逸建档 + 消除 4 处] - 2026-11-19
+
+> `AUDIT_PLAN §7` 记「`as any` / `@ts-ignore` 未量化建档（实测 22 处）」。复核发现 22 这个数包含了**注释里的示例代码**。
+
+- **口径修正**：`as any` grep 22 次 → 5 处在注释里 → 实际代码 17 处；`@ts-ignore`/`@ts-expect-error` 21 次 → 1 处被再注释 → 实际 20 处。合计 **37 处实际逃逸**
+- **建档**：新增 `AUDIT_PLAN` 附录 B，按四类逐条登记 —— **A 外部契约 11**（全局注入/RNFS 回调/`Platform.constants`/`timer.unref`）、**B 动态索引 7**（`obj[key]`/动态 i18n key/旧备份结构）、**C 历史值 4**（已删除的 `flac32bit`）、**D 可消除 11**
+- **消除 4 处**（`tsc --noEmit` 为验收，0 error）：
+  - `downloadManager:227` `(musicInfo.meta as any)?.picUrl` → `musicInfo.meta?.picUrl`（`picUrl` 已在 `MusicInfoMetaBase` 声明，cast 多余）
+  - `PlayDetail` 竖/横 `PlayInfo` `(playMusicInfo?.musicInfo as any)?.source` → `as LX.Music.MusicInfo | undefined`（`PlayMusic = MusicInfo | Download.ListItem`，只有前者有 `source`）
+  - `utils/index.ts:55` `as any[]` → `as LX.Music.MusicQualityType[] | undefined` + `String(quality.type)` 比较
+- **关键发现**：`utils/index.ts` 的 `any[]` 不是懒 —— 直接写 `quality.type === 'flac32bit'` 会触发 **TS2367**（`flac32bit` 已从 `MusicQualityType` 联合删除），`String()` 比较才能既保留元素类型校验又比较旧值
+- **剩余**：13 处 `as any` + 20 处 `@ts-ignore` = 33 处，均已在附录 B 标注归类与处置方向（A 类根治需补 `global.d.ts` 统一声明出口）
+- **复核命令**（附录 B.5，实测输出 13 / 20）：`as any` 排除整行注释；`@ts-ignore` 只能排除「被再注释一层」的（它本身就是注释指令）
+
+---
+
 ## [健康诊断未闭环 4 项：3 项核销，1 项转测试缺口] - 2026-11-19
 
 > `AUDIT_PLAN §7` 记「健康诊断·未闭环 4 项」。逐项取证后 3 项可核销、1 项仍需真机。

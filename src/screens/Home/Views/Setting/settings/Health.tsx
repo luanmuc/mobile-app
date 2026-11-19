@@ -81,13 +81,16 @@ type HealthSnapshot = Record<string, HealthItem>
 // 获取当前音源的健康查询器（任一声明对应 action 的源均可，聚合结果与源无关）
 // F19/F60：按 provider 的 platforms 绑定 API；没有匹配才回退第一个声明者，避免多源时打错 API。
 const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend', item?: Pick<HealthItem, 'id' | 'platforms'>): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
-  const apis = (global as any).lx?.apis as Record<string, any> | undefined
+  // G-A07：`global.lx` 已由 `src/types/app.d.ts` 的 `declare global { var lx: GlobalData }` 声明，
+  // `(global as any)` 是多余的一层；这里只保留到 `Record<string, any>` 的收窄（`bindHealthSource` 的签名需要）
+  const apis = global.lx?.apis as Record<string, any> | undefined
   if (!apis) return null
   const binding = bindHealthSource(apis, fn, item?.id, item?.platforms)
   return binding ? apis[binding.sourceId][fn] : null
 }
 const boundSourceId = (item: HealthItem): string => {
-  const apis = (global as any).lx?.apis as Record<string, any> | undefined
+  // G-A07：同上，`global.lx` 有声明，无需 `(global as any)`
+  const apis = global.lx?.apis as Record<string, any> | undefined
   return bindHealthSource(apis, 'toggle', item.id, item.platforms)?.sourceId ?? ''
 }
 

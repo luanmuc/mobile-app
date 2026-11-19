@@ -52,8 +52,12 @@ export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
       meta._qualitys.flac24bit = meta._qualitys.flac32bit
       delete meta._qualitys.flac32bit
 
-      meta.qualitys = (meta.qualitys as any[] | undefined)?.map(quality => {
-        if (quality.type == 'flac32bit') quality.type = 'flac24bit'
+      // G-A07：脏数据可能把 qualitys 写成 undefined，这里保留 `| undefined` 的运行时假设，
+      // 但元素类型改用真实的 `MusicQualityType`（`any[]` 会让 `quality.type` 失去校验）。
+      // `flac32bit` 已从 `MusicQualityType` 联合里删除（历史上出现过），因此用 `String()` 比较旧值：
+      // 直接 `=== 'flac32bit'` 会被 TS2367 判成「无交集」——这正是原先写 `any[]` 的真实原因。
+      meta.qualitys = (meta.qualitys as LX.Music.MusicQualityType[] | undefined)?.map(quality => {
+        if (String(quality.type) === 'flac32bit') quality.type = 'flac24bit'
         return quality
       }) ?? meta.qualitys
     }
