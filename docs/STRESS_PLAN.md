@@ -12,11 +12,11 @@
 |---|---|---:|---|---|---|
 | S1 | 诊断压力 | `check_health_diagnostics_stress.js` | 14 | 10000 条事件、5MB 截尾、200 错误码、脱敏 | 14/0 |
 | S2 | 诊断深度 | `check_health_diagnostics_deep.js` | 51 | 统计口径、1h/24h/7d 窗口、10 万条聚合 | 51/0 |
-| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 25 | 折叠态、四层分组、1 万次构建 | 24/0 |
+| S3 | 诊断视图 | `check_health_diagnostics_view.js` | 25 | 折叠态、四层分组、1 万次构建 | 25/0 |
 | S4 | 日志目录 | `check_log_directory.js` | 15 | 公共优先、500 文件回迁、1 万次补齐 | 15/0 |
-| S5 | 状态分类重构 | `check_health_status_refactor.js` | 10 | 手动/自动/休眠/播放摘除 | 10/0 |
+| S5 | 状态分类重构 | `check_health_status_refactor.js` | 14 | 手动/自动/休眠/播放摘除、288 结构全枚举 | 14/0 |
 | S6 | 4 主状态+reason | `check_health_state_v2.js` | 7 | 4 主状态、reason、UI 消费 | 7/0 |
-| S7 | UI 映射 | `check_health_ui_mapping.js` | 12 | 文案/颜色、质量矩阵、三语 | 11/0 |
+| S7 | UI 映射 | `check_health_ui_mapping.js` | 12 | 文案/颜色、质量矩阵、三语 | 12/0 |
 | S8 | 事件链路 | `check_health_event_pipeline.js` | 10 | eventId 去重、traceId、脱敏 | 10/0 |
 | S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v1 拒绝、容量/版本边界 | 9/0 |
 | S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、错误码分组 | 8/0 |

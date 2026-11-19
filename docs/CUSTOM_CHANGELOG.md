@@ -1,3 +1,24 @@
+## [G-A02 核销：健康状态判定面全枚举] - 2026-11-19
+
+> `AUDIT_PLAN §7` 的 G-A02 记「4 主状态映射 144 种组合仅 10 条断言覆盖」。本次补齐。
+
+- **脚本**：`scripts/check_health_status_refactor.js` 由 10 条扩到 **14 条**（新增 HS11~HS14）
+- **判定面**：原 144 组合（`offReason`×`playDead`×`autoOff`×`state`×`sampled`）→ **288 结构 × 2 极性 = 576 次判定**（补入 `resolveDead` 维度）
+- **四类不变式**：
+  1. 与显式优先级表逐条对照（oracle 双实现，改实现或改表任一侧都会红）
+  2. 关闭信号不被降级为可用 + 旧 `sleeping`/`enabled`/`userEnabled` 彻底退出推断
+  3. 4 主状态与 12 reason 可达性（防死分支、防空枚举）
+  4. 纯函数：不改入参、同输入可重复
+- **变异验证（红/绿双向）**：
+  - M1 优先级错位（`!sampled` 提到最前）→ HS11 + HS12 红
+  - M2 删 `DEGRADED` 分支 → HS11 + HS13 红
+  - M3 `QUALITY_OPEN` 判成 available → HS11 + HS13 红
+  - M4 复活旧 `sleeping` 推断 → HS7（原有）+ HS12（新增）红
+  - 还原后 **14 passed, 0 failed**，耗时 0.38s
+- **文档**：`AUDIT_PLAN` 台账 `check_health_status_refactor` 10→**14**、G-A02 标记核销；`STRESS_PLAN` S5 10→**14**，并修正 S3（实跑 24→**25**）、S7（实跑 11→**12**）两处结果列漂移
+
+---
+
 ## [播放页两按钮改用音源标签样式（去色块）] - 2026-11-19
 
 > 用户反馈：两个按钮不要绿色背景，照「音源/音质」那行标签的样子做。

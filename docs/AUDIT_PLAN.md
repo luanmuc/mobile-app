@@ -172,7 +172,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
 | `check_health_diagnostics_stress` | 14 | 1 万事件 / 5MB 截尾 / 200 错误码 |
 | `check_log_directory` | 15 | 公共优先/回迁/四类补齐/压力 |
-| `check_health_status_refactor` | 10 | 状态优先级与 `offReason` |
+| `check_health_status_refactor` | 14 | 状态优先级与 `offReason`；288 结构 × 2 极性全枚举 |
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
 | `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势弹窗 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
@@ -222,7 +222,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
 | 健康诊断·未闭环 4 项 | ①真实播放回传去重（同歌多次 Playing 每次成功回传会抬高样本数）②`probeSource` 只读语义 ③自动关闭 TTL 6h 重启复验 ④真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 / 宿主模拟 | 见附录 A §6；未闭环前不宣称「健康判定完全正确」 |
 | ~~G-A01~~ **已核销** | 原记「错误码文案缺 4 键、界面显示英文常量」 | **2026-11-15 复核不成立**：`src/core/music/utils.ts` 已重构为 `FAIL_CODE_I18N_KEY`，源侧 16 个码全覆盖（含 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`/`CONTRACT_ERROR`/`CANCELED`）；4 个 `player_error_*` key 在 `src/lang/{zh-cn,zh-tw,en-us}.json` 979~982 行均有三语翻译；表注释已改为「共 16 个（v8.13）」 | 已修复，无需处理 |
-| G-A02 | 4 主状态映射 144 种组合仅 10 条断言覆盖 | `check_health_status_refactor.js` 实跑 10/0；无状态全枚举套件 | 待补（对应压测 E14） |
+| ~~G-A02~~ **已核销** | 原记「4 主状态映射 144 种组合仅 10 条断言覆盖」 | **2026-11-19 已补齐**：`check_health_status_refactor.js` 由 10 条扩到 **14 条**（HS11~HS14），判定面由 144 组合扩到 **288 结构 × 2 极性 = 576 次判定**（补入 `resolveDead` 维度），含「与显式优先级表逐条对照 / 关闭信号不被降级 / 12 reason 可达性 / 纯函数」四类不变式；4 个变异体（优先级错位、删 DEGRADED 分支、QUALITY_OPEN 判成可用、复活旧 `sleeping` 推断）全部被抓住，实跑 14/0 | 已补齐，无需再处理 |
 | ~~G-A03~~ **不成立** | 原记「下载器 922 行无 `check_download*` 专项」 | **2026-11-15 复核不成立**：已有 `check_download_error_i18n.js` / `check_download_persistence.js` / `check_download_restore_runtime.js` | 已覆盖；仅队列压力未做（E19） |
 | ~~G-A04~~ **不成立** | 原记「诊断错误码分组只认 12 个码」 | **2026-11-15 复核不成立**：`src/core/healthDiagnostics.ts` 无任何码白名单，统计一律动态取 `String(e.code)`（232 / 401 / 410 / 445 行），未知码落 `UNKNOWN`，新错误码判定也基于动态 `Set` | 已覆盖，任意码可用 |
 | G-A05 | 无 jest / testing-library，纯函数无系统单测 | `package.json` | 仍成立（全仓 node 脚本形态） |

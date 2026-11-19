@@ -16,7 +16,7 @@ const load = rel => {
   new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
   return mod.exports
 }
-const { buildQualityMatrixRows, classifyHealthMainState, buildHealthSummary } = load('src/core/healthStatus.ts')
+const { buildQualityMatrixRows, classifyHealthMainState, buildHealthSummary, HEALTH_MAIN_STATES } = load('src/core/healthStatus.ts')
 const { bindHealthSource } = load('src/core/healthSourceBinding.ts')
 let pass = 0
 let fail = 0
@@ -86,6 +86,119 @@ check('HS10', '健康 API 按 provider platforms 绑定，多源时不取第一�
   const fallback = bindHealthSource(apis, 'toggle', 'missing', ['zz'])
   if (!fallback || fallback.sourceId !== 'kw' || fallback.matched !== 'fallback') throw new Error(JSON.stringify(fallback))
   if (bindHealthSource(apis, 'probeSource', undefined, ['kw']) !== null) throw new Error('不应绑定缺 action 的 API')
+})
+// ── G-A02（2026-11-19）：4 主状态 × 12 reason 判定面的全组合枚举 ──────────────────
+// 原口径「144 组合」= offReason(6) × playDead(2) × autoOff(2) × state(3) × sampled(2)。
+// 本次补入 resolveDead 维度 → 288 结构，每结构再跑「坏样本 / 好样本」两种极性 = 576 次判定。
+// HS1~HS10 是 10 个手写场景，判定树改顺序或加分支时可能整片漂移而不报错；HS11~HS14 补的是面。
+const OFF_REASONS = [null, 'USER_OFF', 'DEFAULT_OFF', 'AUTO_OFF_PROBE', 'SLEEPING', 'PLAY_DEAD']
+const QUALITY_STATES = ['closed', 'open', 'half-open']
+const REASON_WHITELIST = ['ELIGIBLE', 'PENDING_SAMPLE', 'DEGRADED', 'PLAYBACK_FAILED', 'RESOLVE_FAILED', 'RATE_LIMITED', 'QUALITY_OPEN', 'QUALITY_HALF_OPEN', 'SOURCE_SLEEPING', 'AUTO_OFF_PROBE', 'USER_OFF', 'DEFAULT_OFF']
+const STATE_STYLE = {
+  available: { key: 'health_main_available', tone: 'ok' },
+  degraded: { key: 'health_main_degraded', tone: 'warn' },
+  paused: { key: 'health_main_paused', tone: 'muted' },
+  off: { key: 'health_main_off', tone: 'muted' },
+}
+// oracle 用「显式优先级表」复述语义（顺序即语义），与实现互为镜像：
+// 改实现不改表、或改表不改实现，都会在这里红。
+const oracle = (item, sampled) => {
+  const o = item.offReason
+  if (o === 'USER_OFF') return ['off', 'USER_OFF']
+  if (o === 'DEFAULT_OFF') return ['off', 'DEFAULT_OFF']
+  if (o === 'AUTO_OFF_PROBE' || item.autoOff === true) return ['paused', 'AUTO_OFF_PROBE']
+  if (o === 'SLEEPING') return ['paused', 'SOURCE_SLEEPING']
+  if (o === 'PLAY_DEAD' || item.playDead === true) return ['paused', 'PLAYBACK_FAILED']
+  if (item.resolveDead === true) return ['paused', 'RESOLVE_FAILED']
+  if (!sampled) return ['available', 'PENDING_SAMPLE']
+  if (item.rateLimitActive === true || item.rateLimited === true) return ['degraded', 'RATE_LIMITED']
+  if (item.state === 'open') return ['degraded', 'QUALITY_OPEN']
+  if (item.state === 'half-open') return ['degraded', 'QUALITY_HALF_OPEN']
+  if (item.successRate === 0 && item.healthScore < 0) return ['degraded', 'DEGRADED']
+  return ['available', 'ELIGIBLE']
+}
+const POLARITY = [
+  { name: '坏样本', successRate: 0, healthScore: -9 },
+  { name: '好样本', successRate: 1, healthScore: 12 },
+]
+const COMBOS = OFF_REASONS.flatMap(offReason =>
+  [false, true].flatMap(playDead =>
+    [false, true].flatMap(autoOff =>
+      [false, true].flatMap(resolveDead =>
+        QUALITY_STATES.flatMap(state =>
+          [false, true].map(sampled => ({ offReason, playDead, autoOff, resolveDead, state, sampled })),
+        ),
+      ),
+    ),
+  ),
+)
+const runCombo = (c, pol) => {
+  const item = { ...base, offReason: c.offReason, playDead: c.playDead, autoOff: c.autoOff, resolveDead: c.resolveDead, state: c.state, successRate: pol.successRate, healthScore: pol.healthScore }
+  return { item, sampled: c.sampled, r: classifyHealthMainState(item, c.sampled) }
+}
+check('HS11', `判定面 ${COMBOS.length} 结构 × ${POLARITY.length} 极性全枚举，与优先级表逐条一致`, () => {
+  let n = 0
+  for (const c of COMBOS) {
+    for (const pol of POLARITY) {
+      const { item, sampled, r } = runCombo(c, pol)
+      const exp = oracle(item, sampled)
+      if (r.state !== exp[0] || r.reason !== exp[1]) throw new Error(`组合 ${JSON.stringify({ ...c, 极性: pol.name })} → 实得 ${r.state}/${r.reason}，期望 ${exp[0]}/${exp[1]}`)
+      if (!HEALTH_MAIN_STATES.includes(r.state)) throw new Error(`非法 state: ${r.state}`)
+      if (!REASON_WHITELIST.includes(r.reason)) throw new Error(`非法 reason: ${r.reason}`)
+      const st = STATE_STYLE[r.state]
+      if (!st || r.key !== st.key || r.tone !== st.tone) throw new Error(`state↔key/tone 不自洽: ${JSON.stringify(r)}`)
+      n++
+    }
+  }
+  if (n !== COMBOS.length * POLARITY.length) throw new Error(`实际判定次数 ${n}`)
+})
+check('HS12', '优先级不变式：关闭信号不被降级为可用，旧 sleeping/enabled 不再参与推断', () => {
+  for (const c of COMBOS) {
+    for (const pol of POLARITY) {
+      const { item, sampled, r } = runCombo(c, pol)
+      // ① 只要存在任何一种关闭/暂停信号，就不能被判成「可用」
+      const hasOffSignal = item.offReason != null || item.autoOff === true || item.playDead === true || item.resolveDead === true
+      if (hasOffSignal && r.state === 'available') throw new Error(`关闭信号被降级为可用: ${JSON.stringify({ ...c, 极性: pol.name })} → ${r.state}/${r.reason}`)
+      // ② 两个绝对关闭态：任何其它字段都压不住
+      if ((item.offReason === 'USER_OFF' || item.offReason === 'DEFAULT_OFF') && r.state !== 'off') throw new Error(`绝对关闭态被降级: ${JSON.stringify({ ...c, 极性: pol.name })} → ${r.state}/${r.reason}`)
+      // ③ 单一关闭信号且无更高优先时，reason 必须精确（autoOff 优先级高于 SLEEPING/PLAY_DEAD）
+      if (item.offReason === 'AUTO_OFF_PROBE' && r.reason !== 'AUTO_OFF_PROBE') throw new Error(`AUTO_OFF_PROBE 未独占: ${JSON.stringify({ ...c, 极性: pol.name })} → ${r.state}/${r.reason}`)
+      if (item.offReason === 'SLEEPING' && item.autoOff !== true && r.reason !== 'SOURCE_SLEEPING') throw new Error(`SLEEPING 未独占: ${JSON.stringify({ ...c, 极性: pol.name })} → ${r.state}/${r.reason}`)
+      if (item.offReason === 'PLAY_DEAD' && item.autoOff !== true && r.reason !== 'PLAYBACK_FAILED') throw new Error(`PLAY_DEAD 未独占: ${JSON.stringify({ ...c, 极性: pol.name })} → ${r.state}/${r.reason}`)
+      // ④ 旧字段彻底退出推断：翻转 sleeping / enabled / userEnabled 不得改变结果
+      const alt = classifyHealthMainState({ ...item, sleeping: !item.sleeping, enabled: !item.enabled, userEnabled: !(item.userEnabled !== false) }, sampled)
+      if (alt.state !== r.state || alt.reason !== r.reason) throw new Error(`旧字段影响了判定: ${JSON.stringify({ ...c, 极性: pol.name })} → ${alt.state}/${alt.reason}`)
+    }
+  }
+})
+check('HS13', '判定面可达性：4 主状态与 12 reason 都能被真实组合命中（无死分支）', () => {
+  const seenState = new Set()
+  const seenReason = new Set()
+  for (const c of COMBOS) {
+    for (const pol of POLARITY) {
+      const { r } = runCombo(c, pol)
+      seenState.add(r.state)
+      seenReason.add(r.reason)
+    }
+  }
+  for (const flag of [true, false]) {
+    const r = classifyHealthMainState({ ...base, rateLimited: flag, rateLimitActive: flag }, true)
+    seenState.add(r.state)
+    seenReason.add(r.reason)
+  }
+  if (seenState.size !== HEALTH_MAIN_STATES.length) throw new Error(`主状态只命中 ${seenState.size}/4: ${[...seenState]}`)
+  if (seenReason.size !== REASON_WHITELIST.length) throw new Error(`reason 只命中 ${seenReason.size}/${REASON_WHITELIST.length}，缺 ${REASON_WHITELIST.filter(x => !seenReason.has(x))}`)
+})
+check('HS14', '纯函数：不改入参、同输入可重复', () => {
+  for (const c of COMBOS) {
+    for (const pol of POLARITY) {
+      const { item, sampled, r } = runCombo(c, pol)
+      const snap = JSON.stringify(item)
+      const r2 = classifyHealthMainState(item, sampled)
+      if (JSON.stringify(item) !== snap) throw new Error(`入参被修改: ${JSON.stringify({ ...c, 极性: pol.name })}`)
+      if (JSON.stringify(r2) !== JSON.stringify(r)) throw new Error(`同输入结果不稳定: ${JSON.stringify({ ...c, 极性: pol.name })}`)
+    }
+  }
 })
 console.log(`\nHealth status refactor: ${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
