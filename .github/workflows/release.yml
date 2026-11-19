@@ -94,6 +94,8 @@ jobs:
           node scripts/check_cross_repo_linkage.js
           node scripts/check_source_contract.js
           node scripts/check_source_update_logic.js
+          node scripts/check_list_overwrite_rollback.js
+          node scripts/check_flipper_stub.js
           node scripts/check_playback_cache_guard.js
           node scripts/check_log_redaction.js
           node scripts/check_truth_gates.js

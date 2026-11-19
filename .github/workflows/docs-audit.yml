@@ -23,7 +23,7 @@ jobs:
             || echo "::warning::兄弟仓 clone 失败，跨仓规则将跳过"
       - name: L4 文档一致性巡检（低风险自动修复）
         # 规则见 scripts/docs-audit.js：TS 文件数 ↔ RELEASE_SOP/DEV_SETUP / 底座 bN ↔ README / track-player commit ↔ UPSTREAM_LIFECYCLE
-        # 报告项（不修改）：三语言键数一致（当前 1040，以 G10 实算为准）
+        # 报告项（不修改）：三语言键数一致（当前 1043，以 G10 实算为准）
         run: node scripts/docs-audit.js
       - name: 修复写回（自动提交，无变化跳过）
         run: |

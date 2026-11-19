@@ -6,6 +6,7 @@
  */
 'use strict'
 
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -50,15 +51,15 @@ run('I07-5 繁体模板保留全角标点', () => {
 })
 run('I07-6 downloadManager 不再拼中文冒号/括号', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/core/downloadManager.ts'), 'utf8')
-  assert.ok(!src.includes("dl_status_error')}："), '仍存在中文冒号拼接')
-  assert.ok(!src.includes(['$', '{errMsg}）'].join('')), '仍存在中文括号拼接')
-  assert.ok(src.includes('dl_error_status_detail'))
+  assert.ok(!hasCode(src, flexRe("dl_status_error')}：")), '仍存在中文冒号拼接')
+  assert.ok(!hasCode(src, flexRe(['$', '{errMsg}）'].join(''))), '仍存在中文括号拼接')
+  assert.ok(hasCode(src, flexRe('dl_error_status_detail')))
 })
 run('I07-7 Download/index.tsx 不再拼中文标点', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Download/index.tsx'), 'utf8')
-  assert.ok(!src.includes(['`：$', '{reason}`'].join('')), '仍存在中文冒号拼接')
-  assert.ok(!src.includes(['`（$', '{item.error}）`'].join('')), '仍存在中文括号拼接')
-  assert.ok(src.includes("t('dl_error_status_detail'"))
+  assert.ok(!hasCode(src, flexRe(['`：$', '{reason}`'].join(''))), '仍存在中文冒号拼接')
+  assert.ok(!hasCode(src, flexRe(['`（$', '{item.error}）`'].join(''))), '仍存在中文括号拼接')
+  assert.ok(hasCode(src, flexRe("t('dl_error_status_detail'")))
 })
 
 console.log(`\n===== I-07 下载错误标点：${checks} 通过 / ${failures} 失败 =====`)

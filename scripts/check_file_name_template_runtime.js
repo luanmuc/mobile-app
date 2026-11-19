@@ -8,6 +8,7 @@
  */
 'use strict'
 
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -75,19 +76,19 @@ run('I05-8 hasFileNameToken 识别旧中文与 token', () => {
 })
 run('I05-9 Settings 预设已改为 token，不再用中文字面量', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Download/Settings.tsx'), 'utf8')
-  assert.ok(src.includes("'{title} - {artist}'"))
-  assert.ok(!src.includes("'歌名 - 歌手'"))
-  assert.ok(src.includes('hasFileNameToken'))
+  assert.ok(hasCode(src, flexRe("'{title} - {artist}'")))
+  assert.ok(!hasCode(src, flexRe("'歌名 - 歌手'")))
+  assert.ok(hasCode(src, flexRe('hasFileNameToken')))
 })
 run('I05-10 默认设置已改为 token', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/config/defaultSetting.ts'), 'utf8')
-  assert.ok(src.includes("'download.fileName': '{title} - {artist}'"))
+  assert.ok(hasCode(src, flexRe("'download.fileName': '{title} - {artist}'")))
 })
 run('I05-11 播放页/分享文案与下载共用 token 模板', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/utils/tools.ts'), 'utf8')
   const title = fs.readFileSync(path.join(ROOT, 'src/components/player/PlayerBar/components/Title.tsx'), 'utf8')
-  assert.ok(src.includes('formatFileNameTemplate(format, { name, singer })'))
-  assert.ok(title.includes('formatMusicName(downloadFileName'))
+  assert.ok(hasCode(src, flexRe('formatFileNameTemplate(format, { name, singer })')))
+  assert.ok(hasCode(title, flexRe('formatMusicName(downloadFileName')))
 })
 
 console.log(`\n===== I-05 文件名模板：${checks} 通过 / ${failures} 失败 =====`)

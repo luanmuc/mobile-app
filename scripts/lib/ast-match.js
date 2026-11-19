@@ -133,7 +133,14 @@ function literalRe(s) {
   return new RegExp(escaped)
 }
 
+/** 字面量 → 容忍任意空白（含换行、缩进）的正则：跨行写法改写后仍能命中 */
+function flexRe(s) {
+  const parts = String(s).trim().split(/\s+/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, m => '\\' + m))
+  return new RegExp(parts.join('\\s*'))
+}
+
 module.exports = module.exports || {}
 module.exports.stripComments = stripComments
 module.exports.literalRe = literalRe
 module.exports.hasCode = hasCode
+module.exports.flexRe = flexRe

@@ -5,6 +5,7 @@
  * 源仓 test/audit/budget-admission.js。
  */
 'use strict'
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
@@ -42,19 +43,19 @@ check('诊断包优先读 active_source_version', (() => {
 check('失败事件按 trace 顺序命中即停，不再 Promise.all 全打', (() => {
   const h = read('src/core/healthLog.ts')
   const fn = h.slice(h.indexOf('const fetchSourceEvents'), h.indexOf('// F56'))
-  return fn.includes('for (const id of sourceIds)') && fn.includes('if (events.length) return events') && !fn.includes('Promise.all(sourceIds')
+  return hasCode(fn, flexRe('for (const id of sourceIds)')) && hasCode(fn, flexRe('if (events.length) return events')) && !hasCode(fn, flexRe('Promise.all(sourceIds'))
 })(), 'healthLog.ts')
 
 check('健康恢复每个脚本只调用一次并共享 promise', (() => {
   const u = read('src/core/init/userApi/index.ts')
-  return u.includes('restoreSourceHealth(apis as Record<string, SourceHealthApi>, restoreIds[0]') &&
-    u.includes('for (const sourceId of restoreIds) healthRestoreMap.set(sourceId, restore')
+  return hasCode(u, flexRe('restoreSourceHealth(apis as Record<string, SourceHealthApi>, restoreIds[0]')) &&
+    hasCode(u, flexRe('for (const sourceId of restoreIds) healthRestoreMap.set(sourceId, restore'))
 })(), 'userApi/index.ts')
 
 check('attempt 带平台归因，成功源写实际子源', (() => {
   const u = read('src/core/music/utils.ts')
-  return u.includes('source: subSource || musicInfo.source, platform: musicInfo.source') &&
-    u.includes('source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source')
+  return hasCode(u, flexRe('source: subSource || musicInfo.source, platform: musicInfo.source')) &&
+    hasCode(u, flexRe('source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source'))
 })(), 'utils.ts')
 
 // A13-P1-03 / A12-004：路径可覆盖，便于 CI 把源仓 clone 到任意位置（默认仍是 ../lx-music-source）。
@@ -78,9 +79,9 @@ const readSourceAll = () => {
 
 if (fs.existsSync(path.join(sourceRoot, 'src', 'legacy.js'))) {
   const s = readSourceAll()
-  check('源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', s.includes('BUDGET_EXHAUSTED') && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
+  check('源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', hasCode(s, flexRe('BUDGET_EXHAUSTED')) && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
   check('源仓预算不 bump resolveDead', /BUDGET:\s*\{[^}]*resolveDead:\s*false/.test(s), 'legacy.js')
-  check('源仓跨平台最坏 22s 在 App 桥 23s 内', s.includes('BUDGET_TOTAL_HARD_LIMIT_MS = 16000') && s.includes('resolveColdStartTimeout') && read('src/core/init/userApi/index.ts').includes('}, 23_000),'), 'legacy.js + userApi/index.ts')
+  check('源仓跨平台最坏 22s 在 App 桥 23s 内', hasCode(s, flexRe('BUDGET_TOTAL_HARD_LIMIT_MS = 16000')) && hasCode(s, flexRe('resolveColdStartTimeout')) && hasCode(read('src/core/init/userApi/index.ts'), flexRe('}, 23_000),')), 'legacy.js + userApi/index.ts')
 } else {
   // A12-004：原实现只打一行「跳过」，汇总仍写「N 通过 / 0 失败」——把「没测」记成「通过」，
   // 与 docs/AUDIT_PLAN.md 宣称的「回退任一仓即红」不符。现在：

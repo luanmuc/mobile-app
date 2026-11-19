@@ -8,6 +8,7 @@
  * 用法：node scripts/check_health_persistence_v2.js
  */
 'use strict'
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
@@ -148,8 +149,8 @@ check('Q7 健康不存在时 controlsRestored 仍返回', async() => {
 check('Q8 control 校验不读取 sourceVersion', async() => {
   const src = fs.readFileSync(path.join(ROOT, 'src/core/sourceHealthPersistence.ts'), 'utf8')
   const body = src.split('export const sanitizeSourceHealthControls')[1].split('export const sourceHealthStateKey')[0]
-  assert(!body.includes('sourceVersion'), 'control sanitizer 不应依赖 sourceVersion')
-  assert(src.includes("HEALTH_CONTROL_KEY = '@___SOURCE_CONTROL___global'"), 'control key 不是独立常量')
+  assert(!hasCode(body, flexRe('sourceVersion')), 'control sanitizer 不应依赖 sourceVersion')
+  assert(hasCode(src, flexRe("HEALTH_CONTROL_KEY = '@___SOURCE_CONTROL___global'")), 'control key 不是独立常量')
 })
 
 check('Q9 源仓已移除 v1 回滚开关', async() => {
@@ -160,8 +161,8 @@ check('Q9 源仓已移除 v1 回滚开关', async() => {
   }
   // v9.3-b：拼接源口径（legacy.js + core/*.js），否则已迁走的逻辑会被误判为消失
   const src = require('./lib/source-static').readSourceAll(path.join(ROOT, '..', 'lx-music-source'))
-  assert(!src.includes('healthV2Enabled'), '源仓仍保留 healthV2Enabled 回滚开关')
-  assert(src.includes('HEALTH_STATE_ACCEPTED_VERSIONS'), '源仓缺少 v2 版本表')
+  assert(!hasCode(src, flexRe('healthV2Enabled')), '源仓仍保留 healthV2Enabled 回滚开关')
+  assert(hasCode(src, flexRe('HEALTH_STATE_ACCEPTED_VERSIONS')), '源仓缺少 v2 版本表')
 })
 
 Promise.all(tasks).then(() => {

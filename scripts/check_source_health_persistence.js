@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** P3：源健康元数据宿主持久化契约自检（A7/A8/A9）。 */
 'use strict'
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
@@ -109,9 +110,9 @@ check('A9b App 平台键 save/restore 全链路', async() => {
 })
 check('A9 userApi 首请求前等待 restore、health 后 save', async() => {
   const src = fs.readFileSync(path.join(ROOT, 'src/core/init/userApi/index.ts'), 'utf8')
-  assert(src.includes('restoreSourceHealth(') && src.includes('healthRestoreMap.set'), '注册后未调用 restore')
-  assert(src.includes('healthRestoreMap.get(source)') && src.includes("action: 'musicUrl'"), 'getMusicUrl 未接 restore gate')
-  assert(src.includes("action: 'health'") && src.includes('saveSourceHealth('), 'getHealth 后未保存')
+  assert(hasCode(src, flexRe('restoreSourceHealth(')) && hasCode(src, flexRe('healthRestoreMap.set')), '注册后未调用 restore')
+  assert(hasCode(src, flexRe('healthRestoreMap.get(source)')) && hasCode(src, flexRe("action: 'musicUrl'")), 'getMusicUrl 未接 restore gate')
+  assert(hasCode(src, flexRe("action: 'health'")) && hasCode(src, flexRe('saveSourceHealth(')), 'getHealth 后未保存')
 })
 check('A10 存储读写异常降级不阻断', async() => {
   const bad = {

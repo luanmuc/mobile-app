@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1041 键**、TS/TSX **541 文件**、`scripts/check_*.js` **47 个**、**断言合计见 6b 台账逐脚本条数**（原「734 条」汇总口径已在 B2 删两脚本后失效，未重算）、文档 **17 篇**（另 `archive/` 2 篇）
+> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **49 个**、**断言合计见 6b 台账逐脚本条数**（原「734 条」汇总口径已在 B2 删两脚本后失效，未重算）、文档 **17 篇**（另 `archive/` 2 篇）
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -49,7 +49,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1041 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1043 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -110,8 +110,8 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1041 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **47 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验） | preflight 实跑 **45/45 rc0** / 新门禁自带负向自检 | ✅ |
+| 三语国际化（1043 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **49 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -130,7 +130,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（542 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（541 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 | X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
 
@@ -162,11 +162,11 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（47 个 `check_*.js`）
+### 6b. 全量脚本台账（49 个 `check_*.js`）
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 542 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 541 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -184,6 +184,8 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_source_config_contract` | 29 | 39 键 / 单位 / 三语 |
 | `check_source_contract` | 14 | 14 action / envelope / fallbackOwner |
 | `check_source_update_logic` | 44 | 更新逻辑 / 无指纹机制 |
+| `check_list_overwrite_rollback` | 4 | 歌单全量覆盖：正常路径基线 / saveListMusics 失败回滚 / saveUserList 失败回滚 / 回滚自身失败时内存仍恢复 |
+| `check_flipper_stub` | 4 | release 空桩：import 全限定名 / 桩目录与 package 对齐 / 旧位置无重复类 / flipper 仅 debug 引入 |
 | `check_playback_cache_guard` | 8 | **v9.1 新增**：URL 缓存三处命中点（`online.ts:70`、`utils.ts:419`、`utils.ts:209`）必须过 `isPlayableCandidate`；判不过要 `deleteMusicUrl` 清缓存；取链结果也过 `classifyUnusableUrl`；**G7 断言 `PlaybackError` 必须清当前歌曲缓存**（否则「命中死链→失败→缓存还在」无限循环）；含负向自检 |
 | `check_log_redaction` | 4 | **v9.1 新增**：禁止裸打错误对象（`console.log(err)` 直出会泄漏带签名 URL）；历史位置冻结在 `scripts/log_redaction_baseline.json`（45 处 / 26 文件），新增即红；含负向自检 |
 | `check_source_platform_label` | 9 | 实际平台优先 / 试听标签 |
@@ -198,13 +200,17 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_player_progress_runtime` | 4 | 进度/除零 |
 | `check_media_body` | 6 | 媒体信封 / 能力协商 |
 | `check_sync_client_runtime` | 4 | 同步客户端 |
+| `check_pitch` | 30 | 音频 DSP：音高/变速（静态接线 + 数值边界） |
+| `check_volume_fade` | 40 | 音频 DSP：切歌淡入淡出 / 睡眠渐弱（两层） |
+| `check_equalizer` | 51 | 音频 DSP：均衡器（原生模块契约 + JS 接线 + 档位纯函数） |
+| `check_upstream_divergence` | 工具（非用例集） | 上游基座分档/留痕校验；需 `/tmp/upstream-lx`，缺失时打印克隆指引并跳过 |
 | `check_download_persistence` / `_restore_runtime` / `_error_i18n` | 3 / 3 / 7 | 下载持久化/恢复/错误标点 |
 | `check_file_name_template_runtime` | 11 | 文件名 token 模板 |
 | `check_release_state_contract` | 5 | versionCode / README 同步 |
 | `check_docs_consistency` | 17 文档 | 文档真值/死引用 |
-| `check_cross_repo_linkage` | 8 | 双仓静态联动（22s vs 23s） |
+| `check_cross_repo_linkage` | 8（实跑 5 通过 + 3 跳过，需双仓） | 双仓静态联动（22s vs 23s） |
 | `check_cross_repo_health_roundtrip` | 4 | X1~X3 健康态往返（需双仓） |
-| `check_truth_gates` | 24 门禁 | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
+| `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
 ## 7. 缺口清单（当前未覆盖）
@@ -308,7 +314,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | --- | --- | --- |
 | `src/core/music/online.ts` | 失败分支 `sourceId = err.sourceId ?? err.detail[0].source` | H15 源码切片 + 本计划 §6 未覆盖项 |
 | `Health.tsx` | 20000 读取上限、truncated、复制摘要、分享失败回退、样本展开；最近异常窗口按“可信度→总体→错误码→其他线索”分层并默认折叠，展示逻辑收敛到 `healthDiagnosticsView`；finding/reason 走本地化 | H14/H18/H19/H27/H29 + 视图 25 条 |
-| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1041 键 |
+| `src/lang/*.json` | `health_copy_report` / `health_copy_done` 以及 17 个 `health_diag_*` 三语；诊断 finding 32 键 + reason 12 键 | `check_docs_consistency` 17 篇、三语各 1043 键 |
 | `docs/AGENTS.md` 等 | 31→41 条（H22/H23 锁趋势单一来源/日志死 API，H24~H26 锁无基线不报新码/同码不重复/未加权样本提示，H27 锁窗口分层与折叠，H28 锁公共目录优先/私有日志回迁/目录逐级重建/任一分类写日志时补齐四类固定日志，H29 锁缓存命中独立计数）、采样/覆盖/证据口径 | `check_docs_consistency`、`docs-audit --dry-run` |
 
 ### 3. 断言矩阵（51 条）
@@ -459,7 +465,7 @@ node scripts/check_health_diagnostics_view.js     # 25/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 529 文件 0 错误
+node scripts/check_ts_syntax.js                   # 541 文件 0 错误
 node scripts/check_source_config_contract.js      # 29/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0

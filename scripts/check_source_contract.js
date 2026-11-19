@@ -14,6 +14,7 @@
  */
 'use strict'
 
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -151,32 +152,32 @@ run('P1-A4 shouldHostFallback 仅 source 关闭 host 换源', () => {
 SECTION('preload')
 run('P0-A2 preload 不再维护 supportActions 白名单', () => {
   const source = read('android/app/src/main/assets/script/user-api-preload.js')
-  assert.ok(!source.includes('supportActions'), 'preload 仍存在 supportActions')
-  assert.ok(source.includes('actions: userSource.actions'), 'actions 必须直接来自 userSource.actions')
+  assert.ok(!hasCode(source, flexRe('supportActions')), 'preload 仍存在 supportActions')
+  assert.ok(hasCode(source, flexRe('actions: userSource.actions')), 'actions 必须直接来自 userSource.actions')
 })
 
 run('P0-A4 preload 在分发前解 v2 envelope', () => {
   const source = read('android/app/src/main/assets/script/user-api-preload.js')
-  assert.ok(source.includes('const unwrapResponse'), 'preload 缺少 unwrapResponse')
-  assert.ok(source.includes('response = unwrapResponse(response)'), 'preload 未在 switch 前解 envelope')
+  assert.ok(hasCode(source, flexRe('const unwrapResponse')), 'preload 缺少 unwrapResponse')
+  assert.ok(hasCode(source, flexRe('response = unwrapResponse(response)')), 'preload 未在 switch 前解 envelope')
 })
 
 run('P1-A2 preload 透传 fallbackOwner', () => {
   const source = read('android/app/src/main/assets/script/user-api-preload.js')
-  assert.ok(source.includes('fallbackOwner: userSource.fallbackOwner'), 'preload 未透传 fallbackOwner')
+  assert.ok(hasCode(source, flexRe('fallbackOwner: userSource.fallbackOwner')), 'preload 未透传 fallbackOwner')
 })
 
 SECTION('init')
 run('P1-A3 App 保存 fallbackOwners 映射并在换源前判断', () => {
   const source = read('src/core/init/userApi/index.ts')
-  assert.ok(source.includes('global.lx.fallbackOwners'), 'index.ts 未写入 fallbackOwners')
-  assert.ok(read('src/core/music/utils.ts').includes('shouldHostFallback'), 'utils.ts 换源前缺少 host gate')
+  assert.ok(hasCode(source, flexRe('global.lx.fallbackOwners')), 'index.ts 未写入 fallbackOwners')
+  assert.ok(hasCode(read('src/core/music/utils.ts'), flexRe('shouldHostFallback')), 'utils.ts 换源前缺少 host gate')
 })
 
 run('P0-A7 preload 透传 export/restore 两个宿主持久化 action', () => {
   const preload = read('android/app/src/main/assets/script/user-api-preload.js')
   for (const action of ['exportHealthState', 'restoreHealthState']) {
-    assert.ok(preload.includes(`case '${action}'`), `preload handleRequest 缺少 case '${action}'`)
+    assert.ok(hasCode(preload, new RegExp(`case '${action}'`)), `preload handleRequest 缺少 case '${action}'`)
   }
 })
 

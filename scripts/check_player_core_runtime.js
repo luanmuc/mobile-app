@@ -56,6 +56,34 @@ let knownFailed = 0
 // 用例体内 `await flush()` 之后的断言抛错只会变成未处理 rejection，既不计失败也不退码（假绿）。
 // 改为把每个用例包成 async task 收集起来，最后串行跑完再统计（串行是为了保持原本的
 // 严格顺序语义，避免并发让 timer 交错引入新的假红/假绿）。
+const { AsyncLocalStorage } = require('async_hooks')
+// K31：产品代码读 global.app_event / global.lx 这类**全局单例**（真机只有一个实例，产品侧没问题）。
+// 但本门禁的 run() 是「立即启动、到第一个 await 让出」的交错并发：后一个 setup() 会把 global
+// 覆盖成自己的，前一个用例的监听器回调里读到的就是别人的 mock。
+// 这里把这两个键改成 getter，值来自 AsyncLocalStorage 中**当前用例**的 scoped 袋；
+// 用例之外（如门禁自身初始化）回落到 FALLBACK，行为与原来一致。
+const caseStore = new AsyncLocalStorage()
+const SCOPE_FALLBACK = {}
+for (const key of ['app_event', 'lx']) {
+  Object.defineProperty(global, key, {
+    configurable: true,
+    enumerable: true,
+    get() {
+      const store = caseStore.getStore()
+      return (store && store.scoped && store.scoped[key]) !== undefined
+        ? store.scoped[key]
+        : SCOPE_FALLBACK[key]
+    },
+    set(v) { SCOPE_FALLBACK[key] = v },
+  })
+}
+/** 取当前用例的私有袋；setup() 只能跑在 run() 的异步上下文里 */
+const currentScope = () => {
+  const store = caseStore.getStore()
+  if (!store) throw new Error('setup() 必须在 run() 的异步上下文中调用')
+  return store.scoped
+}
+
 const tasks = []
 // A13-P1-01：**立即启动**每个用例（保持原实现「调用 fn 立即跑到第一个 await」的副作用时机，
 // 也就是原本就存在的交错并发语义），只把返回的 promise 收集起来等最终结果。
@@ -68,17 +96,13 @@ const passedNames = []
 // core 是 mock 缺 getRandom / 用例间共享可变状态。不是产品代码 bug，但也不能继续装作全绿。
 // 处理：显式登记基线失败 —— 白名单内只告警不计红；白名单外（新增回归）照常判红并退码。
 // 白名单里已通过的用例会打印提示，说明债已还、可以删条目。
-const KNOWN_FAILED = new Map([
-  ['N2-PC15 已播放列表里被删除的歌曲会被清理', '断言 0!==1'],
-  ['N2-PC11 listLoop 末曲回绕到首曲', 'musicInfo undefined（用例共享 mock 状态）'],
-  ['N2-PC12 list 模式末曲返回 null，不越界', '末曲返回值不符'],
-  ['N2-PC13 singleLoop 保持在当前曲', 'musicInfo undefined（用例共享 mock 状态）'],
-  ['N2-PC14 random 模式走 getRandom 并缓存下一次结果', 'mock 缺 getRandom'],
-  ['N2-PC4 stop 调 setStop 并触发 app_event.stop', '断言 false!==true'],
-])
+// K31 收尾：本组用例的历史失败已全部还清（见上），白名单置空。
+// 保留空 Map 与下方判定逻辑，后续若再暴露历史债仍可逐条登记。
+const KNOWN_FAILED = new Map()
 
 const run = (name, fn) => {
-  const task = (async() => {
+  // K31：每个用例一个私有 scoped 袋，交错并发下 global.* 不再互相覆盖
+  const task = caseStore.run({ scoped: {} }, async() => {
     try {
       await fn()
       checks++
@@ -94,7 +118,7 @@ const run = (name, fn) => {
       console.error(`  ✗ ${name}`)
       console.error(`    ${e && e.stack ? e.stack.split('\n').slice(0, 3).join('\n    ') : e}`)
     }
-  })()
+  })
   tasks.push(task)
   return task
 }
@@ -103,6 +127,7 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0))
 const mkMusic = (id = 'm1', name = '夜曲') => ({ id, name, singer: '周杰伦', source: 'kw' })
 
 const setup = (over = {}) => {
+  const scoped = currentScope()
   const state = {
     playMusicInfo: { musicInfo: over.music === undefined ? mkMusic() : over.music, listId: 'list1', isTempPlay: false },
     playInfo: { playerListId: over.listId === undefined ? 'list1' : over.listId, playerPlayIndex: over.playerIndex || 0 },
@@ -132,7 +157,7 @@ const setup = (over = {}) => {
     initTrackInfo: () => { calls.initTrackInfo++ },
   }
   const playerActions = { setPlayQuality: () => {}, setPlaySource: () => {}, setStatusText: () => {} }
-  global.lx = {
+  scoped.lx = {
     isPlayedStop: false,
     gettingUrlId: 'm1',
     playerTrackId: '',
@@ -140,7 +165,7 @@ const setup = (over = {}) => {
     apis: {},
   }
   global.i18n = { t: k => k }
-  global.app_event = { stop: () => {} }
+  scoped.app_event = { stop: () => {} }
   const mod = loadTs('src/core/player/player.ts', {
     '@/plugins/player': playerApi,
     '@/store/player/state': { __esModule: true, default: state },
@@ -168,7 +193,9 @@ const setup = (over = {}) => {
     },
     '@/core/music/utils': { formatPlayError: e => String(e) },
     '@/utils/message': { requestMsg: { tooManyRequests: 'tooManyRequests', cancelRequest: 'cancelRequest' } },
-    '@/utils/common': { getRandom: over.random === undefined ? 0 : over.random },
+    // K31：产品是 `getRandom(0, filteredList.length)`（player.ts:445），必须是被调用的函数；
+    // 原来 mock 成数字 0 → PC14 报 "getRandom is not a function"。
+    '@/utils/common': { getRandom: () => over.random === undefined ? 0 : over.random },
     '@/utils/logger': { logger: { error: () => {}, musicResolve: () => {} } },
     '@/utils/tools': {
       checkIgnoringBatteryOptimization: async() => {},
@@ -185,7 +212,17 @@ const setup = (over = {}) => {
     '@/core/player/repeatMode': { syncNotificationRepeatMode: () => {} },
     '@/core/desktopLyric': { syncLyricButtonByState: () => {} },
     '@/core/player/playStatus': { setStatusText: () => {} },
-    './utils': { filterList: over.filterList || (async({ list, playerIndex }) => ({ filteredList: list, playerIndex })) },
+    // K31：真实 filterList（src/core/player/utils.ts）的契约是「拿 playerMusicInfo 在列表里
+    // findIndex 出 playerIndex」，调用方 player.ts:430 也只传 list/listId/playedList/playerMusicInfo/isNext。
+    // 原 mock 却从入参解构 playerIndex（调用方根本不给）→ 恒为 undefined → 下游 filteredList[undefined] 为
+    // undefined → PC11/PC12/PC13 全红。按真实契约重写。
+    './utils': {
+      filterList: over.filterList || (async({ list, playedList = [], playerMusicInfo }) => {
+        const filteredList = list.filter(m => !playedList.some(p => p.musicInfo && p.musicInfo.id === m.id))
+        const playerIndex = playerMusicInfo ? filteredList.findIndex(m => m.id === playerMusicInfo.id) : -1
+        return { filteredList, playerIndex }
+      }),
+    },
     // player.ts 经 volumeFade 间接 import 了原生桥；Node 里无法加载真实 RN 包（ESM + 原生绑定）
     'react-native-track-player': {
       __esModule: true,
@@ -316,17 +353,23 @@ run('N2-PC14 random 模式走 getRandom 并缓存下一次结果', async() => {
 })
 
 run('N2-PC15 已播放列表里被删除的歌曲会被清理', async() => {
+  // K31：产品 player.ts:417-425 的语义是「从当前曲在已播放列表里的位置往后扫，
+  // 遇到『已从播放列表删除』的就 removePlayedList(index) 并继续，
+  // 遇到第一首仍存在的就 break —— 因为那首就是下一首，不必再往后找」。
+  // 原用例把仍在列表的 'a' 排在 'gone' 前面，扫到 'a' 立即 break，清理分支根本到不了。
+  // 按真实语义把待删除项排在前面。
   const h = setup({
     mode: 'listLoop',
     playerIndex: 0,
     playedList: [
-      { musicInfo: mkMusic('a'), listId: 'list1' },
       { musicInfo: mkMusic('gone'), listId: 'list1' },
+      { musicInfo: mkMusic('a'), listId: 'list1' },
     ],
   })
   const next = await h.mod.getNextPlayMusicInfo()
-  assert.strictEqual(h.calls.removePlayed, 1)
-  assert.strictEqual(next.musicInfo.id, 'b')
+  assert.strictEqual(h.calls.removePlayed, 1, '已从列表删除的已播放项应被清理')
+  // 清理后 index 停在第一首仍存在的已播放项上，产品直接把它作为结果返回
+  assert.strictEqual(next.musicInfo.id, 'a')
 })
 
 Promise.all(tasks).then(() => {

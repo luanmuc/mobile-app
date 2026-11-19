@@ -38,6 +38,27 @@ export const checkUpdateList = async(changedIds: string[]) => {
   global.app_event.myListMusicUpdate(changedIds)
 }
 
+/**
+ * K30：`list_data_overwrite` 的补偿回滚。
+ * 覆盖全量列表要分三段落库（saveUserList → removeListMusics → saveListMusics），
+ * 任一段失败都会让内存与磁盘错位；最坏组合是「元信息已写入、旧列表歌曲已删、新歌曲没写」，
+ * 重启后用户看到的是一个空歌单（数据真丢）。这里按导入前的快照重建内存与磁盘。
+ * 步骤顺序：先同步恢复内存（即使磁盘写回失败，本次进程内状态也是对的），再清理多余 key，最后重写磁盘。
+ */
+const rollbackListOverwrite = async(
+  snapshot: { userLists: LX.List.UserListInfo[], musics: Map<string, LX.List.ListMusics> },
+  attemptedIds: string[],
+) => {
+  userLists.splice(0, userLists.length, ...snapshot.userLists)
+  allMusicList.clear()
+  for (const [id, musics] of snapshot.musics) allMusicList.set(id, musics)
+  // 导入时新建、快照里不存在的列表 key 要一起清掉，否则恢复后会残留一份空歌单
+  const extraIds = attemptedIds.filter(id => !snapshot.musics.has(id))
+  if (extraIds.length) await removeListMusics(extraIds).catch(() => { /* 清残留失败不阻断主回滚 */ })
+  await updateUserList(userLists)
+  await saveListMusics([...snapshot.musics].map(([id, musics]) => ({ id, musics })))
+}
+
 
 // {
 //   // sync: {
@@ -77,19 +98,38 @@ export class ListEvent extends Event {
    */
   async list_data_overwrite(listData: MakeOptional<LX.List.ListDataFull, 'tempList'>, isRemote: boolean = false) {
     fixListIdType(listData.userList)
+    // K30：动内存之前先留整份快照。下面三段落库任一失败都会让内存/磁盘错位，
+    // 最坏是「元信息已写、旧歌已删、新歌没写」→ 重启后歌单变空；失败时按快照整体重建。
+    const snapshot = {
+      userLists: userLists.map(l => ({ ...l })),
+      musics: new Map([...allMusicList].map(([id, musics]) => [id, musics.slice()])),
+    }
     const oldIds = userLists.map(l => l.id)
-    const changedIds = listDataOverwrite(listData)
-    await updateUserList(userLists)
-    // await checkUpdateList(changedIds)
-    const removedList = oldIds.filter(id => !allMusicList.has(id))
-    if (removedList.length) await removeListMusics(removedList)
-    const allListIds = [LIST_IDS.DEFAULT, LIST_IDS.LOVE, ...userLists.map(l => l.id)]
-    if (changedIds.includes(LIST_IDS.TEMP)) allListIds.push(LIST_IDS.TEMP)
-    await saveListMusics([...allListIds.map(id => ({ id, musics: allMusicList.get(id) as LX.List.ListMusics }))])
+    const attemptedIds = [LIST_IDS.DEFAULT, LIST_IDS.LOVE, ...listData.userList.map(l => l.id)]
+    if (listData.tempList) attemptedIds.push(LIST_IDS.TEMP)
 
-    global.app_event.myListMusicUpdate(changedIds)
-    this.emit('list_data_overwrite', listData, isRemote)
-    checkListExist(changedIds)
+    try {
+      const changedIds = listDataOverwrite(listData)
+      await updateUserList(userLists)
+      // await checkUpdateList(changedIds)
+      const removedList = oldIds.filter(id => !allMusicList.has(id))
+      if (removedList.length) await removeListMusics(removedList)
+      const allListIds = [LIST_IDS.DEFAULT, LIST_IDS.LOVE, ...userLists.map(l => l.id)]
+      if (changedIds.includes(LIST_IDS.TEMP)) allListIds.push(LIST_IDS.TEMP)
+      await saveListMusics([...allListIds.map(id => ({ id, musics: allMusicList.get(id) as LX.List.ListMusics }))])
+
+      global.app_event.myListMusicUpdate(changedIds)
+      this.emit('list_data_overwrite', listData, isRemote)
+      checkListExist(changedIds)
+    } catch (err) {
+      try {
+        await rollbackListOverwrite(snapshot, attemptedIds)
+      } catch (rollbackErr) {
+        // 回滚自身失败时只记日志，不掩盖原始错误：内存已在 rollback 开头同步恢复
+        console.error('[K30] list_data_overwrite 回滚失败:', rollbackErr)
+      }
+      throw err
+    }
   }
 
   /**

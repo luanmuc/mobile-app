@@ -18,6 +18,7 @@
  */
 'use strict'
 
+const { hasCode, flexRe } = require('./lib/ast-match')
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -299,24 +300,24 @@ section('validation', () => {
 section('init', () => {
   const src = read('src/core/init/index.ts')
   run('启动注入不再维护旧白名单', () => {
-    assert(!src.includes('raceOverallTimeoutMs'), '仍含死键 raceOverallTimeoutMs')
-    assert(!src.includes('const ALLOWED_KEYS = ['), '仍维护旧 ALLOWED_KEYS')
-    assert(src.includes('filterConfigForInjection'), '未改用 filterConfigForInjection')
+    assert(!hasCode(src, flexRe('raceOverallTimeoutMs')), '仍含死键 raceOverallTimeoutMs')
+    assert(!hasCode(src, flexRe('const ALLOWED_KEYS = [')), '仍维护旧 ALLOWED_KEYS')
+    assert(hasCode(src, flexRe('filterConfigForInjection')), '未改用 filterConfigForInjection')
   })
 })
 
 section('i18n', () => {
   const health = read('src/screens/Home/Views/Setting/settings/Health.tsx')
   run('Health.tsx 不再硬编码三种状态', () => {
-    assert(!health.includes("'已摘除'"), '仍硬编码已摘除')
-    assert(!health.includes("'限流中'"), '仍硬编码限流中')
-    assert(!health.includes("'被限流'"), '仍硬编码被限流')
+    assert(!hasCode(health, flexRe("'已摘除'")), '仍硬编码已摘除')
+    assert(!hasCode(health, flexRe("'限流中'")), '仍硬编码限流中')
+    assert(!hasCode(health, flexRe("'被限流'")), '仍硬编码被限流')
   })
   run('Health.tsx 不再硬编码弹窗标题/按钮', () => {
-    assert(!health.includes('音源配置（运行参数）'), '仍硬编码配置弹窗标题')
-    assert(!health.includes('健康趋势（最近'), '仍硬编码趋势弹窗标题')
-    assert(!health.includes('>恢复默认<'), '仍硬编码恢复默认')
-    assert(!health.includes('>暂无历史数据'), '仍硬编码趋势空态')
+    assert(!hasCode(health, flexRe('音源配置（运行参数）')), '仍硬编码配置弹窗标题')
+    assert(!hasCode(health, flexRe('健康趋势（最近')), '仍硬编码趋势弹窗标题')
+    assert(!hasCode(health, flexRe('>恢复默认<')), '仍硬编码恢复默认')
+    assert(!hasCode(health, flexRe('>暂无历史数据')), '仍硬编码趋势空态')
   })
   run('三语言 health_* 键集合一致且含新键', () => {
     const langs = ['zh-cn', 'zh-tw', 'en-us']

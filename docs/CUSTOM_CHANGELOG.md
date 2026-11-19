@@ -1,3 +1,26 @@
+## [播放页两按钮改汉字胶囊 + 推送前文档硬数字全量对账] - 2026-11-19
+
+> 用户反馈：播放页右上角两个纯图标按钮「看不出是什么、也不像按钮」。改成 13px 汉字 + 淡主色药丸底，
+> 可见性与语义一并解决；顺带把全仓文档的硬编码数字与台账口径做了一次完整对账。
+> i18n 键数 **1041 → 1043**（+2 播放页按钮文案），已同步 `AUDIT_PLAN.md` 硬数字。
+
+- **UI：右上角两按钮**
+  - `Btn`（竖屏 `Vertical/components` / 横屏 `Horizontal/components`）新增 `label` 分支：13px 汉字 + 30dp 高、圆角 15、`minWidth 46`、`paddingHorizontal 10` 的淡主色药丸；底 `c-primary-alpha-200`、字 `c-primary`；**外层 Touchable 仍撑满 42dp，热区不缩水**；图标模式与上游一致。
+  - 竖屏：设置 →「设置」；`TimeoutExitBtn` →「定时」（激活态字 `c-primary-font-active`、底 `c-primary-alpha-300`）。
+  - 横屏：设置 →「设置」；桌面歌词 / 播放列表仍为图标，避免整排变身。
+- **FAQ 纠错**（按 `DOC_SEMANTIC_CHECKLIST` 第一条核对入口描述）
+  - 「播放列表弹窗在哪」原本写「播放页右上角的三横杠」——三横杠一直是播放器设置，播放列表实际在封面下方图标行最右侧的 `menu` 图标（`Vertical/Player/components/MoreBtn/CommentBtn.tsx`）。已改正并说明右上角两按钮的新形态。
+- **文档硬数字全量对账**（37 处「脚本名(N 条)」声明逐一实跑比对）
+  - `check_source_update_logic` 24→44、`check_health_diagnostics_view` 24→25、`check_ts_syntax` 529/542→541、`check_docs_consistency` 18→17 文档、`check_truth_gates` 24→14 条断言（AUDIT_PLAN + STRESS_PLAN）。
+  - `check_cross_repo_linkage` 台账注明「实跑 5 通过 + 3 跳过，需双仓」。
+  - **台账补 4 行**：`check_pitch`(30) / `check_volume_fade`(40) / `check_equalizer`(51) 三个音频门禁此前在任何文档中都没有登记；另加 `check_upstream_divergence`（工具，需 `/tmp/upstream-lx`，缺失时 rc=0 跳过）。
+  - `DOC_SEMANTIC_CHECKLIST.md`「docs-audit 19 条规则」→ **13 个规则函数**（报告项数多于函数数）。
+  - `RELEASE_SOP.md` checks 段补音频 DSP 组（音高 30 / 淡入 40 / 均衡器 51）。
+- **验证**
+  - `tsc --noEmit` 0 error；改动文件 ESLint 无告警；`check_truth_gates` 全一致（G10 三语各 1043 = 文档声明）；`check_docs_consistency` 17 文档；`docs-audit` 0 修复；`preflight-push.sh` **47/47（163s）**。
+
+---
+
 ## [K36：整体下线 V9.3 在线更新体系，「更新音源」回归单文件拉取] - 2026-11-19
 
 > 用户定案：**「更新音源」按钮在 V9.3 之前本来没问题，是 V9.3 加的东西把它搞坏了」**。

@@ -318,6 +318,8 @@
   "play_detail_setting_equalizer_reset": "Reset equalizer",
   "play_detail_setting_equalizer_unsupported": "System equalizer not supported on this device",
   "play_detail_setting_show_lyric_progress_setting": "Allow to adjust playback progress by drag-and-drop lyrics",
+  "play_detail_header_setting": "Settings",
+  "play_detail_header_timer": "Timer",
   "play_detail_setting_title": "Player Options",
   "play_detail_setting_volume": "Volume",
   "play_detail_setting_track_fade": "Track Change Fade",

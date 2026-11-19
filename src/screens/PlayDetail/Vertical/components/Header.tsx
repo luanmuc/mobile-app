@@ -12,6 +12,7 @@ import { HEADER_HEIGHT as _HEADER_HEIGHT, NAV_SHEAR_NATIVE_IDS } from '@/config/
 import commonState from '@/store/common/state'
 import SettingPopup, { type SettingPopupType } from '../../components/SettingPopup'
 import { useStatusbarHeight } from '@/store/common/hook'
+import { useI18n } from '@/lang'
 import Btn from './Btn'
 import TimeoutExitBtn from './TimeoutExitBtn'
 
@@ -34,6 +35,7 @@ const Title = () => {
 export default memo(() => {
   const popupRef = useRef<SettingPopupType>(null)
   const statusBarHeight = useStatusbarHeight()
+  const t = useI18n()
 
   const back = () => {
     void pop(commonState.componentIds.playDetail!)
@@ -49,7 +51,7 @@ export default memo(() => {
         <Btn icon="chevron-left" onPress={back} />
         <Title />
         <TimeoutExitBtn />
-        <Btn icon="slider" onPress={showSetting} />
+        <Btn label={t('play_detail_header_setting')} onPress={showSetting} />
       </View>
       <SettingPopup ref={popupRef} direction="vertical" />
     </View>

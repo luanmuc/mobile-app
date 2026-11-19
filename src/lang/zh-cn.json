@@ -318,6 +318,8 @@
   "play_detail_setting_equalizer_reset": "重置均衡器",
   "play_detail_setting_equalizer_unsupported": "当前设备不支持系统均衡器",
   "play_detail_setting_show_lyric_progress_setting": "允许通过拖拽歌词调整播放进度",
+  "play_detail_header_setting": "设置",
+  "play_detail_header_timer": "定时",
   "play_detail_setting_title": "播放器设置",
   "play_detail_setting_volume": "音量大小",
   "play_detail_setting_track_fade": "切歌淡入淡出",

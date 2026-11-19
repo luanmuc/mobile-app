@@ -27,7 +27,7 @@
 | S17 | 播放预算失败段 | `check_playback_budget.js` | 21 | 24s 预算、attempts 落盘、失败段不丢档 | 21/0 |
 | S18 | 片段/下载/播放服务 | `check_source_platform_label`、`check_player_service_runtime`、`check_download_persistence`、`check_download_restore_runtime` | 9+10+3+3 | 试听标签、片段不回报成功、恢复不丢任务 | 各 0 失败 |
 | S19 | 跨仓健康态往返 | `check_cross_repo_health_roundtrip.js` | 4 | 旧版本快照按数值比较接受、白名单不放宽结构 | 4/0（需双仓） |
-| S20 | 口径门禁（含计划唯一/SDK/超时清理） | `check_truth_gates.js` | 24 | 版本/脚本数/依赖 sha/**G21**/**G22**/**G23**/**G27** | 24 门禁全一致 |
+| S20 | 口径门禁（含计划唯一/SDK/超时清理） | `check_truth_gates.js` | 14 | 版本/脚本数/依赖 sha/**G21**/**G22**/**G23**/**G27** | 24 门禁全一致 |
 | S21 | 真机摘要上报 | `check_health_digest.js` | 9 | 5000 事件/24h 窗口、probe 不计播放、失败明细 200 截断、20h 节流、队列 7 条 7 天、Issue 围栏格式、无硬编码凭据、三语键、**单飞锁** | 9/0 |
 | S22 | telemetry 入库契约（跨仓） | `lx-telemetry/test/ingest.test.js` | 5 | 合法入库/重复去重/围栏 JSON/非法计数字段拒收/48KB 上限 | 5/0 |
 | S23 | **在线更新链路压力（v9.5 新增）** | `check_source_signing.js` + `check_source_update_fetch.js` + `check_source_update_apply.js` | 6+9+12 | 验签（未知 keyId / 假签名 / 篡改中间字节）、传输链（manifest 404 / size 不符 / sha256 不符 / 非 JSON / 开关关闭零请求）、落地（就地覆盖同一 id / 篡改零写入 / 回滚四态） | 27/0 |
