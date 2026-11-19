@@ -17,6 +17,8 @@ const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..')
 
+const { hasCode, literalRe } = require('./lib/ast-match')
+
 let ts
 try {
   ts = require(path.resolve(ROOT, 'node_modules', 'typescript'))
@@ -310,37 +312,37 @@ check('H4 traceId 透传：online → utils → userApi → 5 平台', () => {
     'src/utils/musicSdk/wy/index.js',
     'src/utils/musicSdk/mg/index.js',
   ]
-  for (const f of files) assert(read(f).includes('traceId'), `${f} 未透传 traceId`)
+  for (const f of files) assert(hasCode(read(f), literalRe('traceId')), `${f} 未透传 traceId`)
 })
 
 check('H4/H8 user_api action 联合类型含 healthEvents', () => {
-  assert(read('src/types/user_api.d.ts').includes('healthEvents'), 'user_api.d.ts 未声明 healthEvents')
+  assert(hasCode(read('src/types/user_api.d.ts'), literalRe('healthEvents')), 'user_api.d.ts 未声明 healthEvents')
 })
 
 check('H9 新模块无任何上传通道', () => {
   for (const f of ['src/core/healthDiagnostics.ts', 'src/core/healthLog.ts']) {
     const src = read(f)
     for (const bad of ['fetch(', 'XMLHttpRequest', 'sendBeacon', 'axios', 'http://', 'https://']) {
-      assert(!src.includes(bad), `${f} 含上传通道 ${bad}`)
+      assert(!hasCode(src, literalRe(bad)), `${f} 含上传通道 ${bad}`)
     }
   }
 })
 
 check('H8 健康页接入最近异常 + 导出诊断包', () => {
   const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
-  assert(src.includes('health_recent_anomaly'), '健康页缺最近异常文案键')
-  assert(src.includes('health_export_diag') || src.includes('exportDiagnostics'), '健康页缺导出诊断包入口')
+  assert(hasCode(src, literalRe('health_recent_anomaly')), '健康页缺最近异常文案键')
+  assert(hasCode(src, literalRe('health_export_diag')) || hasCode(src, literalRe('exportDiagnostics')), '健康页缺导出诊断包入口')
 })
 
 check('H10 App 预加载脚本放行并透传 healthEvents', () => {
   const preload = read('android/app/src/main/assets/script/user-api-preload.js')
   // P0：preload 不再维护按 source 的白名单，actions 直接来自源脚本声明
-  assert(!preload.includes('const supportActions'), 'preload 仍存在 supportActions 白名单')
-  assert(preload.includes('actions: userSource.actions'), 'preload 未直接透传 userSource.actions')
-  assert(preload.includes("case 'healthEvents':"), '分发 switch 缺少 healthEvents case')
-  assert(preload.includes('response.events'), 'healthEvents 未校验 events 数组')
-  assert(read('src/core/init/userApi/sourceContract.ts').includes("'healthEvents'"), 'sourceContract 缺少 healthEvents')
-  assert(read('src/core/init/userApi/index.ts').includes("case 'healthEvents'"), 'userApi 缺少 healthEvents case')
+  assert(!hasCode(preload, /const\s+supportActions/), 'preload 仍存在 supportActions 白名单')
+  assert(hasCode(preload, /actions\s*:\s*userSource\.actions/), 'preload 未直接透传 userSource.actions')
+  assert(hasCode(preload, /case\s+'healthEvents'\s*:/), '分发 switch 缺少 healthEvents case')
+  assert(hasCode(preload, /response\.events/), 'healthEvents 未校验 events 数组')
+  assert(hasCode(read('src/core/init/userApi/sourceContract.ts'), /'healthEvents'/), 'sourceContract 缺少 healthEvents')
+  assert(hasCode(read('src/core/init/userApi/index.ts'), /case\s+'healthEvents'/), 'userApi 缺少 healthEvents case')
 })
 
 check('H11 成功采样加权：真实 95% 不得报成 79%', () => {
@@ -518,18 +520,18 @@ check('H27 本地诊断窗口按可信度/总体/错误码/其他线索分层', 
   const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
   const view = read('src/core/healthDiagnosticsView.ts')
   for (const key of ['health_diag_coverage_short', 'health_diag_h24', 'health_diag_codes', 'health_diag_other', 'diagnosticsExpanded', 'buildHealthDiagnosticsView']) {
-    assert(src.includes(key), `窗口缺少分层元素：${key}`)
+    assert(hasCode(src, literalRe(key)), `窗口缺少分层元素：${key}`)
   }
   for (const key of ['coverage.unweightedSuccesses', 'spanText(']) {
-    assert(view.includes(key), `视图模型缺少口径字段：${key}`)
+    assert(hasCode(view, literalRe(key)), `视图模型缺少口径字段：${key}`)
   }
 })
 
 check('H22 趋势预警单一来源：页面不得维护第二套阈值', () => {
   const src = read('src/screens/Home/Views/Setting/settings/Health.tsx')
-  assert(!src.includes('decliningSources'), '健康页仍在维护 decliningSources 独立判定')
-  assert(src.includes("f.id === 'trend_decline'"), '健康页未复用报告 trend_decline finding')
-  assert(src.includes('trendDeclineFindings.map(f => f.title)'), '多源趋势下降未聚合展示')
+  assert(!hasCode(src, literalRe('decliningSources')), '健康页仍在维护 decliningSources 独立判定')
+  assert(hasCode(src, /f\.id\s*===\s*'trend_decline'/), '健康页未复用报告 trend_decline finding')
+  assert(hasCode(src, /trendDeclineFindings\.map\(\s*f\s*=>\s*f\.title\s*\)/), '多源趋势下降未聚合展示')
 })
 
 check('H23 日志死 API 清零且运行日志页仍可读 debug', () => {
@@ -567,9 +569,9 @@ check('H29 缓存命中单独计数，不进入取链成功率', () => {
   assert(report.windows.h24.total === 0, `缓存/播放污染取链窗口：${JSON.stringify(report.windows.h24)}`)
   assert(report.playWindows.h24.total === 5 && report.playWindows.h24.ok === 5, `播放窗口被缓存污染：${JSON.stringify(report.playWindows.h24)}`)
   assert(report.playWindows.h24.successRate === 1, `播放成功率被缓存污染：${report.playWindows.h24.successRate}`)
-  assert(read('src/core/healthLog.ts').includes('recordCacheHit'), 'healthLog 缺少缓存命中写入入口')
-  assert(read('src/core/healthLog.ts').includes("event: 'cache_hit'"), '缓存命中事件名不是 cache_hit')
-  assert(read('src/core/music/online.ts').includes('recordCacheHit({'), '缓存命中分支未接线')
+  assert(hasCode(read('src/core/healthLog.ts'), literalRe('recordCacheHit')), 'healthLog 缺少缓存命中写入入口')
+  assert(hasCode(read('src/core/healthLog.ts'), /event\s*:\s*'cache_hit'/), '缓存命中事件名不是 cache_hit')
+  assert(hasCode(read('src/core/music/online.ts'), /recordCacheHit\s*\(\s*\{/), '缓存命中分支未接线')
 })
 
 check('H30 片段交付（试听版）不冒充完整播放成功，单列计数', () => {
@@ -587,8 +589,8 @@ check('H30 片段交付（试听版）不冒充完整播放成功，单列计数
   assert(log.includes('fragment?: boolean'), 'PlayResultInput 缺少 fragment 字段')
   assert(log.includes('entry.fragment = true'), '片段标记未落盘')
   const online = read('src/core/music/online.ts')
-  assert(online.includes('fragment: fragment === true'), 'online 成功链路未把片段标记传给记账')
-  assert(online.includes('fragment: cachedFragment'), 'online 缓存链路未把片段标记传给记账')
+  assert(hasCode(online, /fragment\s*:\s*fragment\s*===\s*true/), 'online 成功链路未把片段标记传给记账')
+  assert(hasCode(online, /fragment\s*:\s*cachedFragment/), 'online 缓存链路未把片段标记传给记账')
 })
 
 const checkAsync = async(name, fn) => {

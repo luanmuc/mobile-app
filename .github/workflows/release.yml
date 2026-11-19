@@ -58,8 +58,8 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Setup Node 22（仅 Checks）
-        # 为什么这里要覆盖：scripts/check_source_signing.js 等把 @noble/* 验签实现编译成 CJS
-        # 再 require()，而 @noble/ed25519 v2 是纯 ESM —— 需要 Node ≥22 的 require(ESM)。
+        # 为什么这里要覆盖：部分门禁脚本会先 tsc 编译再 require()，Node 18 的 require(ESM)
+        # 限制会让 Checks 必红（K36 已移除验签脚本，但编译型门禁同样要求 Node ≥22）。
         # 具名步骤走 .nvmrc 的 v18 会让 Checks 必红（而 Android 构建仍需 Node 18 基线，
         # 故只在 checks job 内覆盖，不抬全集）。依赖包是纯 JS，Node 18 装好、Node 22 跑没问题。
         uses: actions/setup-node@v4
@@ -93,7 +93,6 @@ jobs:
           node scripts/check_source_config_contract.js
           node scripts/check_cross_repo_linkage.js
           node scripts/check_source_contract.js
-          node scripts/check_source_signing.js
           node scripts/check_source_update_logic.js
           node scripts/check_playback_cache_guard.js
           node scripts/check_log_redaction.js

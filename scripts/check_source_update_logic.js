@@ -14,6 +14,7 @@
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
+const { hasCode } = require('./lib/ast-match')
 
 const ROOT = path.resolve(__dirname, '..')
 let ts
@@ -140,16 +141,16 @@ console.log('\n[接线静态锁]')
 
 run('U11 启动导入使用共享解析，不再保留旧「聚合音源 v」正则', () => {
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(index.includes('parseSourceVersion'), 'index.ts 未使用 parseSourceVersion')
-  assert.ok(index.includes('decideBuiltinSourceImport'), 'index.ts 未使用 decideBuiltinSourceImport')
-  assert.ok(!index.includes('聚合音源\\s*v'), 'index.ts 仍残留旧版本正则')
+  assert.ok(hasCode(index, /parseSourceVersion/), 'index.ts 未使用 parseSourceVersion')
+  assert.ok(hasCode(index, /decideBuiltinSourceImport/), 'index.ts 未使用 decideBuiltinSourceImport')
+  assert.ok(!hasCode(index, /聚合音源\s*v/), 'index.ts 仍残留旧版本正则')
 })
 
 run('U12 在线升级使用共享解析/比较，并记录 imported_builtin_source_version', () => {
   const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
-  assert.ok(source.includes('parseSourceVersion'), 'Source.tsx 未使用 parseSourceVersion')
-  assert.ok(source.includes('compareSourceVersions'), 'Source.tsx 未使用 compareSourceVersions')
-  assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.importedVersion'), 'Source.tsx 未记录内置源版本')
+  assert.ok(hasCode(source, /parseSourceVersion/), 'Source.tsx 未使用 parseSourceVersion')
+  assert.ok(hasCode(source, /compareSourceVersions/), 'Source.tsx 未使用 compareSourceVersions')
+  assert.ok(hasCode(source, /BUILTIN_SOURCE_STORAGE_KEYS\.importedVersion/), 'Source.tsx 未记录内置源版本')
   // 判据要写行为方向，不能写源码字面量：`!includes(旧写法)` 这种断言改文案/换变量名就假绿，
   // 真正的回归（改回按名字删除）反而抓不到。
   assert.ok(/filter\(api => api\.id === storedBuiltinId\)/.test(source), 'Source.tsx 未按 id 精确清理旧内置源（storedBuiltinId）')
@@ -262,16 +263,16 @@ run('U22 在线升级先写 pending 再切源，成功后才清 pending', () => 
 
 run('U23 启动导入用第二次读到的脚本回填版本，避免首次读失败导致反复导入', () => {
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(index.includes('builtinVer || parseSourceVersion(script)'), 'index.ts 未用第二次读取的脚本回填版本')
+  assert.ok(hasCode(index, /builtinVer\s*\|\|\s*parseSourceVersion\s*\(\s*script\s*\)/), 'index.ts 未用第二次读取的脚本回填版本')
 })
 
 run('U24 pending 提升为内置源后清理旧内置源，避免只换标记不换实体', () => {
   const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(source.includes('previousBuiltinId'), 'Source.tsx 未记录待清理的旧内置源 id')
-  assert.ok(source.includes('removeUserApi([previousBuiltinId])'), 'Source.tsx 未清理旧内置源')
-  assert.ok(index.includes('previousBuiltinId'), 'index.ts 未记录待清理的旧内置源 id')
-  assert.ok(index.includes('removeUserApi([previousBuiltinId])'), 'index.ts 未清理旧内置源')
+  assert.ok(hasCode(source, /previousBuiltinId/), 'Source.tsx 未记录待清理的旧内置源 id')
+  assert.ok(hasCode(source, /removeUserApi\s*\(\s*\[\s*previousBuiltinId\s*\]\s*\)/), 'Source.tsx 未清理旧内置源')
+  assert.ok(hasCode(index, /previousBuiltinId/), 'index.ts 未记录待清理的旧内置源 id')
+  assert.ok(hasCode(index, /removeUserApi\s*\(\s*\[\s*previousBuiltinId\s*\]\s*\)/), 'index.ts 未清理旧内置源')
 })
 
 run('U25 多份同名时，覆盖目标必须是「正在启用的那份」', () => {
@@ -343,14 +344,14 @@ console.log('\n[接线静态锁 · 就地覆盖]')
 
 run('U30 在线更新走就地覆盖，目标取自当前启用源，不再无条件新增', () => {
   const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
-  assert.ok(source.includes('overwriteUserApi'), 'Source.tsx 未调用 overwriteUserApi（仍只会新增）')
-  assert.ok(source.includes('resolveBuiltinTarget'), 'Source.tsx 未使用 resolveBuiltinTarget 定位覆盖目标')
+  assert.ok(hasCode(source, /overwriteUserApi/), 'Source.tsx 未调用 overwriteUserApi（仍只会新增）')
+  assert.ok(hasCode(source, /resolveBuiltinTarget/), 'Source.tsx 未使用 resolveBuiltinTarget 定位覆盖目标')
   assert.ok(/resolveBuiltinTarget\([\s\S]{0,200}activeId:\s*apiSourceSetting/.test(source), 'Source.tsx 未把当前启用源作为覆盖目标')
 })
 
 run('U31 启动自动升级同样就地覆盖，不再 remove+add 造成 id 漂移', () => {
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(index.includes('overwriteUserApi'), 'index.ts 未就地覆盖内置源（仍 remove+add）')
+  assert.ok(hasCode(index, /overwriteUserApi/), 'index.ts 未就地覆盖内置源（仍 remove+add）')
   assert.ok(!/await removeUserApi\(\[builtinApi\.id\]\)[\s\S]{0,80}await addUserApi/.test(index), 'index.ts 仍是先删后建')
 })
 
@@ -383,7 +384,7 @@ run('U33 版本基线优先取「将被覆盖那份」的版本，避免拿另�
 run('U34 pending 不再阻断启动覆盖（覆盖不换 id，不存在多副本风险）', () => {
   const index = read('src/core/init/userApi/index.ts')
   assert.ok(!/pendingBlocked:\s*pendingBlocked/.test(index), 'index.ts 仍用 pending 阻断决策')
-  assert.ok(!index.includes('canManageBuiltin'), 'index.ts 仍保留 canManage 派生逻辑')
+  assert.ok(!hasCode(index, /canManageBuiltin/), 'index.ts 仍保留 canManage 派生逻辑')
 })
 
 run('U35 删除内置源必须清掉悬空 id 标记，避免将来把用户自建同名源当内置源覆盖', () => {
@@ -450,8 +451,8 @@ run('U40 老数据没有 App 版本标记：强制同步一次，顺带修好卡
 run('U41 覆盖后必须记录当前 App 版本，否则下次启动又会当成换包', () => {
   const index = read('src/core/init/userApi/index.ts')
   const source = read('src/screens/Home/Views/Setting/settings/Basic/Source.tsx')
-  assert.ok(index.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'index.ts 未记录 app 版本标记')
-  assert.ok(source.includes('BUILTIN_SOURCE_STORAGE_KEYS.appVersion'), 'Source.tsx 未记录 app 版本标记')
+  assert.ok(hasCode(index, /BUILTIN_SOURCE_STORAGE_KEYS\.appVersion/), 'index.ts 未记录 app 版本标记')
+  assert.ok(hasCode(source, /BUILTIN_SOURCE_STORAGE_KEYS\.appVersion/), 'Source.tsx 未记录 app 版本标记')
 })
 
 run('U42 契约收敛：只保留三条判定（全新安装 / 换包覆盖 / 同包更高才覆盖）', () => {

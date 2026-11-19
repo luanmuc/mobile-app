@@ -19,8 +19,6 @@ import { importUserApi, overwriteUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
 import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
-import { verifySourcePayload } from '@/core/sourceUpdate/verify'
-import { sha256 } from '@noble/hashes/sha256'
 
 // 当前运行 App 的版本（CI 注入的 1.9.2-bN）：换包与否决定启动时是否以内置音源为准
 const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
@@ -29,35 +27,18 @@ const SOURCE_UPDATE_TIMEOUT = 15_000
 // 切源后等 init 事件的上限（超时只代表"没等到"，不等于加载失败）
 const SOURCE_SWITCH_INIT_TIMEOUT = 8000
 const SOURCE_UPDATE_MAX_SIZE = 9_000_000
-// B2：验签需要「脚本原始字节 + manifest（含 ed25519 签名）」。两个文件必须来自同一通道，
-// 否则会出现「脚本是新的、manifest 是旧的」这种错配，验签会 fail-closed 误拒。
-const SOURCE_UPDATE_SOURCES = [
-  // GitHub Contents API 优先：每次取 master 当前内容，避开 jsDelivr 的 @master 边缘缓存。
-  {
-    script: {
-      url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js?ref=master',
-      options: { headers: { Accept: 'application/vnd.github.raw' } },
-    },
-    manifest: {
-      url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js.manifest.json?ref=master',
-      options: { headers: { Accept: 'application/vnd.github.raw' } },
-    },
-  },
-  // 匿名 API 触发限额或网络失败时回退 jsDelivr；组内同通道，仍由 size/sha256/验签三道闸兜底。
-  {
-    script: { url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js', options: {} },
-    manifest: { url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js.manifest.json', options: {} },
-  },
-] as const
+// K36：整体移除 V9.3 的在线更新体系（manifest + ed25519 三道闸）。
+// 背景：这个「更新音源」按钮在 V9.3 之前只拉一个 lx-source.js（单请求），一直可用；
+// V9.3 把它升级成「脚本 + manifest 双文件强一致 + 验签」，多出一个失败点，
+// 而 manifest 在境内网络下拿不到可解析内容（限流/劫持/包装），导致按钮彻底不可用。
+// 多镜像只是降低单点概率，不引入任何额外文件与校验链。
+const SOURCE_UPDATE_URLS = [
+  'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
+  'https://fastly.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
+  'https://gcore.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
+  'https://raw.githubusercontent.com/luanmuc/backend-api/master/lx-source.js',
+]
 
-interface SourceReleaseManifest {
-  version: string
-  size: number
-  sha256: string
-  sigAlg: string
-  keyId: string
-  sig: string
-}
 
 const fetchWithTimeout = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<unknown> => {
   const request = httpFetch(url, options)
@@ -71,76 +52,6 @@ const fetchWithTimeout = async(url: string, options: Record<string, unknown>, ti
     if (timer) clearTimeout(timer)
     request.cancelHttp()
   }
-}
-
-// B2 修复：fetchData 对 application/json 会自动 JSON.parse，所以 .manifest.json 走到这里
-// 可能已经是对象而不是字符串。此前只接受 string，对象一律返回空串 → JSON.parse('') 抛错 →
-// 用户侧表现为「更新包缺少有效的版本信息（manifest）」（K34）。
-const assertOkStatus = (statusCode: unknown): void => {
-  if (typeof statusCode === 'number' && statusCode !== 200) throw new Error(`SOURCE_UPDATE_HTTP_${statusCode}`)
-}
-
-const fetchSourceTextOrJson = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<unknown> => {
-  const response = await fetchWithTimeout(url, options, timeoutMessage) as { body?: unknown, statusCode?: unknown }
-  assertOkStatus(response.statusCode)
-  return response.body
-}
-
-/**
- * 拉脚本原始字节。验签只能对字节做——字符串解码（换行/编码规范化）会让同一份文件
- * 在不同端算出不同 sha256/签名，所以这里必须走 binary 模式（FileReader → buffer）。
- */
-const fetchSourceScriptBytes = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<Buffer> => {
-  const response = await fetchWithTimeout(url, { ...options, binary: true }, timeoutMessage) as { body?: unknown, statusCode?: unknown }
-  assertOkStatus(response.statusCode)
-  if (!(response.body instanceof Uint8Array)) throw new Error('SOURCE_UPDATE_BODY_NOT_BINARY')
-  return Buffer.from(response.body)
-}
-
-const parseSourceReleaseManifest = (input: unknown): SourceReleaseManifest => {
-  let raw: unknown = input
-  if (typeof input === 'string') {
-    try {
-      raw = JSON.parse(input)
-    } catch {
-      throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-    }
-  }
-  if (!raw || typeof raw !== 'object') throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  const manifest = raw as Partial<SourceReleaseManifest>
-  if (typeof manifest.version !== 'string' || !parseSourceVersion(manifest.version)) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  if (typeof manifest.size !== 'number' || !Number.isFinite(manifest.size) || manifest.size <= 0) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  if (typeof manifest.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(manifest.sha256)) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  if (typeof manifest.sig !== 'string' || !manifest.sig) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  // 签名字段缺失或算法不是 ed25519 时直接拒（不猜，避免降级成"不验签"）
-  if (manifest.sigAlg && manifest.sigAlg !== 'ed25519') throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
-  return {
-    version: manifest.version,
-    size: manifest.size,
-    sha256: manifest.sha256.toLowerCase(),
-    sigAlg: manifest.sigAlg ?? 'ed25519',
-    keyId: typeof manifest.keyId === 'string' && manifest.keyId ? manifest.keyId : 'k1',
-    sig: manifest.sig,
-  }
-}
-
-const toHex = (bytes: Uint8Array): string => {
-  let hex = ''
-  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0')
-  return hex
-}
-
-/**
- * 三道闸，任一不过都不能进导入流程（fail-closed）：
- * ① 字节数 == manifest.size（挡住截断/半包）
- * ② sha256(字节) == manifest.sha256（挡住内容被替换）
- * ③ ed25519 验签（挡住 manifest 被伪造——私钥只在源仓 CI secret 里）
- */
-const verifySourcePackage = (bytes: Uint8Array, manifest: SourceReleaseManifest): void => {
-  if (bytes.length !== manifest.size) throw new Error('SOURCE_UPDATE_SIZE_MISMATCH')
-  if (toHex(sha256(bytes)) !== manifest.sha256) throw new Error('SOURCE_UPDATE_SHA256_MISMATCH')
-  const result = verifySourcePayload(bytes, manifest.sig, manifest.keyId)
-  if (!result.ok) throw new Error(`SOURCE_UPDATE_SIGNATURE_${result.reason ?? 'UNKNOWN'}`)
 }
 
 const apiSourceList = apiSourceInfo.map(api => ({
@@ -259,8 +170,8 @@ export default memo(() => {
     modalRef.current?.show()
   }
 
-  // 更新音源：GitHub Contents API 优先，jsDelivr 兜底。脚本与 manifest 必须来自同一通道，
-  // 拉取后先过 size / sha256 / ed25519 三道闸，再比对版本、弹窗确认、才导入。
+  // 更新音源：只拉 lx-source.js 一个文件（多镜像兜底），拉到后比对版本、弹窗确认、才导入。
+  // V9.3 的「脚本+manifest 双文件 + 验签」已整体移除（K36），见文件头部说明。
   const [updating, setUpdating] = useState(false)
   const handleUpdateSource = useCallback(async() => {
     markChecked()
@@ -269,35 +180,26 @@ export default memo(() => {
     toast(t('source_update_checking'))
     try {
       let remoteScript = ''
-      let lastError: unknown
-      for (const source of SOURCE_UPDATE_SOURCES) {
+      const failures: string[] = []
+      for (const url of SOURCE_UPDATE_URLS) {
         try {
-          const [scriptBytes, manifestRaw] = await Promise.all([
-            fetchSourceScriptBytes(source.script.url, source.script.options, t('source_update_timeout')),
-            fetchSourceTextOrJson(source.manifest.url, source.manifest.options, t('source_update_timeout')),
-          ])
-          if (scriptBytes.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
-          const manifest = parseSourceReleaseManifest(manifestRaw)
-          verifySourcePackage(new Uint8Array(scriptBytes), manifest)
-          const script = scriptBytes.toString('utf8')
-          if (script.length < 50_000 || !parseSourceVersion(script)) throw new Error(t('source_update_bad_script'))
-          // 验签只覆盖字节；版本号还要单独对齐 manifest，避免脚本内版本被改而签名仍有效的情况
-          if (parseSourceVersion(script) !== manifest.version) throw new Error('SOURCE_UPDATE_VERSION_MISMATCH')
-          remoteScript = script
+          const response = await fetchWithTimeout(url, {}, t('source_update_timeout')) as { body?: unknown, statusCode?: unknown }
+          if (typeof response.statusCode === 'number' && response.statusCode !== 200) throw new Error('SOURCE_UPDATE_HTTP_' + response.statusCode)
+          // fetchData 对非 JSON 响应会保留字符串；拿到非字符串说明被网关换成了解析后的结构
+          if (typeof response.body !== 'string') throw new Error('SOURCE_UPDATE_NOT_MANIFEST')
+          if (response.body.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
+          if (response.body.length < 50_000 || !parseSourceVersion(response.body)) throw new Error(t('source_update_bad_script'))
+          remoteScript = response.body
           break
         } catch (err) {
-          lastError = err
+          failures.push(err instanceof Error ? err.message : '')
         }
       }
       if (!remoteScript) {
-        const message = lastError instanceof Error ? lastError.message : ''
-        let failMessage = message
-        if (message.startsWith('SOURCE_UPDATE_HTTP_')) {
-          failMessage = t('source_update_http_error').replace('{status}', message.slice('SOURCE_UPDATE_HTTP_'.length))
-        } else if (message === 'SOURCE_UPDATE_MANIFEST_INVALID') failMessage = t('source_update_manifest_invalid')
-        else if (message === 'SOURCE_UPDATE_SIZE_MISMATCH' || message === 'SOURCE_UPDATE_SHA256_MISMATCH' || message === 'SOURCE_UPDATE_VERSION_MISMATCH') failMessage = t('source_update_package_mismatch')
-        else if (message.startsWith('SOURCE_UPDATE_SIGNATURE_')) failMessage = t('source_update_signature_mismatch')
-        else if (message === 'SOURCE_UPDATE_BODY_NOT_BINARY' || !message) failMessage = t('source_update_bad_script')
+        const message = failures.length ? failures[failures.length - 1] : ''
+        let failMessage = t('source_update_bad_script')
+        if (message.startsWith('SOURCE_UPDATE_HTTP_')) failMessage = t('source_update_http_error').replace('{status}', message.slice('SOURCE_UPDATE_HTTP_'.length))
+        else if (message === 'SOURCE_UPDATE_NOT_MANIFEST') failMessage = t('source_update_not_manifest')
         throw new Error(failMessage)
       }
 

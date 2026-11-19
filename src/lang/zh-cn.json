@@ -1035,10 +1035,8 @@
   "setting_play_count_summary": "听歌统计：累计播放 {count} 次 · 今日 {day} 次 · 累计播放时长约 {time}",
   "setting_play_count_time_hm": "{h} 小时 {m} 分钟",
   "setting_play_count_time_m": "{m} 分钟",
-  "source_update_manifest_invalid": "更新包缺少有效的版本信息（manifest），已拒绝导入",
-  "source_update_package_mismatch": "更新包校验失败（大小或哈希不符，可能尚未同步完成），请稍后再试",
   "source_update_http_error": "拉取失败（HTTP {status}），可能是接口限流或网络受限，请稍后再试",
-  "source_update_signature_mismatch": "更新包验签失败（可能被篡改或不是官方发布），已拒绝导入",
+  "source_update_not_manifest": "拉取到的内容不是 manifest（可能被网络拦截或返回了错误页），已拒绝导入",
   "source_update_panel_current": "当前音源 v{version}",
   "source_update_panel_last_check": "上次检查 {time}",
   "source_update_panel_never": "上次检查：从未"

@@ -127,6 +127,13 @@ function stripComments(src) {
 /** 去注释后做正则匹配（接线类断言统一入口） */
 function hasCode(src, re) { return re.test(stripComments(src)) }
 
+/** 把字面量转成安全正则：避免每个断言手写转义（hasCode 的配套） */
+function literalRe(s) {
+  const escaped = String(s).replace(/[.*+?^${}()|[\]\\]/g, m => '\\' + m)
+  return new RegExp(escaped)
+}
+
 module.exports = module.exports || {}
 module.exports.stripComments = stripComments
+module.exports.literalRe = literalRe
 module.exports.hasCode = hasCode

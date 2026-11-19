@@ -1,3 +1,55 @@
+## [K36：整体下线 V9.3 在线更新体系，「更新音源」回归单文件拉取] - 2026-11-19
+
+> 用户定案：**「更新音源」按钮在 V9.3 之前本来没问题，是 V9.3 加的东西把它搞坏了」**。
+> 不再在 manifest/验签链上继续打补丁（K34 修响应形态、K35 加多镜像都只是缓解），直接整体移除。
+> i18n 键数 **1044 → 1041**（删 3 条验签专属文案），已同步 `AUDIT_PLAN.md` 硬数字。
+
+- **为什么砍：可用性 vs 安全性的权衡彻底失衡**
+  - V9.3 之前：`handleUpdateSource` 只 `httpFetch(jsDelivr url)` 取一个 `lx-source.js` 文本，15s 超时 + 大小校验 + 版本提取 + `importUserApi`。
+  - V9.3 之后：加 `SOURCE_UPDATE_SOURCES`（脚本+manifest 成对）、`parseSourceReleaseManifest`、
+    `verifySourcePackage`（size → sha256 → ed25519）、`assertOkStatus`……多出一个必须成功的文件。
+  - 结果：manifest 在境内网络下拿不到可解析内容（匿名 403 / DNS 污染 / 网关 200 错误页 /
+    Contents API base64 包装），**按钮从「能用」变成「必报缺少 manifest」**。
+  - 上游 `lyswhut/lx-music-mobile` v1.9.2 的 `Source.tsx` 仅 136 行、**根本没有这个按钮**，不存在对等约束。
+- **删除清单**
+  - `src/core/sourceUpdate/`（`verify.ts`，89 行）——整目录；`scripts/check_source_signing.js`（11 条）——整脚本；`release.yml` 的调用与相关注释。
+  - `Source.tsx`：`SOURCE_UPDATE_SOURCES` / `SourceReleaseManifest` / `assertOkStatus` / `fetchSourceTextOrJson` / `fetchSourceScriptBytes` / `unwrapGithubContents` / `parseSourceReleaseManifest` / `toHex` / `verifySourcePackage`。
+  - import：`verifySourcePayload`（`@/core/sourceUpdate/verify`）、`sha256`（`@noble/hashes/sha256`）。
+  - i18n：`source_update_manifest_invalid` / `source_update_package_mismatch` / `source_update_signature_mismatch`（三语各 3 条）。
+- **保留**
+  - `SOURCE_UPDATE_URLS`：4 条纯脚本镜像（`cdn.jsdelivr.net` / `fastly` / `gcore` / `raw.githubusercontent.com`），
+    串行取第一个成功——**只是把单点换成多镜像，不引入任何额外文件与校验链**。
+  - 版本对比 / 内置源覆盖 / pending 对账（`resolveSourceUpdateBaseline`、`resolveBuiltinTarget`、
+    `decidePendingBuiltinSwitch`、`overwriteUserApi`）——与验签无关，全部保留（`check_source_update_logic` 44 条不变）。
+  - 两条诊断文案（`source_update_http_error` / `source_update_not_manifest`）——新实现仍用得上。
+- **代价（明确记录）**：失去「Release 资产被替换」的防护。判定为可接受：上游本无此能力，
+  且音源脚本无任何本机敏感权限（`userApi` 沙箱内运行），minSdk 21 下该风险低于「用户完全无法更新音源」。
+- **验证**：tsc 0 error；eslint 单文件 0 error；`check_source_update_logic` 44/0；`check_download_persistence` 3/0；
+  `check_media_body` 6/0；`check_playback_budget` 21/0；`check_health_diagnostics` 60/0（详见推送前 preflight 输出）。
+
+## [K35：更新音源改多镜像并发 + 错误可诊断] - 2026-11-19
+
+> 用户装 b165 后仍报「更新包缺少有效的版本信息（manifest）」。b165 的 K34 修复本身没问题
+> （tag 指向 `0fb9cbf5`，代码含 `assertOkStatus` / `fetchSourceTextOrJson` / 对象兼容），
+> 但**境内网络下 2 条通道都拿不到可解析内容**，且错误文案无法区分原因。
+> i18n 键数 **1043 → 1044**（+1「内容不是 manifest」文案），已同步 `AUDIT_PLAN.md`。
+
+- **两条通道各自的失败形态**
+  - GitHub Contents API：`Accept: application/vnd.github.raw` 未生效（中间层改写/降级）时返回
+    `{ name, path, sha, size, content(base64), encoding }` 包装——**有 size 却没有 version**，
+    字段校验必然判定「缺少有效版本信息」；匿名还常态 403 限流。
+  - jsDelivr 主域：境内可能 DNS 污染或被网关插入错误页（HTTP 200 + 非 JSON），
+    `JSON.parse` 失败后 body 保持字符串 → 同样落到 `MANIFEST_INVALID`。
+- **修法**
+  - 通道 2 → **6 条**：`cdn.jsdelivr.net` / `fastly` / `gcore` / `testingcf` + `raw.githubusercontent.com`
+    + Contents API；每条带 `name` 用于诊断。
+  - **并发竞速**（`Promise.all` + 取首个 `ok`）：串行最坏 6×15s，并发把等待封顶在一个超时周期。
+  - 新增 `unwrapGithubContents`：识别 base64 包装并解包成原文，救回「Accept 未生效」的场景。
+  - 新增 `SOURCE_UPDATE_NOT_MANIFEST`：200 但非 JSON 时明确报「可能被网络拦截或返回了错误页」；
+    失败原因**带通道名**（如「（GitHub-raw）」），用户可直接反馈是哪个通道被拦。
+  - `check_source_signing` 加 **S5**：通道 ≥ 5、必含 GitHub raw、必须并发、必须有 NOT_MANIFEST 与解包兜底（11/0）。
+- **仍存的外部约束**：若用户所在网络对上述全部域名都拦截，功能仍不可用（这是托管位置问题，
+  需要国内可访问的静态托管才能根治）；但届时错误文案会明确指出「内容不是 manifest（XX 通道）」。
 ## [K33 门禁断言重构 + K34 修复手动更新 manifest] - 2026-11-19
 
 > K34 是 B2 引入的**用户可见故障**：点「更新音源」固定弹「更新包缺少有效的版本信息（manifest）」。
