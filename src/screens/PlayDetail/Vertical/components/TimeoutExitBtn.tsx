@@ -21,7 +21,6 @@ export default memo(() => {
       <Btn
         label={t('play_detail_header_timer')}
         color={timeInfo.active ? theme['c-primary-font-active'] : undefined}
-        bgColor={timeInfo.active ? theme['c-primary-alpha-300'] : undefined}
         onPress={handleShow}
       />
       <TimeoutExitEditModal ref={modalRef} timeInfo={timeInfo} />

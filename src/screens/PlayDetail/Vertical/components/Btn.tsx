@@ -11,14 +11,13 @@ export const HEADER_HEIGHT = scaleSizeH(_HEADER_HEIGHT)
 /**
  * Header 按钮。
  * - 图标模式（默认）：与上游一致，42dp 方格 + 18px 图标。
- * - 文字模式（传 label）：淡主色药丸底 + 汉字，解决纯图标「看不出是什么、也不像按钮」的问题。
- *   外层 Touchable 仍撑满 Header 高度，热区不小于 42dp。
+ * - 文字模式（传 label）：与播放页「音源/音质」标签（PlayQualityTag）同一套视觉——
+ *   1px 细边框 + 极淡主色底 + 主色粗体小字，不铺整块色底；外层 Touchable 仍撑满 42dp，热区不缩水。
  */
-export default ({ icon, label, color, bgColor, onPress }: {
+export default ({ icon, label, color, onPress }: {
   icon?: string
   label?: string
   color?: string
-  bgColor?: string
   onPress: () => void
 }) => {
   const theme = useTheme()
@@ -26,8 +25,8 @@ export default ({ icon, label, color, bgColor, onPress }: {
   if (label) {
     return (
       <TouchableOpacity onPress={onPress} style={styles.button}>
-        <View style={[styles.pill, { backgroundColor: bgColor ?? theme['c-primary-alpha-200'] }]}>
-          <Text size={13} color={color ?? theme['c-primary']} style={styles.pillText}>{label}</Text>
+        <View style={[styles.tag, { borderColor: theme['c-primary-alpha-300'], backgroundColor: theme['c-primary-alpha-900'] }]}>
+          <Text size={12} color={color ?? theme['c-primary']} style={styles.tagText}>{label}</Text>
         </View>
       </TouchableOpacity>
     )
@@ -45,17 +44,18 @@ const styles = createStyle({
     justifyContent: 'center',
     alignItems: 'center',
     height: '100%',
+    minWidth: 42,
     flex: 0,
   },
-  pill: {
-    height: 30,
-    minWidth: 46,
-    borderRadius: 15,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
+  tag: {
+    flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  pillText: {
-    fontWeight: '500',
+  tagText: {
+    fontWeight: 'bold',
   },
 })

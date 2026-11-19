@@ -1,3 +1,15 @@
+## [播放页两按钮改用音源标签样式（去色块）] - 2026-11-19
+
+> 用户反馈：两个按钮不要绿色背景，照「音源/音质」那行标签的样子做。
+> 改为与 `PlayQualityTag`（`src/components/PlayQualityTag.tsx`）同一套视觉：1px 细边框 `c-primary-alpha-300` +
+> 极淡底 `c-primary-alpha-900` + 主色粗体 12px 字，不再铺整块色底。
+
+- **改动**：竖屏 / 横屏 `Btn` 的 `label` 分支统一换成标签样式；移除 `bgColor` 参数；定时激活态只改文字色（`c-primary-font-active`）。
+- **热区**：外层 Touchable 保持 42dp（竖屏 `minWidth: 42` + `height: 100%`；横屏 `minWidth: BTN_WIDTH`），视觉变小、点击区域不变。
+- i18n 键数不变（1043）；`tsc --noEmit` 0 error、改动文件 ESLint 无告警、`preflight-push.sh` 47/47。
+
+---
+
 ## [播放页两按钮改汉字胶囊 + 推送前文档硬数字全量对账] - 2026-11-19
 
 > 用户反馈：播放页右上角两个纯图标按钮「看不出是什么、也不像按钮」。改成 13px 汉字 + 淡主色药丸底，
