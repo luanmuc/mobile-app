@@ -228,9 +228,10 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
     global.app_event.picUpdated()
   // A02-007：封面拉取没有 .catch，失败时产生未处理 rejection。对照紧邻的歌词路径 `.catch`
   // 会写状态文案，这里封面失败也应留痕（固定文案 + 错误码，不打 URL）。
-  }).catch((err: any) => {
+  }).catch((err: unknown) => {
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
-    logger.warn('封面加载失败', err?.code ?? typeof err)
+    const code = (err as { code?: unknown } | null)?.code
+    logger.warn('封面加载失败', typeof code === 'string' ? code : typeof err)
   })
 
   void getLyricInfo({ musicInfo }).then((lyricInfo) => {
@@ -263,9 +264,10 @@ const debouncePlay = debounceBackgroundTimer((musicInfo: LX.Player.PlayMusic) =>
     setMusicInfo({ pic: url })
     global.app_event.picUpdated()
   // A02-007：同 handleRestorePlay，补 .catch 避免未处理 rejection。
-  }).catch((err: any) => {
+  }).catch((err: unknown) => {
     if (musicInfo.id != playerState.playMusicInfo.musicInfo?.id) return
-    logger.warn('封面加载失败', err?.code ?? typeof err)
+    const code = (err as { code?: unknown } | null)?.code
+    logger.warn('封面加载失败', typeof code === 'string' ? code : typeof err)
   })
 
   void getLyricInfo({ musicInfo }).then((lyricInfo) => {
