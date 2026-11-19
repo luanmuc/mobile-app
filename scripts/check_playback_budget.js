@@ -86,19 +86,22 @@ run('P1B-A2 错误码提取兼容 code 与 CODE: message', () => {
   assert.strictEqual(classifyPlaybackErrorCode({ message: '普通错误' }), 'PLAY_FAIL')
 })
 
+// K33：接线断言统一走「去注释 + 容忍格式正则」，注释掉即不成立（防假绿），换行/空格不误伤（防假红）
+const { hasCode } = require('./lib/ast-match')
+
 SECTION('wiring')
 run('P1B-A3 主源失败写 primary attempt', () => {
   const source = read('src/core/music/utils.ts')
-  assert.ok(source.includes("stage: 'primary'"), '主源 catch 未写 primary attempt')
-  assert.ok(source.includes('playbackAttempts.push'), '主源 catch 未 push attempts')
+  assert.ok(hasCode(source, /stage\s*:\s*'primary'/), '主源 catch 未写 primary attempt')
+  assert.ok(hasCode(source, /playbackAttempts\s*\.\s*push\s*\(/), '主源 catch 未 push attempts')
 })
 
 run('P1B-A4 候选接受 budget/attempts 且耗尽即停', () => {
   const source = read('src/core/music/utils.ts')
-  assert.ok(source.includes('budget?: PlaybackBudget'), '候选函数未接受 budget')
-  assert.ok(source.includes('attempts?: PlaybackAttempt[]'), '候选函数未接受 attempts')
-  assert.ok(source.includes('isBudgetExhausted(playbackBudget)'), '候选循环未检查预算')
-  assert.ok(source.includes("stage: 'fallback'"), '候选失败未写 fallback attempt')
+  assert.ok(hasCode(source, /budget\s*[?]\s*:\s*PlaybackBudget/), '候选函数未接受 budget')
+  assert.ok(hasCode(source, /attempts\s*[?]\s*:\s*PlaybackAttempt\s*\[\s*\]/), '候选函数未接受 attempts')
+  assert.ok(hasCode(source, /isBudgetExhausted\s*\(\s*playbackBudget\s*\)/), '候选循环未检查预算')
+  assert.ok(hasCode(source, /stage\s*:\s*'fallback'/), '候选失败未写 fallback attempt')
 })
 
 run('P1B-A5 请求受 raceWithBudget 约束且 24s < 25s', () => {
@@ -108,12 +111,12 @@ run('P1B-A5 请求受 raceWithBudget 约束且 24s < 25s', () => {
   assert.ok(typeof budget.raceWithBudget === 'function', 'playbackBudget 缺少 raceWithBudget')
   assert.ok(/raceWithBudget[<(]/.test(utils), 'utils 未使用 raceWithBudget')
   assert.ok(budget.PLAYBACK_BUDGET_MS < 25_000, '24s 预算必须早于外层 25s')
-  assert.ok(online.includes('25_000'), '外层 25s 兜底不应被移除')
+  assert.ok(hasCode(online, /25_000/), '外层 25s 兜底不应被移除')
 })
 
 run('P1B-A6 外层失败日志带 attempts', () => {
   const online = read('src/core/music/online.ts')
-  assert.ok(online.includes('attempts'), 'online.ts 失败日志未带 attempts')
+  assert.ok(hasCode(online, /attempts/), 'online.ts 失败日志未带 attempts')
 })
 
 SECTION('other source cache')
@@ -151,11 +154,11 @@ run('P1D-A3 容量 50 且 LRU 只淘汰最旧', () => {
 
 run('P1D-A4 utils 使用稳定 key 缓存并保留 refresh 语义', () => {
   const utils = read('src/core/music/utils.ts')
-  assert.ok(utils.includes('readOtherSourceCache('), '未读 otherSourceCache')
-  assert.ok(utils.includes('writeOtherSourceCache('), '未写 otherSourceCache')
-  assert.ok(utils.includes('const cacheKey ='), '未使用稳定 key')
-  assert.ok(utils.includes('if (!isRefresh)'), '未保留 refresh 跳过缓存')
-  assert.ok(utils.includes('source.length ? OTHER_SOURCE_CACHE_TTL_MS : OTHER_SOURCE_NEGATIVE_TTL_MS'), '空结果未使用负缓存 TTL')
+  assert.ok(hasCode(utils, /readOtherSourceCache\s*\(/), '未读 otherSourceCache')
+  assert.ok(hasCode(utils, /writeOtherSourceCache\s*\(/), '未写 otherSourceCache')
+  assert.ok(hasCode(utils, /const\s+cacheKey\s*=/), '未使用稳定 key')
+  assert.ok(hasCode(utils, /if\s*\(\s*!isRefresh\s*\)/), '未保留 refresh 跳过缓存')
+  assert.ok(hasCode(utils, /source\.length\s*[?]\s*OTHER_SOURCE_CACHE_TTL_MS\s*:\s*OTHER_SOURCE_NEGATIVE_TTL_MS/), '空结果未使用负缓存 TTL')
 })
 
 SECTION('play_result attempts')
@@ -211,7 +214,7 @@ run('P1C-A2 attempts 白名单归一、限 20 条', () => {
 run('P1C-A3 失败记录接线并保留结构化错误码', () => {
   const online = read('src/core/music/online.ts')
   assert.ok(/attempts:\s*normalizeAttempts|attempts:\s*errAttempts/.test(online), '失败 recordPlayResult 未传 attempts')
-  assert.ok(online.includes('errAny?.code'), '失败码未优先读取 err.code')
+  assert.ok(hasCode(online, /errAny\s*[?]\.\s*code/), '失败码未优先读取 err.code')
 })
 
 SECTION('owner attribution')
@@ -239,16 +242,16 @@ run('P1E-A2 play_result 保留合法 owner，丢弃非法值', () => {
 
 run('P1E-A3 主源按 fallbackOwner 解析，候选固定 host', () => {
   const utils = read('src/core/music/utils.ts')
-  assert.ok(utils.includes('resolvePlaybackOwner(fallbackOwner)'), '主源未按 fallbackOwner 解析 owner')
+  assert.ok(hasCode(utils, /resolvePlaybackOwner\s*\(\s*fallbackOwner\s*\)/), '主源未按 fallbackOwner 解析 owner')
   assert.ok(/stage: 'primary'.*owner: primaryOwner|owner: primaryOwner.*stage: 'primary'/.test(utils), 'primary attempt 未使用解析后的 owner')
   assert.ok(/stage: 'fallback'.*owner: 'host'|owner: 'host'.*stage: 'fallback'/.test(utils), 'fallback attempt 未标记 host')
 })
 
 run('P1E-A4 同 trace 同平台候选只尝试一次', () => {
   const utils = read('src/core/music/utils.ts')
-  assert.ok(utils.includes('if (retryedSource.includes(musicInfo.source)) continue'), '候选循环未按平台去重')
-  assert.ok(utils.includes('retryedSource.push(musicInfo.source)'), '候选平台未入已试集合')
-  assert.ok(utils.includes('retryedSource: [musicInfo.source]'), '首轮候选未预置主平台')
+  assert.ok(hasCode(utils, /if\s*\(\s*retryedSource\.includes\s*\(\s*musicInfo\.source\s*\)\s*\)\s*continue/), '候选循环未按平台去重')
+  assert.ok(hasCode(utils, /retryedSource\.push\s*\(\s*musicInfo\.source\s*\)/), '候选平台未入已试集合')
+  assert.ok(hasCode(utils, /retryedSource\s*:\s*\[\s*musicInfo\.source\s*\]/), '首轮候选未预置主平台')
 })
 
 const asyncRun = async(name, fn) => {

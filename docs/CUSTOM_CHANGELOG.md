@@ -1,3 +1,26 @@
+## [K33 门禁断言重构 + K34 修复手动更新 manifest] - 2026-11-19
+
+> K34 是 B2 引入的**用户可见故障**：点「更新音源」固定弹「更新包缺少有效的版本信息（manifest）」。
+> 版本号由 CI 在本提交 push 后自动 +1（遵守 RELEASE_SOP，禁止手改）。
+> i18n 键数 **1042 → 1043**（+1 HTTP 拉取错误文案，三语），已同步 `AUDIT_PLAN.md` 硬数字。
+
+- **K34 根因（两通道叠加）**
+  - `request.js` 的 `fetchData` 对 `application/json` 响应**自动 `JSON.parse`**（"binary ? blob : text" 之后统一 parse）。
+  - B2 里的 `fetchSourceScript` 只写 `typeof response.body === 'string' ? body : ''` → manifest 被 parse 成对象后**返回空串** → `JSON.parse('')` 抛 `SOURCE_UPDATE_MANIFEST_INVALID`。
+  - 通道侧：Contents API 匿名请求实测 **HTTP 403 rate limit**；jsDelivr 实测 **200 且内容完整**（manifest 本身没坏）。
+  - 结论：坏在**响应形态判断**，不是 manifest 文件本身。
+- **修法**
+  - `parseSourceReleaseManifest(input: unknown)`：字符串走 `JSON.parse`，对象直接校验（版本/大小/sha256/签名四项不变）。
+  - 新增 `fetchSourceTextOrJson`：返回原始 body（字符串或对象均可），并校验 HTTP 状态。
+  - 新增 `assertOkStatus`：非 200 抛 `SOURCE_UPDATE_HTTP_<status>` → 映射到新文案 `source_update_http_error`，**不再伪装成「缺少 manifest」**；脚本字节拉取同样加状态检查（避免 403 的错误 JSON 被当成脚本，报成「大小不符」）。
+  - `check_source_signing` 新增 **S4**：断言解析函数兼容对象形态 + 禁用旧的「非字符串即空串」写法（10/0）。
+- **K33 门禁断言重构（接线类假绿/假红）**
+  - 逐条核销原 5 个脚本：`check_health_state_v2`、`check_pitch` **为误报**（前者是运行期断言，后者本就用正则 + 作用域提取）；其余 3 个是真问题。
+  - 新增 `scripts/lib/ast-match.js`：`parseSource`/`walk`/`findCalls`/`argTexts`/`hasCallWithArgs`/`hasDeleteOf`/`findDecls`/`initText`/`stripComments`/`hasCode`。
+  - 3 个脚本 14 处断言改写：`check_download_persistence`（D1/D2 走 AST 调用形态）、`check_media_body`（6 条走 `hasCode`）、`check_playback_budget`（9 处走 `hasCode`）。
+  - 变异验证：注释掉→红、参数错位→红、合法多行→绿；`isBudgetExhausted(playbackBudget)` 在 `utils.ts` 有两处，必须全量替换才能触发红（记录为方法论）。
+- **未纳入本次**：其余 `includes('...')` 同类断言（`check_health_diagnostics` 54、`check_source_update_logic` 21、`check_health_ui_mapping` 18 等）按同一方法论留待后续批次。
+
 ## [B2：下线启动期在线自动更新，验签并入手动更新] - 2026-11-19
 
 > 这不是一次功能调整，修的是一个真实线上故障：**V9.3 的启动期自动更新导致冷启动白屏 20~30 秒**。

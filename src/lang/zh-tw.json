@@ -1037,6 +1037,7 @@
   "setting_play_count_time_m": "{m} 分鐘",
   "source_update_manifest_invalid": "更新包缺少有效的版本資訊（manifest），已拒絕匯入",
   "source_update_package_mismatch": "更新包校驗失敗（大小或雜湊不符，可能尚未同步完成），請稍後再試",
+  "source_update_http_error": "拉取失敗（HTTP {status}），可能是介面限流或網路受限，請稍後再試",
   "source_update_signature_mismatch": "更新包驗簽失敗（可能遭竄改或非官方發布），已拒絕匯入",
   "source_update_panel_current": "目前音源 v{version}",
   "source_update_panel_last_check": "上次檢查 {time}",

@@ -123,6 +123,17 @@ async function main() {
     assert(files.length === 1 && files[0] === 'verify.ts', `目录应只剩 verify.ts，实际 ${files.join(',')}`)
   })
 
+  // K34：fetchData 对 application/json 会自动 JSON.parse，manifest 到前端可能是「对象」。
+  // 旧实现只收 string（对象一律返回空串）→ JSON.parse('') 抛错 → 用户点「更新音源」固定看到
+  // 「更新包缺少有效的版本信息（manifest）」。这条锁死兼容写法，防止再退回字符串-only。
+  check('S4 manifest 解析兼容 fetchData 的 JSON 对象形态', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Basic/Source.tsx'), 'utf8')
+    assert(/typeof\s+input\s*===\s*'string'/.test(src), 'parseSourceReleaseManifest 未兼容对象输入')
+    assert(src.includes('fetchSourceTextOrJson'), 'manifest 拉取未走「文本或 JSON」兼容入口')
+    assert(!src.includes("typeof response.body === 'string' ? response.body : ''"), '旧的「非字符串即空串」写法复活')
+    assert(src.includes('assertOkStatus'), '拉取未校验 HTTP 状态（403/404 会被误判成 manifest 无效）')
+  })
+
   console.log(`\n验签运行时检查：${pass} 通过 / ${fail} 失败`)
   process.exit(fail === 0 ? 0 : 1)
 }

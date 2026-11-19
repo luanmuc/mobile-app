@@ -73,9 +73,17 @@ const fetchWithTimeout = async(url: string, options: Record<string, unknown>, ti
   }
 }
 
-const fetchSourceScript = async(url: string, options: Record<string, unknown>, timeoutMessage: string) => {
-  const response = await fetchWithTimeout(url, options, timeoutMessage) as { body?: unknown }
-  return typeof response.body === 'string' ? response.body : ''
+// B2 修复：fetchData 对 application/json 会自动 JSON.parse，所以 .manifest.json 走到这里
+// 可能已经是对象而不是字符串。此前只接受 string，对象一律返回空串 → JSON.parse('') 抛错 →
+// 用户侧表现为「更新包缺少有效的版本信息（manifest）」（K34）。
+const assertOkStatus = (statusCode: unknown): void => {
+  if (typeof statusCode === 'number' && statusCode !== 200) throw new Error(`SOURCE_UPDATE_HTTP_${statusCode}`)
+}
+
+const fetchSourceTextOrJson = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<unknown> => {
+  const response = await fetchWithTimeout(url, options, timeoutMessage) as { body?: unknown, statusCode?: unknown }
+  assertOkStatus(response.statusCode)
+  return response.body
 }
 
 /**
@@ -83,17 +91,20 @@ const fetchSourceScript = async(url: string, options: Record<string, unknown>, t
  * 在不同端算出不同 sha256/签名，所以这里必须走 binary 模式（FileReader → buffer）。
  */
 const fetchSourceScriptBytes = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<Buffer> => {
-  const response = await fetchWithTimeout(url, { ...options, binary: true }, timeoutMessage) as { body?: unknown }
+  const response = await fetchWithTimeout(url, { ...options, binary: true }, timeoutMessage) as { body?: unknown, statusCode?: unknown }
+  assertOkStatus(response.statusCode)
   if (!(response.body instanceof Uint8Array)) throw new Error('SOURCE_UPDATE_BODY_NOT_BINARY')
   return Buffer.from(response.body)
 }
 
-const parseSourceReleaseManifest = (text: string): SourceReleaseManifest => {
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch {
-    throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+const parseSourceReleaseManifest = (input: unknown): SourceReleaseManifest => {
+  let raw: unknown = input
+  if (typeof input === 'string') {
+    try {
+      raw = JSON.parse(input)
+    } catch {
+      throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+    }
   }
   if (!raw || typeof raw !== 'object') throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
   const manifest = raw as Partial<SourceReleaseManifest>
@@ -261,12 +272,12 @@ export default memo(() => {
       let lastError: unknown
       for (const source of SOURCE_UPDATE_SOURCES) {
         try {
-          const [scriptBytes, manifestText] = await Promise.all([
+          const [scriptBytes, manifestRaw] = await Promise.all([
             fetchSourceScriptBytes(source.script.url, source.script.options, t('source_update_timeout')),
-            fetchSourceScript(source.manifest.url, source.manifest.options, t('source_update_timeout')),
+            fetchSourceTextOrJson(source.manifest.url, source.manifest.options, t('source_update_timeout')),
           ])
           if (scriptBytes.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
-          const manifest = parseSourceReleaseManifest(manifestText)
+          const manifest = parseSourceReleaseManifest(manifestRaw)
           verifySourcePackage(new Uint8Array(scriptBytes), manifest)
           const script = scriptBytes.toString('utf8')
           if (script.length < 50_000 || !parseSourceVersion(script)) throw new Error(t('source_update_bad_script'))
@@ -281,7 +292,9 @@ export default memo(() => {
       if (!remoteScript) {
         const message = lastError instanceof Error ? lastError.message : ''
         let failMessage = message
-        if (message === 'SOURCE_UPDATE_MANIFEST_INVALID') failMessage = t('source_update_manifest_invalid')
+        if (message.startsWith('SOURCE_UPDATE_HTTP_')) {
+          failMessage = t('source_update_http_error').replace('{status}', message.slice('SOURCE_UPDATE_HTTP_'.length))
+        } else if (message === 'SOURCE_UPDATE_MANIFEST_INVALID') failMessage = t('source_update_manifest_invalid')
         else if (message === 'SOURCE_UPDATE_SIZE_MISMATCH' || message === 'SOURCE_UPDATE_SHA256_MISMATCH' || message === 'SOURCE_UPDATE_VERSION_MISMATCH') failMessage = t('source_update_package_mismatch')
         else if (message.startsWith('SOURCE_UPDATE_SIGNATURE_')) failMessage = t('source_update_signature_mismatch')
         else if (message === 'SOURCE_UPDATE_BODY_NOT_BINARY' || !message) failMessage = t('source_update_bad_script')

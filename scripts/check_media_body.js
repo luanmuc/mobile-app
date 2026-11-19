@@ -101,20 +101,29 @@ run('P2-A4 0 字节保留零长语义', () => {
 })
 
 SECTION('wiring')
+// K33：接线断言改为「去注释 + 容忍格式的正则」——注释掉即不成立（防假绿），换行/空格不误伤（防假红）
+const { hasCode } = require('./lib/ast-match')
+
 run('P2-A5 request.js binary 分支按能力使用信封', () => {
   const source = read('src/core/init/userApi/request.js')
-  assert.ok(source.includes('encodeMediaBody'), 'request.js 未引入 encodeMediaBody')
-  assert.ok(source.includes('mediaEnvelope ? encodeMediaBody(buffer) : buffer'), 'binary 分支未按 mediaEnvelope 分流')
+  assert.ok(hasCode(source, /encodeMediaBody/), 'request.js 未引入 encodeMediaBody')
+  assert.ok(
+    hasCode(source, /\bmediaEnvelope\s*[?]\s*encodeMediaBody\s*\(\s*buffer\s*\)\s*:\s*buffer\b/),
+    'binary 分支未按 mediaEnvelope 分流（去注释后匹配）',
+  )
 })
 
 run('P2-A6 能力协商链路：inited 声明 → App 记录 → 请求带 sourceId', () => {
   const preload = read('android/app/src/main/assets/script/user-api-preload.js')
-  assert.ok(preload.includes('sourceId: id'), 'preload request 未带 sourceId')
+  assert.ok(hasCode(preload, /sourceId\s*:\s*id\b/), 'preload request 未带 sourceId')
   const index = read('src/core/init/userApi/index.ts')
-  assert.ok(index.includes('global.lx.mediaEnvelopes[info.id] = info.mediaEnvelope === 2'), 'App 未记录脚本媒体能力')
-  assert.ok(index.includes('event.data.sourceId'), 'App 未把 sourceId 传给 sendScriptRequest')
+  assert.ok(
+    hasCode(index, /global\.lx\.mediaEnvelopes\s*\[\s*info\.id\s*\]\s*=\s*info\.mediaEnvelope\s*===\s*2/),
+    'App 未记录脚本媒体能力',
+  )
+  assert.ok(hasCode(index, /event\.data\.sourceId/), 'App 未把 sourceId 传给 sendScriptRequest')
   const type = read('src/types/user_api.d.ts')
-  assert.ok(type.includes('mediaEnvelope?: number'), 'UserApiInfo 缺 mediaEnvelope 能力字段')
+  assert.ok(hasCode(type, /mediaEnvelope\s*[?]\s*:\s*number/), 'UserApiInfo 缺 mediaEnvelope 能力字段')
 })
 
 console.log(`\n===== 桥媒体信封审计：${checks} 通过 / ${failures} 失败 =====`)
