@@ -21,8 +21,10 @@ let pass = 0
 let fail = 0
 const failures = []
 
+let seq = 0
 const check = (name, cond) => {
-  if (cond) { pass++ } else { fail++; failures.push(name) }
+  const id = 'VF' + String(++seq).padStart(2, '0')
+  if (cond) { pass++; console.log(`  ✓ ${id} ${name}`) } else { fail++; failures.push(`${id} ${name}`) }
 }
 
 // ── 1) 静态层 ────────────────────────────────────────────────────────────────

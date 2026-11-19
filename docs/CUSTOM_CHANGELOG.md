@@ -32,6 +32,15 @@
 变异验证：
 - `check('HS12'` → `check('HS12x'` → 脚本自跑仍 `14 passed, 0 failed`，校验器报 `⛔ ID 漂移 少 HS12 / 多 HS12x`
 - `P('G10'` 第二分支 → `P('G10x'` → 条数仍 14，校验器报 `少 G10×1（应 2 实 1）/ 多 G10x`
+**扩充（同日）**：6c → **37 脚本 / 595 条**
+
+- `RE_ID` 支持中缀 ID（`P1B-A1` / `P1F-A1` / `R-01-W1`）——`check_playback_budget` / `check_playback_ownership_runtime` /
+  `check_release_state_contract` 三个脚本**本来就有 ID**，只是此前识别不到，纳管无需改脚本
+- `check_source_config_contract` 的 29 条 `✓` 行加 `SC01~SC29`
+- `check_volume_fade` 此前**通过时只打一行汇总**（失败才逐条打 `✗`），加 `VF01~VF40` 逐条输出后才可纳管
+- `--gen-ids` 补「未列入告警」：列出「声明 N / 提到 0 个 ID」的脚本，避免静默漏（上次漏了 `check_equalizer` / `check_pitch`）
+- 变异：`VF`→`VE`、`SC`→`SD`，条数 40=40 / 29=29 **一点不变**，校验器报 `少 VF01…` / `少 SC01…`——正是条数层抓不到的那类
+- 仍不入 6c：`check_ts_syntax`(541，数文件数)、`check_docs_consistency`(17，数文档数) 属计数型，不是断言身份
 
 ## [CI 跨仓断言从未真跑] - 2026-11-19
 

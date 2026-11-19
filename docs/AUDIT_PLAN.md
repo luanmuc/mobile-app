@@ -164,7 +164,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 ### 6b. 全量脚本台账（50 个 `check_*.js`）
 
-> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（37 个脚本 / 465 条，ID 多重集）。
+> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（34 个脚本 / 502 条，ID 多重集）。
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
@@ -216,7 +216,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
-### 6c. 断言 ID 台账（37 个脚本 / 465 条，ID 多重集）
+### 6c. 断言 ID 台账（37 个脚本 / 595 条，ID 多重集）
 
 > 6b 只比「条数」，抓不到**数量不变但某条断言被换掉**（把 HS3 换成 HS9、把 D5 改名 D5x）。
 > 本节要的是身份：每个脚本输出的 `✓ ID` / `✅ [ID]` 必须与下表**逐个 ID、逐个次数**相同。
@@ -224,8 +224,15 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 > 口径是**多重集**：同一个 ID 可以挂多条子断言（`H7×6`、`H6×7`、`I05×11` 表示该 ID 被印了这么多次），
 > 只比「ID 出现过」抓不到少一条子断言，所以连**次数**一起钉住。
 >
-> 收录「ID 出现总次数 == 6b 声明数」的全部脚本（37 个 / 465 条）。尚未覆盖的脚本有断言不印 ID，
-> 只受 6b 条数约束。编号跳号（`U21`、`S6`）是历史事实，已按现状钉住。
+> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（37 个 / 595 条）。尚未覆盖的脚本有断言不印 ID，
+> 只受 6b 条数约束。
+>
+> **不入 6c 的稳定型例外**：`check_download_restore_runtime` / `check_media_body` /
+> `check_player_progress_runtime` / `check_source_contract` / `check_source_health_persistence`
+> 的输出依赖前序产物或环境（同一版本连跑会得到不同 ID 形态，如 `N2×3` ↔ `N2 N2-D1 N2-D2 N2-D3`），
+> 纳入会产生假漂移，故只受 6b 条数约束。
+>
+> 编号跳号（`U21`、`S6`）是历史事实，已按现状钉住。
 >
 > 维护：改了脚本的断言行就重跑 `node scripts/check_assertion_ledger.js --gen-ids`，整表替换。
 > 跨仓脚本需带 `LX_SOURCE_ROOT=<源仓路径> LX_REQUIRE_SOURCE=1` 才能跑全（否则少 7 条）。
@@ -245,27 +252,27 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_health_persistence_v2` | 9 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 |
 | `check_health_anomaly_v2` | 8 | A1 A2 A3 A4 A5 A6 A7 A8 |
 | `check_health_real_playback` | 11 | R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 |
-| `check_source_health_persistence` | 17 | A7×2 A7b A8 A9×3 A9b A10 A11 A12 A13 B1 B2 B3 B4 G5 |
-| `check_source_contract` | 14 | P0×10 P1×4 |
+| `check_source_config_contract` | 29 | SC01 SC02 SC03 SC04 SC05 SC06 SC07 SC08 SC09 SC10 SC11 SC12 SC13 SC14 SC15 SC16 SC17 SC18 SC19 SC20 SC21 SC22 SC23 SC24 SC25 SC26 SC27 SC28 SC29 |
 | `check_source_update_logic` | 44 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 U13 U14 U15 U16 U17 U18 U19 U20 U22 U23 U24 U25 U26 U27 U28 U29 U30 U31 U32 U33 U34 U35 U36 U37 U38 U39 U40 U41 U42 U43 U44 U45 |
 | `check_list_overwrite_rollback` | 4 | A1 A2 A3 A4 |
 | `check_flipper_stub` | 4 | F1 F2 F3 F4 |
 | `check_playback_cache_guard` | 8 | G1 G2 G3 G4 G4b G5 G6 G7 |
 | `check_log_redaction` | 4 | G1 G2 G3 G4 |
 | `check_source_platform_label` | 9 | L1×2 L2×2 L3 L4×3 L5 |
-| `check_quality_request_runtime` | 12 | P0×10 P1×2 |
+| `check_playback_budget` | 21 | P1B-A1 P1B-A2×2 P1B-A3 P1B-A4 P1B-A5×3 P1B-A6 P1C-A1 P1C-A1b P1C-A2 P1C-A3 P1D-A1 P1D-A2 P1D-A3 P1D-A4 P1E-A1 P1E-A2 P1E-A3 P1E-A4 |
+| `check_playback_ownership_runtime` | 21 | P1F-A1 P1F-A2 P1F-A3 P1F-A4 P1F-A6 P1U-E1 P1U-E2 P1U-E3 P1U-E4 P1U-L1 P1U-Q1 P1U-Q2 P1U-Q3 P1U-Y1 P1U-Y2 P1U-Y3 P1U-Y4 P1U-Y5 P1U-Y6 P1U-Y7 P1U-Y8 |
 | `check_playback_timeout_race` | 1 | T1 |
 | `check_player_core_runtime` | 15 | N2×15 |
 | `check_player_service_runtime` | 10 | N2×10 |
 | `check_player_hook_runtime` | 7 | N2×7 |
 | `check_player_utils_runtime` | 7 | N2×7 |
-| `check_player_progress_runtime` | 4 | N3×4 |
-| `check_media_body` | 6 | P2×6 |
 | `check_sync_client_runtime` | 4 | N2×4 |
+| `check_pitch` | 30 | PT01 PT02 PT03 PT04 PT05 PT06 PT07 PT08 PT09 PT10 PT11 PT12 PT13 PT14 PT15 PT16 PT17 PT18 PT19 PT20 PT21 PT22 PT23 PT24 PT25 PT26 PT27 PT28 PT29 PT30 |
+| `check_volume_fade` | 40 | VF01 VF02 VF03 VF04 VF05 VF06 VF07 VF08 VF09 VF10 VF11 VF12 VF13 VF14 VF15 VF16 VF17 VF18 VF19 VF20 VF21 VF22 VF23 VF24 VF25 VF26 VF27 VF28 VF29 VF30 VF31 VF32 VF33 VF34 VF35 VF36 VF37 VF38 VF39 VF40 |
+| `check_equalizer` | 51 | EQ01 EQ02 EQ03 EQ04 EQ05 EQ06 EQ07 EQ08 EQ09 EQ10 EQ11 EQ12 EQ13 EQ14 EQ15 EQ16 EQ17 EQ18 EQ19 EQ20 EQ21 EQ22 EQ23 EQ24 EQ25 EQ26 EQ27 EQ28 EQ29 EQ30 EQ31 EQ32 EQ33 EQ34 EQ35 EQ36 EQ37 EQ38 EQ39 EQ40 EQ41 EQ42 EQ43 EQ44 EQ45 EQ46 EQ47 EQ48 EQ49 EQ50 EQ51 |
 | `check_download_persistence` | 3 | D1 D2 D3 |
-| `check_download_restore_runtime` | 3 | N2×3 |
 | `check_download_error_i18n` | 7 | I07×7 |
-| `check_file_name_template_runtime` | 11 | I05×11 |
+| `check_release_state_contract` | 5 | R-01-S1 R-01-S2 R-01-W1 R-01-W2 R-01-W3 |
 | `check_cross_repo_linkage` | 8 | C1 C2 C3 C4 C5 C6 C7 C8 |
 | `check_cross_repo_health_roundtrip` | 4 | X1 X1b X2 X3 |
 | `check_truth_gates` | 14 | G6 G7×2 G8 G10×2 G11 G12 G18 G20 G21 G22 G23 G27 |
@@ -650,4 +657,5 @@ npx tsc --noEmit
 | 2026-11-19 | 6c 升级为 **ID 多重集**：18 脚本 / 190 条 → **35 脚本 / 397 条**。复用 ID（`H7×5`、`I05×11`、`N2×3`）按**次数**钉住，少一条子断言也报。变异：G10 第二分支改 G10x → 条数仍 14，报「少 G10×1（应 2 实 1）/ 多 G10x」 |
 | 2026-11-19 | `check_health_diagnostics` 的两处静默 `passed++`（模块加载检查）显式化成 **M1/M2** 断言：自报 60 条、实际只看得见 58 条的错位消除。该脚本随之纳入 6c，覆盖升到 **36 脚本 / 457 条**。变异：H5 改名 H5x → 条数仍 60，报「少 H5×1（应 5 实 4）/ 多 H5x」 |
 | 2026-11-19 | **CI 跨仓断言从未真跑**：checks job clone 了源仓到 `_source` 并写着「用 `LX_REQUIRE_SOURCE=1` 禁止跳过」，但从未 export 这组变量 → 两个跨仓脚本一直走 SKIP。差 7 条 = 健康态往返 4 + 联动 3。修复后 6c 覆盖升到 **37 脚本 / 465 条**（linkage 8 条补 C1~C8 ID） |
+| 2026-11-19 | 6c 扩充到 **37 脚本 / 595 条**：(a) `RE_ID` 支持中缀形态（`P1B-A1` / `P1F-A1` / `R-01-W1`），3 个**本就有 ID** 的脚本直接纳管、无需改脚本；(b) `check_source_config_contract` 的 `✓` 行加 `SC01~SC29`、(c) `check_volume_fade` 此前**通过时不逐条打印**，加 `VF01~VF40` 后才可纳管。`--gen-ids` 同时补「未列入告警」，避免再像上次那样静默漏脚本。变异 VF→VE / SC→SD 条数不变、报 `少 VF01…/少 SC01…` 双向验证通过 |
 | 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |

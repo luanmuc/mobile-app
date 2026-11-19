@@ -34,8 +34,11 @@ const SKIP = new Set([
 ])
 // 断言 ID：`✓ HS1 标题` / `  ✅ [G7] 说明` / `✔ V12 ...` 这类行首标记 + 1~3 字母 + 数字(+单字母后缀)
 // 用途：抓「数量没变但某条断言被换成了另一条」——只比条数抓不到这种漂移。
-const RE_ID = /^\s*(?:✓|✔|✅)\s*(?:\[\s*)?([A-Z]{1,3}\d{1,3}[a-z]?)\b/gm
-const idSortKey = s => s.replace(/^([A-Z]+)(\d+)([a-z]?)$/, (_, p, n, x) => p + String(n).padStart(4, '0') + x)
+// ID 形态：HS1 / U45 / G4b / EQ01 / C1 / P1B-A1 / P1F-A1 / R-01-W1
+// 中缀形式（P1B-A1、R-01-W1）历史上就有，只是此前没被识别，纳管不需要改脚本。
+const RE_ID = /^\s*(?:✓|✔|✅)\s*(?:\[\s*)?([A-Z][A-Z0-9]{0,3}(?:-\d{1,3})?(?:-[A-Z]\d{1,3}|[A-Z]?\d{1,3})[a-z]?)\b/gm
+// 排序键：把每段字母+数字的编号补零，兼容 R-01-W1 这种带连字符的 ID
+const idSortKey = s => s.replace(/([A-Z]+)(\d+)([a-z]?)/g, (_, p, n, x) => p + String(n).padStart(4, '0') + x)
 // 返回 Map<ID, 出现次数>：同一个 ID 可以挂多条子断言（如 H7×5），按次数比对才能抓到「少一条 H7」
 const extractIdCounts = output => {
   const m = new Map()
@@ -88,7 +91,7 @@ function readIdLedger(txt) {
     if (!m) continue
     const counts = new Map()
     for (const tok of m[2].trim().split(/\s+/).filter(Boolean)) {
-      const mm = tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?)(?:×|x(\d+))?$/) || tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?)×([0-9]+)$/)
+      const mm = tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?(?:-[A-Z]\d{1,3}[a-z]?)*)(?:×|x(\d+))?$/) || tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?(?:-[A-Z]\d{1,3}[a-z]?)*)×([0-9]+)$/)
       if (!mm) continue
       const id = mm[1]
       counts.set(id, Number(mm[2] || 1))
@@ -255,10 +258,12 @@ function main() {
   const skippedEnv = results.filter(r => r.state === 'skipped-env')
   if (genIds) {
     // 只列「ID 数 == 台账声明数」的脚本：这类脚本能一对一校验断言身份
-    const lines = results
+    const all = results
       .filter(r => r.state === 'ok' && r.counts)
       .map(r => ({ script: r.script, declared: r.declared, ids: extractIdCounts(r.output || '') }))
-      .filter(x => [...x.ids.values()].reduce((a, b) => a + b, 0) === x.declared)
+    const sumOf = x => [...x.ids.values()].reduce((a, b) => a + b, 0)
+    // 只收「ID 总次数 == 声明数」的；其余必须显式列出，否则会像上次那样静默漏两个脚本
+    const lines = all.filter(x => sumOf(x) === x.declared)
     console.log('| 脚本 | 断言数 | ID 清单（复用标 ×N） |')
     console.log('|---|---|---|')
     for (const x of lines) {
@@ -266,7 +271,12 @@ function main() {
       console.log(`| \`${x.script}\` | ${x.declared} | ${cell} |`)
     }
     const total = lines.reduce((a, x) => a + x.declared, 0)
-    console.log(`\n（${lines.length} 个脚本 / ${total} 条断言 ID 全覆盖；其余脚本部分断言无 ID，只能按条数校验）`)
+    console.log(`\n（${lines.length} 个脚本 / ${total} 条断言 ID 全覆盖）`)
+    const partial = all.filter(x => sumOf(x) !== x.declared)
+    if (partial.length) {
+      console.log('\n⚠ 以下脚本 ID 不全或形态不稳定，未列入 6c（只能按条数校验）：')
+      for (const x of partial) console.log(`  ${x.script}: 声明 ${x.declared} / 提到 ${sumOf(x)} 个 ID`)
+    }
     return 0
   }
   const okRows = results.filter(r => r.state === 'ok')

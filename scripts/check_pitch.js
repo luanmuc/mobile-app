@@ -15,6 +15,8 @@ let fail = 0
 let skip = 0
 const failures = []
 
+// 断言序号 ID（PT01...）：给台账 6c 的多重集校验提供稳定身份
+let __assertSeq = 0
 function check(name, fn) {
   let ok = false
   let reason = ''
@@ -25,7 +27,7 @@ function check(name, fn) {
   }
   if (ok) {
     pass++
-    console.log(`  ✓ ${name}`)
+    console.log(`  ✓ PT${String(++__assertSeq).padStart(2, '0')} ${name}`)
   } else {
     fail++
     failures.push(`${name}${reason ? ` :: ${reason}` : ''}`)

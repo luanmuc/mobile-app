@@ -59,11 +59,13 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8')
 
 let failures = 0
 let checks = 0
+let seq = 0
 const run = (name, fn) => {
+  const id = 'SC' + String(++seq).padStart(2, '0')
   try {
     fn()
     checks++
-    console.log(`  ✓ ${name}`)
+    console.log(`  ✓ ${id} ${name}`)
   } catch (e) {
     failures++
     console.error(`  ✗ ${name}`)
