@@ -44,6 +44,8 @@ fi
 if [ "${1:-}" != "--skip-checks" ]; then
   export LX_SOURCE_ROOT=${LX_SOURCE_ROOT:-../backend-api}
   export LX_REQUIRE_SOURCE=1
+  # 断言台账校验走快速档：全量约 160s，本地没必要；CI 的 Checks 跑全量
+  export LX_LEDGER_QUICK=1
   N=0; PASS=0
   for f in scripts/check_*.js; do
     case "$f" in

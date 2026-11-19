@@ -118,10 +118,10 @@ let diag = null
 let healthLog = null
 try { diag = loadTs('src/core/healthDiagnostics.ts') } catch (e) { console.log(`✗ 加载 healthDiagnostics.ts — ${e.message}`) }
 try { healthLog = loadTs('src/core/healthLog.ts') } catch (e) { console.log(`✗ 加载 healthLog.ts — ${e.message}`) }
-if (diag) passed++
-else failures.push('加载 healthDiagnostics.ts')
-if (healthLog) passed++
-else failures.push('加载 healthLog.ts')
+// 加载检查以前是静默 passed++：自报 60 条但只看得见 58 条，台账与实跑对不上。
+// 现在显式打印成 M1/M2 两条断言，6c 的 ID 多重集才钉得住。
+if (diag) { passed++; console.log('✓ M1 加载 healthDiagnostics.ts') } else failures.push('加载 healthDiagnostics.ts')
+if (healthLog) { passed++; console.log('✓ M2 加载 healthLog.ts') } else failures.push('加载 healthLog.ts')
 
 if (diag) {
   check('H7 聚合 1h/24h/7d 成功率与 P95', () => {

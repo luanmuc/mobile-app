@@ -164,6 +164,11 @@ jobs:
           node scripts/check_playback_timeout_race.js
           node scripts/check_download_error_i18n.js
 
+      - name: 断言台账校验（AUDIT_PLAN 6b 声明 vs 实测断言数）
+        # 与行为门禁正交：不验对错，只验「每个脚本的断言条数是否仍等于台账声明」。
+        # 断言被删、循环提前返回、脚本崩溃，都会在这里变成 ⛔ 漂移 / ❌ 崩溃。
+        run: node scripts/check_assertion_ledger.js
+
   Android:
     name: Android
     runs-on: ubuntu-latest

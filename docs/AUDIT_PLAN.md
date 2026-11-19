@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **49 个**、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
+> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -111,7 +111,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1043 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **49 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **50 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -162,7 +162,9 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（49 个 `check_*.js`）
+### 6b. 全量脚本台账（50 个 `check_*.js`）
+
+> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（36 个脚本 / 457 条，ID 多重集）。
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
@@ -204,6 +206,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_volume_fade` | 40 | 音频 DSP：切歌淡入淡出 / 睡眠渐弱（两层） |
 | `check_equalizer` | 51 | 音频 DSP：均衡器（原生模块契约 + JS 接线 + 档位纯函数） |
 | `check_upstream_divergence` | 工具（非用例集） | 上游基座分档/留痕校验；需 `/tmp/upstream-lx`，缺失时打印克隆指引并跳过 |
+| `check_assertion_ledger` | 工具（非用例集） | 台账声明 vs 实测断言数的逐脚本比对；差异即失败（防「断言被删而门禁仍显示 47/47」） |
 | `check_download_persistence` / `_restore_runtime` / `_error_i18n` | 3 / 3 / 7 | 下载持久化/恢复/错误标点 |
 | `check_file_name_template_runtime` | 11 | 文件名 token 模板 |
 | `check_release_state_contract` | 5 | versionCode / README 同步 |
@@ -212,6 +215,58 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_cross_repo_health_roundtrip` | 4 | X1~X3 健康态往返（需双仓） |
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
+
+### 6c. 断言 ID 台账（36 个脚本 / 457 条，ID 多重集）
+
+> 6b 只比「条数」，抓不到**数量不变但某条断言被换掉**（把 HS3 换成 HS9、把 D5 改名 D5x）。
+> 本节要的是身份：每个脚本输出的 `✓ ID` / `✅ [ID]` 必须与下表**逐个 ID、逐个次数**相同。
+>
+> 口径是**多重集**：同一个 ID 可以挂多条子断言（`H7×6`、`H6×7`、`I05×11` 表示该 ID 被印了这么多次），
+> 只比「ID 出现过」抓不到少一条子断言，所以连**次数**一起钉住。
+>
+> 收录「ID 出现总次数 == 6b 声明数」的全部脚本（36 个 / 457 条）。尚未覆盖的脚本有断言不印 ID，
+> 只受 6b 条数约束。编号跳号（`U21`、`S6`）是历史事实，已按现状钉住。
+>
+> 维护：改了脚本的断言行就重跑 `node scripts/check_assertion_ledger.js --gen-ids`，整表替换。
+
+| 脚本 | 断言数 | ID 清单（复用标 ×N） |
+|---|---|---|
+| `check_health_diagnostics` | 60 | E1 E2 E3 E3b E4 H3 H4×3 H5×5 H6×7 H7×6 H7b H8×6 H8b H9 H10×2 H11 H12 H13 H14 H15 H16 H17 H18 H19 H20 H21 H22 H23 H24 H25 H26 H27 H28 H29 H30 M1 M2 |
+| `check_health_diagnostics_deep` | 51 | D1×2 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23 D24 D25 D26 D27 E1 E2 E3 E4 E5 E6 E7 E8 E9 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 G1 G2 G3 |
+| `check_health_diagnostics_view` | 25 | V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 |
+| `check_health_diagnostics_stress` | 14 | U1×2 U2 U3 U4 U5 U6 U7×2 U8 U9 U10 U11 U12 |
+| `check_log_directory` | 15 | L1 L2 L3 L4 L5 L6 L7 L8 L9 L10 L11 L12 L13 L14 L15 |
+| `check_health_status_refactor` | 14 | HS1 HS2 HS3 HS4 HS5 HS6 HS7 HS8 HS9 HS10 HS11 HS12 HS13 HS14 |
+| `check_health_state_v2` | 7 | S1 S2 S3 S4 S5 S7 S8 |
+| `check_health_ui_mapping` | 12 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 |
+| `check_health_event_pipeline` | 10 | E1 E2 E3 E4 E5 E6 E7 E8 E9 E10 |
+| `check_health_digest` | 9 | A1 A2 A3 A4 A5 A6 A7 A8 A9 |
+| `check_health_persistence_v2` | 9 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 |
+| `check_health_anomaly_v2` | 8 | A1 A2 A3 A4 A5 A6 A7 A8 |
+| `check_health_real_playback` | 11 | R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 |
+| `check_source_health_persistence` | 17 | A7×2 A7b A8 A9×3 A9b A10 A11 A12 A13 B1 B2 B3 B4 G5 |
+| `check_source_contract` | 14 | P0×10 P1×4 |
+| `check_source_update_logic` | 44 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 U13 U14 U15 U16 U17 U18 U19 U20 U22 U23 U24 U25 U26 U27 U28 U29 U30 U31 U32 U33 U34 U35 U36 U37 U38 U39 U40 U41 U42 U43 U44 U45 |
+| `check_list_overwrite_rollback` | 4 | A1 A2 A3 A4 |
+| `check_flipper_stub` | 4 | F1 F2 F3 F4 |
+| `check_playback_cache_guard` | 8 | G1 G2 G3 G4 G4b G5 G6 G7 |
+| `check_log_redaction` | 4 | G1 G2 G3 G4 |
+| `check_source_platform_label` | 9 | L1×2 L2×2 L3 L4×3 L5 |
+| `check_quality_request_runtime` | 12 | P0×10 P1×2 |
+| `check_playback_timeout_race` | 1 | T1 |
+| `check_player_core_runtime` | 15 | N2×15 |
+| `check_player_service_runtime` | 10 | N2×10 |
+| `check_player_hook_runtime` | 7 | N2×7 |
+| `check_player_utils_runtime` | 7 | N2×7 |
+| `check_player_progress_runtime` | 4 | N3×4 |
+| `check_media_body` | 6 | P2×6 |
+| `check_sync_client_runtime` | 4 | N2×4 |
+| `check_download_persistence` | 3 | D1 D2 D3 |
+| `check_download_restore_runtime` | 3 | N2×3 |
+| `check_download_error_i18n` | 7 | I07×7 |
+| `check_file_name_template_runtime` | 11 | I05×11 |
+| `check_cross_repo_health_roundtrip` | 4 | X1 X1b X2 X3 |
+| `check_truth_gates` | 14 | G6 G7×2 G8 G10×2 G11 G12 G18 G20 G21 G22 G23 G27 |
 
 ## 7. 缺口清单（当前未覆盖）
 
@@ -587,4 +642,9 @@ npx tsc --noEmit
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
 | 2026-11-19 | 断言合计口径重算 → **662 条**（6b 台账逐行实算；历史 734/597 均已失效：734 系 B2 删两脚本前口径、597 为旧台账） | 抽验 `check_health_status_refactor`=14、`check_health_real_playback`=11 与台账逐行一致；preflight **47/47** |
+| 2026-11-19 | 新增 `scripts/check_assertion_ledger.js`：把 6b 台账逐行 spawn 实跑，比对「声明 vs 实测断言数」，差异即失败。全量 **45 一致 / 0 漂移 / 0 未解析 / 1 环境跳过**（台账 1220 / 实测 1213）；快速档 **43 一致**。上线即抓出 G7 两处 `49` 未随脚本数更新（已修） |
+| 2026-11-19 | 台账校验接入：preflight 走 `LX_LEDGER_QUICK=1`（191s，原 155s）、CI Checks 跑全量，与 Android 并行不影响总时长 |
+| 2026-11-19 | 新增 **6c 断言 ID 台账**（18 个脚本 / 190 条）：校验器在条数一致后继续比对 `✓ ID` 集合，抓「条数不变但断言被换掉」。变异验证：HS12→HS12x → `⛔ ID 漂移：少 HS12 / 多 HS12x`。只收录 ID 数 == 6b 声明数的脚本，其余脚本部分断言无 ID，仅受条数约束 |
+| 2026-11-19 | 6c 升级为 **ID 多重集**：18 脚本 / 190 条 → **35 脚本 / 397 条**。复用 ID（`H7×5`、`I05×11`、`N2×3`）按**次数**钉住，少一条子断言也报。变异：G10 第二分支改 G10x → 条数仍 14，报「少 G10×1（应 2 实 1）/ 多 G10x」 |
+| 2026-11-19 | `check_health_diagnostics` 的两处静默 `passed++`（模块加载检查）显式化成 **M1/M2** 断言：自报 60 条、实际只看得见 58 条的错位消除。该脚本随之纳入 6c，覆盖升到 **36 脚本 / 457 条**。变异：H5 改名 H5x → 条数仍 60，报「少 H5×1（应 5 实 4）/ 多 H5x」 |
 | 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |
