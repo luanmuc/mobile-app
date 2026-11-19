@@ -2,15 +2,15 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 2742b466 test(health): 补 R11 锁死「重复 Playing 不膨胀样本」
+- 22fc626f docs+refactor(types): G-A07 建档并消除 14/17 处 as any + 断言合计重算 + X-L2/L3 定性
 
 ### File MD5
 ```
-e939dfa0ac530ad8d7acbf08357f7ce5  mobile-app-v1.9.2-b170-arm64-v8a.apk
-5d1966e710445fbe15c6153a5c1dcf98  mobile-app-v1.9.2-b170-armeabi-v7a.apk
-31a3af414ab66bd1978d4ae351554465  mobile-app-v1.9.2-b170-universal.apk
-13c986635e6e75e741b1685b58aeaaa9  mobile-app-v1.9.2-b170-x86.apk
-a2ff5c6c76acf344eda9287d20799947  mobile-app-v1.9.2-b170-x86_64.apk
+ff3894a31715430ffdddda3555f3fd44  mobile-app-v1.9.2-b171-arm64-v8a.apk
+09b443b29cefae6511e8245546230651  mobile-app-v1.9.2-b171-armeabi-v7a.apk
+30fb399352b6ac3a3e08a8d8a42d42ce  mobile-app-v1.9.2-b171-universal.apk
+deccd12a8eec3a16038ba7cfb5b082b8  mobile-app-v1.9.2-b171-x86.apk
+07cfeee0993c4243a0028316b98a649e  mobile-app-v1.9.2-b171-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
