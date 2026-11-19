@@ -17,7 +17,7 @@ const check = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`) } else { fail++; console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`) }
 }
 
-check('配置 30 数字 / 9 布尔 / 39 总键', (() => {
+check('C1 配置 30 数字 / 9 布尔 / 39 总键', (() => {
   // A12-006：原实现只做「数组形状正则 + 两个键名各出现 ≥2 次」——把数组删到只剩 2 个键仍然绿，
   // 标题里的 30/9/39 从来没被真正校验（名实不符的假绿）。这里改为按字面量真实计数再 strictEqual。
   const s = read('src/core/sourceConfig.ts')
@@ -33,26 +33,26 @@ check('配置 30 数字 / 9 布尔 / 39 总键', (() => {
   return numeric === 30 && bool === 9 && numeric + bool === 39
 })(), 'sourceConfig.ts（NUMERIC 30 / BOOL 9 / 合计 39）')
 
-check('诊断包优先读 active_source_version', (() => {
+check('C2 诊断包优先读 active_source_version', (() => {
   const h = read('src/screens/Home/Views/Setting/settings/Health.tsx')
   const i = h.indexOf('active_source_version')
   const j = h.indexOf('imported_builtin_source_version')
   return i >= 0 && j >= 0 && i < j
 })(), 'Health.tsx')
 
-check('失败事件按 trace 顺序命中即停，不再 Promise.all 全打', (() => {
+check('C3 失败事件按 trace 顺序命中即停，不再 Promise.all 全打', (() => {
   const h = read('src/core/healthLog.ts')
   const fn = h.slice(h.indexOf('const fetchSourceEvents'), h.indexOf('// F56'))
   return hasCode(fn, flexRe('for (const id of sourceIds)')) && hasCode(fn, flexRe('if (events.length) return events')) && !hasCode(fn, flexRe('Promise.all(sourceIds'))
 })(), 'healthLog.ts')
 
-check('健康恢复每个脚本只调用一次并共享 promise', (() => {
+check('C4 健康恢复每个脚本只调用一次并共享 promise', (() => {
   const u = read('src/core/init/userApi/index.ts')
   return hasCode(u, flexRe('restoreSourceHealth(apis as Record<string, SourceHealthApi>, restoreIds[0]')) &&
     hasCode(u, flexRe('for (const sourceId of restoreIds) healthRestoreMap.set(sourceId, restore'))
 })(), 'userApi/index.ts')
 
-check('attempt 带平台归因，成功源写实际子源', (() => {
+check('C5 attempt 带平台归因，成功源写实际子源', (() => {
   const u = read('src/core/music/utils.ts')
   return hasCode(u, flexRe('source: subSource || musicInfo.source, platform: musicInfo.source')) &&
     hasCode(u, flexRe('source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source'))
@@ -79,9 +79,9 @@ const readSourceAll = () => {
 
 if (fs.existsSync(path.join(sourceRoot, 'src', 'legacy.js'))) {
   const s = readSourceAll()
-  check('源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', hasCode(s, flexRe('BUDGET_EXHAUSTED')) && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
-  check('源仓预算不 bump resolveDead', /BUDGET:\s*\{[^}]*resolveDead:\s*false/.test(s), 'legacy.js')
-  check('源仓跨平台最坏 22s 在 App 桥 23s 内', hasCode(s, flexRe('BUDGET_TOTAL_HARD_LIMIT_MS = 16000')) && hasCode(s, flexRe('resolveColdStartTimeout')) && hasCode(read('src/core/init/userApi/index.ts'), flexRe('}, 23_000),')), 'legacy.js + userApi/index.ts')
+  check('C6 源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', hasCode(s, flexRe('BUDGET_EXHAUSTED')) && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
+  check('C7 源仓预算不 bump resolveDead', /BUDGET:\s*\{[^}]*resolveDead:\s*false/.test(s), 'legacy.js')
+  check('C8 源仓跨平台最坏 22s 在 App 桥 23s 内', hasCode(s, flexRe('BUDGET_TOTAL_HARD_LIMIT_MS = 16000')) && hasCode(s, flexRe('resolveColdStartTimeout')) && hasCode(read('src/core/init/userApi/index.ts'), flexRe('}, 23_000),')), 'legacy.js + userApi/index.ts')
 } else {
   // A12-004：原实现只打一行「跳过」，汇总仍写「N 通过 / 0 失败」——把「没测」记成「通过」，
   // 与 docs/AUDIT_PLAN.md 宣称的「回退任一仓即红」不符。现在：

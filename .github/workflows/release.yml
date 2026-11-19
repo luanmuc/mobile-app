@@ -81,6 +81,10 @@ jobs:
           git clone --depth 1 https://github.com/luanmuc/backend-api.git "${GITHUB_WORKSPACE}/_source"
           test -f "${GITHUB_WORKSPACE}/_source/lx-source.js"
           echo "源仓产物已就位：$(wc -c < "${GITHUB_WORKSPACE}/_source/lx-source.js") bytes"
+          # 上面的注释写明要用 LX_REQUIRE_SOURCE=1 禁止跳过，但此前从未真正导出过这组变量，
+          # 结果是跨仓断言（健康态往返 4 条 / 联动 8 条）在 CI 里一直被静默 skip。
+          echo "LX_SOURCE_ROOT=${GITHUB_WORKSPACE}/_source" >> "$GITHUB_ENV"
+          echo "LX_REQUIRE_SOURCE=1" >> "$GITHUB_ENV"
 
       - name: 音源标签/配置/语法/action 契约门禁
         env:

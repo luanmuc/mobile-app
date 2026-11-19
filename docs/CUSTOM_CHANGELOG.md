@@ -33,6 +33,22 @@
 - `check('HS12'` → `check('HS12x'` → 脚本自跑仍 `14 passed, 0 failed`，校验器报 `⛔ ID 漂移 少 HS12 / 多 HS12x`
 - `P('G10'` 第二分支 → `P('G10x'` → 条数仍 14，校验器报 `少 G10×1（应 2 实 1）/ 多 G10x`
 
+## [CI 跨仓断言从未真跑] - 2026-11-19
+
+**问题**：`checks` job 里明写「检出音源仓（跨仓断言必需）」，注释还说明「用 `LX_REQUIRE_SOURCE=1` 禁止跳过」，
+但**从未真正 export 过** `LX_SOURCE_ROOT` / `LX_REQUIRE_SOURCE`。两个跨仓脚本读不到变量，一直走 SKIP 分支。
+
+**证据**：台账声明 1220 / 实测 1213，差的 7 条正是
+`check_cross_repo_health_roundtrip` 4 条 + `check_cross_repo_linkage` 3 条（后者 8 条里 3 条长期显示「未执行」）。
+
+**修复**
+- 检出步骤写入 `$GITHUB_ENV`：`LX_SOURCE_ROOT=${GITHUB_WORKSPACE}/_source` / `LX_REQUIRE_SOURCE=1`
+- `check_cross_repo_linkage` 的 8 条断言补 `C1~C8` ID（此前只有中文标题，进不了 6c）
+- 6c 覆盖 **36 脚本 / 457 条 → 37 脚本 / 465 条**
+
+**验证**：本地模拟 CI 条件（`LX_SOURCE_ROOT=../backend-api LX_REQUIRE_SOURCE=1`）
+→ 健康态往返 **4/4**、双仓联动 **8/8**；台账 **实测 1220 = 台账 1220 / 0 环境跳过**。
+
 ## [G-A07 第二轮：as any 13→3，补 global 声明与精确 cast] - 2026-11-19
 
 > 承接同日第一轮建档（13 处剩余）。本轮把能靠「类型表达」消掉的全部消掉，剩 3 处均判定为「不该动」。
