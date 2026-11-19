@@ -243,6 +243,26 @@ check('R10 多源失败证据：不得只查第一个 healthEvents API', async()
   assert(event && event.sourceEvents && event.sourceEvents.length === 1, '第二个音源的失败证据被丢弃')
 })
 
+check('R11 同歌重复 playerPlaying 不膨胀样本：play_result/playback_start 各只记 1 条', async() => {
+  reset()
+  // 一次真实取链成功 → 后续同一首歌播放中出现多次 Playing（暂停恢复 / 拖进度 / 事件重复派发）
+  hlog.setPendingPlayback({ traceId: 'same', musicId: 'a', sourceId: 'kw', platform: 'kw', quality: '128k' })
+  await hlog.recordPlayResult({ traceId: 'same', ok: true, sourceId: 'kw', platform: 'kw', quality: '128k', recordChain: false, recordPlay: true })
+  for (let i = 0; i < 3; i++) await hlog.recordPlaybackStart(hlog.consumePendingPlayback('a'))
+  const events = allEntries()
+  assert(events.filter(e => e.event === 'play_result').length === 1, `play_result 应为 1，实得 ${events.filter(e => e.event === 'play_result').length}`)
+  assert(events.filter(e => e.event === 'playback_start').length === 1, `playback_start 应为 1，实得 ${events.filter(e => e.event === 'playback_start').length}`)
+  assert(report(events).playWindows.h24.total === 1, '播放窗口被多次 Playing 放大')
+  assert(report(events).playbackWindows.h24.total === 1, '起播窗口被多次 Playing 放大')
+  assert(report(events).windows.h24.total === 0, 'recordChain=false 时不应写取链窗口')
+  // 同一首歌「重新播放」（新一次取链）才算新样本，语义上必须记 2 条
+  hlog.setPendingPlayback({ traceId: 'same2', musicId: 'a', sourceId: 'kw', platform: 'kw', quality: '128k' })
+  await hlog.recordPlayResult({ traceId: 'same2', ok: true, sourceId: 'kw', platform: 'kw', quality: '128k', recordChain: false, recordPlay: true })
+  await hlog.recordPlaybackStart(hlog.consumePendingPlayback('a'))
+  assert(allEntries().filter(e => e.event === 'play_result').length === 2, '真实重播应记新样本')
+  assert(report(allEntries()).playWindows.h24.total === 2, '重播后播放窗口应为 2')
+})
+
 ;(async() => {
   for (const t of tests) {
     try {

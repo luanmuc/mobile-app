@@ -179,7 +179,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_health_digest` | 9 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁；**已接入 CI（2026-11-19）** |
 | `check_health_persistence_v2` | 9 | v1 拒绝 / 容量与版本边界 |
 | `check_health_anomaly_v2` | 8 | 异常分级 / 覆盖不足不宣称 |
-| `check_health_real_playback` | 10 | 真播放计数 / 多源失败证据 |
+| `check_health_real_playback` | 11 | 真播放计数 / 多源失败证据 / 重复 Playing 不膨胀样本（R11） |
 | `check_source_health_persistence` | 17 | v2 导出恢复 / 五平台并发 |
 | `check_source_config_contract` | 29 | 39 键 / 单位 / 三语 |
 | `check_source_contract` | 14 | 14 action / envelope / fallbackOwner |
@@ -220,7 +220,10 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | S1~S5 | 设备级：首装/升级、权限流、横竖屏、批量下载、长文件名 | 真机 | 标 🧪，待实机 |
 | X-L1~L3 | 音质政策 App 消费面（见 §4） | App 侧跟进 | 见 §4 处置 |
 | 真机音质矩阵 | 10 首矩阵、A/B 延迟 | 真机 | blocked |
-| 健康诊断·未闭环 4 项 | ①真实播放回传去重（同歌多次 Playing 每次成功回传会抬高样本数）②`probeSource` 只读语义 ③自动关闭 TTL 6h 重启复验 ④真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 / 宿主模拟 | 见附录 A §6；未闭环前不宣称「健康判定完全正确」 |
+| ~~健康诊断·①~~ **已闭环** | 原记「同歌多次 Playing 每次成功回传会抬高样本数」 | `recordPlayResult` 只在 `getMusicUrl` 三处（缓存命中/取链成功/取链失败）写；`playerPlaying` 只走 `recordPlaybackStart`，而 `consumePendingPlayback` 一次性置空 | **2026-11-19 实测闭环**：新增 R11 —— 同歌 3 次 Playing 只产生 1 条 `play_result` + 1 条 `playback_start`，`playWindows`/`playbackWindows` 均不放大；真实重播才记第 2 条。变异 M5（不清空 pending）/M6（去掉 null 守卫）均被 R7+R11 抓住 |
+| ~~健康诊断·②~~ **已闭环** | 原记「`probeSource` 只读语义」未确认 | `src/core/init/userApi/index.ts:294-295` 已明确「默认只读（apply=false）」，`apply: options?.apply === true` | 全仓无 `probeSource(` 调用方 → 无副作用面；将来 `apply:true` 只能由调用方显式传入，语义已锁在注释与实现里 |
+| 健康诊断·③ **实现已闭环，缺护栏** | 原记「自动关闭 TTL 6h 重启复验」 | 源侧 `src/core/17-health-check.js:463-464` 冷启动豁免自动关闭（`!isColdStart` 才 autoOff）、`:447-451` 探测成功即自动恢复并清 `autoOff/autoOffReason/autoOffAt` | 重启复验语义已实现；「TTL 6h」在两侧代码中均未落地，且恢复依赖探测成功而非时间，**不必要**。缺口转为测试：`test/audit/e-extra.js` O 段只断言冷启动预热上限，未断言「冷启动豁免自动关闭」 |
+| 健康诊断·④ **仍 blocked** | 真机桥透传 `err.detail[0].source` 能否穿过 RN 桥 | 真机 | 无 adb / 无设备，保持 blocked；失败归因已有 `errAny?.sourceId ?? errAny?.detail?.[0]?.source` 双路兜底（`src/core/music/online.ts`），桥层实测缺位 |
 | ~~G-A01~~ **已核销** | 原记「错误码文案缺 4 键、界面显示英文常量」 | **2026-11-15 复核不成立**：`src/core/music/utils.ts` 已重构为 `FAIL_CODE_I18N_KEY`，源侧 16 个码全覆盖（含 `TRUNCATED_MEDIA`/`BAD_ENVELOPE`/`CONTRACT_ERROR`/`CANCELED`）；4 个 `player_error_*` key 在 `src/lang/{zh-cn,zh-tw,en-us}.json` 979~982 行均有三语翻译；表注释已改为「共 16 个（v8.13）」 | 已修复，无需处理 |
 | ~~G-A02~~ **已核销** | 原记「4 主状态映射 144 种组合仅 10 条断言覆盖」 | **2026-11-19 已补齐**：`check_health_status_refactor.js` 由 10 条扩到 **14 条**（HS11~HS14），判定面由 144 组合扩到 **288 结构 × 2 极性 = 576 次判定**（补入 `resolveDead` 维度），含「与显式优先级表逐条对照 / 关闭信号不被降级 / 12 reason 可达性 / 纯函数」四类不变式；4 个变异体（优先级错位、删 DEGRADED 分支、QUALITY_OPEN 判成可用、复活旧 `sleeping` 推断）全部被抓住，实跑 14/0 | 已补齐，无需再处理 |
 | ~~G-A03~~ **不成立** | 原记「下载器 922 行无 `check_download*` 专项」 | **2026-11-15 复核不成立**：已有 `check_download_error_i18n.js` / `check_download_persistence.js` / `check_download_restore_runtime.js` | 已覆盖；仅队列压力未做（E19） |

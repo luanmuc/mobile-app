@@ -1,3 +1,16 @@
+## [健康诊断未闭环 4 项：3 项核销，1 项转测试缺口] - 2026-11-19
+
+> `AUDIT_PLAN §7` 记「健康诊断·未闭环 4 项」。逐项取证后 3 项可核销、1 项仍需真机。
+
+- **① 真实播放回传去重** → **已闭环**：`recordPlayResult` 只在 `getMusicUrl` 三处（缓存命中/取链成功/取链失败）写，`playerPlaying` 只走 `recordPlaybackStart`，而 `consumePendingPlayback` 一次性置空 → 播放中多次 Playing 不产生额外样本。新增 **R11** 锁死该语义：同歌 3 次 Playing 只记 1 条 `play_result` + 1 条 `playback_start`，`playWindows`/`playbackWindows` 均不放大；真实重播才记第 2 条
+- **② `probeSource` 只读语义** → **已闭环**：`src/core/init/userApi/index.ts` 已标注并实现「默认只读（`apply:false`）」，全仓无 `probeSource(` 调用方，无副作用面
+- **③ 自动关闭重启复验** → **实现已闭环、缺测试护栏**：源侧 `17-health-check.js:463-464` 冷启动豁免自动关闭（`!isColdStart` 才 autoOff）、`:447-451` 探测成功即自动恢复并清三字段；「TTL 6h」两侧均未落地且不必要（恢复依赖探测成功而非时间）。缺口转为测试：`test/audit/e-extra.js` O 段只断言冷启动预热上限，未断言「冷启动豁免自动关闭」
+- **④ 真机桥透传 `err.detail[0].source`** → **仍 blocked**（无 adb / 无设备）；失败归因已有 `errAny?.sourceId ?? errAny?.detail?.[0]?.source` 双路兜底
+- **变异验证（红/绿双向）**：M5 不清空 pending → R7+R11 红；M6 去掉 `if (!input) return` → R7/R8/R9/R11 红；还原后 11/0
+- **文档**：`AUDIT_PLAN` §7 由 1 行拆为 4 行逐项标注状态；台账 `check_health_real_playback` 10→**11**
+
+---
+
 ## [G-A02 核销：健康状态判定面全枚举] - 2026-11-19
 
 > `AUDIT_PLAN §7` 的 G-A02 记「4 主状态映射 144 种组合仅 10 条断言覆盖」。本次补齐。
