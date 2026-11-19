@@ -1,3 +1,41 @@
+## [B2：下线启动期在线自动更新，验签并入手动更新] - 2026-11-19
+
+> 这不是一次功能调整，修的是一个真实线上故障：**V9.3 的启动期自动更新导致冷启动白屏 20~30 秒**。
+> 版本号由 CI 在本提交 push 后自动 +1（遵守 RELEASE_SOP「禁止手改 version 与状态文件」）。
+> i18n 键数 **1040 → 1042**（+3 验签失败文案 / −1 开关文案），已同步 `AUDIT_PLAN.md` 硬数字。
+
+- **根因（推翻《交接·启动白屏》文档的归因）**
+  - 该文档把根因归为「上游同构的 init 串行结构」，但那只证明「我们没改那段」，无法解释「V9 之前不白屏」。
+  - 逐版差分落点：`5e107e10`（V9.3）在 `initUserApi` 末尾新增了 `if (setting['common.sourceAutoUpdate'])` 分支，
+    里面是**裸 `fetch` 拉 GitHub Release**，`src/core/sourceUpdate/` 全目录**无 timeout / AbortController / Promise.race**，
+    而 `initUserApi` 被 `init/index.ts:76` 的 `await` 串行阻塞 → `init` 永不完成 → `app.ts` 不 `pushHomeScreen` → 纯白屏。
+  - **同时确认**：白屏不是 rntp 升级引起——b150 与 b156 pin 的都是 `82e4e218`（同一个 commit）。
+
+- **为什么删而不是修**：功能重复
+  - 音源管理页**本来就有**「更新音源」按钮，且更完整：双通道（Contents API + jsDelivr）、15s 超时、
+    大小/形态/版本校验、pending 切源对账、版本弹窗确认。
+  - 启动期自动更新是**第二条并行实现**，却只有单通道、无超时、静默执行、还放在最不该放的位置（init 串行链）。
+
+- **B2 落地：验签搬到手动路径，双通道保留**
+  - 删除：`initUserApi` 的自动更新分支；`src/core/sourceUpdate/{apply,fetcher,plan}.ts`（399 → 89 行）；
+    `common.sourceAutoUpdate` 设置项（`defaultSetting` / `setting` 迁移 / `app_setting.d.ts`）；开关 UI；
+    `check_source_update_fetch.js` / `check_source_update_apply.js`；`release.yml` 对应两步。
+  - 保留并强化：`src/core/sourceUpdate/verify.ts`（ed25519 + 内置 k1 公钥表）改由 `Source.tsx` 的手动路径调用。
+  - 新增三道闸（任一不过即 fail-closed，不进导入）：**① 字节数 == manifest.size → ② sha256(字节) == manifest.sha256 → ③ ed25519 验签**；
+    之后还有一道一致性检查：脚本内 `@version` 必须等于 `manifest.version`。
+  - **必须对原始字节验签**：`fetchData` 支持 `binary: true`（经 `FileReader` 读成 buffer），
+    不能用解码后的字符串（换行/编码规范化会让同一文件算出不同 sha256）。
+  - 源仓配套：`lx-source.js.manifest.json` 从 `.gitignore` 放行并入库（jsDelivr 不服务 Release assets，
+    只放 Release 时兜底通道拉不到 manifest）；`sign-release.js` 删除 `signedAt`（manifest 唯一的非确定性字段，
+    会让入库后每天产生一次无意义提交）；CI 签名后自动提交 manifest 回 master（`[skip ci]`），
+    `purge-cdn` 同时刷新脚本与 manifest 两个 URL（只刷一个会造成「脚本新、manifest 旧」的错配误拒）。
+
+- **验证证据（本轮实跑）**
+  - 闭环：源仓 v9.1.2 真实产物（364735B / sha256 `d406bef1…`）经 App 侧实现验签 **6/6 通过**；
+    负向：篡改一字节后 sha256 与 ed25519 双拒。
+  - `check_source_signing` **9/0**（原 6 条 + 新增 S1 手动路径接三道闸 / S2 init 链路不得含自动更新 / S3 `sourceUpdate/` 只剩 `verify.ts`）。
+  - `check_source_update_logic` **44/0**、`check_truth_gates` 全绿、`tsc --noEmit` **0 error**、全仓 ESLint **0 error / 0 warning**。
+
 ## [P2 复核：i18n 缺口与均衡器文案] - 2026-11-19
 
 > 纯文案与组件修复，不改运行时行为、不升版本（底座仍 1.9.2 / b161 / vc320）。

@@ -17,7 +17,8 @@
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
-// A13-P1-03：与 check_source_update_fetch/apply 同口径支持路径覆盖 + 强制开关。
+// A13-P1-03：与门禁族同口径支持路径覆盖 + 强制开关（原 check_source_update_fetch/apply 已随
+// B2 删除：在线更新自动路径下线，验签能力并入手动「更新音源」路径）。
 const SRC_DIR = process.env.LX_SOURCE_ROOT
   ? path.resolve(process.env.LX_SOURCE_ROOT)
   : path.resolve(ROOT, '..', 'lx-music-source')

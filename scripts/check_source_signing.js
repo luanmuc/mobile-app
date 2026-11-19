@@ -101,6 +101,28 @@ async function main() {
     assert(a.equals(buf), 'decodeBase64 结果与 Buffer 不一致')
   })
 
+  // ---- B2 落地锁：验签必须挂在手动「更新音源」路径上；启动期在线自动更新不得复活 ----
+  // 背景：V9.3 的 initUserApi 自动更新是重复建设（手动按钮已覆盖），且裸 fetch 无超时，
+  // 在 init 串行链里 await → 冷启动白屏 20~30 秒。这里用静态断言锁住「只能有一处更新入口」。
+  check('S1 手动更新路径接入三道闸（manifest / sha256 / 验签）', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Basic/Source.tsx'), 'utf8')
+    assert(src.includes('verifySourcePayload'), '手动更新未调用验签入口')
+    assert(src.includes('parseSourceReleaseManifest'), '手动更新未拉取/解析 manifest')
+    assert(src.includes('SOURCE_UPDATE_SHA256_MISMATCH'), '手动更新缺少 sha256 判据')
+    assert(src.includes('binary: true'), '脚本未按原始字节拉取（字符串解码后验签会误判）')
+  })
+
+  check('S2 启动链路不再含在线自动更新', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'src/core/init/userApi/index.ts'), 'utf8')
+    assert(!src.includes('sourceAutoUpdate'), 'init 链路仍存在在线自动更新开关')
+    assert(!src.includes('applySourceUpdate'), 'init 链路仍引用已删除的 applySourceUpdate')
+  })
+
+  check('S3 sourceUpdate 目录只保留验签模块', () => {
+    const files = fs.readdirSync(path.join(ROOT, 'src/core/sourceUpdate'))
+    assert(files.length === 1 && files[0] === 'verify.ts', `目录应只剩 verify.ts，实际 ${files.join(',')}`)
+  })
+
   console.log(`\n验签运行时检查：${pass} 通过 / ${fail} 失败`)
   process.exit(fail === 0 ? 0 : 1)
 }

@@ -19,6 +19,8 @@ import { importUserApi, overwriteUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
 import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
+import { verifySourcePayload } from '@/core/sourceUpdate/verify'
+import { sha256 } from '@noble/hashes/sha256'
 
 // 当前运行 App 的版本（CI 注入的 1.9.2-bN）：换包与否决定启动时是否以内置音源为准
 const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
@@ -27,32 +29,107 @@ const SOURCE_UPDATE_TIMEOUT = 15_000
 // 切源后等 init 事件的上限（超时只代表"没等到"，不等于加载失败）
 const SOURCE_SWITCH_INIT_TIMEOUT = 8000
 const SOURCE_UPDATE_MAX_SIZE = 9_000_000
+// B2：验签需要「脚本原始字节 + manifest（含 ed25519 签名）」。两个文件必须来自同一通道，
+// 否则会出现「脚本是新的、manifest 是旧的」这种错配，验签会 fail-closed 误拒。
 const SOURCE_UPDATE_SOURCES = [
   // GitHub Contents API 优先：每次取 master 当前内容，避开 jsDelivr 的 @master 边缘缓存。
   {
-    url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js?ref=master',
-    options: { headers: { Accept: 'application/vnd.github.raw' } },
+    script: {
+      url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js?ref=master',
+      options: { headers: { Accept: 'application/vnd.github.raw' } },
+    },
+    manifest: {
+      url: 'https://api.github.com/repos/luanmuc/backend-api/contents/lx-source.js.manifest.json?ref=master',
+      options: { headers: { Accept: 'application/vnd.github.raw' } },
+    },
   },
-  // 匿名 API 触发限额或网络失败时回退 jsDelivr；仍由 @version 做最终校验。
+  // 匿名 API 触发限额或网络失败时回退 jsDelivr；组内同通道，仍由 size/sha256/验签三道闸兜底。
   {
-    url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
-    options: {},
+    script: { url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js', options: {} },
+    manifest: { url: 'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js.manifest.json', options: {} },
   },
 ] as const
 
-const fetchSourceScript = async(url: string, options: Record<string, unknown>, timeoutMessage: string) => {
+interface SourceReleaseManifest {
+  version: string
+  size: number
+  sha256: string
+  sigAlg: string
+  keyId: string
+  sig: string
+}
+
+const fetchWithTimeout = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<unknown> => {
   const request = httpFetch(url, options)
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => { reject(new Error(timeoutMessage)) }, SOURCE_UPDATE_TIMEOUT)
     })
-    const response = await Promise.race([request.promise, timeout]) as { body?: unknown }
-    return typeof response.body === 'string' ? response.body : ''
+    return await Promise.race([request.promise, timeout])
   } finally {
     if (timer) clearTimeout(timer)
     request.cancelHttp()
   }
+}
+
+const fetchSourceScript = async(url: string, options: Record<string, unknown>, timeoutMessage: string) => {
+  const response = await fetchWithTimeout(url, options, timeoutMessage) as { body?: unknown }
+  return typeof response.body === 'string' ? response.body : ''
+}
+
+/**
+ * 拉脚本原始字节。验签只能对字节做——字符串解码（换行/编码规范化）会让同一份文件
+ * 在不同端算出不同 sha256/签名，所以这里必须走 binary 模式（FileReader → buffer）。
+ */
+const fetchSourceScriptBytes = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<Buffer> => {
+  const response = await fetchWithTimeout(url, { ...options, binary: true }, timeoutMessage) as { body?: unknown }
+  if (!(response.body instanceof Uint8Array)) throw new Error('SOURCE_UPDATE_BODY_NOT_BINARY')
+  return Buffer.from(response.body)
+}
+
+const parseSourceReleaseManifest = (text: string): SourceReleaseManifest => {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  }
+  if (!raw || typeof raw !== 'object') throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  const manifest = raw as Partial<SourceReleaseManifest>
+  if (typeof manifest.version !== 'string' || !parseSourceVersion(manifest.version)) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  if (typeof manifest.size !== 'number' || !Number.isFinite(manifest.size) || manifest.size <= 0) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  if (typeof manifest.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(manifest.sha256)) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  if (typeof manifest.sig !== 'string' || !manifest.sig) throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  // 签名字段缺失或算法不是 ed25519 时直接拒（不猜，避免降级成"不验签"）
+  if (manifest.sigAlg && manifest.sigAlg !== 'ed25519') throw new Error('SOURCE_UPDATE_MANIFEST_INVALID')
+  return {
+    version: manifest.version,
+    size: manifest.size,
+    sha256: manifest.sha256.toLowerCase(),
+    sigAlg: manifest.sigAlg ?? 'ed25519',
+    keyId: typeof manifest.keyId === 'string' && manifest.keyId ? manifest.keyId : 'k1',
+    sig: manifest.sig,
+  }
+}
+
+const toHex = (bytes: Uint8Array): string => {
+  let hex = ''
+  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0')
+  return hex
+}
+
+/**
+ * 三道闸，任一不过都不能进导入流程（fail-closed）：
+ * ① 字节数 == manifest.size（挡住截断/半包）
+ * ② sha256(字节) == manifest.sha256（挡住内容被替换）
+ * ③ ed25519 验签（挡住 manifest 被伪造——私钥只在源仓 CI secret 里）
+ */
+const verifySourcePackage = (bytes: Uint8Array, manifest: SourceReleaseManifest): void => {
+  if (bytes.length !== manifest.size) throw new Error('SOURCE_UPDATE_SIZE_MISMATCH')
+  if (toHex(sha256(bytes)) !== manifest.sha256) throw new Error('SOURCE_UPDATE_SHA256_MISMATCH')
+  const result = verifySourcePayload(bytes, manifest.sig, manifest.keyId)
+  if (!result.ok) throw new Error(`SOURCE_UPDATE_SIGNATURE_${result.reason ?? 'UNKNOWN'}`)
 }
 
 const apiSourceList = apiSourceInfo.map(api => ({
@@ -111,8 +188,8 @@ export default memo(() => {
   const userApiListRaw = useUserApiList()
   const apiStatus = useStatus()
   const apiSourceSetting = useSettingValue('common.apiSource')
-  // v9.6：音源在线更新面板（从「基础」分组挪到音源页，语义聚合、更显眼）
-  const isSourceAutoUpdate = useSettingValue('common.sourceAutoUpdate')
+  // 音源更新状态行：当前版本 + 上次检查时间。V9.3 的启动期自动更新已移除（与手动按钮重复且阻塞启动），
+  // 这里只保留展示，不再有开关。
   const lastCheckAt = useSettingValue('common.sourceUpdateLastCheckAt')
   const [currentSourceVersion, setCurrentSourceVersion] = useState('')
   const theme = useTheme()
@@ -130,9 +207,6 @@ export default memo(() => {
       .catch(() => { /* 脚本读不到就不显示版本，不阻断面板 */ })
     return () => { alive = false }
   }, [apiSourceSetting])
-  const setSourceAutoUpdate = useCallback((value: boolean) => {
-    updateSetting({ 'common.sourceAutoUpdate': value })
-  }, [])
   // 手动检查后刷新状态行：记录时间 + 重读当前版本（更新可能已覆盖脚本）
   const markChecked = useCallback(() => {
     updateSetting({ 'common.sourceUpdateLastCheckAt': Date.now() })
@@ -174,8 +248,8 @@ export default memo(() => {
     modalRef.current?.show()
   }
 
-  // 更新音源：GitHub Contents API 优先，jsDelivr 兜底；版本只认 `@version`。
-  // 流程：拉取 → 比对版本 → 弹窗显示版本信息 → 用户确认后才导入
+  // 更新音源：GitHub Contents API 优先，jsDelivr 兜底。脚本与 manifest 必须来自同一通道，
+  // 拉取后先过 size / sha256 / ed25519 三道闸，再比对版本、弹窗确认、才导入。
   const [updating, setUpdating] = useState(false)
   const handleUpdateSource = useCallback(async() => {
     markChecked()
@@ -187,9 +261,17 @@ export default memo(() => {
       let lastError: unknown
       for (const source of SOURCE_UPDATE_SOURCES) {
         try {
-          const script = await fetchSourceScript(source.url, source.options, t('source_update_timeout'))
-          if (script.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
+          const [scriptBytes, manifestText] = await Promise.all([
+            fetchSourceScriptBytes(source.script.url, source.script.options, t('source_update_timeout')),
+            fetchSourceScript(source.manifest.url, source.manifest.options, t('source_update_timeout')),
+          ])
+          if (scriptBytes.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
+          const manifest = parseSourceReleaseManifest(manifestText)
+          verifySourcePackage(new Uint8Array(scriptBytes), manifest)
+          const script = scriptBytes.toString('utf8')
           if (script.length < 50_000 || !parseSourceVersion(script)) throw new Error(t('source_update_bad_script'))
+          // 验签只覆盖字节；版本号还要单独对齐 manifest，避免脚本内版本被改而签名仍有效的情况
+          if (parseSourceVersion(script) !== manifest.version) throw new Error('SOURCE_UPDATE_VERSION_MISMATCH')
           remoteScript = script
           break
         } catch (err) {
@@ -197,8 +279,13 @@ export default memo(() => {
         }
       }
       if (!remoteScript) {
-        const message = lastError instanceof Error ? lastError.message : t('source_update_bad_script')
-        throw new Error(message)
+        const message = lastError instanceof Error ? lastError.message : ''
+        let failMessage = message
+        if (message === 'SOURCE_UPDATE_MANIFEST_INVALID') failMessage = t('source_update_manifest_invalid')
+        else if (message === 'SOURCE_UPDATE_SIZE_MISMATCH' || message === 'SOURCE_UPDATE_SHA256_MISMATCH' || message === 'SOURCE_UPDATE_VERSION_MISMATCH') failMessage = t('source_update_package_mismatch')
+        else if (message.startsWith('SOURCE_UPDATE_SIGNATURE_')) failMessage = t('source_update_signature_mismatch')
+        else if (message === 'SOURCE_UPDATE_BODY_NOT_BINARY' || !message) failMessage = t('source_update_bad_script')
+        throw new Error(failMessage)
       }
 
       const remoteVersion = parseSourceVersion(remoteScript)
@@ -407,7 +494,7 @@ export default memo(() => {
       toast(t('source_update_check_fail', { message: err.message }), 'long')
       setUpdating(false)
     }
-  }, [t, updating, apiSourceSetting, userApiListRaw])
+  }, [t, updating, apiSourceSetting, userApiListRaw, markChecked])
 
   return (
     <SubTitle title={t('setting_basic_source')}>
@@ -419,11 +506,8 @@ export default memo(() => {
           userApiList.map(({ id, name, desc, statusLabel }) => <Item name={name} desc={desc} statusLabel={statusLabel} id={id} key={id} change={setApiSourceId} />)
         }
       </View>
-      {/* v9.6：在线更新面板——开关 + 当前版本 + 上次检查，与「更新音源」按钮同处 */}
+      {/* 音源更新状态行：当前版本 + 上次检查时间，与「更新音源」按钮同处 */}
       <View style={styles.updatePanel}>
-        <CheckBox check={isSourceAutoUpdate} marginBottom={5} onChange={setSourceAutoUpdate} need>
-          <Text size={14}>{t('setting_source_auto_update')}</Text>
-        </CheckBox>
         <Text size={13} color={theme['c-500']}>
           {t('source_update_panel_current', { version: currentSourceVersion || t('source_version_unknown') })}
           {' · '}

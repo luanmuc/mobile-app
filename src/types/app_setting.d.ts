@@ -20,8 +20,6 @@ declare global {
        * api id
        */
       'common.apiSource': string
-      // v9.3：内置音源在线自动更新（默认关；开启后才会向源仓 Release 拉包并验签）
-      'common.sourceAutoUpdate': boolean
       // v9.6：上次手动「更新音源」检查的时间戳（0 = 从未检查），只用于状态展示
       'common.sourceUpdateLastCheckAt': number
 

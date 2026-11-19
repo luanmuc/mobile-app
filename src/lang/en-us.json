@@ -1035,7 +1035,9 @@
   "setting_play_count_summary": "Listening stats: {count} plays · today {day} · about {time}",
   "setting_play_count_time_hm": "{h}h {m}m",
   "setting_play_count_time_m": "{m}m",
-    "setting_source_auto_update": "Online source update (verified releases only)",
+  "source_update_manifest_invalid": "Update package has no valid manifest; import rejected",
+  "source_update_package_mismatch": "Update package check failed (size/hash mismatch, possibly still syncing). Try again later",
+  "source_update_signature_mismatch": "Update package signature verification failed (tampered or unofficial); import rejected",
   "source_update_panel_current": "Current source v{version}",
   "source_update_panel_last_check": "Last check {time}",
   "source_update_panel_never": "Last check: never"

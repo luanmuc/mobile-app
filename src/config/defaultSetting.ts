@@ -3,7 +3,6 @@ const defaultSetting: LX.AppSetting = {
   'common.isAutoTheme': false,
   'common.langId': null,
   'common.apiSource': '',
-  'common.sourceAutoUpdate': false, // v9.3：在线自动更新默认关，用户明确开启才会联网拉包
   'common.sourceUpdateLastCheckAt': 0, // v9.6：上次手动检查时间（0=从未），仅状态展示
   'common.sourceNameType': 'real',
   'common.shareType': 'system',
