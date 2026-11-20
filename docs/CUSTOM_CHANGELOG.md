@@ -2145,6 +2145,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 - `npx react-native bundle --platform android --dev false` 成功（2.9MB bundle + 8 个 assets）→ 全部新 import 与模块引用可真实打包
 - 本地 Gradle 全量构建受沙箱资源限制未跑完（非代码问题）；本次改动零原生文件，原生编译面无变化
 
+**位置调整（2026-11-20 用户反馈）**：3dp 进度条原本 absolute 贴底，实际观感偏下、看不清；改为夹在「封面行」与「胶囊」之间的流式布局 —— `BarProgress` 去掉 absolute/`bottom:0`、改 `width:100%` + `marginTop:6`；胶囊 `marginTop 14 → 4`；容器 `paddingBottom 0 → 10`；compact 热区内可视条由贴底改垂直居中。总高 128 → 134。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比

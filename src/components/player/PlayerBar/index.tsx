@@ -34,10 +34,10 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
           <PlayInfo isHome={isHome} />
         </View>
       </View>
+      <BarProgress isHome={isHome} />
       <View style={{ ...styles.capsule, backgroundColor: theme['c-primary-alpha-900'], borderColor: theme['c-primary-alpha-800'] }}>
         <ControlBtn size={CONTROL_SIZE} iconSize={CONTROL_ICON} playIconSize={PLAY_ICON} playVariant='circle' />
       </View>
-      <BarProgress isHome={isHome} />
     </View>
   ), [theme, isHome])
 
@@ -52,9 +52,8 @@ const styles = createStyle({
     width: '100%',
     paddingTop: 10,
     paddingHorizontal: 12,
-    // D3：底部那 10dp 由胶囊 marginBottom 提供，进度条热区正好落在这一层。
-    // 这里必须为 0 —— 否则总高会变成 138 而不是 128，且胶囊与热区之间会空出 10dp。
-    paddingBottom: 0,
+    // 进度条已移到封面行与胶囊之间，底部恢复 10dp 呼吸。
+    paddingBottom: 10,
     borderTopLeftRadius: scaleSizeW(12),
     borderTopRightRadius: scaleSizeW(12),
     elevation: 10,
@@ -73,8 +72,8 @@ const styles = createStyle({
     width: CAPSULE_WIDTH,
     height: CAPSULE_HEIGHT,
     alignSelf: 'center',
-    marginTop: 14,
-    // 与 BarProgress 的 10dp 热区合起来构成底部 10dp —— 两者恰好相接。
+    // 进度条紧贴其上（BarProgress 自带 6dp marginTop），这里只留 4dp 呼吸
+    marginTop: 4,
     marginBottom: 10,
     borderRadius: scaleSizeW(CAPSULE_HEIGHT / 2),
     borderWidth: 1,

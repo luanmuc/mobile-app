@@ -48,14 +48,12 @@ export default ({ isHome }: { isHome: boolean }) => {
 }
 
 
-// 热区高度用 px 直写：10dp 是触摸目标，不该随屏幕缩放
+// 进度条位于「封面行」与「胶囊按钮」之间，走正常流式布局（不再 absolute 贴底）。
+// 10dp 是触摸热区高度，不随屏幕缩放。
 const styles = StyleSheet.create({
   wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: '100%',
     height: HIT_HEIGHT,
-    zIndex: 3,
+    marginTop: 6,
   },
 })

@@ -98,7 +98,7 @@ const getLayout = (compact?: boolean, paddingTop?: number, barHeight = 3, hitHei
         flexShrink: 0,
         flexBasis: 'auto',
         height: hitHeight,
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
         zIndex: 1,
       },
       barAreaStyle: {
