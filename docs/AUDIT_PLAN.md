@@ -237,7 +237,9 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 >
 > 编号跳号（`U21`、`S6`）是历史事实，已按现状钉住。
 >
-> 维护：改了脚本的断言行就重跑 `node scripts/check_assertion_ledger.js --gen-ids`，整表替换。
+> 维护：改了脚本的断言行就重跑 `node scripts/check_assertion_ledger.js --gen-ids --write`，它会**直接写回本节**
+> 的表体与标题数字（内容一致则不动文件；基线有漂移/失败/缺脚本时**拒绝写入**，避免把残缺表落盘），
+> 写完 `git diff docs/AUDIT_PLAN.md` 复核即可。不带 `--write` 时只打印，不碰文件。
 > 跨仓脚本需带 `LX_SOURCE_ROOT=<源仓路径> LX_REQUIRE_SOURCE=1` 才能跑全（否则少 7 条）。
 
 | 脚本 | 断言数 | ID 清单（复用标 ×N） |
@@ -669,4 +671,5 @@ npx tsc --noEmit
 | 2026-11-19 | **CI 跨仓断言从未真跑**：checks job clone 了源仓到 `_source` 并写着「用 `LX_REQUIRE_SOURCE=1` 禁止跳过」，但从未 export 这组变量 → 两个跨仓脚本一直走 SKIP。差 7 条 = 健康态往返 4 + 联动 3。修复后 6c 覆盖升到 **37 脚本 / 465 条**（linkage 8 条补 C1~C8 ID） |
 | 2026-11-19 | 6c 扩充到 **37 脚本 / 595 条**：(a) `RE_ID` 支持中缀形态（`P1B-A1` / `P1F-A1` / `R-01-W1`），3 个**本就有 ID** 的脚本直接纳管、无需改脚本；(b) `check_source_config_contract` 的 `✓` 行加 `SC01~SC29`、(c) `check_volume_fade` 此前**通过时不逐条打印**，加 `VF01~VF40` 后才可纳管。`--gen-ids` 同时补「未列入告警」，避免再像上次那样静默漏脚本。变异 VF→VE / SC→SD 条数不变、报 `少 VF01…/少 SC01…` 双向验证通过 |
 | 2026-11-19 | 6c 补齐到 **44 脚本 / 662 条**——**所有非计数型断言全部有了身份**（`1220 − 541 − 17 = 662` 自洽）。两个坑：(a) `RE_ID` 把 `P0-10` 截成 `P0`（模式里 `-\d` 只能做中缀不能做末段）；(b) `readIdLedger` 读不回自己写出的中缀 ID（生成/解析不对称）。改成**同一个 `ID_PATTERN` 常量**两处共用后消失。另修 `--gen-ids` 的循环依赖：原先只收 `state==='ok'`，6c 旧登记导致的 `id-drift` 脚本永远补不进来 |
+| 2026-11-19 | 6c 表可自动维护：`--gen-ids --write` 直接写回 6c 段（只动表体 + 两处数字，幂等，基线未全绿/`--only`/`--quick` 一律拒绝写）。实测破坏 6c 标题与一行后跑 `--write`，与完好版 diff 为空 |
 | 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |

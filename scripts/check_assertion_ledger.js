@@ -15,6 +15,11 @@
  *   node scripts/check_assertion_ledger.js --json         # 机器可读
  *   node scripts/check_assertion_ledger.js --list         # 只列台账，不执行
  *   node scripts/check_assertion_ledger.js --quick        # 跳过 stress 类（约 40 秒）
+ *   node scripts/check_assertion_ledger.js --gen-ids      # 生成 6c 表（打印，不改文件）
+ *   node scripts/check_assertion_ledger.js --gen-ids --write  # 直接写回 AUDIT_PLAN 的 6c 段
+ *
+ * `--write` 只替换 6c 的「表体 + 标题/说明里的两处数字」，表后空行与后续章节原样保留；
+ * 内容一致就不碰文件（幂等）。写完请 `git diff docs/AUDIT_PLAN.md` 复核。
  */
 const { spawnSync } = require('child_process')
 const fs = require('fs')
@@ -283,6 +288,55 @@ function main() {
     if (partial.length) {
       console.log('\n⚠ 以下脚本 ID 不全或形态不稳定，未列入 6c（只能按条数校验）：')
       for (const x of partial) console.log(`  ${x.script}: 声明 ${x.declared} / 提到 ${sumOf(x)} 个 ID`)
+    }
+
+    // --write：把刚生成的表直接写回 AUDIT_PLAN 的 6c 段。
+    // 只动「表体 + 标题/说明里的两处数字」，表后的空行与后续章节原样保留；
+    // 内容一致就不碰文件（幂等），避免每次跑都产生无意义 diff。
+    if (args.includes('--write')) {
+      // 基线没全绿就别写：否则会把「6b 缺行 / 脚本漂移」产生的残缺表当成正确内容落盘
+      // （实测踩过：删掉 6b 一行后 --write 把 43 脚本 / 654 条写进了 6c）
+      if (drift.length || failing.length || missing.length) {
+        console.error(`❌ 基线未全绿（漂移 ${drift.length} / 失败 ${failing.length} / 缺脚本 ${missing.length}），拒绝写台账`)
+        return 1
+      }
+      if (args.includes('--only') || args.includes('--quick')) {
+        console.error('❌ --write 必须全量跑：--only/--quick 只会列出部分脚本，写回去等于把 6c 表删残')
+        return 1
+      }
+      const txt = fs.readFileSync(LEDGER, 'utf-8')
+      const s = txt.indexOf('### 6c.')
+      if (s < 0) { console.error('❌ 找不到 `### 6c.`，拒绝写入'); return 1 }
+      const e = txt.indexOf('\n## ', s)
+      if (e < 0) { console.error('❌ 找不到 6c 之后的二级标题，拒绝写入'); return 1 }
+      const seg = txt.slice(s, e)
+      const hi = seg.indexOf('| 脚本 | 断言数 |')
+      if (hi < 0) { console.error('❌ 6c 段内找不到表头，拒绝写入'); return 1 }
+
+      const segLines = seg.split('\n')
+      let lastRow = -1
+      for (let i = 0; i < segLines.length; i++) if (segLines[i].startsWith('| `check_')) lastRow = i
+      const tail = segLines.slice(lastRow + 1).join('\n')
+
+      const head = seg.slice(0, hi)
+        .replace(/（\d+ 个脚本 \/ \d+ 条，ID 多重集）/, `（${lines.length} 个脚本 / ${total} 条，ID 多重集）`)
+        .replace(/的脚本（\d+ 个 \/ \d+ 条）/, `的脚本（${lines.length} 个 / ${total} 条）`)
+      const rows = lines.map(x => {
+        const cell = sortedIdKeys(x.ids).map(k => (x.ids.get(k) > 1 ? `${k}×${x.ids.get(k)}` : k)).join(' ')
+        return `| \`${x.script}\` | ${x.declared} | ${cell} |`
+      })
+      const newSeg = head + '| 脚本 | 断言数 | ID 清单（复用标 ×N） |\n|---|---|---|\n' + rows.join('\n') + '\n' + tail
+
+      if (newSeg === seg) {
+        console.log('\nℹ 6c 已是该内容，未改动文件（幂等）')
+      } else {
+        fs.writeFileSync(LEDGER, txt.slice(0, s) + newSeg + txt.slice(e), 'utf-8')
+        const ob = seg.split('\n').length
+        const nb = newSeg.split('\n').length
+        console.log(`\n✓ 已写回 ${path.basename(LEDGER)}：6c 段 ${ob} → ${nb} 行（${lines.length} 脚本 / ${total} 条）`)
+        if (partial.length) console.log(`  ⚠ 另有 ${partial.length} 个脚本未列入（见上方告警），它们只在 6b 受约束`)
+        console.log('  复核：git diff docs/AUDIT_PLAN.md')
+      }
     }
     return 0
   }
