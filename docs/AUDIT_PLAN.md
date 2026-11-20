@@ -2,12 +2,13 @@
 
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
-> **基线（唯一真值，2026-11-18）**：
-> - App：`luanmuc/mobile-app` @ 本地单提交（**未推送**），**v1.9.2-b162** / versionCode **321**；`npm run preflight --fast` **39 通过 / 0 失败**
-> - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
+> **基线（唯一真值，2026-11-20）**：
+> - App：`luanmuc/mobile-app` @ `dadef6a1`（**已推送 master**），**v1.9.2-b187**；`npm run preflight` **47 通过 / 0 失败**
+> - 源仓：`luanmuc/backend-api`，**v9.1.4**（`297c88e`「巡检链重构：口径单一真相」，CI run 44679475468 全绿）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
-> - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1043 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
+> - track-player：`3f8546d`（v2 分支，**音频焦点 5 条 P1 收口**：续播窗口可撤销 / 用户暂停意愿累积 / 三焦点开关运行时可改 / reset 恢复音量；门禁 28→37 条）
+> - 硬数字：三语各 **1043 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1221 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 662 条**（6c 逐 ID 实算），算式 `1221 − 542 − 17 = 662` 自洽
+> - **2026-11-20 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1221 = 实测 1221；`--gen-ids` 仍报 **44 脚本 / 662 条 ID 全覆盖**
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -94,7 +95,7 @@
 | 定制功能 | 关键位置 | 守的脚本/断言 | 状态 |
 |---|---|---|---|
 | 音质优先播放（请求档/真实标签/下载档/缓存版本/置信度/片段语义） | `core/music/utils.ts`、`online.ts`、`downloadManager.ts`、`utils/data.ts` | `check_quality_request_runtime` 12/0 | ✅ |
-| 音源健康面板（4 主状态+reason、质量矩阵、趋势、配置、异常） | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0、`check_health_ui_mapping` 12/0、`check_health_anomaly_v2` 8/0 | ✅ |
+| 音源健康面板（4 主状态+reason、质量矩阵、趋势数据链、配置、异常、一行 4 按钮 + 导出诊断） | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0、`check_health_ui_mapping` 12/0、`check_health_anomaly_v2` 8/0 | ✅ |
 | 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 60/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 25/0 | ✅ |
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
@@ -102,7 +103,8 @@
 | 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
-| 通知栏定制（播放模式按钮/显示格式/音源名音质不被歌词覆盖） | `android/app/src/main` | 静态走查；真机 blocked | 📝 |
+| 通知栏定制（播放模式按钮/显示格式/音源名音质不被歌词覆盖/**2026-11-20 去平台化**：艺术家行只留「歌手 · 音源 · 音质」三段） | `android/app/src/main`、`plugins/player/playList.ts`、RNTP `TrackMetadata.java:92-98` | `check_source_platform_label` **L5 反向锁**（禁 `resolvePlayPlatform(source`，要求 `buildSourceLabel('',`）；真机待验 | ✅ / 🧪 |
+| 底部播放栏 D3 品牌胶囊（整条悬浮卡片 + 圆角 28 绿圈 / 三实体宽按钮不透明品牌色 / 歌名行下中置 3dp 进度条 / 歌名与音质 4dp 间距） | `components/player/PlayerBar/**`、`components/player/Progress.tsx`、`components/PlayQualityTag.tsx` | `tsc`/`eslint` 0 error；b178→b187 逐版真机视觉验收 | 🧪 |
 | 播放页音源标签（实际平台优先/子源名/试听标签） | `sourceLabel.ts`、`PlayInfo.tsx`、`playList.ts` | `check_source_platform_label` 9/9 | ✅ |
 | 播放失败原因（错误码中文化/友好摘要/attempts 账本/降级所有权/取链预算） | `utils.ts`、`online.ts`、`playbackBudget.ts` | `check_playback_budget` 21/0、`check_playback_ownership_runtime` 21/0 | ✅ |
 | 桥接媒体传输（base64 信封/256KB 分片） | `service.ts`、media envelope | `check_media_body` | ✅ |
@@ -156,8 +158,8 @@
 ## 6. 执行清单（本轮必跑，不接受「上次绿过」）
 
 ```bash
-npm run preflight          # 36 条：tsc + eslint + release.yml checks 段 + 跨仓往返（≈202s）
-npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/docs-audit/verify:bundle/npm test（≈387s；源仓 npm test 已并入 CI 全量审计清单后变长）
+npm run preflight          # 47 条：tsc + eslint + release.yml checks 段 + 跨仓往返（≈155s）
+npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/verify:bundle/npm test（条数以实跑输出为准）
 ```
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
@@ -662,6 +664,9 @@ npx tsc --noEmit
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-20 | 基线推进到 **v1.9.2-b187 / `dadef6a1`**（已推送），源仓 **v9.1.4 / `297c88e`**，RNTP 锁到 **`3f8546d`**（音频焦点 5 条 P1 收口）；头部算式改为 `1221 − 542 − 17 = 662` | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**（台账 1221 = 实测 1221）；`--gen-ids` 仍 **44 脚本 / 662 条 ID 全覆盖** |
+| 2026-11-20 | §3b 三处更新：音源健康「趋势」→ **趋势数据链**（趋势弹窗下线，数据仍进诊断包与 `trend_decline` 判定）；通知栏定制 📝→✅（**去平台化**：艺术家行只留「歌手 · 音源 · 音质」）；新增 **底部播放栏 D3 品牌胶囊**维度 | `check_health_ui_mapping` **12/12**（U12 已改写为数据链断言）；`check_source_platform_label` **9/9**（L5 反向锁） |
+| 2026-11-20 | §6 执行清单条数校正：`preflight` **36 → 47 条**（≈155s）；`preflight:all` 不再写死条数（源仓并入后随实跑变） | 本次 CI run `44713838456` 四 job 全 success；本地 ledger 46 脚本全跑通 |
 | 2026-11-19 | 断言合计口径重算 → **662 条**（6b 台账逐行实算；历史 734/597 均已失效：734 系 B2 删两脚本前口径、597 为旧台账） | 抽验 `check_health_status_refactor`=14、`check_health_real_playback`=11 与台账逐行一致；preflight **47/47** |
 | 2026-11-19 | 新增 `scripts/check_assertion_ledger.js`：把 6b 台账逐行 spawn 实跑，比对「声明 vs 实测断言数」，差异即失败。全量 **45 一致 / 0 漂移 / 0 未解析 / 1 环境跳过**（台账 1220 / 实测 1213）；快速档 **43 一致**。上线即抓出 G7 两处 `49` 未随脚本数更新（已修） |
 | 2026-11-19 | 台账校验接入：preflight 走 `LX_LEDGER_QUICK=1`（191s，原 155s）、CI Checks 跑全量，与 Android 并行不影响总时长 |
