@@ -2,16 +2,15 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 963c01b7 test(notification): L5 口径翻转为通知栏不显示平台
-- 72af66f7 fix(notification): 通知栏艺术家行去掉音乐平台，只留音源与音质
+- 9d97f4bc feat(health): 音源健康按钮收成一行 5 个，去掉复制诊断，导出诊断包改名导出诊断
 
 ### File MD5
 ```
-d1383110f8ace0a225cc4b2be7974c26  mobile-app-v1.9.2-b185-arm64-v8a.apk
-24e5ed5214b3c26f6d00cfe9e3bee846  mobile-app-v1.9.2-b185-armeabi-v7a.apk
-e1def82f8f04fc95bf6b3a75a5494c89  mobile-app-v1.9.2-b185-universal.apk
-43d20ace258f610027aaa4a15af8aef0  mobile-app-v1.9.2-b185-x86.apk
-2cb70d2e0e7ee803c91f378e252b308b  mobile-app-v1.9.2-b185-x86_64.apk
+e6404477827e36913daf7bbac5588935  mobile-app-v1.9.2-b186-arm64-v8a.apk
+02a976a19f4faf277903569fa9911956  mobile-app-v1.9.2-b186-armeabi-v7a.apk
+799bd536d340b38576afcfbb1e9a0a4f  mobile-app-v1.9.2-b186-universal.apk
+99dc306d3eb729383f69530b9034b546  mobile-app-v1.9.2-b186-x86.apk
+b5210f7d3938d78d2215324d5ff9fc30  mobile-app-v1.9.2-b186-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
