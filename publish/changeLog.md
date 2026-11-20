@@ -2,15 +2,15 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 8b5d024d fix(about): 关于页只还原文字与链接信息，保留定制的当前版本+检查更新块；三语 1040 键。撤销把更新源改指官方的越界改动
+- 43984ef8 fix(player): rntp 升到 31895c6，音频焦点短打断分级与 GAIN 缺失兜底
 
 ### File MD5
 ```
-46ba7f605fffc4f15113580914f9fffa  mobile-app-v1.9.2-b189-arm64-v8a.apk
-eddd7662eb949c0bf31e43e0d9b9ea95  mobile-app-v1.9.2-b189-armeabi-v7a.apk
-e9a9f7fe807cbbd1c439aef047f2f1de  mobile-app-v1.9.2-b189-universal.apk
-70db9641938783880bf2f890b6dc7aab  mobile-app-v1.9.2-b189-x86.apk
-76c8a4c604eb11d1583b3a64fc5e47d8  mobile-app-v1.9.2-b189-x86_64.apk
+06ec15c409ef7ddab9e55a34ada504c9  mobile-app-v1.9.2-b190-arm64-v8a.apk
+0a9fe2f41fb8d23123670740ef796c4c  mobile-app-v1.9.2-b190-armeabi-v7a.apk
+4171acf464dcb45b7d8ba6e8e97285de  mobile-app-v1.9.2-b190-universal.apk
+68380f621a41b38a496d28abcf07467c  mobile-app-v1.9.2-b190-x86.apk
+3bed7c2cb3be1ab2f7bd3f23f0b4635c  mobile-app-v1.9.2-b190-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
