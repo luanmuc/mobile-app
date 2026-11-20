@@ -1,4 +1,4 @@
-import { TouchableOpacity, View, type ViewStyle } from 'react-native'
+import { TouchableOpacity, type ViewStyle } from 'react-native'
 import { Icon } from '@/components/common/Icon'
 import { useIsPlay } from '@/store/player/hook'
 import { useTheme } from '@/store/theme/hook'
@@ -8,7 +8,7 @@ import { scaleSizeH, scaleSizeW } from '@/utils/pixelRatio'
 
 const BTN_SIZE = 28
 const TOUCH_SIZE = 52
-const PLAY_CIRCLE = 40
+const DEFAULT_GROW = 1
 
 const handlePlayPrev = () => {
   void playPrev()
@@ -18,86 +18,120 @@ const handlePlayNext = () => {
 }
 
 export interface ControlBtnProps {
-  /** 槽位固定边长；fill=true 时只作为高度基准 */
+  /** 按钮高度（同时作为圆角基准：高 36 + 圆角 18 = 完全圆头的宽按钮） */
   size?: number
-  /** 上一首/下一首图标尺寸，默认 28 */
+  /** 上一首/下一首图标尺寸 */
   iconSize?: number
-  /** 播放图标尺寸，默认沿用 iconSize */
+  /** 播放图标尺寸 */
   playIconSize?: number
-  /** 播放键实心圆直径（circle 模式），默认 40 */
-  playCircleSize?: number
-  /** 播放键外观：plain 透明（原有）/ circle 主题色实心圆（D3 胶囊） */
-  playVariant?: 'plain' | 'circle'
-  /** 三个槽位均分父容器宽度（flex:1），用于把胶囊内部铺满 */
-  fill?: boolean
+  /** 上一首/下一首外观：plain 透明（原有）/ ghost 淡色底宽按钮 / solid 主题色实心 */
+  variant?: 'plain' | 'ghost' | 'solid'
+  /** 播放键外观，默认沿用 variant */
+  playVariant?: 'plain' | 'ghost' | 'solid'
+  /** 上一首/下一首的横向权重（flexGrow） */
+  grow?: number
+  /** 播放键横向权重，通常略大于两侧以突出主操作 */
+  playGrow?: number
 }
 
-// fill 模式：宽度由父容器均分，只锁高度；固定模式：宽高都按 size
-const slotStyle = (size: number, fill?: boolean): ViewStyle => {
-  if (fill) {
-    return { ...styles.cotrolBtn, flexGrow: 1, flexShrink: 1, flexBasis: 0, height: scaleSizeH(size) }
-  }
-  return { ...styles.cotrolBtn, width: scaleSizeW(size), height: scaleSizeH(size) }
-}
+// 实体宽按钮：宽度靠 flexGrow 均分并撑满，高度固定，圆角取半高 → 胶囊形
+const wideButtonStyle = (size: number, grow: number): ViewStyle => ({
+  ...styles.cotrolBtn,
+  flexGrow: grow,
+  flexShrink: 1,
+  flexBasis: 0,
+  height: scaleSizeH(size),
+  borderRadius: scaleSizeW(size / 2),
+  // 每个按钮自带一点抬起感，与胶囊整体悬浮阴影形成层次
+  elevation: 2,
+})
 
-const PlayPrevBtn = ({ size = TOUCH_SIZE, iconSize = BTN_SIZE, fill }: ControlBtnProps) => {
+const PlayPrevBtn = ({ size = TOUCH_SIZE, iconSize = BTN_SIZE, variant = 'plain', grow = DEFAULT_GROW }: ControlBtnProps) => {
   const theme = useTheme()
+
+  if (variant == 'plain') {
+    return (
+      <TouchableOpacity
+        style={{ ...styles.cotrolBtn, width: scaleSizeW(size), height: scaleSizeH(size) }}
+        activeOpacity={0.5}
+        onPress={handlePlayPrev}
+      >
+        <Icon name='prevMusic' color={theme['c-button-font']} size={iconSize} />
+      </TouchableOpacity>
+    )
+  }
 
   return (
     <TouchableOpacity
-      style={slotStyle(size, fill)}
-      activeOpacity={0.5}
+      style={{ ...wideButtonStyle(size, grow), backgroundColor: variant == 'solid' ? theme['c-primary'] : theme['c-primary-alpha-800'] }}
+      activeOpacity={0.6}
       onPress={handlePlayPrev}
     >
-      <Icon name='prevMusic' color={theme['c-button-font']} size={iconSize} />
+      <Icon name='prevMusic' color={variant == 'solid' ? theme['c-primary-light-1000'] : theme['c-button-font']} size={iconSize} />
     </TouchableOpacity>
   )
 }
 
-const PlayNextBtn = ({ size = TOUCH_SIZE, iconSize = BTN_SIZE, fill }: ControlBtnProps) => {
+const PlayNextBtn = ({ size = TOUCH_SIZE, iconSize = BTN_SIZE, variant = 'plain', grow = DEFAULT_GROW }: ControlBtnProps) => {
   const theme = useTheme()
+
+  if (variant == 'plain') {
+    return (
+      <TouchableOpacity
+        style={{ ...styles.cotrolBtn, width: scaleSizeW(size), height: scaleSizeH(size) }}
+        activeOpacity={0.5}
+        onPress={handlePlayNext}
+      >
+        <Icon name='nextMusic' color={theme['c-button-font']} size={iconSize} />
+      </TouchableOpacity>
+    )
+  }
 
   return (
     <TouchableOpacity
-      style={slotStyle(size, fill)}
-      activeOpacity={0.5}
+      style={{ ...wideButtonStyle(size, grow), backgroundColor: variant == 'solid' ? theme['c-primary'] : theme['c-primary-alpha-800'] }}
+      activeOpacity={0.6}
       onPress={handlePlayNext}
     >
-      <Icon name='nextMusic' color={theme['c-button-font']} size={iconSize} />
+      <Icon name='nextMusic' color={variant == 'solid' ? theme['c-primary-light-1000'] : theme['c-button-font']} size={iconSize} />
     </TouchableOpacity>
   )
 }
 
-const TogglePlayBtn = ({ size = TOUCH_SIZE, iconSize = BTN_SIZE, playIconSize, playCircleSize = PLAY_CIRCLE, playVariant = 'plain', fill }: ControlBtnProps) => {
+const TogglePlayBtn = ({
+  size = TOUCH_SIZE,
+  iconSize = BTN_SIZE,
+  playIconSize,
+  variant = 'plain',
+  playVariant,
+  grow = DEFAULT_GROW,
+  playGrow,
+}: ControlBtnProps) => {
   const isPlay = useIsPlay()
   const theme = useTheme()
-  const isCircle = playVariant == 'circle'
+  const finalVariant = playVariant ?? variant
+  const finalGrow = playGrow ?? grow
   const finalIconSize = playIconSize ?? iconSize
-  const circle = scaleSizeW(playCircleSize)
+
+  if (finalVariant == 'plain') {
+    return (
+      <TouchableOpacity
+        style={{ ...styles.cotrolBtn, width: scaleSizeW(size), height: scaleSizeH(size) }}
+        activeOpacity={0.5}
+        onPress={togglePlay}
+      >
+        <Icon name={isPlay ? 'pause' : 'play'} color={theme['c-button-font']} size={finalIconSize} />
+      </TouchableOpacity>
+    )
+  }
 
   return (
     <TouchableOpacity
-      style={isCircle ? slotStyle(size, fill) : { ...slotStyle(size, fill), borderRadius: scaleSizeW(size / 2), backgroundColor: undefined }}
-      activeOpacity={0.5}
+      style={{ ...wideButtonStyle(size, finalGrow), backgroundColor: finalVariant == 'solid' ? theme['c-primary'] : theme['c-primary-alpha-800'] }}
+      activeOpacity={0.6}
       onPress={togglePlay}
     >
-      {
-        isCircle
-          // 槽位可以很宽，但实心圆只占固定直径，保证三个按钮视觉权重一致
-          ? (
-              <View style={{
-                width: circle,
-                height: circle,
-                borderRadius: circle / 2,
-                backgroundColor: theme['c-primary'],
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Icon name={isPlay ? 'pause' : 'play'} color={theme['c-primary-light-1000']} size={finalIconSize} />
-              </View>
-            )
-          : <Icon name={isPlay ? 'pause' : 'play'} color={theme['c-button-font']} size={finalIconSize} />
-      }
+      <Icon name={isPlay ? 'pause' : 'play'} color={finalVariant == 'solid' ? theme['c-primary-light-1000'] : theme['c-button-font']} size={finalIconSize} />
     </TouchableOpacity>
   )
 }
