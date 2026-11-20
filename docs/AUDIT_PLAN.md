@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.0.0**（本地单提交未推送；`lx-source.js` 7071 行 / 362008 bytes / ed25519 签名 keyId=k1，线上最后 Release 为 v8.16.4）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`88b062b`（v2 分支）
-> - 硬数字：三语各 **1043 键**、TS/TSX **541 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
+> - 硬数字：三语各 **1043 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**断言合计 662 条**（6b 台账逐行实算：纯数字行 627 + `check_download_persistence` 组 3/3/7 计 13 + `check_truth_gates` 14 + `check_cross_repo_linkage` 8；而 `check_ts_syntax` 的 541 是文件数、`check_docs_consistency` 的 17 是文档数、`check_upstream_divergence` 是工具、`check_source_ci_gate` 是网络门禁，均不计入断言）
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -130,7 +130,7 @@
 | X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
-| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（541 源文件全扫；注入旧写法实测转红） |
+| X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（542 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
 | X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
 
@@ -168,7 +168,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 541 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 542 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -227,7 +227,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 > 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（44 个 / 662 条）。尚未覆盖的脚本有断言不印 ID，
 > 只受 6b 条数约束。
 >
-> **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 541）、
+> **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 542）、
 > `check_docs_consistency`（数文档数 17）。它们只受 6b 条数约束。
 >
 > 此前一度把 `check_download_restore_runtime` / `check_media_body` / `check_player_progress_runtime` /
@@ -544,7 +544,7 @@ node scripts/check_health_diagnostics_view.js     # 25/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 541 文件 0 错误
+node scripts/check_ts_syntax.js                   # 542 文件 0 错误
 node scripts/check_source_config_contract.js      # 29/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0
