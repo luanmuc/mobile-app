@@ -42,6 +42,20 @@
 - 变异：`VF`→`VE`、`SC`→`SD`，条数 40=40 / 29=29 **一点不变**，校验器报 `少 VF01…` / `少 SC01…`——正是条数层抓不到的那类
 - 仍不入 6c：`check_ts_syntax`(541，数文件数)、`check_docs_consistency`(17，数文档数) 属计数型，不是断言身份
 
+**补齐（同日，100% 非计数型）**：6c → **44 脚本 / 662 条**
+
+`1220 − 541（`check_ts_syntax` 数文件数）− 17（`check_docs_consistency` 数文档数）= 662`，也就是**所有真正的断言都钉上了身份**。
+
+修掉三个真 bug：
+- `RE_ID` 把 `P0-10` 截成 `P0`——模式写成「数字后必须再跟字母段」，`-10` 这种末段被丢掉
+- `readIdLedger` 读不回自己 `--gen-ids` 写出的中缀 ID（生成/解析两套规则不对称）→ 两处共用同一个 `ID_PATTERN` 常量
+- `--gen-ids` 的循环依赖：只收 `state === 'ok'`，被 6c 旧登记判成 `id-drift` 的脚本永远补不进来
+
+**顺带纠正一个误判**：此前当作「环境依赖型」排除的 5 个脚本（`check_download_restore_runtime` /
+`check_media_body` / `check_player_progress_runtime` / `check_source_contract` / `check_source_health_persistence`），
+ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态——是当时的诊断正则认不出，
+不是输出不稳定。识别规则修正后全部纳管，连跑多轮 `46 一致 / 0 漂移`。
+
 ## [CI 跨仓断言从未真跑] - 2026-11-19
 
 **问题**：`checks` job 里明写「检出音源仓（跨仓断言必需）」，注释还说明「用 `LX_REQUIRE_SOURCE=1` 禁止跳过」，

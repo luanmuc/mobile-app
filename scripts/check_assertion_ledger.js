@@ -34,9 +34,13 @@ const SKIP = new Set([
 ])
 // 断言 ID：`✓ HS1 标题` / `  ✅ [G7] 说明` / `✔ V12 ...` 这类行首标记 + 1~3 字母 + 数字(+单字母后缀)
 // 用途：抓「数量没变但某条断言被换成了另一条」——只比条数抓不到这种漂移。
-// ID 形态：HS1 / U45 / G4b / EQ01 / C1 / P1B-A1 / P1F-A1 / R-01-W1
-// 中缀形式（P1B-A1、R-01-W1）历史上就有，只是此前没被识别，纳管不需要改脚本。
-const RE_ID = /^\s*(?:✓|✔|✅)\s*(?:\[\s*)?([A-Z][A-Z0-9]{0,3}(?:-\d{1,3})?(?:-[A-Z]\d{1,3}|[A-Z]?\d{1,3})[a-z]?)\b/gm
+// ID 形态：HS1 / U45 / G4b / EQ01 / C1 / X1b / A7b / P1B-A1 / P1F-A1 / R-01-W1 / P0-10 / I05-11 / N2-D1
+// 三段以上（P1B-A1、R-01-W1、P0-10）都是历史既有形态，此前识别不到；纳管不需要改脚本。
+// 注意 `-\\d{1,3}` 必须能作为**末段**（P0-10 曾因模式写成「数字后必须跟字母段」而被截成 P0）。
+const ID_PATTERN =
+  '[A-Z]{1,3}\\d{1,3}[a-zA-Z]?(?:-[A-Z]?\\d{1,3}[a-z]?)*' +
+  '|[A-Z]-\\d{1,3}-[A-Z]\\d{1,3}[a-z]?'
+const RE_ID = new RegExp(`^\\s*(?:✓|✔|✅)\\s*(?:\\[\\s*)?(${ID_PATTERN})\\b`, 'gm')
 // 排序键：把每段字母+数字的编号补零，兼容 R-01-W1 这种带连字符的 ID
 const idSortKey = s => s.replace(/([A-Z]+)(\d+)([a-z]?)/g, (_, p, n, x) => p + String(n).padStart(4, '0') + x)
 // 返回 Map<ID, 出现次数>：同一个 ID 可以挂多条子断言（如 H7×5），按次数比对才能抓到「少一条 H7」
@@ -91,10 +95,11 @@ function readIdLedger(txt) {
     if (!m) continue
     const counts = new Map()
     for (const tok of m[2].trim().split(/\s+/).filter(Boolean)) {
-      const mm = tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?(?:-[A-Z]\d{1,3}[a-z]?)*)(?:×|x(\d+))?$/) || tok.match(/^([A-Z]{1,3}\d{1,3}[a-z]?(?:-[A-Z]\d{1,3}[a-z]?)*)×([0-9]+)$/)
+      // 与 RE_ID 同一套模式：台账里写的 ID 必须能被同一规则读回来
+      const mm = tok.match(new RegExp(`^(${ID_PATTERN})×(\\d+)$`)) ||
+        tok.match(new RegExp(`^(${ID_PATTERN})$`))
       if (!mm) continue
-      const id = mm[1]
-      counts.set(id, Number(mm[2] || 1))
+      counts.set(mm[1], Number(mm[2] || 1))
     }
     if (counts.size) map.set(m[1], counts)
   }
@@ -258,8 +263,10 @@ function main() {
   const skippedEnv = results.filter(r => r.state === 'skipped-env')
   if (genIds) {
     // 只列「ID 数 == 台账声明数」的脚本：这类脚本能一对一校验断言身份
+    // 注意：不能用 `state === 'ok'` 过滤——6c 旧登记会让脚本处于 id-drift，
+    // 那样永远补不进 6c（循环依赖）。只要脚本跑成功、拿到了条数就参与生成。
     const all = results
-      .filter(r => r.state === 'ok' && r.counts)
+      .filter(r => (r.state === 'ok' || r.state === 'id-drift') && r.counts)
       .map(r => ({ script: r.script, declared: r.declared, ids: extractIdCounts(r.output || '') }))
     const sumOf = x => [...x.ids.values()].reduce((a, b) => a + b, 0)
     // 只收「ID 总次数 == 声明数」的；其余必须显式列出，否则会像上次那样静默漏两个脚本
