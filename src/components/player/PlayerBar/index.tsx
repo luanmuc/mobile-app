@@ -13,11 +13,14 @@ import { useSettingValue } from '@/store/setting/hook'
 import { scaleSizeW } from '@/utils/pixelRatio'
 
 const PIC_SIZE = 50
-const CAPSULE_WIDTH = 176
+// 胶囊宽度按底栏内容宽的比例给，占 3/5 强；窄屏 / 横屏靠 maxWidth 兜底
+const CAPSULE_WIDTH = '64%'
 const CAPSULE_HEIGHT = 44
-const CONTROL_SIZE = 38
-const CONTROL_ICON = 19
-const PLAY_ICON = 15
+// 三个槽位均分胶囊宽度，高度贴满 44 只留呼吸；不增加底栏总高
+const CONTROL_SIZE = 44
+const CONTROL_ICON = 26
+const PLAY_ICON = 22
+const PLAY_CIRCLE = 40
 
 export default memo(({ isHome = false }: { isHome?: boolean }) => {
   // const { onLayout, ...layout } = useLayout()
@@ -36,7 +39,7 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
       </View>
       <BarProgress isHome={isHome} />
       <View style={{ ...styles.capsule, backgroundColor: theme['c-primary-alpha-900'], borderColor: theme['c-primary-alpha-800'] }}>
-        <ControlBtn size={CONTROL_SIZE} iconSize={CONTROL_ICON} playIconSize={PLAY_ICON} playVariant='circle' />
+        <ControlBtn size={CONTROL_SIZE} iconSize={CONTROL_ICON} playIconSize={PLAY_ICON} playCircleSize={PLAY_CIRCLE} playVariant='circle' fill />
       </View>
     </View>
   ), [theme, isHome])
@@ -79,7 +82,9 @@ const styles = createStyle({
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
+    // 窄屏 / 横屏内容区比胶囊还窄时不允许溢出
+    maxWidth: '100%',
     paddingHorizontal: 8,
   },
 })
