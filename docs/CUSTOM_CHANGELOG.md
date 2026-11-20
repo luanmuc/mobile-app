@@ -14,9 +14,11 @@
 - `LOSS_TRANSIENT` 分级：**非通话且真在出声** → 压低到 `音量×0.25` 继续播，不暂停；**通话中或缓冲中** → 照旧暂停
 - 新增 `FOCUS_RECHECK` + `A_SCHEDULE_RECHECK`：3s 到点先 `abandonAudioFocus()` 再 `requestAudioFocus()`（`hasAudioFocus` 只是本地记账，对方不还时仍是 `true`，直接 request 是空操作），成功则收音量并按欠账续播，失败最多重试 2 次
 - `NOISY_DISCONNECTED` 减严：设备仍在位只收回音量，不暂停 / 不清欠账 / 不置 `userPaused` / 不改 phase
-- 依赖升到 rntp `31895c6`（`package.json` + `package-lock.json` 三处 sha 同步）
+- 依赖升到 rntp `45c384d`（`package.json` + `package-lock.json` 三处 sha 同步）
 
-**验证**：rntp `check_audio_focus_policy` **58/0**（37 → 58，新增 21 条）；`check-java-syntax` 18 文件 **0 错**；`check_truth_gates` 4 条全一致；`docs-audit` 红项 0。
+- **第二轮（通用性补修，用户要求覆盖全部场景）**：又挖出 5 条与设备无关的缺陷 —— ①长占用（闹钟/长通话）复核失败仍以 25% 音量出声 → 新增 `RECHECK_DENIED` 降级暂停；②压低期间用户点播放 → 音量永久卡 25%（`FOCUS_RECHECK` 原在 `phase==NORMAL` 直接 return）；③连续两次 `LOSS_TRANSIENT` 二次压低到 6.25%；④`BECOMING_NOISY` 只用设备枚举判定，漏 LE Audio 耳机（`TYPE_BLE_HEADSET`）且「已配对未激活」会误判在位 → 真断线不暂停、声音外放 → 改为先判当前路由再枚举兜底；⑤**淡入逐帧冒充用户调音量**：App 的 `volumeFade` 每帧调 `TrackPlayer.setVolume` → `USER_VOLUME` → 清掉 duck 标记，打断时压根压不下去 → `setVolume` 改走 `setProgrammaticVolume`/`setVolumeInternal`。
+
+**验证**：rntp `check_audio_focus_policy` **67/0**（37 → 58 → 67）；`check-java-syntax` 18 文件 **0 错**；`check_truth_gates` 4 条全一致；`docs-audit` 定制符号 17 → 19 个、红项 0。
 
 ## [关于页文字信息还原上游原版] `About.tsx` - 2026-11-20
 
