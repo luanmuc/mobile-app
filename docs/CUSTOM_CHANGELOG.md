@@ -1,16 +1,16 @@
-## [关于页还原上游原版信息] `About.tsx` - 2026-11-20
+## [关于页文字信息还原上游原版] `About.tsx` - 2026-11-20
 
-**问题**：定制版把关于页的仓库地址、发布地址、常见问题链接全部指向 `luanmuc/mobile-app`，并按定制抽了 5 个 i18n 键（`setting_about_free_desc` / `_current_version` / `_check_update` / `_latest_download` / `_faq_hint`）。要求「关于页只保留官方原版信息」。
+**需求**：关于页的仓库地址、发布地址、常见问题链接原指向定制仓 `luanmuc/mobile-app`，与「官方原版信息」不符。要求**只恢复文字与链接信息**，定制能力（检查更新）必须保留。
 
-**做法**：以 fork 点上游版本（`0a6553fd^`，lyswhut/lx-music-mobile）为准整页还原：
+**边界**：只改信息，不改功能——`checkUpdate` 仍走定制仓发布源（`src/utils/version.js` 的 `author.name`/`name` 与 npm 版本包通道**原样保留**）。
+
+**做法**：
 - 链接 5 处改回官方：仓库 `github.com/lyswhut/lx-music-mobile`（readme / issues / releases / 项目协议锚点）+ 常见问题 `lyswhut.github.io/lx-music-doc/mobile/faq`
 - 文案恢复原版硬编码中文（「本软件完全免费，代码已开源。开源地址：」「最新版下载地址：」「软件的常见问题可转至：」）
-- 移除定制新增的「当前版本 + 检查更新」块（原版无此块；`checkUpdate` 仍由 `src/core/init/index.ts` 启动时调用，功能不丢）
-- 删除随之失效的 5 个 i18n 键（三语各 5 条），三语键数 **1043 → 1038**
+- **保留**「当前版本 + 检查更新」块（定制能力，不属于「信息」）
+- i18n 只删 3 个纯文案键（`_free_desc` / `_latest_download` / `_faq_hint`），保留 `_current_version` / `_check_update`；三语 **1043 → 1040**
 
-**验证**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_truth_gates` G10「三语各 1038 = 文档声明」一致；`eslint` 改动文件 0 告警。
-
-**影响面**：仅 `About.tsx` + 三语 `lang` + `AUDIT_PLAN.md` 硬数字。未改 `src/core/version.ts`（`checkUpdate` 另有一处调用点在启动流程）。
+**验证**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_truth_gates` G10「三语各 1040 = 文档声明」一致；`eslint` 0 告警。
 
 ## [断言台账校验器] `check_assertion_ledger` - 2026-11-19
 

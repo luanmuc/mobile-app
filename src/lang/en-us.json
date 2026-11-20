@@ -367,6 +367,8 @@
   "setting__other_other_source_label": "Number of songs information that changed source: ",
   "setting__other_resource_cache": "Resource Cache Management",
   "setting_about": "About LX Music",
+  "setting_about_current_version": "Current version:",
+  "setting_about_check_update": "Check for updates",
   "search_placeholder": "Search songs, playlists...",
   "setting_backup": "Backup & Restore",
   "setting_backup_all": "All data (\"List\" data and \"Setting\" data)",

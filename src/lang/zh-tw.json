@@ -367,6 +367,8 @@
   "setting__other_other_source_label": "變更來源歌曲資訊數量：",
   "setting__other_resource_cache": "資源快取管理（包括歌曲、圖片快取）",
   "setting_about": "關於 LX Music",
+  "setting_about_current_version": "目前版本：",
+  "setting_about_check_update": "檢查更新",
   "search_placeholder": "搜歌曲、歌單...",
   "setting_backup": "備份與復原",
   "setting_backup_all": "所有資料（清單資料與設定資料）",
