@@ -2122,6 +2122,36 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 ---
 
+## [底部播放栏 D3 品牌胶囊] `PlayerBar` - 2026-11-20
+
+**背景**：D3 稿把底栏从「单行、三键靠右」改成两行 —— 上排封面 50 + 歌名 + 音质标 + 歌词/时间，下排三键装进居中淡绿胶囊，底部通栏 3dp 细进度条。
+
+**方案核对后改掉的 3 处**（原方案直接照做会出问题）
+- **高度算错**：方案 `10+50+14+44+10=128` 把 `paddingBottom` 与胶囊 `marginBottom` 当成同一处。实际是两处独立占位 → 138，且胶囊底边到进度条热区之间会空 10dp。落地时 **`container.paddingBottom` 设为 0**，底部 10dp 只由 `marginBottom:10` 提供，热区（10dp）正好压在这一层，胶囊底边与热区顶边相接，总高 128。
+- **`PlayInfo` 不能删 `useProgress`**：`nowPlayTimeStr` / `maxPlayTimeStr` 与 `progress` 出自同一个 hook，删掉时间就没数据源。落地保留 `useProgress`，只删 `useBufferProgress`、`allowProgressBarSeek` 与进度条 JSX。
+- **compact 只覆盖 `flexGrow/flexShrink` 会塌陷**：`styles.progress` 是 `flex:1`，`flexBasis:0%` 仍在。`Progress` 的 compact 根样式补 `flexBasis:'auto'`。
+
+**实现**
+- `ControlBtn` 增 `size` / `iconSize` / `playIconSize` / `playVariant`；`playVariant='circle'` 时播放键为 `c-primary` 实心圆 + `c-primary-light-1000` 图标；三键仍是 Fragment 内的三个按钮，未拆成单按钮复用。
+- `Pic` 增 `size`；宽高分别走 `scaleSizeW` / `scaleSizeH`，圆角 `size/10`（60→6、50→5），不再写死数值。
+- `PlayerBar` 两行布局：`paddingTop 10` / `paddingHorizontal 12` / `paddingBottom 0`，顶圆角 12；上排 `gap 9` + 封面 50；胶囊 176×44 圆角 22，底 `c-primary-alpha-900`、1dp 边框 `c-primary-alpha-800`，`marginTop 14` / `marginBottom 10`；去掉原 `height:'100%'`，避免两行布局下高度循环。
+- 新增 `PlayerBar/components/BarProgress.tsx`：absolute 贴底、10dp 热区；轨道 `c-primary-light-300-alpha-800`、已播放 `c-primary`；`allowProgressBarSeek` 决定可拖动版本。
+- `Progress` 增 `compact` / `barHeight` / `hitHeight` / `barRadius` / `trackColor` / `playedColor`；compact 走独立根样式，可视条 3dp、圆角 1.5、父级 `overflow:'hidden'` 裁切；**非 compact 路径完全不变**（PlayDetail 的 `ProgressBar.tsx` 未动）。
+- 缓冲色沿用代码里的 `c-primary-light-600-alpha-900`（方案原文写的 `c-primary-light-400-alpha-700` 与代码不符，未采用）。
+- 未改播放核心 / 通知 / `initPlayInfo` / `TrackPlayer`；未升版本号。
+
+**验证**
+- `npx tsc --noEmit` 0 错；`npx eslint` 6 个文件 0 告警
+- `npx react-native bundle --platform android --dev false` 成功（2.9MB bundle + 8 个 assets）→ 全部新 import 与模块引用可真实打包
+- 本地 Gradle 全量构建受沙箱资源限制未跑完（非代码问题）；本次改动零原生文件，原生编译面无变化
+
+**待真机确认**
+- Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
+- 128dp 总高在横屏 `Home/Horizontal` 下的占比
+- 胶囊三个槽位实为 23dp 间隙（方案称 6dp 重叠，与 `space-between` 矛盾），视觉是否偏松
+
+---
+
 ## 历史版本
 
 - `v1.9.1`（2026-09-19 及之前）：上游原版版本，变更见 [CHANGELOG.md](./CHANGELOG.md)

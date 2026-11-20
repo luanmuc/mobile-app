@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { View, PanResponder } from 'react-native'
+import { View, PanResponder, type ViewStyle } from 'react-native'
 import { useDrag } from '@/utils/hooks'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
@@ -7,12 +7,12 @@ import { useTheme } from '@/store/theme/hook'
 // import { AppColors } from '@/theme'
 
 
-const DefaultBar = memo(() => {
+const DefaultBar = memo(({ color }: { color?: string }) => {
   // const theme = useTheme()
 
   return <View style={{
     ...styles.progressBar,
-    // backgroundColor: theme['c-primary-light-200-alpha-900'],
+    backgroundColor: color,
     position: 'absolute',
     width: '100%',
     left: 0,
@@ -20,10 +20,10 @@ const DefaultBar = memo(() => {
   }}></View>
 })
 
-const BufferedBar = memo(({ progress }: { progress: number }) => {
+const BufferedBar = memo(({ progress, color }: { progress: number, color?: string }) => {
   // console.log(bufferedProgress)
   const theme = useTheme()
-  return <View style={{ ...styles.progressBar, backgroundColor: theme['c-primary-light-600-alpha-900'], position: 'absolute', width: `${progress * 100}%`, left: 0, top: 0 }}></View>
+  return <View style={{ ...styles.progressBar, backgroundColor: color ?? theme['c-primary-light-600-alpha-900'], position: 'absolute', width: `${progress * 100}%`, left: 0, top: 0 }}></View>
 })
 
 const PreassBar = memo(({ onDragState, setDragProgress, onSetProgress }: {
@@ -69,12 +69,64 @@ const PreassBar = memo(({ onDragState, setDragProgress, onSetProgress }: {
 })
 
 
-export const ProgressPlain = ({ progress, duration, buffered, paddingTop }: {
+export interface ProgressProps {
   progress: number
   duration: number
   buffered: number
   paddingTop?: number
-}) => {
+  /** 紧凑模式：底栏细进度条专用，忽略 paddingTop，用 hitHeight 撑出触摸热区 */
+  compact?: boolean
+  /** 可视条高度（compact 模式），默认 3 */
+  barHeight?: number
+  /** 触摸热区高度（compact 模式），默认 10 */
+  hitHeight?: number
+  /** 可视条圆角（compact 模式），默认取 barHeight 的一半 */
+  barRadius?: number
+  /** 未播放轨道颜色，不传保持原「无底色」 */
+  trackColor?: string
+  /** 已播放颜色，默认主题 c-primary-alpha-900 */
+  playedColor?: string
+}
+
+// compact 模式不能复用 styles.progress：那里是 flex:1，展开后 flexBasis:0%，
+// 只覆盖 flexGrow/flexShrink 会让高度塌陷成 0，必须把 flexBasis 一起改回 auto。
+const getLayout = (compact?: boolean, paddingTop?: number, barHeight = 3, hitHeight = 10, barRadius?: number): { rootStyle: ViewStyle, barAreaStyle: ViewStyle } => {
+  if (compact) {
+    return {
+      rootStyle: {
+        flexGrow: 0,
+        flexShrink: 0,
+        flexBasis: 'auto',
+        height: hitHeight,
+        justifyContent: 'flex-end',
+        zIndex: 1,
+      },
+      barAreaStyle: {
+        height: barHeight,
+        width: '100%',
+        borderRadius: barRadius ?? barHeight / 2,
+        overflow: 'hidden',
+      },
+    }
+  }
+  return {
+    rootStyle: { ...styles.progress, paddingTop },
+    barAreaStyle: { flex: 1 },
+  }
+}
+
+export const ProgressPlain = ({
+  progress,
+  duration,
+  buffered,
+  paddingTop,
+  compact,
+  barHeight,
+  hitHeight,
+  barRadius,
+  trackColor,
+  playedColor,
+}: ProgressProps) => {
   // const { progress } = usePlayTimeBuffer()
   const theme = useTheme()
   // console.log(progress)
@@ -84,25 +136,32 @@ export const ProgressPlain = ({ progress, duration, buffered, paddingTop }: {
   useEffect(() => {
     durationRef.current = duration
   }, [duration])
+  const { rootStyle, barAreaStyle } = getLayout(compact, paddingTop, barHeight, hitHeight, barRadius)
 
   return (
-    <View style={{ ...styles.progress, paddingTop }}>
-      <View style={{ flex: 1 }}>
-        <DefaultBar />
+    <View style={rootStyle}>
+      <View style={barAreaStyle}>
+        <DefaultBar color={trackColor} />
         <BufferedBar progress={buffered} />
-        <View style={{ ...styles.progressBar, backgroundColor: theme['c-primary-alpha-900'], width: progressStr, position: 'absolute', left: 0, top: 0 }} />
+        <View style={{ ...styles.progressBar, backgroundColor: playedColor ?? theme['c-primary-alpha-900'], width: progressStr, position: 'absolute', left: 0, top: 0 }} />
       </View>
       <View style={styles.pressBar} />
     </View>
   )
 }
 
-const Progress = ({ progress, duration, buffered, paddingTop }: {
-  progress: number
-  duration: number
-  buffered: number
-  paddingTop?: number
-}) => {
+const Progress = ({
+  progress,
+  duration,
+  buffered,
+  paddingTop,
+  compact,
+  barHeight,
+  hitHeight,
+  barRadius,
+  trackColor,
+  playedColor,
+}: ProgressProps) => {
   // const { progress } = usePlayTimeBuffer()
   const theme = useTheme()
   const [draging, setDraging] = useState(false)
@@ -117,11 +176,12 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
   const onSetProgress = useCallback((progress: number) => {
     global.app_event.setProgress(progress * durationRef.current)
   }, [])
+  const { rootStyle, barAreaStyle } = getLayout(compact, paddingTop, barHeight, hitHeight, barRadius)
 
   return (
-    <View style={{ ...styles.progress, paddingTop }}>
-      <View style={{ flex: 1 }}>
-        <DefaultBar />
+    <View style={rootStyle}>
+      <View style={barAreaStyle}>
+        <DefaultBar color={trackColor} />
         <BufferedBar progress={buffered} />
         {
           draging
@@ -131,7 +191,7 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
                   <View style={{ ...styles.progressBar, backgroundColor: theme['c-primary-light-100-alpha-800'], width: `${dragProgress * 100}%`, position: 'absolute', left: 0, top: 0 }} />
                 </>
               ) : (
-                <View style={{ ...styles.progressBar, backgroundColor: theme['c-primary-alpha-900'], width: progressStr, position: 'absolute', left: 0, top: 0 }} />
+                <View style={{ ...styles.progressBar, backgroundColor: playedColor ?? theme['c-primary-alpha-900'], width: progressStr, position: 'absolute', left: 0, top: 0 }} />
               )
         }
       </View>
