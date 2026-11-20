@@ -2153,6 +2153,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 **整体重构 v2（2026-11-20 三次反馈「左右按钮发灰像玻璃、播放键没质感」）**：`c-primary-alpha-800`（0.20）叠在 0.10 胶囊底上必然发灰，所以三个按钮改成**不透明品牌色** —— 两侧 `c-primary-alpha-100`（0.90）、播放键 `c-primary`（1.0），图标统一 `c-primary-light-1000` 白，每个按钮压 1dp `rgba(255,255,255,0.28)` 高光边 + `elevation 3/5`；播放键高度 36→**40**、图标 22→**26**、grow 1.15，凸出 2dp 形成主次。**整个播放栏**从通栏贴边改成悬浮卡片：`alignSelf:'stretch'` + `marginHorizontal 10` + `marginBottom 8` + 四角圆角 18 + `elevation 14` / `shadowOpacity 0.18`。
 
+**外轮廓对齐按钮（2026-11-20 四次反馈）**：整条播放栏的圆角 18→**28**，并加 1dp 绿边 `c-primary-alpha-700`（0.30），与三个按钮的「高光边 + 阴影」统一成同一套悬浮语言。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比

@@ -29,7 +29,7 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
   const autoHidePlayBar = useSettingValue('common.autoHidePlayBar')
 
   const playerComponent = useMemo(() => (
-    <View style={{ ...styles.container, backgroundColor: theme['c-content-background'] }}>
+    <View style={{ ...styles.container, backgroundColor: theme['c-content-background'], borderColor: theme['c-primary-alpha-700'] }}>
       <View style={styles.topRow}>
         <Pic isHome={isHome} size={PIC_SIZE} />
         <View style={styles.infoColumn}>
@@ -59,7 +59,9 @@ const styles = createStyle({
     paddingTop: 12,
     paddingHorizontal: 12,
     paddingBottom: 10,
-    borderRadius: scaleSizeW(18),
+    // 圆角加大到 28，轮廓更圆润；加 1dp 绿边，和三个按钮的高光边同一套视觉语言
+    borderRadius: scaleSizeW(28),
+    borderWidth: 1,
     elevation: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
