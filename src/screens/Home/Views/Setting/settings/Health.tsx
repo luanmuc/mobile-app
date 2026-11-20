@@ -135,8 +135,6 @@ export default memo(() => {
   const [configErrors, setConfigErrors] = useState<Record<string, string>>({})
   // v8.0：趋势图相关 state
   const [trendData, setTrendData] = useState<Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }>>([])
-  const [trendWindow, setTrendWindow] = useState<'1h' | '24h' | '7d'>('24h')
-  const [showTrendModal, setShowTrendModal] = useState(false)
   // 2.4：本地诊断报告（最近异常 + 一键导出）
   const [diagnostics, setDiagnostics] = useState<HealthReport | null>(null)
   // 趋势预警只保留报告一套判定，页面不再维护第二套阈值
@@ -352,25 +350,6 @@ export default memo(() => {
     }
   }, [t, configInputs, configBools, configData])
 
-  // v8.0：查看健康趋势（调用 trend action 读历史数据）
-  const showTrend = useCallback(async() => {
-    setError('')
-    const querier = getQuerier('trend')
-    if (!querier) {
-      setError(t('health_no_source'))
-      return
-    }
-    try {
-      const { promise } = querier()
-      const res = await promise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
-      if (isUnmountedRef.current) return
-      setTrendData(res?.history ?? [])
-      setShowTrendModal(true)
-    } catch (e: any) {
-      logger.warn('Health', String(e?.message ?? e))
-      setError(t('health_load_failed'))
-    }
-  }, [t])
 
   // v8.14：行内单源探测——只读（apply=false），不关闭/启用/暂停任何源，不改全局健康状态。
   const probeOne = useCallback(async(id: string, name?: string, platforms?: string[]) => {
@@ -473,9 +452,6 @@ export default memo(() => {
 
   // 窗口展示逻辑收敛到纯函数视图模型，页面只负责文案与样式
   const diagView = diagnostics ? buildHealthDiagnosticsView(diagnostics) : null
-  // F07：1h/24h/7d 窗口按本地历史时间戳过滤；数据不足时显示空态，不拿旧点冒充 7d。
-  const trendWindowMs = trendWindow === '1h' ? 60 * 60 * 1000 : (trendWindow === '7d' ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
-  const trendDataView = trendData.filter(entry => entry.timestamp >= Date.now() - trendWindowMs)
 
   const renderFinding = (f: HealthReport['findings'][number], idx: number) => {
     const key = `${f.id}-${idx}`
@@ -538,7 +514,6 @@ export default memo(() => {
           <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(loadHealth()) }} disabled={loading}>{loading ? t('health_loading') : t('health_refresh')}</Button>
           <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(runProbe()) }}>{t('health_probe')}</Button>
           <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(showConfig()) }}>{t('health_config_btn')}</Button>
-          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(showTrend()) }}>{t('health_trend_btn')}</Button>
           <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(exportDiagnosticsPackage()) }}>{t('health_export_diag')}</Button>
         </View>
         <View>
@@ -947,112 +922,6 @@ export default memo(() => {
       </View>
     </Modal>
 
-    {/* v8.0：健康趋势弹窗 */}
-    <Modal visible={showTrendModal} animationType="slide" transparent={true}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text size={16} color={theme['c-font']} style={styles.modalTitle}>{t('health_trend_title', { n: trendDataView.length })}</Text>
-          {diagView ? (
-            <View>
-              <View style={styles.trendBlockRow}>
-                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_play'), total: diagView.blocks.play.h24.total, ok: diagView.blocks.play.h24.ok, rate: diagView.blocks.play.h24.rateText })}</Text>
-                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_playback'), total: diagView.blocks.playback.h24.total, ok: diagView.blocks.playback.h24.ok, rate: diagView.blocks.playback.h24.rateText })}</Text>
-              </View>
-              <View style={styles.trendBlockRow}>
-                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_probe'), total: diagView.blocks.probe.h24.total, ok: diagView.blocks.probe.h24.ok, rate: diagView.blocks.probe.h24.rateText })}</Text>
-                <Text size={10} color={theme['c-font-label']}>{t('health_diag_block', { label: t('health_diag_preload'), total: diagView.blocks.preload.h24.total, ok: diagView.blocks.preload.h24.ok, rate: diagView.blocks.preload.h24.rateText })}</Text>
-              </View>
-            </View>
-          ) : null}
-          <View style={styles.trendWindowRow}>
-            {(['1h', '24h', '7d'] as const).map(w => (
-              <Text
-                key={w}
-                size={11}
-                color={trendWindow === w ? theme['c-primary'] : theme['c-font-label']}
-                style={[styles.trendWindowBtn, trendWindow === w && styles.trendWindowActive]}
-                onPress={() => { setTrendWindow(w) }}
-              >{t(`health_trend_window_${w}`)}</Text>
-            ))}
-          </View>
-          {/* 图例说明 */}
-          <View style={styles.trendLegend}>
-            <View style={styles.trendLegendItem}>
-              <View style={[styles.trendLegendDot, { backgroundColor: '#4caf50' }]} />
-              <Text size={10} color={theme['c-font-label']}>{t('health_trend_healthy')}</Text>
-            </View>
-            <View style={styles.trendLegendItem}>
-              <View style={[styles.trendLegendDot, { backgroundColor: '#ff9800' }]} />
-              <Text size={10} color={theme['c-font-label']}>{t('health_trend_fair')}</Text>
-            </View>
-            <View style={styles.trendLegendItem}>
-              <View style={[styles.trendLegendDot, { backgroundColor: '#f44336' }]} />
-              <Text size={10} color={theme['c-font-label']}>{t('health_trend_bad')}</Text>
-            </View>
-            <View style={styles.trendLegendItem}>
-              <View style={[styles.trendLegendDot, { backgroundColor: '#9e9e9e' }]} />
-              <Text size={10} color={theme['c-font-label']}>{t('health_trend_none')}</Text>
-            </View>
-          </View>
-          <ScrollView style={styles.modalScroll}>
-            {trendDataView.length === 0 ? (
-              <Text size={13} color={theme['c-font-label']}>{t('health_trend_empty')}</Text>
-            ) : (
-              (() => {
-                // 收集所有源 ID（跨所有历史快照）
-                const allSourceIds = Array.from(new Set(
-                  trendDataView.flatMap(entry => Object.keys(entry.sources)),
-                ))
-                // v8.1：按最新健康分从低到高排序（异常排前面，一眼看到问题源）
-                // 排序权重：低分(红) < 中分(黄) < 无样本(灰) < 高分(绿)
-                const getSortWeight = (id: string) => {
-                  const latestScore = trendDataView[trendDataView.length - 1]?.sources[id]?.score ?? null
-                  if (latestScore === null) return 2 // 无样本排中间
-                  if (latestScore < -5) return 0 // 低分排最前
-                  if (latestScore < 3) return 1 // 中分排第二
-                  return 3 // 高分排最后
-                }
-                allSourceIds.sort((a, b) => getSortWeight(a) - getSortWeight(b))
-                return allSourceIds.map(id => {
-                  // 源名优先用实时快照的中文名（音源侧历史快照不含 name，仅 score/successRate）；
-                  // 再回退历史快照 name（兼容旧数据），最后回退 id
-                  const sourceName = sourceLabel(id, snapshot?.[id]?.name ?? (trendDataView[0]?.sources[id] as { name?: string } | undefined)?.name)
-                  // 最新一次探测的分数
-                  const latestScore = trendDataView[trendDataView.length - 1]?.sources[id]?.score ?? null
-                  const latestColor = latestScore === null ? '#9e9e9e' : latestScore >= 3 ? '#4caf50' : latestScore >= -5 ? '#ff9800' : '#f44336'
-                  return (
-                  <View key={id} style={styles.trendSourceRow}>
-                    <Text size={11} color={theme['c-font-label']} style={styles.trendSourceName} numberOfLines={1}>{sourceName}</Text>
-                    <View style={styles.trendBlocks}>
-                      {trendDataView.map((entry, idx) => {
-                        const data = entry.sources[id]
-                        const score = data?.score ?? null
-                        // status page 经典方块：绿=正常、黄=降级、红=异常、灰=无数据
-                        let color = '#e8e8e8' // 灰：无样本
-                        if (score !== null && score >= 3) color = '#4caf50' // 绿：正常
-                        else if (score !== null && score >= -5) color = '#ff9800' // 黄：降级
-                        else if (score !== null && score < -5) color = '#f44336' // 红：异常
-                        return (
-                          <View
-                            key={idx}
-                            style={[styles.trendBlock, { backgroundColor: color }]}
-                          />
-                        )
-                      })}
-                    </View>
-                    <Text size={11} color={latestColor} style={styles.trendScore}>{latestScore === null ? '-' : latestScore.toFixed(1)}</Text>
-                  </View>
-                  )
-                })
-              })()
-            )}
-          </ScrollView>
-          <View style={styles.modalBtnRow}>
-            <Button onPress={() => { setShowTrendModal(false) }}>{t('health_close')}</Button>
-          </View>
-        </View>
-      </View>
-    </Modal>
     </ScrollView>
   )
 })
@@ -1214,89 +1083,6 @@ const styles = StyleSheet.create({
   modalBtnRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-  },
-  // v8.0：趋势图样式（每源一行圆点序列）
-  trendSourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
-  },
-  trendSourceName: {
-    width: 90,
-    marginRight: 8,
-  },
-  trendDots: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  trendDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  // 趋势弹窗图例（此前只引用未定义，图例实际没有排版）
-  trendLegend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-  },
-  trendLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  trendLegendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  trendBlockRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-    gap: 8,
-  },
-  trendWindowRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 6,
-    marginBottom: 2,
-    gap: 8,
-  },
-  trendWindowBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: 'rgba(128,128,128,0.12)',
-  },
-  trendWindowActive: {
-    backgroundColor: 'rgba(84,169,255,0.22)',
-  },
-  // v8.0：方块时间线趋势图样式（status page 经典风格）
-  trendBlocks: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 20,
-  },
-  trendBlock: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-  },
-  trendScore: {
-    width: 36,
-    textAlign: 'right',
-    marginLeft: 8,
-    fontWeight: 'bold',
   },
   summary: {
     flexDirection: 'row',

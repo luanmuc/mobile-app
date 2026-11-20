@@ -2161,6 +2161,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 **音源健康页按钮收成一行 5 个（2026-11-20 用户反馈「砍掉复制诊断，导出诊断包改成导出诊断，和上面 4 个按钮放一排」）**：删除独立的「复制诊断摘要」按钮及其 `copyDiagnosticsReport` 回调（分享失败时仍会兜底复制摘要，能力没丢）；「导出诊断包」文案改为「导出诊断」；「刷新 / 探测 / 配置 / 趋势 / 导出诊断」5 个按钮同排均分（`btnRow5` + `btnFlex`，`flex:1` 均分、`gap 6`、内边距收到 4dp、字号 13），提示文字挪到按钮行下方独占一行。为支持均分，`Setting/components/Button.tsx` 新增 `style` 透传与 `textSize`，默认值不变，其余调用点行为完全一致。
 
+**砍掉健康趋势弹窗前端的（2026-11-20 用户反馈「趋势看着没用，但内在功能不能破坏」）**：删除「趋势」按钮、`showTrend` 回调、`showTrendModal` / `trendWindow` 状态、趋势弹窗整段 JSX 与 `trend*` 样式（约 96 行）。**数据链完全不动**：`loadHealth()` 早已并行读 `trend` action 并 `setTrendData` + 传入 `refreshDiagnostics`，趋势历史仍进诊断包（`buildEvidencePackage` 的 `trend`）、仍供 `trend_decline`（≥4 点持续下滑）判定与页面「持续下滑」预警条；「导出诊断」也照旧带趋势段。按钮行剩 4 个（刷新 / 探测 / 配置 / 导出诊断）继续均分。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比
