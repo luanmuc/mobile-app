@@ -105,7 +105,7 @@ App 侧入口：`src/core/init/userApi/index.ts`；原生 QuickJS 引擎：`andr
 
 诊断聚合按用户取链（`chain_result` + `context=user/refresh`，历史 `source_result` 兼容）/ 播放请求（`play_result`）/ 实际起播（`playback_start`）/ 探测（`probe_result`）/ 后台预加载（`chain_result` + `context=preload`）五块独立算成功率，`windows` 只代表用户取链；报告同时给出 `playWindows/playbackWindows/preloadWindows/probeWindows`，缓存命中单独计数。旧无 context 的 `chain_result` 归 `legacy`，只展示计数、不参与异常。健康页展开后按“取链 / 播放请求 / 实际起播 / 探测 / 后台预加载”五行分别展示近 24h 次数、成功数与成功率，禁止把播放成功或预加载混入用户取链口径。
 
-「导出诊断包」生成 `schema:2` 证据包：`manifest + report + events + snapshot + trend + logTail`；manifest 记录版本/计数/上限/截断标记/估算字节，事件最近 1000 条、趋势最近 200 条、日志尾部 UTF-8 64KB、总量 2MB 上限；快照与日志均递归脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动上传、不自动关源。
+「导出诊断」生成 `schema:2` 证据包：`manifest + report + events + snapshot + trend + logTail`；manifest 记录版本/计数/上限/截断标记/估算字节，事件最近 1000 条、趋势最近 200 条、日志尾部 UTF-8 64KB、总量 2MB 上限；快照与日志均递归脱敏 URL/歌名，手动分享/失败回退复制摘要，不自动上传、不自动关源。
 
 **健康分语义（v1.9.2-b5 起，配套音源 v7.0）**：
 

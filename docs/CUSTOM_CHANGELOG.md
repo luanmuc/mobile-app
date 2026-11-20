@@ -2159,6 +2159,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 **通知栏去掉音乐平台（2026-11-20 用户反馈「一行太长，音质被歌手名挤掉」）**：艺术家行原本由 RNTP 原生侧拼成「歌手 · 平台 · 音源 · 音质」四段（`TrackMetadata.java` 的 `artist · subSource · quality`）。`getNotificationSubSource()` 改为传空平台名给 `buildSourceLabel`，只保留音源名（含「试听」标记），通知栏变成「歌手 · 音源 · 音质」三段，音质不再被挤掉。底栏与播放详情页的平台展示不受影响。同步翻转门禁口径：`scripts/check_source_platform_label.js` 的 `L5` 由「通知栏必须用实际平台」改成「通知栏不得拼平台，只拼音源与音质」，9/9 通过。
 
+**音源健康页按钮收成一行 5 个（2026-11-20 用户反馈「砍掉复制诊断，导出诊断包改成导出诊断，和上面 4 个按钮放一排」）**：删除独立的「复制诊断摘要」按钮及其 `copyDiagnosticsReport` 回调（分享失败时仍会兜底复制摘要，能力没丢）；「导出诊断包」文案改为「导出诊断」；「刷新 / 探测 / 配置 / 趋势 / 导出诊断」5 个按钮同排均分（`btnRow5` + `btnFlex`，`flex:1` 均分、`gap 6`、内边距收到 4dp、字号 13），提示文字挪到按钮行下方独占一行。为支持均分，`Setting/components/Button.tsx` 新增 `style` 透传与 `textSize`，默认值不变，其余调用点行为完全一致。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比

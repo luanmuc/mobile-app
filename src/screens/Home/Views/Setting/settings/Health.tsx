@@ -169,12 +169,6 @@ export default memo(() => {
     }),
   ].join('\n'), [t, tt])
 
-  const copyDiagnosticsReport = useCallback(() => {
-    if (!diagnostics) return
-    clipboardWriteText(reportToText(diagnostics))
-    setProbeInfo(t('health_copy_done'))
-  }, [diagnostics, reportToText, t])
-
   const exportDiagnosticsPackage = useCallback(async() => {
     let report: HealthReport | null = null
     try {
@@ -540,21 +534,15 @@ export default memo(() => {
     <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps={'always'}>
     <Section title={t('setting_health')}>
       <SubTitle title={t('health_desc')}>
-        <View style={styles.btnRow}>
-          <Button onPress={() => { ignored(loadHealth()) }} disabled={loading}>{loading ? t('health_loading') : t('health_refresh')}</Button>
-          <View style={styles.btnGap} />
-          <Button onPress={() => { ignored(runProbe()) }}>{t('health_probe')}</Button>
-          <View style={styles.btnGap} />
-          <Button onPress={() => { ignored(showConfig()) }}>{t('health_config_btn')}</Button>
-          <View style={styles.btnGap} />
-          <Button onPress={() => { ignored(showTrend()) }}>{t('health_trend_btn')}</Button>
+        <View style={styles.btnRow5}>
+          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(loadHealth()) }} disabled={loading}>{loading ? t('health_loading') : t('health_refresh')}</Button>
+          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(runProbe()) }}>{t('health_probe')}</Button>
+          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(showConfig()) }}>{t('health_config_btn')}</Button>
+          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(showTrend()) }}>{t('health_trend_btn')}</Button>
+          <Button style={styles.btnFlex} textSize={13} onPress={() => { ignored(exportDiagnosticsPackage()) }}>{t('health_export_diag')}</Button>
         </View>
-        <View style={styles.btnRow}>
-          <Button onPress={() => { ignored(exportDiagnosticsPackage()) }}>{t('health_export_diag')}</Button>
-          <View style={styles.btnGap} />
-          <Button onPress={copyDiagnosticsReport} disabled={!diagnostics}>{t('health_copy_report')}</Button>
-          <View style={styles.btnGap} />
-          <Text size={11} color={theme['c-font-label']} style={{ flex: 1 }}>{t('health_export_hint')}</Text>
+        <View>
+          <Text size={11} color={theme['c-font-label']}>{t('health_export_hint')}</Text>
         </View>
         {
           probeInfo ? (
@@ -1117,6 +1105,19 @@ const styles = StyleSheet.create({
   btnRow: {
     flexDirection: 'row',
     marginBottom: 8,
+  },
+  // 音源健康页 5 个按钮一行均分：去掉 Button 自带的 10dp 右外边距，靠 gap 控制间距
+  btnRow5: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+  },
+  btnFlex: {
+    flex: 1,
+    alignItems: 'center',
+    marginRight: 0,
+    paddingLeft: 4,
+    paddingRight: 4,
   },
   btnGap: {
     width: 12,
