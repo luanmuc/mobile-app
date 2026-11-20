@@ -176,7 +176,7 @@ npm run preflight:all      # 41 条：再追加源仓 build-source/self-check/do
 | `check_log_directory` | 15 | 公共优先/回迁/四类补齐/压力 |
 | `check_health_status_refactor` | 14 | 状态优先级与 `offReason`；288 结构 × 2 极性全枚举 |
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
-| `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势弹窗 |
+| `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势数据链 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
 | `check_health_digest` | 9 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁；**已接入 CI（2026-11-19）** |
 | `check_health_persistence_v2` | 9 | v1 拒绝 / 容量与版本边界 |

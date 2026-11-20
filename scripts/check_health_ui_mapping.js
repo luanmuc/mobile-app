@@ -138,14 +138,13 @@ check('U11 诊断取链/播放/探测三块独立可见', () => {
   }
 })
 
-check('U12 趋势弹窗同时展示播放请求/实际起播/探测/后台预加载', () => {
-  const start = ui.indexOf('{/* v8.0：健康趋势弹窗 */}')
-  const end = ui.indexOf('</Modal>', start)
-  assert(start >= 0 && end > start, '未定位趋势弹窗')
-  const trend = ui.slice(start, end)
-  for (const key of ['play', 'playback', 'probe', 'preload']) {
-    assert(trend.includes(`diagView.blocks.${key}`), `趋势弹窗缺 ${key} 块`)
-  }
+// 2026-11-20 口径变更：趋势弹窗从产品层下线（用户判定「看着没用」），
+// 但趋势数据链必须完好：自动读取 → 写入 state → 参与诊断构建（进诊断包与 trend_decline 判定）。
+check('U12 趋势弹窗下线但趋势数据仍进诊断包与 trend_decline 判定', () => {
+  assert(!ui.includes('showTrendModal'), '趋势弹窗应已移除')
+  assert(ui.includes("getQuerier('trend')"), 'loadHealth 应继续自动读取趋势')
+  assert(ui.includes('setTrendData(history)'), '趋势历史应写入 state')
+  assert(ui.includes('refreshDiagnostics(data, history)'), '趋势历史应参与诊断构建')
 })
 
 console.log(`\n${passed} passed, ${failures.length} failed`)
