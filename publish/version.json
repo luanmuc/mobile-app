@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b176",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 71b91e1e feat(audit): 6c 表可自动维护（--gen-ids --write）",
+  "version": "1.9.2-b177",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- f0fbc078 docs(source): 同步音源仓 v9.1.3 —— suyin163 接口兼容修复",
   "history": [
+    {
+      "version": "1.9.2-b176",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 71b91e1e feat(audit): 6c 表可自动维护（--gen-ids --write）"
+    },
     {
       "version": "1.9.2-b175",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9c0384c0 feat(audit): 6c 补齐到 44 脚本 / 662 条，所有非计数型断言都有身份"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b171",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 22fc626f docs+refactor(types): G-A07 建档并消除 14/17 处 as any + 断言合计重算 + X-L2/L3 定性"
-    },
-    {
-      "version": "1.9.2-b170",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 2742b466 test(health): 补 R11 锁死「重复 Playing 不膨胀样本」"
     }
   ]
 }
