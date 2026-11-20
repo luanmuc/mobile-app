@@ -88,6 +88,8 @@ const styles = createStyle({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
+    // 歌名与音质标签之间留 4dp，原来两者完全贴死
+    gap: 4,
   },
   titleText: {
     flexShrink: 1,
