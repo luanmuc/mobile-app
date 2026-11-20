@@ -108,10 +108,13 @@ run('L4 竖屏 PlayInfo 用实际平台', () => {
   assertIncludes(text, 'resolvePlayPlatform(playSource', '竖屏 PlayInfo')
 })
 
-run('L5 通知栏用实际平台', () => {
+run('L5 通知栏不显示音乐平台（只拼音源与音质）', () => {
   const text = read('src/plugins/player/playList.ts')
   assertIncludes(text, "from '@/core/music/sourceLabel'", 'playList')
-  assertIncludes(text, 'resolvePlayPlatform(source', 'playList')
+  // 2026-11-20 口径变更：通知栏艺术家行只保留「歌手 · 音源 · 音质」。
+  // 平台名会把这一行撑长，歌手名一长音质就被挤出可视区域，故这里反向锁死。
+  assertIncludes(text, "buildSourceLabel('',", 'playList')
+  assert(!text.includes('resolvePlayPlatform(source'), 'playList 不应再把音乐平台拼进通知栏')
 })
 
 // 5. 行为层：拼装与回退
