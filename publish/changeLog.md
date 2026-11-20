@@ -2,15 +2,16 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 9d97f4bc feat(health): 音源健康按钮收成一行 5 个，去掉复制诊断，导出诊断包改名导出诊断
+- dadef6a1 test(health): U12 改为趋势数据链断言，弹窗下线后仍锁数据进诊断包
+- 4e278ea1 feat(health): 砍掉趋势按钮与弹窗前端，趋势数据与诊断判定保留
 
 ### File MD5
 ```
-e6404477827e36913daf7bbac5588935  mobile-app-v1.9.2-b186-arm64-v8a.apk
-02a976a19f4faf277903569fa9911956  mobile-app-v1.9.2-b186-armeabi-v7a.apk
-799bd536d340b38576afcfbb1e9a0a4f  mobile-app-v1.9.2-b186-universal.apk
-99dc306d3eb729383f69530b9034b546  mobile-app-v1.9.2-b186-x86.apk
-b5210f7d3938d78d2215324d5ff9fc30  mobile-app-v1.9.2-b186-x86_64.apk
+46d96ca34b0bf8333a8c045a689f823e  mobile-app-v1.9.2-b187-arm64-v8a.apk
+8163834e0806211e9123004344aab6b9  mobile-app-v1.9.2-b187-armeabi-v7a.apk
+b6a75ea00360deccb91a3eb2e1155f3a  mobile-app-v1.9.2-b187-universal.apk
+a6a38a869dac5cb7a7012d9c869cc323  mobile-app-v1.9.2-b187-x86.apk
+05f459e043d56e4eab1e11513e03ebfc  mobile-app-v1.9.2-b187-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
