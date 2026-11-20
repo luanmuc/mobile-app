@@ -1,3 +1,17 @@
+## [关于页还原上游原版信息] `About.tsx` - 2026-11-20
+
+**问题**：定制版把关于页的仓库地址、发布地址、常见问题链接全部指向 `luanmuc/mobile-app`，并按定制抽了 5 个 i18n 键（`setting_about_free_desc` / `_current_version` / `_check_update` / `_latest_download` / `_faq_hint`）。要求「关于页只保留官方原版信息」。
+
+**做法**：以 fork 点上游版本（`0a6553fd^`，lyswhut/lx-music-mobile）为准整页还原：
+- 链接 5 处改回官方：仓库 `github.com/lyswhut/lx-music-mobile`（readme / issues / releases / 项目协议锚点）+ 常见问题 `lyswhut.github.io/lx-music-doc/mobile/faq`
+- 文案恢复原版硬编码中文（「本软件完全免费，代码已开源。开源地址：」「最新版下载地址：」「软件的常见问题可转至：」）
+- 移除定制新增的「当前版本 + 检查更新」块（原版无此块；`checkUpdate` 仍由 `src/core/init/index.ts` 启动时调用，功能不丢）
+- 删除随之失效的 5 个 i18n 键（三语各 5 条），三语键数 **1043 → 1038**
+
+**验证**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_truth_gates` G10「三语各 1038 = 文档声明」一致；`eslint` 改动文件 0 告警。
+
+**影响面**：仅 `About.tsx` + 三语 `lang` + `AUDIT_PLAN.md` 硬数字。未改 `src/core/version.ts`（`checkUpdate` 另有一处调用点在启动流程）。
+
 ## [断言台账校验器] `check_assertion_ledger` - 2026-11-19
 
 **问题**：662 条断言散在 49 个 `check_*.js` 里，跑完只知道「47/47 通过」——**看不出断言数是变多还是变少**。有人删掉一条断言、某个循环提前 return，门禁照样全绿。
