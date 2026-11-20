@@ -56,6 +56,24 @@
 ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态——是当时的诊断正则认不出，
 不是输出不稳定。识别规则修正后全部纳管，连跑多轮 `46 一致 / 0 漂移`。
 
+## [suyin163 接口兼容修复] - 2026-11-20
+
+**问题**：真机上报里 `suyin163` 探测 0/6（`NOT_FOUND`），但端点巡检显示它 94.3% 正常——两层看的东西不一样。
+
+**根因**：`https://oiapi.net/api/Music_163` 的返回从 `data[]` 改成了 `data.items[]`：
+
+```json
+{"code":0,"data":{"items":[{"name":"晴天(深情版)",...,"url":"http://m701.music.126.net/..."}]}}
+```
+
+源仓取值 `Array.isArray(res.data) ? res.data[0] : res.data` 拿到的是 `{items:[...]}`，既不是数组也没有 `url` 字段 → 恒抛 `NOT_FOUND`。端点层 HTTP 200 全绿，所以巡检抓不到。
+
+**修复**：兼容三种形态 `data[]` / `data.items[]` / `data{url}`（源仓 v9.1.3）。
+
+**验证**：本地 `source-audit` **14/17 → 15/17**，`suyin163` 恢复 `206 audio/mpeg`；v9-gate[fast] 全绿。
+
+**顺带查清**：`huibq` 的 HTTP 503 是 onrender 免费实例冷启动（源码已标 `coldStart:true`），不是新问题。
+
 ### 6c 表自动维护（`--gen-ids --write`）
 
 此前扩表是「跑脚本 → 复制 44 行 → 手工整段替换」，两次还把行插进过 6b（两张表都有 `check_*` 行，`index(anchor)` 极易命中前一节）。
