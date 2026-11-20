@@ -2157,6 +2157,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 **歌名与音质标签补间距（2026-11-20）**：`Title` 的 `titleRow` 原本无 gap、`PlayQualityTag` 也无左边距，歌名与 FLAC 标签完全贴死；补 `gap: 4`。
 
+**通知栏去掉音乐平台（2026-11-20 用户反馈「一行太长，音质被歌手名挤掉」）**：艺术家行原本由 RNTP 原生侧拼成「歌手 · 平台 · 音源 · 音质」四段（`TrackMetadata.java` 的 `artist · subSource · quality`）。`getNotificationSubSource()` 改为传空平台名给 `buildSourceLabel`，只保留音源名（含「试听」标记），通知栏变成「歌手 · 音源 · 音质」三段，音质不再被挤掉。底栏与播放详情页的平台展示不受影响。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比

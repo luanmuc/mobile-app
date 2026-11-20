@@ -4,7 +4,7 @@ import { defaultUrl } from '@/config'
 // import { action as playerAction } from '@/store/modules/player'
 import settingState from '@/store/setting/state'
 import playerState from '@/store/player/state'
-import { buildSourceLabel, getPlatformNameKey, resolvePlatformName, resolvePlayPlatform } from '@/core/music/sourceLabel'
+import { buildSourceLabel } from '@/core/music/sourceLabel'
 
 
 const list: LX.Player.Track[] = []
@@ -50,14 +50,12 @@ const getNotificationQualityTag = () => {
   if (q === 'hires') return 'Hi-Res'
   return q
 }
-// v8.12.0：跨平台兜底后通知栏也显示实际平台；旧音源无 platform 时保持旧子源名
+// 通知栏艺术家行不再显示音乐平台：原先是「歌手 · 平台 · 音源 · 音质」四段，
+// 歌手名一长就把音质挤出去。传空平台名后只保留「歌手 · 音源 · 音质」。
 const getNotificationSubSource = () => {
   const source = playerState.playSource
   if (!source) return undefined
-  const platform = resolvePlayPlatform(source, null)
-  const platformKey = getPlatformNameKey(platform)
-  const platformName = resolvePlatformName(platform, platformKey ? global.i18n.t(platformKey) : '')
-  const label = buildSourceLabel(platformName, source.name, source.fragment === true)
+  const label = buildSourceLabel('', source.name, source.fragment === true)
   return label || undefined
 }
 
