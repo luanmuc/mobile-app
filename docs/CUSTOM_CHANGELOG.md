@@ -2151,6 +2151,8 @@ ID 本来就是 `N2-D1` / `P2-A1` / `N3-P1` / `P0-A1` / `A7b` 这类中缀形态
 
 **宽按钮 + 悬浮（2026-11-20 二次反馈「按钮要跟着宽」）**：上一版只是「宽槽位 + 小图标」，按钮本身仍是透明的。改为一排三个**实体宽按钮** —— 高 36、圆角 18（完全圆头），上一首/下一首 `ghost` 底（`c-primary-alpha-800`），播放键 `solid`（`c-primary` 实心 + `c-primary-light-1000` 图标），横向权重 1 / 1.15 / 1；胶囊 `padding 4` + `gap 6`，并加 `elevation 6` + iOS 阴影（`shadowOpacity 0.12`）做出整体悬浮感，每个按钮另有 `elevation 2` 形成层次。底栏总高仍 134。
 
+**整体重构 v2（2026-11-20 三次反馈「左右按钮发灰像玻璃、播放键没质感」）**：`c-primary-alpha-800`（0.20）叠在 0.10 胶囊底上必然发灰，所以三个按钮改成**不透明品牌色** —— 两侧 `c-primary-alpha-100`（0.90）、播放键 `c-primary`（1.0），图标统一 `c-primary-light-1000` 白，每个按钮压 1dp `rgba(255,255,255,0.28)` 高光边 + `elevation 3/5`；播放键高度 36→**40**、图标 22→**26**、grow 1.15，凸出 2dp 形成主次。**整个播放栏**从通栏贴边改成悬浮卡片：`alignSelf:'stretch'` + `marginHorizontal 10` + `marginBottom 8` + 四角圆角 18 + `elevation 14` / `shadowOpacity 0.18`。
+
 **待真机确认**
 - Android `overflow:'hidden'` 在 3dp 条上的圆角裁切
 - 128dp 总高在横屏 `Home/Horizontal` 下的占比

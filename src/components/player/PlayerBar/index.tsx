@@ -13,13 +13,14 @@ import { useSettingValue } from '@/store/setting/hook'
 import { scaleSizeW } from '@/utils/pixelRatio'
 
 const PIC_SIZE = 50
-// 胶囊宽度按底栏内容宽的比例给，占 3/5 强；窄屏 / 横屏靠 maxWidth 兜底
+// 胶囊宽度按底栏内容宽的比例给，窄屏 / 横屏靠 maxWidth 兜底
 const CAPSULE_WIDTH = '64%'
 const CAPSULE_HEIGHT = 44
-// 三个宽按钮均分胶囊内宽：高 36 + 圆角 18 = 圆头按钮，底栏总高仍 134
+// 胶囊 44 高、内边距 4 → 两侧按钮 36；播放键单独 40，凸出 2dp 形成主次
 const CONTROL_SIZE = 36
-const CONTROL_ICON = 26
-const PLAY_ICON = 22
+const PLAY_SIZE = 40
+const CONTROL_ICON = 24
+const PLAY_ICON = 26
 
 export default memo(({ isHome = false }: { isHome?: boolean }) => {
   // const { onLayout, ...layout } = useLayout()
@@ -38,7 +39,7 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
       </View>
       <BarProgress isHome={isHome} />
       <View style={{ ...styles.capsule, backgroundColor: theme['c-primary-alpha-900'], borderColor: theme['c-primary-alpha-800'] }}>
-        <ControlBtn size={CONTROL_SIZE} iconSize={CONTROL_ICON} playIconSize={PLAY_ICON} variant='ghost' playVariant='solid' grow={1} playGrow={1.15} />
+        <ControlBtn size={CONTROL_SIZE} playSize={PLAY_SIZE} iconSize={CONTROL_ICON} playIconSize={PLAY_ICON} variant='filled' playVariant='filled' grow={1} playGrow={1.15} />
       </View>
     </View>
   ), [theme, isHome])
@@ -51,14 +52,19 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
 
 const styles = createStyle({
   container: {
-    width: '100%',
-    paddingTop: 10,
+    // 整个播放栏做成悬浮卡片：四周留白 + 四角圆角 + 强阴影，脱离列表背景
+    alignSelf: 'stretch',
+    marginHorizontal: 10,
+    marginBottom: 8,
+    paddingTop: 12,
     paddingHorizontal: 12,
-    // 进度条已移到封面行与胶囊之间，底部恢复 10dp 呼吸。
     paddingBottom: 10,
-    borderTopLeftRadius: scaleSizeW(12),
-    borderTopRightRadius: scaleSizeW(12),
-    elevation: 10,
+    borderRadius: scaleSizeW(18),
+    elevation: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
   },
   topRow: {
     flexDirection: 'row',
