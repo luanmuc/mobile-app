@@ -1,3 +1,23 @@
+## [音频焦点短打断分级与兜底] `rntp AudioFocusPolicy` - 2026-11-20
+
+**需求**：蓝牙耳机听歌时来微信消息，音乐被暂停、提示音只响一秒，之后**不会自动恢复**。期望「像导航一样压低音量」，或「暂停也行，但得会恢复」。
+
+**诊断**（三条缺口都在 rntp fork）：
+- `LOSS_TRANSIENT` 一律 `PAUSE`，然后干等 `AUDIOFOCUS_GAIN`。GAIN 只在对方 `abandonAudioFocus` 时下发，对方不还（厂商 ROM 常见）就永久停在暂停态，旧实现**没有任何兜底**
+- `CAN_DUCK` 之后没有收尾——代码注释自己写了「导航只发 CAN_DUCK 不发 GAIN，音量会一直卡在低位」，但没有对应机制
+- `BECOMING_NOISY` 一律按拔线处理。蓝牙路由抖动也会发这条广播，却被置 `userPaused` + 清欠账 → 永久不恢复
+
+**边界**：只动 rntp fork 的焦点策略与执行器，App 侧设置项（`播放中断后自动续播` / `可压低时降低音量`）与 UI 不变。
+
+**做法**：
+- `Snapshot` 增 `inCall` / `externalDevice` 两个判定位（`getMode()` ∈ {IN_CALL, IN_COMMUNICATION, RINGTONE}；输出设备含 A2DP/SCO/有线/USB 耳机）
+- `LOSS_TRANSIENT` 分级：**非通话且真在出声** → 压低到 `音量×0.25` 继续播，不暂停；**通话中或缓冲中** → 照旧暂停
+- 新增 `FOCUS_RECHECK` + `A_SCHEDULE_RECHECK`：3s 到点先 `abandonAudioFocus()` 再 `requestAudioFocus()`（`hasAudioFocus` 只是本地记账，对方不还时仍是 `true`，直接 request 是空操作），成功则收音量并按欠账续播，失败最多重试 2 次
+- `NOISY_DISCONNECTED` 减严：设备仍在位只收回音量，不暂停 / 不清欠账 / 不置 `userPaused` / 不改 phase
+- 依赖升到 rntp `31895c6`（`package.json` + `package-lock.json` 三处 sha 同步）
+
+**验证**：rntp `check_audio_focus_policy` **58/0**（37 → 58，新增 21 条）；`check-java-syntax` 18 文件 **0 错**；`check_truth_gates` 4 条全一致；`docs-audit` 红项 0。
+
 ## [关于页文字信息还原上游原版] `About.tsx` - 2026-11-20
 
 **需求**：关于页的仓库地址、发布地址、常见问题链接原指向定制仓 `luanmuc/mobile-app`，与「官方原版信息」不符。要求**只恢复文字与链接信息**，定制能力（检查更新）必须保留。
