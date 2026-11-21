@@ -19,8 +19,13 @@ const { execFileSync } = require('child_process')
 let pass = 0
 let fail = 0
 function expect(name, ok) {
-  if (ok) { pass++; console.log('  ✅ ' + name) }
-  else { fail++; console.log('  ❌ ' + name) }
+  if (ok) {
+    pass++
+    console.log('  ✅ ' + name)
+  } else {
+    fail++
+    console.log('  ❌ ' + name)
+  }
 }
 
 function findApk(argv) {
