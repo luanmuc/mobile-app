@@ -6,7 +6,7 @@
 > - App：`luanmuc/mobile-app` @ `dadef6a1`（**已推送 master**），**v1.9.2-b187**；`npm run preflight` **47 通过 / 0 失败**
 > - 源仓：`luanmuc/backend-api`，**v9.1.4**（`297c88e`「巡检链重构：口径单一真相」，CI run 44679475468 全绿）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
-> - track-player：`45c384d`（v2 分支，**短打断分级 + 通用性补修**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量；门禁 37→58→67 条）
+> - track-player：`141dca5`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
 > - 硬数字：三语各 **1040 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1221 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 662 条**（6c 逐 ID 实算），算式 `1221 − 542 − 17 = 662` 自洽
 > - **2026-11-20 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1221 = 实测 1221；`--gen-ids` 仍报 **44 脚本 / 662 条 ID 全覆盖**
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源

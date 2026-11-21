@@ -1,3 +1,18 @@
+## [代次簿记：撤销真的能生效] `rntp PendingSlots` - 2026-11-21
+
+**问题**：RT-01/RT-04 上次的修法是把 `postDelayed` 的句柄存起来、在 9 处调用点撤销。但 `Handler.removeCallbacks()` **对已经离开队列、正在执行的任务无效**——用户暂停与到点 `play()` 之间只有 500ms，任务一旦开始执行，撤销就是摆设。调用点齐全只能防「忘了调」，防不住时序竞态。
+
+**做法**：新增纯逻辑类 `service/focus/PendingSlots.java`（零 Android 依赖）。`armResume()` / `armRecheck()` 返回新代次号，**任何更早的代次立即失效**；任务到点第一句改成 `if (!pendingSlots.isResumeCurrent(token)) return;`——不再问 Handler，改问「我还是当前那一条吗」。`cancelPendingResume()` / `cancelPendingRecheck()` 先 `disarm` 再 `removeCallbacks`，即便 remove 拦不住已开始执行的任务，到点也会被挡回。`resetFocus()` / 销毁时 `reset()` 清空两者。
+
+**门禁**：
+- `scripts/check_pending_slots.js` **24 条**（初始无效 / 排一次有效 / 二次排队旧失效 / disarm 返回 token 且失效 / 重复 disarm 不复活 / 撤销后重排 / 两种任务互不干扰 / reset 全清 / 跨类型代次号不重复）
+- `scripts/check_resume_cancel_callsites.js` **9 处**调用点静态契约（按方法体取区间断言，不是全文 grep，避免别处同名调用造成假绿）
+- `scripts/mutation-test.js` 扩到 **7 条变异体**（策略 4 + 代次 3），全部被抓、0 存活：`isResumeCurrent` 恒真 17/7、代次不递增 18/6、disarm 不清代次 20/4
+
+两者都进 `quality-gates.yml`，CI 实跑 **success 47s**。至此 RT-01/RT-04 的两半（调用点齐全 + 撤销真的生效）都在 CI 里有执行点，原先记的「需要 Handler 桩」遗留项关闭——用代次簿记替代了桩。
+
+**顺带**：rntp Java 从 18 文件 / 4,204 行变 19 文件 / 4,526 行，相关文档已同步。
+
 ## [工程化补口：CI 执行点] 三个 workflow - 2026-11-21
 
 **问题**：四仓的判据有一半只在本地跑。rntp 的 `.github/workflows/platform-validation.yml` 只做三平台 build，音频焦点 67 条断言 / 变异测试 / 18 文件 Java 语法 / 4 条口径门禁 / docs 巡检在 CI 里**零执行点**；telemetry 的 `ingest.yml` 只跑 ingest，9 条 `node --test` 同样零执行点。改坏代码照样绿着推上去。
