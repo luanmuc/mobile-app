@@ -2,17 +2,15 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 87638949 fix(docs): MUSIC_SOURCE_GUIDE §四标题音源版本对齐 v9.1.6
-- e5ed6c6f feat(health): K07 档位短路强制探路补 App 侧入口
-- b573235f docs: 内置音源版本跟进 v9.1.5（失效源退役标记）
+- 64219c4d fix(health): R71 健康页收口 + 契约显式化 + R72 日志治水
 
 ### File MD5
 ```
-973fef8b34862f218b4dab17f06e06bd  mobile-app-v1.9.2-b196-arm64-v8a.apk
-6375a7c2a0d61933be6dc80af2ca9d19  mobile-app-v1.9.2-b196-armeabi-v7a.apk
-c4a5447e8174e7b54b9eadbb36bb58d1  mobile-app-v1.9.2-b196-universal.apk
-4c414b82832b22ac752c5ac6768052a3  mobile-app-v1.9.2-b196-x86.apk
-4109e597e88086f05e527cad461f5661  mobile-app-v1.9.2-b196-x86_64.apk
+2aab05db17a80cbad30f5b524b30af0f  mobile-app-v1.9.2-b197-arm64-v8a.apk
+b4bfc542119a997635a074fa3afb5fb9  mobile-app-v1.9.2-b197-armeabi-v7a.apk
+3fd8da61a42f94286b1d794ce65d2589  mobile-app-v1.9.2-b197-universal.apk
+9d6120dbb4ca7a7d77253cd6c8e185a2  mobile-app-v1.9.2-b197-x86.apk
+8476e3ae8fb797e765902c0a6ab75ce5  mobile-app-v1.9.2-b197-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
