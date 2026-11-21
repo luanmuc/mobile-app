@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b195",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 43aa6fb7 docs: 同步内置音源版本 v9.1.4 与 b195 出包红灯复盘\n- a68827fc docs(audit-plan): 断言台账 check_health_digest 9→12 条，telemetry 测试 5/5→9/9\n- d2ac138c feat(health-digest): 摘要补音质维度与音源版本（契约 9→12 条）",
+  "version": "1.9.2-b196",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 87638949 fix(docs): MUSIC_SOURCE_GUIDE §四标题音源版本对齐 v9.1.6\n- e5ed6c6f feat(health): K07 档位短路强制探路补 App 侧入口\n- b573235f docs: 内置音源版本跟进 v9.1.5（失效源退役标记）",
   "history": [
+    {
+      "version": "1.9.2-b195",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 43aa6fb7 docs: 同步内置音源版本 v9.1.4 与 b195 出包红灯复盘\n- a68827fc docs(audit-plan): 断言台账 check_health_digest 9→12 条，telemetry 测试 5/5→9/9\n- d2ac138c feat(health-digest): 摘要补音质维度与音源版本（契约 9→12 条）"
+    },
     {
       "version": "1.9.2-b194",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b4fcafb3 ci: 补健康诊断深度/压力两支进 CI，收口 50 个 check 脚本的覆盖差集"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b190",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 43984ef8 fix(player): rntp 升到 31895c6，音频焦点短打断分级与 GAIN 缺失兜底"
-    },
-    {
-      "version": "1.9.2-b189",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 8b5d024d fix(about): 关于页只还原文字与链接信息，保留定制的当前版本+检查更新块；三语 1040 键。撤销把更新源改指官方的越界改动"
     }
   ]
 }
