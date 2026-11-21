@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b191",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0d1d9f2c fix(player): rntp 升到 45c384d，音频焦点通用性补修（覆盖外放/有线/USB/蓝牙/LE Audio 全场景）",
+  "version": "1.9.2-b192",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- f4dce4a5 style: 修 verify_apk_integration.js 的 brace-style（CI Lint 的唯一红项）\n- 5b04ea70 ci: 补 P7 集成落地断言——解包 APK 验定制资源与桥方法真的进了包",
   "history": [
+    {
+      "version": "1.9.2-b191",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0d1d9f2c fix(player): rntp 升到 45c384d，音频焦点通用性补修（覆盖外放/有线/USB/蓝牙/LE Audio 全场景）"
+    },
     {
       "version": "1.9.2-b190",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 43984ef8 fix(player): rntp 升到 31895c6，音频焦点短打断分级与 GAIN 缺失兜底"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b186",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9d97f4bc feat(health): 音源健康按钮收成一行 5 个，去掉复制诊断，导出诊断包改名导出诊断"
-    },
-    {
-      "version": "1.9.2-b185",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 963c01b7 test(notification): L5 口径翻转为通知栏不显示平台\n- 72af66f7 fix(notification): 通知栏艺术家行去掉音乐平台，只留音源与音质"
     }
   ]
 }
