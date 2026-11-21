@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.1.4**（`297c88e`「巡检链重构：口径单一真相」，CI run 44679475468 全绿）
 > - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
 > - track-player：`141dca5`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
-> - 硬数字：三语各 **1040 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1221 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 662 条**（6c 逐 ID 实算），算式 `1221 − 542 − 17 = 662` 自洽
+> - 硬数字：三语各 **1044 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1221 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 662 条**（6c 逐 ID 实算），算式 `1221 − 542 − 17 = 662` 自洽
 > - **2026-11-20 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1221 = 实测 1221；`--gen-ids` 仍报 **44 脚本 / 662 条 ID 全覆盖**
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
@@ -213,7 +213,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_file_name_template_runtime` | 11 | 文件名 token 模板 |
 | `check_release_state_contract` | 5 | versionCode / README 同步 |
 | `check_docs_consistency` | 17 文档 | 文档真值/死引用 |
-| `check_cross_repo_linkage` | 8（需双仓；CI 已注入 `LX_SOURCE_ROOT`，8 条全跑） | 双仓静态联动（22s vs 23s） |
+| `check_cross_repo_linkage` | 9（C9 只需 App 文件，其余 8 条需双仓；CI 已注入 `LX_SOURCE_ROOT`，9 条全跑） | 双仓静态联动（22s vs 23s）+ 档位短路强制探路的 App 入口 |
 | `check_cross_repo_health_roundtrip` | 4 | X1~X3 健康态往返（需双仓） |
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
@@ -287,7 +287,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_download_error_i18n` | 7 | I07-1 I07-2 I07-3 I07-4 I07-5 I07-6 I07-7 |
 | `check_file_name_template_runtime` | 11 | I05-1 I05-10 I05-11 I05-2 I05-3 I05-4 I05-5 I05-6 I05-7 I05-8 I05-9 |
 | `check_release_state_contract` | 5 | R-01-S1 R-01-S2 R-01-W1 R-01-W2 R-01-W3 |
-| `check_cross_repo_linkage` | 8 | C1 C2 C3 C4 C5 C6 C7 C8 |
+| `check_cross_repo_linkage` | 9 | C1 C2 C3 C4 C5 C6 C7 C8 C9 |
 | `check_cross_repo_health_roundtrip` | 4 | X1 X1b X2 X3 |
 | `check_truth_gates` | 14 | G6 G7×2 G8 G10×2 G11 G12 G18 G20 G21 G22 G23 G27 |
 
@@ -318,7 +318,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 
 ## 8. 失败处置与外部阻塞
 
-1. `check_source_ci_gate` 本地 `GITHUB_TOKEN` 无效 → 用 `git credential fill` 取有效令牌复跑；CI runner 仍用自带 `GITHUB_TOKEN`。
+1. `check_source_ci_gate` 曾在本机恒 403（记为「需要有效凭据/额度」）。**K16 定案**：额度实际充足（认证配额 5000 / used 20），真因是请求走**未认证** `api.github.com`，吃按出口 IP 的 60 次/小时。已修：脚本在无 `GITHUB_TOKEN` 时自动从 `~/.config/gh/hosts.yml` 读 `oauth_token` 兜底，本机直跑即通过；CI runner 仍用自带 `GITHUB_TOKEN`。
 2. G2 真机、G7 tx 完整链 blocked，不写成通过。
 3. 本计划只对纯 Node/内存 FS 结论负责。
 

@@ -24,7 +24,21 @@ const HEADERS = {
   Accept: 'application/vnd.github+json',
   'User-Agent': 'lx-music-mobile-source-ci-gate',
 }
-if (process.env.GITHUB_TOKEN) HEADERS.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
+// K16（2026-11-21 定案）：此前本机跑这条闸门恒 403「API rate limit exceeded for <IP>」，
+// 被记成「需要有效凭据/额度」。实际额度充足（认证配额 5000，used 20）——
+// 真因是本机既没设 GITHUB_TOKEN，`gh` 的凭据也没被用上，请求走了**未认证**通道，
+// 吃的是「按出口 IP 的 60 次/小时」。CI runner 不在本地限流 IP 上，所以 CI 里一直绿。
+// 这里补一层兜底：环境变量没有时，尝试从 gh 的 hosts.yml 读 oauth_token（只读、不外传）。
+function ghTokenFromConfig() {
+  try {
+    const p = require('path').join(require('os').homedir(), '.config', 'gh', 'hosts.yml')
+    const txt = require('fs').readFileSync(p, 'utf8')
+    const m = txt.match(/oauth_token:\s*(\S+)/)
+    return m ? m[1] : ''
+  } catch { return '' }
+}
+const TOKEN = process.env.GITHUB_TOKEN || ghTokenFromConfig()
+if (TOKEN) HEADERS.Authorization = `Bearer ${TOKEN}`
 
 async function getJson(url) {
   let res = await fetch(url, { headers: HEADERS })

@@ -7,7 +7,7 @@
  * 纯函数，不依赖 React / RN。
  */
 
-export type HealthSourceAction = 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend' | 'healthEvents'
+export type HealthSourceAction = 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend' | 'healthEvents' | 'forceQualityProbe'
 
 export interface HealthSourceBinding {
   sourceId: string

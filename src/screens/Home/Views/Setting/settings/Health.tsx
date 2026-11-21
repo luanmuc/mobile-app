@@ -80,7 +80,7 @@ type HealthSnapshot = Record<string, HealthItem>
 
 // 获取当前音源的健康查询器（任一声明对应 action 的源均可，聚合结果与源无关）
 // F19/F60：按 provider 的 platforms 绑定 API；没有匹配才回退第一个声明者，避免多源时打错 API。
-const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend', item?: Pick<HealthItem, 'id' | 'platforms'>): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
+const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'config' | 'trend' | 'forceQualityProbe', item?: Pick<HealthItem, 'id' | 'platforms'>): ((...args: any[]) => { promise: Promise<unknown> }) | null => {
   // G-A07：`global.lx` 已由 `src/types/app.d.ts` 的 `declare global { var lx: GlobalData }` 声明，
   // `(global as any)` 是多余的一层；这里只保留到 `Record<string, any>` 的收窄（`bindHealthSource` 的签名需要）
   const apis = global.lx?.apis as Record<string, any> | undefined
@@ -378,6 +378,28 @@ export default memo(() => {
       setProbingId('')
     }
   }, [t, probingId])
+
+  // K07（源仓 v9.1.6 配套）：档位短路强制探路。源侧 forceQualityProbe 只把该源该档的
+  // qualitySkipProbeAt 标记为已到期、放行一轮链构建，不碰熔断与健康账本（QP11 覆盖）。
+  // 此前只有源侧能力，App 侧没有任何入口，用户被短路压住时点不了「这一档再试一次」。
+  const retryQuality = useCallback(async(item: HealthItem, id: string, quality: string) => {
+    if (probingId) return
+    setError('')
+    const querier = getQuerier('forceQualityProbe', item)
+    if (!querier) { setError(t('health_no_source')); return }
+    setProbingId(id)
+    try {
+      const res: any = await querier(id, quality).promise
+      const q = quality.toUpperCase()
+      setProbeInfo(`${item.name ?? id}: ${res?.ok ? t('health_quality_retry_ok', { q }) : t('health_quality_retry_miss', { q })}`)
+      void loadHealth(true)
+    } catch (e: any) {
+      logger.warn('Health', String(e?.message ?? e))
+      setError(t('health_quality_retry_failed'))
+    } finally {
+      setProbingId('')
+    }
+  }, [t, probingId, loadHealth])
 
   // v4.0：行内开关——点击状态胶囊切换该源启用/停用（停用带 manualOff 锁定，探测不自动复活）
   const toggleSource = useCallback(async(item: HealthItem, id: string) => {
@@ -714,6 +736,17 @@ export default memo(() => {
                           : null}
                         {shortQualities.length
                           ? <Text size={9} color="#faad14">{t('health_quality_short_circuit', { q: shortQualities.join('/') })}</Text>
+                          : null}
+                        {shortQualities.length
+                          ? (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                              {shortQualities.map(q => (
+                                <Pressable key={q} disabled={!!probingId} onPress={() => { void retryQuality(item, id, q.toLowerCase()) }}>
+                                  <Text size={9} color={theme['c-primary']}>{t('health_quality_retry_probe_quality', { q })}</Text>
+                                </Pressable>
+                              ))}
+                            </View>
+                            )
                           : null}
                       </View>
                       <Pressable

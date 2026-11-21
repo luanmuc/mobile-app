@@ -77,6 +77,17 @@ const readSourceAll = () => {
   return parts.join('\n')
 }
 
+// K07（源仓 v9.1.6 配套）：档位短路强制探路必须有 App 侧入口。
+// 此前只有源侧 forceQualityProbe + QP11，App 侧零入口，用户被短路压住时点不了「这一档再试一次」。
+// 这条只看 App 文件，不依赖源仓检出，所以放在源仓 if 之外。
+check(
+  'C9 档位短路强制探路有 App 侧入口并透传到源 action',
+  hasCode(read('src/core/healthSourceBinding.ts'), flexRe("'forceQualityProbe'")) &&
+    hasCode(read('src/screens/Home/Views/Setting/settings/Health.tsx'), flexRe("getQuerier('forceQualityProbe'")) &&
+    hasCode(read('src/screens/Home/Views/Setting/settings/Health.tsx'), flexRe('retryQuality')),
+  'healthSourceBinding.ts + Health.tsx',
+)
+
 if (fs.existsSync(path.join(sourceRoot, 'src', 'legacy.js'))) {
   const s = readSourceAll()
   check('C6 源仓预算耗尽独立错误码且不再冒充 NETWORK_TIMEOUT', hasCode(s, flexRe('BUDGET_EXHAUSTED')) && !/ERROR_CODES\.NETWORK_TIMEOUT[^\n]*预算耗尽/.test(s), 'legacy.js')
