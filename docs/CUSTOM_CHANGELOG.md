@@ -1,13 +1,15 @@
 ## [工程化补口：CI 执行点] 三个 workflow - 2026-11-21
 
-**问题**：四仓的判据有一半只在本地跑。rntp 的 `.github/workflows/platform-validation.yml` 只做三平台 build，音频焦点 67 条断言 / 18 文件 Java 语法 / 4 条口径门禁 / docs 巡检在 CI 里**零执行点**；telemetry 的 `ingest.yml` 只跑 ingest，9 条 `node --test` 同样零执行点。改坏代码照样绿着推上去。
+**问题**：四仓的判据有一半只在本地跑。rntp 的 `.github/workflows/platform-validation.yml` 只做三平台 build，音频焦点 67 条断言 / 变异测试 / 18 文件 Java 语法 / 4 条口径门禁 / docs 巡检在 CI 里**零执行点**；telemetry 的 `ingest.yml` 只跑 ingest，9 条 `node --test` 同样零执行点。改坏代码照样绿着推上去。
 
 **补充**：
-- rntp 新增 `.github/workflows/quality-gates.yml`（job `gates`，`push`/`pull_request`）：Temurin 17 + Node 22，跑 P1/P2/P3/P4；把公开的 App 仓 checkout 到 `.app`、经 `LX_APP_ROOT` 注入，让 `docs-audit` 的「App 锁定 sha」跨仓断言云端也真校验。实跑 **success 44s**。
+- rntp 新增 `quality-gates.yml`（job `gates`，`push`/`pull_request`）：Temurin 17 + Node 22，跑 P1/P2/P3/P4 与**变异测试**；把公开的 App 仓 checkout 到 `.app`、经 `LX_APP_ROOT` 注入，让 `docs-audit` 的「App 锁定 sha」跨仓断言云端也真校验。变异测试新增 `scripts/mutation-test.js`，4 条变异体（二次压低守卫 / 复核 NORMAL 短路 / 长占用仍续播 / 欠账覆盖非累积）分别改坏策略，要求「编译通过但断言变红」，每条原文覆写还原、收尾复跑回 67/0，任一存活即红。顺带**作废旧 M1~M3**——那三条变异点在 `MusicManager`，67 条纯策略断言覆盖不到，实测删掉仍 67/0，属于文档写着「已验证」但从未真跑。`check_audio_focus_policy` 也从 `execFileSync` 改 `spawnSync`，红时能报「65 通过 / 2 失败」而非笼统的 runner 崩。实跑 **success 53s**。
 - telemetry 新增 `.github/workflows/test.yml`（job `unit`）：`push`/`pull_request` 触发，`paths-ignore: digests/**` 防自激（digests 是 workflow 自己提交的），跑 `node --test` + `schema/digest.schema.json` 可解析。实跑 **success 12s**，关闭文档里挂着的 GAP-1 / F3。
 - rntp `platform-validation.yml` 重整：Node 12.18.3 在 darwin-arm64 无构建、`c-hive/gha-yarn-cache@v1` 的 cache API 常年 503、`actions/cache@v2` 已被 GitHub 强制禁用 → push 只跑 `yarn install` + `yarn build`，三平台 example 构建改 `workflow_dispatch` 手动。
 - **P7 从 L3「未执行」变成每次构建真跑**：新增 `scripts/verify_apk_integration.js`，解包当前构建的 universal APK，直接读 `resources.arsc` 与 `classes*.dex` 的字符串池（不依赖 aapt2/dexdump），断言 `notify_mode_loop/order/random/single` 四个资源名 + `setNotificationRepeatMode` + `setPitch` + arsc/dex 存在性，共 **9 条**。接进 `release.yml` 的 `Android` job（`Upload APK` 之前），b191 包实测 **9/0**。
 - **顺带纠正两条错数**：rntp `STRESS_PLAN` 原写「4 态 × 6 密度」，实际是 **4 态 × 5 密度**（mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi，无 ldpi，20 张）——正因为 P7 从没执行过才没人发现；`AUDIT_PLAN` 的 `check_*.js` 计数保持 50（新脚本命名为 `verify_*`，不进断言台账，避免连锁改 1221 / 662 那套算式）。
+
+**实跑结果**：telemetry `test.yml` **success 12s**；rntp `quality-gates`（含变异测试）**success 53s**；rntp `platform-validation` 重整后 **success 15s**；App `Build` **success 4m12s**（Checks 1m51 / Lint 1m21 / Android 3m52 / Release 15s）。
 
 **关于 `preflight` 不进 CI（判断修正）**：`scripts/preflight.js` 的设计是「解析 `release.yml` 的 checks/lint 段，把 CI 会跑的跑一遍」，方向是本地→云端。塞进 CI 会解析到自己形成递归，且等于把所有 checks 重复跑一遍（+2.5 分钟且无新增判据）。它是**本地工具**，不该进 CI；CI 的覆盖由 `checks` job 本身保证。
 
