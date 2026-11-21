@@ -1,3 +1,17 @@
+## [b195 出包三连红修复：台账条数 / 源仓闸门时序 / 跨仓音源版本] `docs/AUDIT_PLAN.md`、`docs/MUSIC_SOURCE_GUIDE.md` - 2026-11-21
+
+**起因**：音源升 v9.1.4（`dd72710`）后 App 出包连续失败三次，每次原因都不同，都不是代码问题而是「版本/台账没跟上」。
+
+**三处原因与修复**：
+
+1. **断言台账漂移**（run `44880906717`）：`check_health_digest` 实测 12 条，`docs/AUDIT_PLAN.md` 6b 台账仍写 9 条 → `⛔ 声明 9 / 实测 12`，脚本 exit 1。四处同改（`9/0`→`12/0` 两处、表内 `| 9 |`→`| 12 |` 两处、ID 清单补 A10 A11 A12），`telemetry node --test 5/5`→`9/9`。**踩坑**：ID 清单不能带中文注解，`A10（档位分桶）` 会被解析成一个匹配不上的 token，仍报「多 A10/A11/A12」——必须纯 ID 空格分隔。
+2. **源仓 CI 闸门时序**（同一 run）：App 构建在源仓 push 后 45 秒内启动，`源仓 HEAD CI 闸门` 查到 `status=in_progress` 直接阻断。非源仓真红，等源仓 `44883520460` completed success（含 `sign-release`）后重跑即可。
+3. **跨仓音源版本**（run `44885091109`）：`docs/MUSIC_SOURCE_GUIDE.md:67` 标题仍写「豆包定制 v9.1.3」，本次拉到的内置音源是 9.1.4 → `❌ 文档音源版本 9.1.3 ≠ 本次内置 9.1.4`。改标题并把 §四「注」段的当前版本条目升到 v9.1.4（含阶段 3 三项改动与签名回写事实），9.1.1/9.1.2 降为「此前」。
+
+**另记一处本地假红**：`check_cross_repo_linkage` 本地报「少 C6/C7/C8」，原因是脚本写死 `lx-music-source` 目录名、本仓实际叫 `backend-api`；带 `LX_SOURCE_ROOT=<backend-api>` 跑 **8 通过 / 0 失败**，CI 不受影响。
+
+**验证**：`check_docs_consistency` 17 个文档无过时引用；`check_assertion_ledger` 44 一致 / 1 漂移（剩余为本地环境跳过）。
+
 ## [摘要上报补音质维度与音源版本] `src/core/healthDigest.ts` - 2026-11-21
 
 **起因**：13 源实测（源仓 `docs/SOURCE_CAPABILITY.md`）查出「源维度 100% 成功、档位维度 0%」的降档虚标（`juheTx`/`ikun` 的 flac 实返 mp3）。但真机摘要只有 `by_source`，云端能看出「某源挂了」，看不出「只在 flac 档挂」——最该抓的问题恰好被源维度掩盖。
