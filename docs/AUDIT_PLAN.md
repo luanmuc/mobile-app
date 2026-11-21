@@ -99,7 +99,7 @@
 | 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 60/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 25/0 | ✅ |
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
-| 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 9/0（**2026-11-19 已接入 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步**，此前只是本地手动）；telemetry `node --test` 5/5；真机 + 并发实测 | ✅ |
+| 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 12/0（**2026-11-19 已接入 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步**，此前只是本地手动）；telemetry `node --test` 9/9；真机 + 并发实测 | ✅ |
 | 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
@@ -134,7 +134,7 @@
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
 | X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（542 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
-| X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 9/0（含 A9 单飞）；telemetry `node --test` 5/5；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
+| X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 12/0（含 A9 单飞；2026-11-21 新增 A10~A12 覆盖 `by_quality` / `source.version` / `recent_events.q`）；telemetry `node --test` 9/9；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
 
 **联动铁律**：音源新增 action/字段/枚举时，反查 App 的 `sourceContract.ts`、`Health.tsx`、`SYNC_POINTS.md`、`check_source_contract.js` 是否同步。这条正是本次 QP-L1 发现的教训。
 
@@ -180,7 +180,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
 | `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势数据链 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
-| `check_health_digest` | 9 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁；**已接入 CI（2026-11-19）** |
+| `check_health_digest` | 12 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁；**已接入 CI（2026-11-19）** |
 | `check_health_persistence_v2` | 9 | v1 拒绝 / 容量与版本边界 |
 | `check_health_anomaly_v2` | 8 | 异常分级 / 覆盖不足不宣称 |
 | `check_health_real_playback` | 11 | 真播放计数 / 多源失败证据 / 重复 Playing 不膨胀样本（R11） |
@@ -255,7 +255,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_state_v2` | 7 | S1 S2 S3 S4 S5 S7 S8 |
 | `check_health_ui_mapping` | 12 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 |
 | `check_health_event_pipeline` | 10 | E1 E2 E3 E4 E5 E6 E7 E8 E9 E10 |
-| `check_health_digest` | 9 | A1 A2 A3 A4 A5 A6 A7 A8 A9 |
+| `check_health_digest` | 12 | A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 |
 | `check_health_persistence_v2` | 9 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 |
 | `check_health_anomaly_v2` | 8 | A1 A2 A3 A4 A5 A6 A7 A8 |
 | `check_health_real_playback` | 11 | R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 |
