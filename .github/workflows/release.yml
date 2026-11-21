@@ -267,6 +267,10 @@ jobs:
           # --no-daemon：单次构建用完即停，不留常驻进程占用 runner 内存
           ./gradlew assembleRelease --build-cache --parallel --no-daemon
 
+      - name: P7 集成落地断言（解包 APK，验定制资源与桥方法真的进了包）
+        # rntp STRESS_PLAN 的 P7 此前是 L3「未执行」；构建产物在手边，顺手把这条判据真正执行一次
+        run: node scripts/verify_apk_integration.js
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
