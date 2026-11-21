@@ -1,3 +1,13 @@
+## [CI 覆盖收口：50 个 check 脚本的最后 4 个] `release.yml` - 2026-11-21
+
+**核实方法**：把 `release.yml` 里所有 `node scripts/*.js` 出现处抓出来，与 `scripts/check_*.js` 实际 50 个做差集。结果 4 个没执行点，性质不同：
+
+- `check_health_diagnostics_deep`（51 条，含 10 万条压力）/ `check_health_diagnostics_stress`（14 条，1 万事件 / 5MB 截尾 / 200 错误码）：各约 1s，**是漏配，已接进「健康诊断契约门禁」step**。
+- `check_source_ci_gate_offline`：它是 `check_source_ci_gate` 的旁路证据，本地无 token 被限流时退回用；CI runner 有 `GITHUB_TOKEN`，`check_source_ci_gate` 本身已在跑。**保留本地**并在 workflow 注释里写明理由。
+- `check_upstream_divergence`：文件头自己写着「审计型，非阻塞」，对比上游基座用。**保留本地**。
+
+**顺带核实隔壁仓**：音源仓 `test/audit` 43 个脚本，CI 里 43 个全有执行点（L3/L4 + 早前补的 24 个那段），`npm test` 46 脚本本地 3m48s rc=0 —— 没有缺口，之前一轮 grep 只搜 `npm test` 关键字，误判为漏配。
+
 ## [代次簿记：撤销真的能生效] `rntp PendingSlots` - 2026-11-21
 
 **问题**：RT-01/RT-04 上次的修法是把 `postDelayed` 的句柄存起来、在 9 处调用点撤销。但 `Handler.removeCallbacks()` **对已经离开队列、正在执行的任务无效**——用户暂停与到点 `play()` 之间只有 500ms，任务一旦开始执行，撤销就是摆设。调用点齐全只能防「忘了调」，防不住时序竞态。

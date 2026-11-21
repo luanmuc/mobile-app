@@ -113,7 +113,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1040 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **50 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **50 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 

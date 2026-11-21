@@ -133,14 +133,17 @@ jobs:
         run: |
           node scripts/check_equalizer.js
 
-      - name: 健康诊断契约门禁（51 条 + 真实播放 4 条 + 视图 22 条 + 日志目录 15 条）
+      - name: 健康诊断契约门禁（51 条 + 真实播放 4 条 + 视图 22 条 + 日志目录 15 条 + 深度 51 / 压力 14）
         # 只读契约：action 透传 / 分发 case / traceId / 本地日志 / 聚合脱敏；
         # 视图模型锁折叠态、错误码/其他线索分组与空态。
+        # 深度 / 压力两支（2026-11-21 补）：各约 1s、51 + 14 条断言，此前只在本地跑。
         run: |
           node scripts/check_health_diagnostics.js
           node scripts/check_health_real_playback.js
           node scripts/check_health_diagnostics_view.js
           node scripts/check_log_directory.js
+          node scripts/check_health_diagnostics_deep.js
+          node scripts/check_health_diagnostics_stress.js
 
       - name: 健康状态/文案/文档一致性门禁
         # 这些检查此前只在本机手动跑，导致健康页文案/映射回退可以绕过 CI。
