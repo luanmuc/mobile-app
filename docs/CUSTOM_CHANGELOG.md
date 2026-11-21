@@ -1,3 +1,76 @@
+## [R72b 日志治理第二批：Health.tsx 与 Source.tsx 共 13 处裸 console] `Health.tsx`、`Source.tsx`、`.eslintrc.cjs` - 2026-11-21
+
+延续 R72，按文件逐个治：
+
+| 文件 | 处数 | 说明 |
+|---|---|---|
+| `Health.tsx` | 3 | `refreshDiagnostics` 诊断包生成失败、trend 自动加载失败改 `logger.warn('Health', ...)`；`loadHealth` 的 catch 里 `console.log(e)` 是**重复打点**（同一错误下方已有 `logger.warn` + `setError`），直接删除 |
+| `Source.tsx` | 10 | 切换音源失败 + 9 处持久化/清理失败，全部改 `logger.warn('Source', ...)`；新增 `import { logger } from '@/utils/logger'` |
+
+`.eslintrc.cjs` 的 `no-console` override `files` 数组扩到这三个文件。
+
+**类型细节**：`Health.tsx` 那两处 catch 参数是 `{}` 类型（无标注），先写 `e?.message` 会 `TS2339`，改 `String(e)` 后 tsc rc 0。
+
+**验证**：`tsc --noEmit` rc0；`eslint` 三文件 rc0；**红绿**：在 `Source.tsx` 尾部插 `console.log("red-green")` → eslint 报 3 errors，删后 rc0；`HS` 19/0、`docs_consistency` 17 篇、`truth_gates` 全一致、`ledger` 46 一致 / 1230=1230、`linkage` 9/0。
+
+**剩余**：`src/` 裸 console 从 72 降到 **59**（大头是 `music/utils.ts` 9、`plugins/sync/client/{client,auth}.ts` 6、`plugins/player/service.ts` 3）。
+
+## [R72 userApi 日志治水：21 处裸 console 全部改走 file logger] `userApi/index.ts`、`.eslintrc.cjs` - 2026-11-21
+
+**问题**：`userApi/index.ts` 有 21 处裸 `console.log`/`console.warn`——10 处是各 action 的失败路径，11 处是内置源导入决策。真机 release 下裸 console 不进 file logger，诊断包里查不到这些记录；开发期只是噪音，线上就是「用户报错时日志里什么都没有」。
+
+**改法**
+
+| 范围 | 改动 |
+|---|---|
+| 10 处失败路径 | `console.log(err.message)` → `logger.warn('userApi', \`<action> 失败: ${String(err?.message ?? err)}\`)`，逐处带上 action 名（musicUrl / lyric / pic / health / toggle / probe / probeSource / config / trend / healthEvents） |
+| 11 处内置源决策 | `console.log`/`console.warn` → `logger.info`/`logger.warn('userApi', ...)`，文案改中文便于检索 |
+| 规则 | `.eslintrc.cjs` 对 `src/core/init/userApi/index.ts` 加 `no-console: error`，防止回潮 |
+
+**控制流一点没动**：每处仍是 `logger.warn` 后 `return Promise.reject(err)`；`exportHealthState` 透传、`restoreHealthState` 吞成 `{ok:false}`、`forceQualityProbe` 三分流全部原样。
+
+**验证**：`tsc --noEmit` rc0；`eslint` rc0；**红绿**：临时在文件尾插一行 `console.log("red-green")` → eslint 报 3 errors，删掉后 rc0；`check_health_status_refactor` 19/0、`docs_consistency` 17 篇、`ledger` 46 一致 / 1230=1230、`linkage` 9/0。
+
+## [R71e 播放回传未知源归一：业务否定不抛错，去掉裸 console 噪音] `userApi/index.ts` - 2026-11-21
+
+源侧 `reportPlayback` 对未知源由 `reject(PARAM_ERROR: unknown source id)` 改为 `resolve({ ok:false, code:'UNSUPPORTED_ACTION', reason:'UNKNOWN_SOURCE' })`（不记账、不写 `playDead`）。切换/卸载音源后播放器残留的播放回传必然命中这条，原先每次都往控制台打一行噪音。
+
+1. **包装层分流**：`.catch` 先判 `code === 'UNSUPPORTED_ACTION'` 直接返回 `{ ok:false }`；其余才 `logger.warn('userApi', ...)` 并 reject。裸 `console.log(err.message)` 去掉。
+2. **消费侧不变**：`plugins/player/service.ts:75` 一直是 `void res?.promise?.catch?.(() => {})` 静默，用户侧行为无变化；变化只在控制台不再刷错误行。
+
+**验证**：源侧 `lx-source-smoke-test` T32 增 6 条断言并做完红绿双向；App 侧 `tsc --noEmit` rc 0、`eslint` rc 0。
+
+**遗留**：`userApi/index.ts` 另有 12 处裸 `console.log(err.message)`（其他 action 的失败路径），同属一类噪音，留待 R72 统一改 `logger`。
+
+## [R71d 契约显式化：业务否定靠码值不靠「缺 error」，并让 failed 文案真正可达] `sourceContract.ts`、`userApi/index.ts`、`Health.tsx`、`check_health_status_refactor.js` - 2026-11-21
+
+**先纠正 R71 的叙事**：取证确认 `userApi/index.ts` 所有 querier 的包装都是 `.then(res => unwrapSourceResult(res.data)).catch(err => ({ ok:false, reason }))`，源侧 reject 与 envelope 失败到 App 都是**已 resolve** 的 `{ok:false}`。因此 `health_quality_retry_miss` 在 R71 之前就可达；真正打不出来的是 `health_quality_retry_failed`。
+
+1. **显式业务否定码**（`sourceContract.ts`）：新增 `BUSINESS_REJECTION_CODES = ['UNSUPPORTED_ACTION']` 与 `isBusinessRejection()`，`unwrapSourceResult` 先判业务否定、再判 v2 envelope。此前靠「返回值里没有 error 字段」表达语义，任何人补个 error 就会翻转归因；现在由码值明说。白名单必须存在——源脚本内部大量 `{ok:false, code:'NOT_AUDIO'}` 同形结果不能被误标成业务否定。
+2. **包装层不再吃掉 code**（`userApi/index.ts` 的 `forceQualityProbe`）：`.catch` 保留 `err.code`。原先压成 `{ok:false, reason}`，上层再也分不出「源不支持」与「超时/桥错误」。
+3. **三分流**（`Health.tsx` 的 `retryQuality`）：`ok` → ok 文案；`code==='UNSUPPORTED_ACTION'`（兼容未升版旧源的 `reason==='UNKNOWN_SOURCE'`）→ miss；其余 → `health_quality_retry_failed`。这条文案此前永远不可达。
+4. **HS19**：正面认 `UNSUPPORTED_ACTION`；反面拒绝 `NOT_AUDIO`/`PREVIEW_FRAGMENT`/`CONFIG_ERROR`/`PARAM_ERROR`/`LINK_EXPIRED`、带 `error` 的、`ok:true` 的；静态断言包装层透出 `err.code`、`retryQuality` 按 code 分流、failed 分支真实存在。
+
+**验证**：`check_health_status_refactor` 19/0（HS1–HS19）、`tsc --noEmit` rc 0、`AUDIT_PLAN` 6b/6c 由 18 同步到 19。
+
+## [R71 健康页六条收口：绑定语义 / 快照并发 / 弹窗占位 / 卸载守卫 / 文案] `Health.tsx`、`healthSourceBinding.ts`、`src/lang/*.json` - 2026-11-21
+
+**起因**：对 K07 链逐跳取证（UI 按钮 → `forceQualityProbe` → `qualitySkipProbeAt` → `isQualityHopeless`）时发现六处不一致。机制本身经 `QP11` 验证正确（放行一轮、随后恢复短路），问题都在外围。
+
+1. **绑定参数概念错配**（`getQuerier`）：`apis` 的键是平台名（`userApi/index.ts:101-103` 的 `apis[source as LX.Source]`），第三参数传 `item.id`（源 id）永远匹配不到 `explicit` 分支，`matched` 恒为 `platform`。改传 `undefined`；`explicit` 能力保留给「apis 按源 id 组织」的宿主形态（`HS10` 仍覆盖三种绑定）。
+2. **快照并发覆盖**（`loadHealth`）：30s 静默轮询、手动刷新、强制探路后的 `loadHealth(true)` 三源可重叠，旧响应后到会覆盖新快照。新增 `healthReqSeqRef` 单调序号，只接受最后一次发起的响应；`snapshot`/`trendData`/`error` 回写按序号判断（`loading` 单独处理，见 2b）。
+
+2b. **loading 归属**（审查复审，`loadHealth`）：只用全局快照序号清 `loading`，会让「手动刷新在途时被静默请求递增序号」的那次请求永远清不掉——`:555` 的刷新按钮 `disabled={loading}` 永久停在「加载中」。改为 `loadingOwnerSeqRef` 单独记主人：手动请求置 loading 并登记自己，静默请求只递增快照序号、不碰 loading；判定抽成纯函数 `shouldClearHealthLoading(silent, seq, ownerSeq)`（`src/core/healthStatus.ts`）。`HS15` 覆盖三条轨迹（被覆盖后不得清 / 未被覆盖必须清 / 静默不得清），`HS16` 静态断言「写入点登记主人 + finally 按主人清」；红绿双向：把判定改回 `!silent`（忽略 owner）→ `HS15` 立即红并报出「这正是修复前的卡死实现」。
+
+2c. **跨仓契约回归**（`HS17`/`HS18`）：`unwrapSourceResult` 对源侧 `{ok:false,id,quality,reason}` 原样透出（缺 `error` 字段 → 非 v2 envelope → App 靠 `res.ok` 分流，miss 文案可达）；对照 `{ok:false,error}` 必须抛 `CODE: message`。这条边界是隐式耦合——将来源侧若给返回值补 `error`，miss 会静默退化成 failed。
+3. **确认弹窗占住整页**（`probeOne`）：原先 `setProbingId(id)` 在 `confirmDialog` 之前，用户停留弹窗期间整页 `disabled={!!probingId}` 的控件（含 K07 重试按钮）全灰。改为探测完成即释放、确认通过后再占用。
+4. **卸载守卫补齐**（`retryQuality` / `probeOne` / `toggleSource`）：`await` 之后直接 `setState`，与同文件 `loadHealth` / `refreshDiagnostics` 已有 `isUnmountedRef` 的写法不一致。
+5. **文案诚实化**（zh-cn / zh-tw / en-us）：`已放行 {q} 档一轮` → 补「（仅本次，失效后重新短路）」；英文 `Released {q} for one attempt (this time only)`。`QP11` 证明只放行一次，旧文案容易被读成永久解除。
+
+**验证**：`check_health_status_refactor` 18/0（HS1–HS18）；`tsc --noEmit` rc 0；`eslint` rc 0；`check_docs_consistency` 17 篇；`check_truth_gates` 全一致；`check_health_digest` 12/0；`check_source_health_persistence` 17/0；`LX_SOURCE_ROOT=../backend-api check_assertion_ledger` 46 一致 / 1229=1229；`check_cross_repo_linkage` 9/0。
+
+**未做**：`check_source_ci_gate` 仍红——源仓远端最近一条 push run 是 `cc26121` 的 failure（台账漏登），修复提交 `5c812c8` 只改 `docs/`、不在 `ci.yml` 的 `paths` 白名单，不触发 CI，所以远端停在 failure。要变绿必须推一个改 `src/**` / `scripts/**` / `test/**` / `lx-source.js` 的提交（本次源仓 `legacy.js` 改动属于此类）。
+
 ## [b195 出包三连红修复：台账条数 / 源仓闸门时序 / 跨仓音源版本] `docs/AUDIT_PLAN.md`、`docs/MUSIC_SOURCE_GUIDE.md` - 2026-11-21
 
 **起因**：音源升 v9.1.4（`dd72710`）后 App 出包连续失败三次，每次原因都不同，都不是代码问题而是「版本/台账没跟上」。

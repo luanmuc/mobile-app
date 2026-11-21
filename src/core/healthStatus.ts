@@ -139,3 +139,16 @@ export const buildQualityMatrixRows = (item: { byQuality?: Partial<Record<string
       hasSample: req > 0 || success > 0 || fail > 0 || definitiveFail > 0 || linkExpired > 0,
     }
   })
+
+/**
+ * R71：`loadHealth` 的 loading 归属判定。
+ *
+ * 手动刷新（silent=false）置 loading，并把自己记为「loading 主人」；
+ * 静默请求（30s 轮询 / 强制探路后的刷新）只递增快照序号，不碰 loading。
+ * 只有「手动请求」且「自己仍是 loading 主人」才允许清 loading：
+ * 否则旧手动请求返回时会把新请求的 loading 提前清掉；
+ * 而用全局快照序号判断（修复前的写法）会让被静默请求覆盖的手动请求永远清不掉，
+ * 刷新按钮永久停在「加载中」。
+ */
+export const shouldClearHealthLoading = (silent: boolean, seq: number, ownerSeq: number): boolean =>
+  !silent && seq === ownerSeq

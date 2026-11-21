@@ -67,6 +67,16 @@ module.exports = {
         project: './tsconfig.json',
       },
     },
+    {
+      // R72：日志必须进 file logger，裸 console 在 release 下不进诊断包。
+      // 按文件逐步治理，每加一个文件配一次红绿；不要全局开（src/ 还有 60+ 处未治）。
+      files: [
+        'src/core/init/userApi/index.ts',
+        'src/screens/Home/Views/Setting/settings/Health.tsx',
+        'src/screens/Home/Views/Setting/settings/Basic/Source.tsx',
+      ],
+      rules: { 'no-console': 'error' },
+    },
   ],
   settings: {
     react: {

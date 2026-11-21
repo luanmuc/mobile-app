@@ -150,7 +150,7 @@ export default async(setting: LX.AppSetting) => {
                         qualityCeilingApplied: data?.qualityCeilingApplied === true,
                       }
                     }).catch(err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `musicUrl 失败: ${String(err?.message ?? err)}`)
                       throw err
                     })),
                   }
@@ -178,7 +178,7 @@ export default async(setting: LX.AppSetting) => {
                       // console.log(res)
                       return unwrapSourceResult(res.data)
                     }).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `lyric 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -206,7 +206,7 @@ export default async(setting: LX.AppSetting) => {
                       // console.log(res)
                       return unwrapSourceResult(res.data)
                     }).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `pic 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -240,7 +240,7 @@ export default async(setting: LX.AppSetting) => {
                       } catch {}
                       return snapshot
                     }).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `health 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -262,7 +262,7 @@ export default async(setting: LX.AppSetting) => {
                         info: { id, enabled },
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `toggle 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -284,7 +284,7 @@ export default async(setting: LX.AppSetting) => {
                         info: {},
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `probe 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -306,7 +306,7 @@ export default async(setting: LX.AppSetting) => {
                         info: { id, apply: options?.apply === true },
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `probeSource 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -328,7 +328,10 @@ export default async(setting: LX.AppSetting) => {
                         info: { sourceId: id, ...(info ?? {}) },
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      // R71e：业务否定（该源已不存在）不往上抛；只有真正的协议/桥错误才 reject。
+                      // 原先这里是裸 console.log，切换音源后每次残留回传都往控制台打一行噪音。
+                      if (err?.code === 'UNSUPPORTED_ACTION') return { ok: false, code: err.code, reason: err.message }
+                      logger.warn('userApi', `reportPlayback 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -351,7 +354,7 @@ export default async(setting: LX.AppSetting) => {
                         info: updates ?? {},
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `config 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -373,7 +376,7 @@ export default async(setting: LX.AppSetting) => {
                         info: {},
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `trend 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -395,7 +398,7 @@ export default async(setting: LX.AppSetting) => {
                         info: query ?? {},
                       },
                     }).then(res => unwrapSourceResult(res.data)).catch(async err => {
-                      console.log(err.message)
+                      logger.warn('userApi', `healthEvents 失败: ${String(err?.message ?? err)}`)
                       return Promise.reject(err)
                     }),
                   }
@@ -434,7 +437,13 @@ export default async(setting: LX.AppSetting) => {
                     promise: sendUserApiRequest({
                       requestKey,
                       data: { source, action: 'forceQualityProbe', info: { id, quality } },
-                    }).then(res => unwrapSourceResult(res.data)).catch(async err => ({ ok: false, reason: String(err?.message || err) })),
+                    }).then(res => unwrapSourceResult(res.data)).catch(async err => ({
+                      // R71d：把 err.code 带出去。原先把一切失败压成 { ok:false, reason }，
+                      // 上层再也分不清「源不支持」和「网络超时」，failed 文案因此永远打不出来。
+                      ok: false,
+                      code: typeof err?.code === 'string' ? err.code : undefined,
+                      reason: String(err?.message || err),
+                    })),
                   }
                 }
                 break
@@ -561,7 +570,7 @@ export default async(setting: LX.AppSetting) => {
       try {
         pendingVersion = parseSourceVersion(await getUserApiScript(pendingSourceId))
       } catch (e) {
-        console.warn('Failed to read pending builtin source version:', e)
+        logger.warn('userApi', `读取 pending 内置源版本失败: ${String(e)}`)
       }
     }
     const pendingDecision = decidePendingBuiltinSwitch({
@@ -584,18 +593,18 @@ export default async(setting: LX.AppSetting) => {
         const idx = userApiList.findIndex(api => api.id === previousBuiltinId)
         if (idx >= 0) {
           await removeUserApi([previousBuiltinId]).catch((e) => {
-            console.warn('Failed to remove previous builtin source:', e)
+            logger.warn('userApi', `删除旧内置源失败: ${String(e)}`)
           })
           userApiList.splice(idx, 1)
         }
       }
-      console.log('pending builtin source promoted:', pendingSourceId, pendingDecision.promoteVersion)
+      logger.info('userApi', `pending 内置源已提升: ${pendingSourceId} ${pendingDecision.promoteVersion}`)
     } else if (pendingDecision.action === 'clear-stale') {
       await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
-      console.log('pending builtin source cleared:', pendingSourceId)
+      logger.info('userApi', `pending 内置源已清理: ${pendingSourceId}`)
     } else if (pendingDecision.action === 'block-import') {
       // 覆盖式更新不会多出副本，这里只记录，不再阻断本次覆盖
-      console.log('pending builtin source still unselected, ignored:', pendingSourceId)
+      logger.info('userApi', `pending 内置源未选中，忽略: ${pendingSourceId}`)
     }
   }
 
@@ -618,7 +627,7 @@ export default async(setting: LX.AppSetting) => {
     const probeScript = await RNFS.readFileAssets('builtin_source.js', 'utf8')
     builtinVer = parseSourceVersion(probeScript)
   } catch (e) {
-    console.warn('Failed to read builtin source version:', e)
+    logger.warn('userApi', `读取内置源版本失败: ${String(e)}`)
   }
 
   // 触发升级：首次安装；或内置版本严格高于已导入版本。禁止旧内置源覆盖在线升级。
@@ -630,7 +639,7 @@ export default async(setting: LX.AppSetting) => {
     appVersion: currentAppVersion,
     importedAppVersion: storedAppVersion,
   })
-  console.log('builtin source decision:', importDecision.reason, importDecision.builtinVersion || '-', importDecision.importedVersion || '-')
+  logger.info('userApi', `内置源决策: ${importDecision.reason} ${importDecision.builtinVersion || '-'} ${importDecision.importedVersion || '-'}`)
 
   if (importDecision.shouldImport) {
     try {
@@ -643,7 +652,7 @@ export default async(setting: LX.AppSetting) => {
           newApi = await overwriteUserApi(builtinApi.id, script)
           const idx = userApiList.findIndex(api => api.id === builtinApi.id)
           if (idx >= 0) userApiList.splice(idx, 1, newApi)
-          console.log('builtin source overwritten in place:', newApi.id)
+          logger.info('userApi', `内置源就地覆盖: ${newApi.id}`)
         } else {
           // 全新安装：库里没有任何同名源，才新增一份
           newApi = await addUserApi(script)
@@ -664,7 +673,7 @@ export default async(setting: LX.AppSetting) => {
                 await saveData(storageDataPrefix.setting, stored)
               }
             } catch (e) {
-              console.warn('Failed to persist apiSource:', e)
+              logger.warn('userApi', `持久化 apiSource 失败: ${String(e)}`)
             }
           }
         }
@@ -677,10 +686,10 @@ export default async(setting: LX.AppSetting) => {
         if (verifiedBuiltinVersion) await saveData(builtinVersionKey, verifiedBuiltinVersion)
         // 记下“这次同步发生在哪个 App 版本”，下次同包重启才不会又当成换包
         if (currentAppVersion) await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion)
-        console.log('builtin source imported/updated:', newApi.name, verifiedBuiltinVersion || '')
+        logger.info('userApi', `内置源导入/更新: ${newApi.name} ${verifiedBuiltinVersion || ''}`)
       }
     } catch (e) {
-      console.warn('Failed to load builtin source:', e)
+      logger.warn('userApi', `加载内置源失败: ${String(e)}`)
     }
   }
   setUserApiList(userApiList)

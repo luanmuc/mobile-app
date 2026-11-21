@@ -16,8 +16,9 @@ const load = rel => {
   new Function('exports', 'module', 'require', out)(mod.exports, mod, require)
   return mod.exports
 }
-const { buildQualityMatrixRows, classifyHealthMainState, buildHealthSummary, HEALTH_MAIN_STATES } = load('src/core/healthStatus.ts')
+const { buildQualityMatrixRows, classifyHealthMainState, buildHealthSummary, HEALTH_MAIN_STATES, shouldClearHealthLoading } = load('src/core/healthStatus.ts')
 const { bindHealthSource } = load('src/core/healthSourceBinding.ts')
+const { unwrapSourceResult, isBusinessRejection } = load('src/core/init/userApi/sourceContract.ts')
 let pass = 0
 let fail = 0
 const check = (id, name, fn) => {
@@ -86,6 +87,55 @@ check('HS10', '健康 API 按 provider platforms 绑定，多源时不取第一�
   const fallback = bindHealthSource(apis, 'toggle', 'missing', ['zz'])
   if (!fallback || fallback.sourceId !== 'kw' || fallback.matched !== 'fallback') throw new Error(JSON.stringify(fallback))
   if (bindHealthSource(apis, 'probeSource', undefined, ['kw']) !== null) throw new Error('不应绑定缺 action 的 API')
+})
+check('HS15', '手动刷新被静默请求覆盖后 loading 仍由手动请求清（R71 复审）', () => {
+  // 场景 C：手动 seq=1 置 loading 并登记 owner=1；静默请求（轮询/探路后刷新）把快照序号推到 2，但不碰 owner
+  if (!shouldClearHealthLoading(false, 1, 1)) throw new Error('手动请求未被覆盖时应清 loading')
+  if (shouldClearHealthLoading(false, 1, 2)) throw new Error('被静默请求覆盖的手动请求不得用最新快照序号清 loading（这正是修复前的卡死实现）')
+  if (shouldClearHealthLoading(true, 2, 2)) throw new Error('静默请求不得清 loading')
+  // 场景 D：新手动覆盖旧手动——旧的不得清，新的必须清
+  if (shouldClearHealthLoading(false, 1, 2)) throw new Error('旧手动不得清新手动的 loading')
+  if (!shouldClearHealthLoading(false, 2, 2)) throw new Error('新手动必须清自己的 loading')
+})
+check('HS16', 'loadHealth 的 loading 归属写入点与清理点一致（静态契约）', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Health.tsx'), 'utf-8')
+  if (!/loadingOwnerSeqRef\.current = seq/.test(src)) throw new Error('setLoading(true) 前未登记 loading 主人')
+  if (!/shouldClearHealthLoading\(silent, seq, loadingOwnerSeqRef\.current\)/.test(src)) throw new Error('finally 未按 loading 主人序号清 loading')
+  if (/seq === healthReqSeqRef\.current\) setLoading\(false\)/.test(src)) throw new Error('仍用快照序号清 loading（修复前的卡死实现）')
+})
+check('HS17', 'forceQualityProbe 业务否定经 unwrap 原样透出（R71d：靠 code 明说，不靠「缺 error」）', () => {
+  // 源侧 R71d 返回值：ok:false + code:UNSUPPORTED_ACTION，且不带 error
+  const notFoundSource = { ok: false, id: '__nope__', quality: 'flac', code: 'UNSUPPORTED_ACTION', reason: 'UNKNOWN_SOURCE' }
+  const u1 = unwrapSourceResult(notFoundSource)
+  if (u1 !== notFoundSource) throw new Error('未知源返回应原样透出（业务否定不得抛）')
+  if (u1.ok !== false) throw new Error('unwrap 后 ok 应为 false，否则 miss 文案不可达')
+  if (u1.code !== 'UNSUPPORTED_ACTION') throw new Error(`code 被吃掉：${u1.code}`)
+  const okSource = { ok: true, id: 'suyinKuwo', quality: 'flac' }
+  if (unwrapSourceResult(okSource) !== okSource) throw new Error('成功返回应原样透出')
+})
+check('HS18', '对照：带 error 的 v2 envelope 必须抛（failed 分支）', () => {
+  let thrown = null
+  try { unwrapSourceResult({ ok: false, error: { code: 'CONFIG_ERROR', message: 'boom' } }) } catch (e) { thrown = e }
+  if (!thrown) throw new Error('应抛错')
+  if (thrown.code !== 'CONFIG_ERROR') throw new Error(`err.code=${thrown.code}`)
+})
+check('HS19', '业务否定白名单只认 UNSUPPORTED_ACTION，且包装层与三分流都不得吃掉 code（静态契约）', () => {
+  // 正面：业务否定
+  if (!isBusinessRejection({ ok: false, code: 'UNSUPPORTED_ACTION', reason: 'UNKNOWN_SOURCE' })) throw new Error('UNSUPPORTED_ACTION 应为业务否定')
+  // 反面：源脚本内部链路结果也常是 {ok:false, code}，不能被误标成业务否定
+  for (const code of ['NOT_AUDIO', 'PREVIEW_FRAGMENT', 'CONFIG_ERROR', 'PARAM_ERROR', 'LINK_EXPIRED']) {
+    if (isBusinessRejection({ ok: false, code })) throw new Error(`${code} 不得被当成业务否定`)
+  }
+  // 带 error 的一律是协议错误，该抛
+  if (isBusinessRejection({ ok: false, code: 'UNSUPPORTED_ACTION', error: { code: 'X', message: 'y' } })) throw new Error('带 error 的不得算业务否定')
+  if (isBusinessRejection({ ok: true, code: 'UNSUPPORTED_ACTION' })) throw new Error('ok:true 不得算业务否定')
+  // 静态 1：包装层 catch 必须透出 err.code，否则上层只剩 ok:false，failed/miss 又并成一句
+  const idx = fs.readFileSync(path.join(ROOT, 'src/core/init/userApi/index.ts'), 'utf-8')
+  if (!idx.includes("code: typeof err?.code === 'string'")) throw new Error('forceQualityProbe 包装层未透出 err.code')
+  // 静态 2：retryQuality 必须按 code 三分流，且 failed 分支真实存在
+  const health = fs.readFileSync(path.join(ROOT, 'src/screens/Home/Views/Setting/settings/Health.tsx'), 'utf-8')
+  if (!health.includes("res?.code === 'UNSUPPORTED_ACTION'")) throw new Error('retryQuality 未按 code 识别业务否定')
+  if (!health.includes("setError(t('health_quality_retry_failed'))")) throw new Error('health_quality_retry_failed 分支不存在')
 })
 // ── G-A02（2026-11-19）：4 主状态 × 12 reason 判定面的全组合枚举 ──────────────────
 // 原口径「144 组合」= offReason(6) × playDead(2) × autoOff(2) × state(3) × sampled(2)。

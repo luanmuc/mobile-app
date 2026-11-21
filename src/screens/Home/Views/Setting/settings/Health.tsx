@@ -18,7 +18,7 @@ import {
   configLabelKey,
   msToDisplay,
 } from '@/core/sourceConfig'
-import { buildHealthSummary, buildQualityMatrixRows, classifyHealthMainState, hasHealthSample } from '@/core/healthStatus'
+import { buildHealthSummary, buildQualityMatrixRows, classifyHealthMainState, hasHealthSample, shouldClearHealthLoading } from '@/core/healthStatus'
 import { bindHealthSource } from '@/core/healthSourceBinding'
 import { buildEvidencePackage, buildHealthReport, type HealthReport } from '@/core/healthDiagnostics'
 import { buildHealthDiagnosticsView, localizeHealthFinding } from '@/core/healthDiagnosticsView'
@@ -85,7 +85,10 @@ const getQuerier = (fn: 'getHealth' | 'toggle' | 'probe' | 'probeSource' | 'conf
   // `(global as any)` 是多余的一层；这里只保留到 `Record<string, any>` 的收窄（`bindHealthSource` 的签名需要）
   const apis = global.lx?.apis as Record<string, any> | undefined
   if (!apis) return null
-  const binding = bindHealthSource(apis, fn, item?.id, item?.platforms)
+  // R71：`apis` 的键是平台名（`userApi/index.ts:101-103` 的 `apis[source as LX.Source]`），
+  // 不是源 id。第三参数传 `item.id` 永远匹配不到 `explicit` 分支，只会让 `matched` 失真。
+  // 这里按 provider platforms 绑定；`explicit` 能力保留给「apis 按源 id 组织」的宿主形态。
+  const binding = bindHealthSource(apis, fn, undefined, item?.platforms)
   return binding ? apis[binding.sourceId][fn] : null
 }
 const boundSourceId = (item: HealthItem): string => {
@@ -144,6 +147,12 @@ export default memo(() => {
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // R71：健康快照并发守卫。30s 静默轮询、手动刷新、强制探路后的 loadHealth(true)
+  // 三源可能重叠，旧响应后到会覆盖新快照；用单调序号只接受最后一次发起的响应。
+  const healthReqSeqRef = useRef(0)
+  // R71 复审：loading 单独记「主人序号」。手动请求置 true 并登记自己；
+  // 静默请求只递增 healthReqSeqRef，不碰 loading，也不会把它清掉。
+  const loadingOwnerSeqRef = useRef(0)
   // A05-009：页面快速退出时在途 promise 仍会回写 state（本文件原先只有 timerRef，没有卸载标志）。
   const isUnmountedRef = useRef(false)
 
@@ -155,7 +164,7 @@ export default memo(() => {
       if (isUnmountedRef.current) return
       setDiagnostics(report)
     } catch (e) {
-      console.log('health diagnostics failed:', e)
+      logger.warn('Health', `诊断包生成失败: ${String(e)}`)
     }
   }, [])
 
@@ -196,12 +205,16 @@ export default memo(() => {
   }, [snapshot, trendData, t, reportToText])
 
   const loadHealth = useCallback(async(silent = false) => {
-    if (!silent) setLoading(true)
+    const seq = ++healthReqSeqRef.current
+    if (!silent) {
+      loadingOwnerSeqRef.current = seq
+      setLoading(true)
+    }
     if (!silent) setError('')
     try {
       const querier = getQuerier('getHealth')
       if (!querier) {
-        if (!silent) {
+        if (!silent && seq === healthReqSeqRef.current) {
           setError(t('health_no_source'))
           setSnapshot(null)
         }
@@ -209,7 +222,7 @@ export default memo(() => {
       }
       const { promise } = querier()
       const data = await promise as HealthSnapshot
-      if (isUnmountedRef.current) return
+      if (isUnmountedRef.current || seq !== healthReqSeqRef.current) return
       setSnapshot(data)
       // 成功拿到数据说明音源支持 health action，之前的 error（如"未检测到音源"）是误报，清空
       setError('')
@@ -222,23 +235,22 @@ export default memo(() => {
           const trendResult = await trendPromise as { history?: Array<{ timestamp: number, sources: Record<string, { score: number | null, successRate: number | null }> }> } | null
           // 历史快照结构固定为 { timestamp, sources }，显式声明类型，避免下游 entry/s 变成隐式 any
           const history = trendResult?.history ?? []
-          if (isUnmountedRef.current) return
+          if (isUnmountedRef.current || seq !== healthReqSeqRef.current) return
           setTrendData(history)
           void refreshDiagnostics(data, history)
         }
       } catch (e) {
         // trend 获取失败不影响主流程，静默忽略
-        console.log('trend auto load failed:', e)
-        void refreshDiagnostics(data, [])
+        logger.warn('Health', `趋势自动加载失败: ${String(e)}`)
+        if (seq === healthReqSeqRef.current) void refreshDiagnostics(data, [])
       }
     } catch (e: any) {
-      console.log(e)
-      if (!silent) {
+      if (!silent && seq === healthReqSeqRef.current) {
         logger.warn('Health', String(e?.message ?? e))
         setError(t('health_load_failed'))
       }
     } finally {
-      if (!silent) setLoading(false)
+      if (shouldClearHealthLoading(silent, seq, loadingOwnerSeqRef.current)) setLoading(false)
     }
   }, [t, refreshDiagnostics])
 
@@ -361,21 +373,29 @@ export default memo(() => {
     try {
       const { promise } = querier(id, { apply: false })
       const res: any = await promise
+      if (isUnmountedRef.current) return
       const outcome = res?.outcome || 'UNKNOWN'
       setProbeInfo(`${name ?? id}: ${outcome}`)
+      // R71：确认弹窗期间不占 probingId。原先 setProbingId(id) 在弹窗之前，
+      // 用户只要在弹窗上停留，整页所有 disabled={!!probingId} 的按钮（含 K07 重试）全灰。
+      setProbingId('')
       const apply = await confirmDialog({
         message: t('health_probe_apply_tip').replace('{outcome}', String(outcome)),
         confirmButtonText: t('health_probe_apply_button'),
       })
+      if (isUnmountedRef.current) return
       if (apply) {
+        setProbingId(id)
         const applied: any = await querier(id, { apply: true }).promise
+        if (isUnmountedRef.current) return
         setProbeInfo(`${name ?? id}: ${applied?.outcome || outcome} · ${t('health_probe_apply_button')}`)
       }
     } catch (e: any) {
+      if (isUnmountedRef.current) return
       logger.warn('Health', String(e?.message ?? e))
       setError(t('health_probe_failed'))
     } finally {
-      setProbingId('')
+      if (!isUnmountedRef.current) setProbingId('')
     }
   }, [t, probingId])
 
@@ -390,14 +410,26 @@ export default memo(() => {
     setProbingId(id)
     try {
       const res: any = await querier(id, quality).promise
+      if (isUnmountedRef.current) return
       const q = quality.toUpperCase()
-      setProbeInfo(`${item.name ?? id}: ${res?.ok ? t('health_quality_retry_ok', { q }) : t('health_quality_retry_miss', { q })}`)
+      // R71d：三分流。业务否定（源没有这个能力）走 miss；其余失败（超时/桥错误/协议错误）
+      // 才走 failed。原先只按 res.ok 二分，而包装层把所有失败压成 { ok:false }，
+      // 结果是 health_quality_retry_failed 这条文案永远打不出来。
+      // `reason === 'UNKNOWN_SOURCE'` 保留是兼容未升版的旧音源（R71 版只带 reason 不带 code）。
+      if (res?.ok) {
+        setProbeInfo(`${item.name ?? id}: ${t('health_quality_retry_ok', { q })}`)
+      } else if (res?.code === 'UNSUPPORTED_ACTION' || res?.reason === 'UNKNOWN_SOURCE') {
+        setProbeInfo(`${item.name ?? id}: ${t('health_quality_retry_miss', { q })}`)
+      } else {
+        setError(t('health_quality_retry_failed'))
+      }
       void loadHealth(true)
     } catch (e: any) {
+      if (isUnmountedRef.current) return
       logger.warn('Health', String(e?.message ?? e))
       setError(t('health_quality_retry_failed'))
     } finally {
-      setProbingId('')
+      if (!isUnmountedRef.current) setProbingId('')
     }
   }, [t, probingId, loadHealth])
 
@@ -414,12 +446,14 @@ export default memo(() => {
     try {
       const { promise } = querier(id, !item.enabled)
       await promise
+      if (isUnmountedRef.current) return
       await loadHealth(true)
     } catch (e: any) {
+      if (isUnmountedRef.current) return
       logger.warn('Health', String(e?.message ?? e))
       setError(t('health_toggle_failed'))
     } finally {
-      setTogglingId('')
+      if (!isUnmountedRef.current) setTogglingId('')
     }
   }, [t, loadHealth, togglingId])
 

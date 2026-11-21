@@ -176,7 +176,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
 | `check_health_diagnostics_stress` | 14 | 1 万事件 / 5MB 截尾 / 200 错误码 |
 | `check_log_directory` | 15 | 公共优先/回迁/四类补齐/压力 |
-| `check_health_status_refactor` | 14 | 状态优先级与 `offReason`；288 结构 × 2 极性全枚举 |
+| `check_health_status_refactor` | 19 | 状态优先级与 `offReason`；288 结构 × 2 极性全枚举；HS15/HS16 补 loading 归属回归，HS17 补业务否定透出、HS18 对照协议错误必抛（R71），HS19 锁业务否定白名单与「包装层/三分流不得吃掉 code」（R71d） |
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
 | `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势数据链 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
@@ -251,7 +251,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_diagnostics_view` | 25 | V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 |
 | `check_health_diagnostics_stress` | 14 | U1×2 U2 U3 U4 U5 U6 U7×2 U8 U9 U10 U11 U12 |
 | `check_log_directory` | 15 | L1 L2 L3 L4 L5 L6 L7 L8 L9 L10 L11 L12 L13 L14 L15 |
-| `check_health_status_refactor` | 14 | HS1 HS2 HS3 HS4 HS5 HS6 HS7 HS8 HS9 HS10 HS11 HS12 HS13 HS14 |
+| `check_health_status_refactor` | 19 | HS1 HS2 HS3 HS4 HS5 HS6 HS7 HS8 HS9 HS10 HS11 HS12 HS13 HS14 HS15 HS16 HS17 HS18 HS19 |
 | `check_health_state_v2` | 7 | S1 S2 S3 S4 S5 S7 S8 |
 | `check_health_ui_mapping` | 12 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 |
 | `check_health_event_pipeline` | 10 | E1 E2 E3 E4 E5 E6 E7 E8 E9 E10 |

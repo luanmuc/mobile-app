@@ -82,11 +82,41 @@ const isSourceEnvelope = (value: unknown): value is SourceEnvelope<unknown> => {
 }
 
 /**
+ * 业务否定（R71d）：源存在，但这个能力它没有。
+ *
+ * 与协议错误的分界**不靠「有没有 error 字段」**，而靠 code 是否落在本白名单：
+ * - `{ ok:false, error }` → 协议错误，unwrap 抛，上层归因 failed；
+ * - `{ ok:false, code:'UNSUPPORTED_ACTION' }` → 业务否定，unwrap 原样透出，上层归因 miss。
+ *
+ * 白名单必须有：源脚本内部有大量 `{ ok:false, code:'NOT_AUDIO' }` 之类的链路结果，
+ * 它们同样不带 error 字段。不圈定就会把它们一并误标成业务否定。
+ */
+export const BUSINESS_REJECTION_CODES = ['UNSUPPORTED_ACTION'] as const
+
+export interface BusinessRejection {
+  ok: false
+  code: string
+  [key: string]: unknown
+}
+
+export const isBusinessRejection = (value: unknown): value is BusinessRejection => {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  if (record.ok !== false) return false
+  if ('error' in record) return false
+  return typeof record.code === 'string' && (BUSINESS_REJECTION_CODES as readonly string[]).includes(record.code)
+}
+
+/**
  * 旧音源：原样返回。
+ * 业务否定：原样返回（上层看 ok===false 走 miss 分支）。
  * v2 成功：返回 data。
  * v2 失败：抛 Error，message 固定为 `CODE: message`，并带 code/retryable/stage 供上层归因。
  */
 export const unwrapSourceResult = <T = any>(value: unknown): T => {
+  // 业务否定必须先于 envelope 判定：它也是 `{ ok:false }`，若先走 envelope 分支会被抛掉，
+  // 上层就再也分不出「源不支持」与「真的失败」。
+  if (isBusinessRejection(value)) return value as T
   if (!isSourceEnvelope(value)) return value as T
   if (value.ok) return value.data as T
 

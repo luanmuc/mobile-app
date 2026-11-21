@@ -8,6 +8,7 @@ import { setApiSource } from '@/core/apiSource'
 import { updateSetting } from '@/core/common'
 import { useI18n } from '@/lang'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
+import { logger } from '@/utils/logger'
 import { useSettingValue } from '@/store/setting/hook'
 import { useStatus, useUserApiList } from '@/store/userApi'
 import Button from '../../components/Button'
@@ -105,7 +106,7 @@ export default memo(() => {
     id: s.id,
   })), [t])
   const setApiSourceId = useCallback((id: string) => {
-    setApiSource(id).catch(e => { console.log(e) })
+    setApiSource(id).catch(e => { logger.warn('Source', `切换音源失败: ${String(e?.message ?? e)}`) })
   }, [])
   const userApiListRaw = useUserApiList()
   const apiStatus = useStatus()
@@ -229,12 +230,12 @@ export default memo(() => {
           await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
           if (previousBuiltinId && previousBuiltinId !== pendingSourceId) {
             await removeUserApi([previousBuiltinId]).catch(e => {
-              console.warn('Failed to remove previous builtin source:', e)
+              logger.warn('Source', `删除上一个内置源失败: ${String(e)}`)
             })
           }
         } else if (pendingDecision.action === 'block-import') {
           await removeUserApi([pendingSourceId]).catch(e => {
-            console.warn('Failed to remove orphan pending source:', e)
+            logger.warn('Source', `删除孤立 pending 源失败: ${String(e)}`)
           })
           await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(() => {})
         } else {
@@ -340,7 +341,7 @@ export default memo(() => {
                 //    切源结果不确定时，下次启动靠它对账，避免“新源已导入 + 版本标记仍旧”
                 //    导致内置源再次导入、堆出重复源。
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId, newApiInfo.id).catch(e => {
-                  console.warn('Failed to persist pending builtin source id:', e)
+                  logger.warn('Source', `持久化 pending 内置源 id 失败: ${String(e)}`)
                 })
 
                 // 3) 切到新源并等它真的加载出来，再考虑删旧的。
@@ -367,16 +368,16 @@ export default memo(() => {
                 //    避免旧 APK 内置源把在线升级的新版本反向覆盖。
                 //    storedBuiltinId 是切源前读到的旧 id，用于后面只清理旧内置源。
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.hasImported, true).catch(e => {
-                  console.warn('Failed to persist builtin source imported flag:', e)
+                  logger.warn('Source', `持久化内置源导入标记失败: ${String(e)}`)
                 })
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.importedVersion, remoteVersion).catch(e => {
-                  console.warn('Failed to persist builtin source version:', e)
+                  logger.warn('Source', `持久化内置源版本失败: ${String(e)}`)
                 })
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.sourceId, newApiInfo.id).catch(e => {
-                  console.warn('Failed to persist builtin source id:', e)
+                  logger.warn('Source', `持久化内置源 id 失败: ${String(e)}`)
                 })
                 await saveData(BUILTIN_SOURCE_STORAGE_KEYS.appVersion, currentAppVersion).catch(e => {
-                  console.warn('Failed to persist builtin source app version:', e)
+                  logger.warn('Source', `持久化内置源 App 版本失败: ${String(e)}`)
                 })
 
                 // 5) 只删除被 id 标记的旧内置源；不按名字批量删，避免误删用户手动导入的同名源。
@@ -385,14 +386,14 @@ export default memo(() => {
                   : []
                 if (oldIds.length) {
                   await removeUserApi(oldIds).catch(e => {
-                    console.warn('Failed to remove old builtin source:', e)
+                    logger.warn('Source', `删除旧内置源失败: ${String(e)}`)
                   })
                 }
 
                 // 6) 切源、版本、旧源清理都走完了才清 pending；
                 //    中途崩溃时下次启动仍能靠 pending 恢复，不会重复导入。
                 await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId).catch(e => {
-                  console.warn('Failed to clear pending builtin source id:', e)
+                  logger.warn('Source', `清除 pending 内置源 id 失败: ${String(e)}`)
                 })
 
                 toast(t('source_update_ok', { version: remoteVersion }), 'long')
