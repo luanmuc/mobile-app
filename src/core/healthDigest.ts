@@ -20,6 +20,9 @@ export interface DigestEvent {
   code?: string
   latencyMs?: number
   context?: string
+  // 采集端早已写入（healthLog 的 quality），这里补声明才能进摘要：
+  // 没有它，云端只能看到「某源失败」，看不到「哪个档失败」。
+  quality?: string
 }
 
 export interface DigestMeta {
@@ -28,6 +31,8 @@ export interface DigestMeta {
   android?: string
   appVersion: string
   build?: number
+  /** 当前生效的音源版本（取自 local 存储 active_source_version） */
+  sourceVersion?: string
   now?: number
 }
 
@@ -36,25 +41,41 @@ export interface DigestSourceCount {
   ok: number
 }
 
+/** 按「档位 × 源」的二维计数容器 */
+export interface DigestBucket {
+  total: number
+  ok: number
+  by_source: Record<string, DigestSourceCount>
+  by_quality: Record<string, DigestSourceCount>
+}
+
 export interface HealthDigest {
   schema: string
   device: { id: string, model?: string, android?: string }
   app: { version: string, build?: number }
+  source: { version?: string }
   generated_at: string
   window_hours: number
-  probe: { total: number, ok: number, by_source: Record<string, DigestSourceCount> }
-  play: { total: number, ok: number, by_source: Record<string, DigestSourceCount> }
+  probe: DigestBucket
+  play: DigestBucket
   chain: { total: number, ok: number, failures: Array<{ source: string, code: string, at: string }> }
-  recent_events: Array<{ at: string, kind: string, source?: string, code?: string, ms?: number }>
+  recent_events: Array<{ at: string, kind: string, source?: string, code?: string, q?: string, ms?: number }>
 }
 
 const clip = (v: unknown, max: number): string | undefined => (typeof v === 'string' ? v.slice(0, max) : undefined)
 
-const count = (target: Record<string, DigestSourceCount>, src: string, ok: boolean) => {
+const count = (target: DigestBucket, src: string, quality: string | undefined, ok: boolean) => {
   const key = clip(src, 40) ?? 'unknown'
-  const row = target[key] || (target[key] = { total: 0, ok: 0 })
+  const row = target.by_source[key] || (target.by_source[key] = { total: 0, ok: 0 })
   row.total++
   if (ok) row.ok++
+
+  // 档位维度独立于源维度：同一个源在 128k 通、flac 挂，是两个事实。
+  // 历史包没带 quality 的事件归到 unknown，让云端能看出「无音质信息」占比，而不是凭空补齐。
+  const qKey = clip(quality, 12) ?? 'unknown'
+  const qRow = target.by_quality[qKey] || (target.by_quality[qKey] = { total: 0, ok: 0 })
+  qRow.total++
+  if (ok) qRow.ok++
 }
 
 export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDigest => {
@@ -62,8 +83,8 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
   const from = now - DIGEST_WINDOW_HOURS * 3600 * 1000
   const inWindow = (Array.isArray(events) ? events : []).filter(e => e && typeof e.ts === 'number' && e.ts >= from && e.ts <= now + 60 * 1000)
 
-  const probe: HealthDigest['probe'] = { total: 0, ok: 0, by_source: {} }
-  const play: HealthDigest['play'] = { total: 0, ok: 0, by_source: {} }
+  const probe: DigestBucket = { total: 0, ok: 0, by_source: {}, by_quality: {} }
+  const play: DigestBucket = { total: 0, ok: 0, by_source: {}, by_quality: {} }
   const chain: HealthDigest['chain'] = { total: 0, ok: 0, failures: [] }
 
   for (const e of inWindow) {
@@ -71,13 +92,13 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
     if (e.event === 'probe_result') {
       probe.total++
       if (e.ok) probe.ok++
-      count(probe.by_source, src, !!e.ok)
+      count(probe, src, e.quality, !!e.ok)
     } else if (e.event === 'play_result') {
       // probe 上下文不是用户播放，必须排除，否则真机播放率被探测样本污染
       if (e.context === 'probe') continue
       play.total++
       if (e.ok) play.ok++
-      count(play.by_source, src, !!e.ok)
+      count(play, src, e.quality, !!e.ok)
     } else if (e.event === 'chain_result') {
       chain.total++
       if (e.ok) chain.ok++
@@ -104,10 +125,12 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
     kind: string
     source?: string
     code?: string
+    q?: string
     ms?: number
   }> = []
   for (const e of sortedFailEvents) {
-    const key = `${e.ts}|${e.event}|${e.sourceId ?? e.platform ?? ''}|${e.code ?? ''}|${Math.round(e.latencyMs ?? 0)}`
+    // 去重键补上 quality：同一毫秒同一源在 128k 与 flac 各失败一次，是两条不同事实。
+    const key = `${e.ts}|${e.event}|${e.sourceId ?? e.platform ?? ''}|${e.quality ?? ''}|${e.code ?? ''}|${Math.round(e.latencyMs ?? 0)}`
     if (seenFailureKeys.has(key)) continue
     seenFailureKeys.add(key)
     failures.push({
@@ -115,6 +138,7 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
       kind: clip(e.event, 40) ?? 'unknown',
       source: clip(e.sourceId ?? e.platform, 40),
       code: clip(e.code, 40),
+      q: clip(e.quality, 12),
       ms: typeof e.latencyMs === 'number' ? Math.max(0, Math.min(999999, Math.round(e.latencyMs))) : undefined,
     })
     if (failures.length >= DIGEST_RECENT_EVENTS_MAX) break
@@ -124,6 +148,7 @@ export const buildDigest = (events: DigestEvent[], meta: DigestMeta): HealthDige
     schema: DIGEST_SCHEMA,
     device: { id: meta.deviceId, model: clip(meta.model, 80), android: clip(meta.android, 40) },
     app: { version: clip(meta.appVersion, 32) ?? 'unknown', build: meta.build },
+    source: { version: clip(meta.sourceVersion, 32) },
     generated_at: new Date(now).toISOString(),
     window_hours: DIGEST_WINDOW_HOURS,
     probe,

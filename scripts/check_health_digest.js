@@ -106,6 +106,41 @@ check('A9 上报单飞：inFlight 复用，双击/启动并发不会发两条 is
   assert(/finally\(\(\)\s*=>\s*\{\s*inFlight\s*=\s*null/.test(src), '未在 finally 释放单飞锁')
 })
 
+check('A10 by_quality 按档位分桶：同源 128k 通、flac 挂必须能分开', () => {
+  const d = D.buildDigest([
+    ev({ quality: '128k', ok: true }),
+    ev({ quality: '128k', ok: true }),
+    ev({ quality: 'flac', ok: false, code: 'QUALITY_MISMATCH' }),
+    ev({ quality: undefined, ok: true }),
+  ], meta)
+  assert(d.play.by_quality['128k'].total === 2 && d.play.by_quality['128k'].ok === 2, '128k 分桶错：' + JSON.stringify(d.play.by_quality))
+  assert(d.play.by_quality.flac.total === 1 && d.play.by_quality.flac.ok === 0, 'flac 分桶错：' + JSON.stringify(d.play.by_quality))
+  assert(d.play.by_quality.unknown.total === 1, '无 quality 事件未归到 unknown')
+  assert(d.play.total === 4, 'by_quality 不得影响总数')
+})
+
+check('A11 摘要带音源版本；缺省时不伪造', () => {
+  const withV = D.buildDigest([ev()], { ...meta, sourceVersion: '9.1.3' })
+  assert(withV.source && withV.source.version === '9.1.3', 'source.version 错：' + JSON.stringify(withV.source))
+  const noV = D.buildDigest([ev()], meta)
+  assert(noV.source && noV.source.version === undefined, '缺 sourceVersion 时被伪造：' + JSON.stringify(noV.source))
+})
+
+check('A12 失败明细带档位；同毫秒同源不同档不合并、同档重复仍去重', () => {
+  const t = NOW - H
+  const two = D.buildDigest([
+    ev({ ts: t, quality: '128k', ok: false, code: 'NOT_FOUND' }),
+    ev({ ts: t, quality: 'flac', ok: false, code: 'NOT_FOUND' }),
+  ], meta)
+  assert(two.recent_events.length === 2, '不同档被误合并：' + two.recent_events.length)
+  assert(two.recent_events.every(x => typeof x.q === 'string'), '失败明细缺档位：' + JSON.stringify(two.recent_events))
+  const dup = D.buildDigest([
+    ev({ ts: t, quality: 'flac', ok: false, code: 'NOT_FOUND' }),
+    ev({ ts: t, quality: 'flac', ok: false, code: 'NOT_FOUND' }),
+  ], meta)
+  assert(dup.recent_events.length === 1, '同档同毫秒未去重：' + dup.recent_events.length)
+})
+
 console.log(`\n摘要契约：${passed} 通过 / ${failures.length} 失败`)
 if (require.main === module) process.exit(failures.length ? 1 : 0)
 module.exports = { failures }

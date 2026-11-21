@@ -76,12 +76,17 @@ const doUpload = async(token?: string): Promise<UploadResult> => {
   if (token == null && !shouldUploadDigest(typeof last === 'number' ? last : null)) return { ok: false, reason: 'too-soon' }
 
   const events = await readRecentHealthEvents(5000)
+  // 音源版本与设置页导出证据用的是同一组键（active_source_version 由 userApi 加载音源时写入），
+  // 不另起一套来源，避免摘要里的版本和用户看到的版本对不上。
+  const sourceVersion = (await getData<string>('active_source_version')) ??
+    (await getData<string>('imported_builtin_source_version')) ?? undefined
   const digest = buildDigest(events, {
     deviceId: await getDeviceId(),
     model: String((Platform.constants as { Model?: string })?.Model ?? ''),
     android: String((Platform.constants as { Version?: string })?.Version ?? ''),
     appVersion: String((process as unknown as { versions?: { app?: string } }).versions?.app ?? 'unknown'),
     build: Number((process as unknown as { versions?: { appBuild?: number } }).versions?.appBuild ?? 0) || undefined,
+    sourceVersion,
     now: Date.now(),
   })
 

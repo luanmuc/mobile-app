@@ -1,3 +1,20 @@
+## [摘要上报补音质维度与音源版本] `src/core/healthDigest.ts` - 2026-11-21
+
+**起因**：13 源实测（源仓 `docs/SOURCE_CAPABILITY.md`）查出「源维度 100% 成功、档位维度 0%」的降档虚标（`juheTx`/`ikun` 的 flac 实返 mp3）。但真机摘要只有 `by_source`，云端能看出「某源挂了」，看不出「只在 flac 档挂」——最该抓的问题恰好被源维度掩盖。
+
+**改动**：
+
+- `DigestEvent` 补 `quality?: string` 声明。采集端本来就写这个字段（`healthLog.ts:185` / `:211` 都有 `if (input.quality) entry.quality`），只是摘要接口没声明、`buildDigest` 聚合时被丢掉——**不是新采集，是把已有数据接进摘要**。
+- `probe`/`play` 各加 `by_quality`（档位 → `{total, ok}`），与 `by_source` 同构；历史事件无 `quality` 归 `unknown`，不猜、不补。
+- 顶层加 `source.version`，取值复用 `active_source_version`（`init/userApi/index.ts:95` 写入、`Health.tsx:177` 导出证据时也读它），不另起来源，避免摘要里的版本与用户看到的版本分叉。
+- `recent_events` 每条加 `q`，去重键从 `ts|event|source|code|latency` 扩为带 `quality`：同毫秒同源在 128k 与 flac 各失败一次是两条不同事实，同档重复仍去重。
+
+**顺带纠正一个错判**：此前把 `recent_events` 里「旧事件重复出现」记成窗口过滤缺陷，实际是**两份摘要的 24h 窗口重叠**（b171 01:25 与 b185 09:17 重叠 16 小时，8 条同时间戳事件都落在两份里）。`buildDigest` 的去重一直正常，重复产生在云端把两份相加那一步，修在云端 `pull-device-digests.js`。
+
+**上游硬约束**：telemetry 侧 `digest.schema.json` 顶层 / `probe` / `play` / `recent_events` items 全部 `additionalProperties: false`，`ingest-digest.js` 另有 4 处白名单。**只改 App 不改 telemetry，新包摘要会被以「含未知字段」拒收**，从回执看不出是版本不兼容。两处已同步。
+
+**验证**：`check_health_digest.js` 由 9 条增至 **12 条，12/0**（A10 档位分桶、A11 版本不伪造、A12 不同档不合并）；14 个健康相关脚本全绿，跨仓往返 4/0（需 `LX_SOURCE_ROOT` 强制跑，默认 SKIP）；`tsc --noEmit` rc=0；eslint 三文件 rc=0。
+
 ## [CI 覆盖收口：50 个 check 脚本的最后 4 个] `release.yml` - 2026-11-21
 
 **核实方法**：把 `release.yml` 里所有 `node scripts/*.js` 出现处抓出来，与 `scripts/check_*.js` 实际 50 个做差集。结果 4 个没执行点，性质不同：
