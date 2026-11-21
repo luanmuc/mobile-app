@@ -3,6 +3,7 @@ import { setTempList } from '@/core/list'
 import { playList } from '@/core/player/player'
 import { getListDetail, getListDetailAll } from '@/core/songlist'
 import listState from '@/store/list/state'
+import { logger, toLogText } from '@/utils/logger'
 
 const getListPlayIndex = (list: LX.Music.MusicInfoOnline[], index?: number) => {
   if (index == null) {
@@ -38,7 +39,7 @@ export const playSonglist = async(source: LX.OnlineSource, link: string, playInd
   try {
     await playSongListDetail(source, link, playIndex)
   } catch (err) {
-    console.error(err)
+    logger.warn('Deeplink', toLogText(err))
     throw new Error('Get play list failed.')
   }
 }

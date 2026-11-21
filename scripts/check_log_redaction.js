@@ -89,10 +89,13 @@ console.log('===== 日志脱敏门禁（v9.1）=====')
 }
 
 // G3：utils.ts 已知的 5 处必须已改成 sanitizeError
+// R74：裸 console 全仓迁到 logger 后，形态从 `console.log(sanitizeError(err))` 变为
+// `logger.warn('PlaySource', ... + toLogText(sanitizeError(err)))`。判据跟随形态更新，
+// 但仍要求错误对象**先脱敏再交给日志**——漏掉 sanitizeError 就无法匹配。
 {
   const t = fs.readFileSync(path.join(ROOT, 'src/core/music/utils.ts'), 'utf8')
-  const count = (t.match(/console\.log\(sanitizeError\(err\)\)/g) || []).length
-  if (count < 5) bad(`G3 utils.ts 只有 ${count} 处 erg 已脱敏（应 ≥5）`)
+  const count = (t.match(/toLogText\(sanitizeError\(/g) || []).length
+  if (count < 5) bad(`G3 utils.ts 只有 ${count} 处错误打印已脱敏（应 ≥5）`)
   else ok(`G3 utils.ts ${count} 处错误打印已走 sanitizeError`)
 }
 

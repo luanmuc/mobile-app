@@ -1,3 +1,27 @@
+## [R74 日志治理收尾：全仓 60 处活跃裸 console 清零，no-console 覆盖全 src] 35 个源码文件、`logger.ts`、`.eslintrc.cjs`、5 个 runtime 门禁 - 2026-11-21
+
+R72/R72b 只治了 23 处（`userApi`、`Health`、`Source` 三文件）。本段把剩余的全部清完。
+
+**先纠正一个口径**：之前口头报「还剩 59 处」，那是 `grep console.` 的行数，里面大量是被注释掉的调试行（`service.ts` 21 处里 18 处是注释、`hook.ts` 10 处全是注释）。用 ESLint 的 `no-console` 走 AST 重测，**活跃数 60 处 / 36 文件**——这才是真实工作量。
+
+| 环节 | 内容 |
+|---|---|
+| 序列化 | `logger` 四个方法只收 `string`，而现有代码大量打对象（`sanitizeError` 返回 `unknown`、deeplink `params`、`musicInfo`）。新增 `toLogText()`：字符串原样、`Error` 取 `name+message+code`、对象 `JSON.stringify`，stringify 抛错（循环引用）退化 `String()`。避免 `String(obj)` 变成 `[object Object]` 丢光信息 |
+| 替换 | 60 处逐处按语义定级：失败路径 `warn`、异常 `error`、追踪 `info`、纯调试 `debug`。35 个文件全部补 `import { logger, toLogText } from '@/utils/logger'` |
+| 保留 | `logger.ts:48` 的 `console.warn` 是唯一合法出口（写日志自身失败时只能借 console，转调自己会无限递归），就地 `eslint-disable-next-line` 并写明原因 |
+| 防回潮 | `.eslintrc.cjs` 的 `no-console` override `files` 从 3 个文件扩到 `src/**/*.ts` + `src/**/*.tsx` |
+| 循环依赖 | 替换前先算 `logger.ts` 的依赖闭包（4 个文件），确认 34 个目标文件全在闭包外，不存在环 |
+
+**副作用修复（替换连带打掉的 6 个门禁）**：
+
+1. 五个 runtime 门禁用自建 `loadTs(rel, stubs)` 加载器，stubs 未命中会 fall through 到真实文件 → `logger.ts` 反拉 `react-native-fs` 与 store → `未 mock 的依赖: @/utils/logger` 崩溃。修法：加载器内统一兜 `@/utils/logger` 桩（`info/warn/error/debug` 空实现 + `toLogText`），一次改在加载器而非逐用例。
+2. `check_log_redaction` 的 G3 硬编码匹配 `console.log(sanitizeError(err))`，形态变了就匹配不上。判据更新为 `toLogText(sanitizeError(`，语义不变（仍要求错误对象**先脱敏再进日志**）。
+3. `check_list_overwrite_rollback` 的 A4 断言靠拦截 `console.error` 取日志，源码改 `logger.error` 后取不到。修法：logger 桩的 `error` 写进 `global.__loggerErrors`，A4 收两路（console + logger）。
+
+**验证**：`tsc --noEmit` rc0；`eslint src` rc0；`no-console` 全 src 重测**剩余 1 处**（logger.ts 已 disable）；红绿双向（`app.ts` 插一行 `console.log` → 2 errors，删后 rc0）；HS 19/0、docs 17 篇、truth 全一致、digest 12/0、persistence 17/0、**ledger 46 一致 / 0 漂移 / 1230=1230**、K30 4/0、K6 12/0、P1 21/0、N2 14/0、G1~G4 4/0。
+
+**已知代价**：`logger.warn` 一次写盘要 4-6 次 RNFS 调用（`exists`×2、`stat`、`appendFile`），且 `common.enableDebugLog` 默认 `true`。这 60 处大多在失败路径，频率低，但不是零成本——真机测收益前不做进一步结论。
+
 ## [R72b 日志治理第二批：Health.tsx 与 Source.tsx 共 13 处裸 console] `Health.tsx`、`Source.tsx`、`.eslintrc.cjs` - 2026-11-21
 
 延续 R72，按文件逐个治：

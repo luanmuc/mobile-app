@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { filterList, getNewComment } from './utils'
 import music from '@/utils/musicSdk'
 import List, { type ListType } from './components/List'
+import { logger, toLogText } from '@/utils/logger'
 const limit = 15
 
 export default ({ musicInfo, onUpdateTotal }: {
@@ -25,7 +26,7 @@ export default ({ musicInfo, onUpdateTotal }: {
       }
       return commentInfo
     }).catch(async err => {
-      console.log(err)
+      logger.warn('Comment', toLogText(err))
       if (err.message != '取消请求') {
         listInfo.current.isLoading = false
         // setIsLoading(false)

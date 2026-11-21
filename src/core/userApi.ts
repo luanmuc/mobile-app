@@ -4,6 +4,7 @@ import { destroy, loadScript } from '@/utils/nativeModules/userApi'
 import { log as writeLog } from '@/utils/log'
 import { getData, removeData } from '@/plugins/storage'
 import { BUILTIN_SOURCE_STORAGE_KEYS } from '@/core/init/userApi/builtinSource'
+import { logger, toLogText } from '@/utils/logger'
 
 
 export const setUserApi = async(apiId: string) => {
@@ -58,7 +59,7 @@ export const removeUserApi = async(ids: string[]) => {
     const pendingId = await getData<string>(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
     if (pendingId && ids.includes(pendingId)) await removeData(BUILTIN_SOURCE_STORAGE_KEYS.pendingSourceId)
   } catch (e) {
-    console.warn('Failed to clear builtin source markers:', e)
+    logger.warn('UserApi', 'Failed to clear builtin source markers: ' + toLogText(e))
   }
 }
 

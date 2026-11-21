@@ -10,6 +10,7 @@ import { readMetadata, scanAudioFiles, type MusicMetadataFull } from '@/utils/lo
 import settingState from '@/store/setting/state'
 import BackgroundTimer from 'react-native-background-timer'
 import { type FileType } from '@/utils/fs'
+import { logger, toLogText } from '@/utils/logger'
 
 export const handleRemove = (listInfo: LX.List.UserListInfo) => {
   void confirmDialog({
@@ -234,7 +235,7 @@ export const handleScanDownloadDir = async() => {
     }
     await handleImportMediaFile(targetList, dir)
   } catch (e) {
-    console.error('[scanDownloadDir]', e)
+    logger.error('MyList', '[scanDownloadDir] ' + toLogText(e))
     toast(global.i18n.t('toast_scan_local_failed'))
   }
 }

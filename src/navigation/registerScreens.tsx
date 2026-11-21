@@ -24,6 +24,7 @@ import {
 import VersionModal from './components/VersionModal'
 import PactModal from './components/PactModal'
 import SyncModeModal from './components/SyncModeModal'
+import { logger } from '@/utils/logger'
 
 function WrappedComponent(Component: any) {
   return function inject(props: Record<string, any>) {
@@ -49,5 +50,5 @@ export default () => {
   Navigation.registerComponent(SYNC_MODE_MODAL, () => WrappedComponent(SyncModeModal))
   // Navigation.registerComponent(SETTING_SCREEN, () => WrappedComponent(Setting))
 
-  console.info('All screens have been registered...')
+  logger.info('App', 'All screens have been registered...')
 }

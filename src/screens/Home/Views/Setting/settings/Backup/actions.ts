@@ -4,6 +4,7 @@ import { filterMusicList, fixNewMusicInfoQuality, toNewMusicInfo } from '@/utils
 import { log } from '@/utils/log'
 import { confirmDialog, handleReadFile, handleSaveFile, showImportTip, toast } from '@/utils/tools'
 import listState from '@/store/list/state'
+import { logger, toLogText } from '@/utils/logger'
 
 
 const getAllLists = async() => {
@@ -185,7 +186,7 @@ const importPlayList = async(path: string) => {
 }
 
 export const handleImportList = (path: string) => {
-  console.log(path)
+  logger.info('Backup', toLogText(path))
   toast(global.i18n.t('setting_backup_part_import_list_tip_unzip'))
   void importPlayList(path).then((skipTip) => {
     if (skipTip) return

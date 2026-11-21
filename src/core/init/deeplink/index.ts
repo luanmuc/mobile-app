@@ -5,6 +5,7 @@ import { handlePlayerAction, type PlayerAction } from './playerAction'
 import { handleSonglistAction } from './songlistAction'
 import { extname, stat } from '@/utils/fs'
 import { handleFileMusicAction, handleFileJSAction, handleFileLXMCAction } from './fileAction'
+import { logger, toLogText } from '@/utils/logger'
 
 
 const handleLinkAction = async(link: string) => {
@@ -33,7 +34,7 @@ const handleLinkAction = async(link: string) => {
     }
   }
   params.paths = paths.map(p => decodeURIComponent(p))
-  console.log(params)
+  logger.info('Deeplink', 'params: ' + toLogText(params))
   switch (type) {
     case 'music':
       await handleMusicAction(action, params)
@@ -105,10 +106,10 @@ const runLinkAction = async(link: string) => {
 export const initDeeplink = async() => {
   Linking.addEventListener('url', ({ url }) => {
     void runLinkAction(url)
-    console.log('deeplink', url)
+    logger.info('Deeplink', 'deeplink: ' + String(url))
   })
   const initialUrl = await Linking.getInitialURL()
   if (initialUrl == null) return
-  console.log('deeplink', initialUrl)
+  logger.info('Deeplink', 'initialUrl: ' + String(initialUrl))
   void runLinkAction(initialUrl)
 }

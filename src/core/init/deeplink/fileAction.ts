@@ -8,6 +8,7 @@ import { addTempPlayList } from '@/core/player/tempPlayList'
 import { LIST_IDS } from '@/config/constant'
 import { playNext } from '@/core/player/player'
 import { buildLocalMusicInfo, buildLocalMusicInfoByFilePath } from '@/screens/Home/Views/Mylist/MyList/listAction'
+import { logger, toLogText } from '@/utils/logger'
 
 
 export const handleFileLXMCAction = async(file: FileType) => {
@@ -22,7 +23,7 @@ export const handleFileMusicAction = async(file: FileType) => {
   const info = await readMetadata(file.path)
   const isPlaying = !!playerState.playMusicInfo.musicInfo
   const musicInfo = info ? buildLocalMusicInfo(file.path, info) : buildLocalMusicInfoByFilePath(file)
-  console.log(musicInfo)
+  logger.info('Deeplink', 'fileAction: ' + toLogText(musicInfo))
   addTempPlayList([{ listId: LIST_IDS.PLAY_LATER, musicInfo, isTop: true }])
   if (isPlaying) void playNext()
 }

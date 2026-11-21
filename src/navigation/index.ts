@@ -5,6 +5,7 @@ import * as navigations from './navigation'
 import registerScreens from './registerScreens'
 import { removeComponentId } from '@/core/common'
 import { onAppLaunched } from './regLaunchedEvent'
+import { logger } from '@/utils/logger'
 
 let unRegisterEvent: ReturnType<ReturnType<typeof Navigation.events>['registerScreenPoppedListener']>
 
@@ -25,7 +26,7 @@ const init = (callback: () => void | Promise<void>) => {
     removeComponentId(componentId)
   })
   onAppLaunched(() => {
-    console.log('Register app launched listener')
+    logger.info('App', 'Register app launched listener')
     void callback()
   })
 }

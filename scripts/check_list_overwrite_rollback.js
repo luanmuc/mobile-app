@@ -36,6 +36,18 @@ const loadTs = (rel, mocks, cache) => {
   const mod = { exports: {} }
   const fakeRequire = id => {
     if (Object.prototype.hasOwnProperty.call(mocks, id)) return mocks[id]
+    // R74：源码迁到 file logger 后，加载器统一给 @/utils/logger 兜桩。
+    // 不给桩会 fall through 到真实文件，logger.ts 再拉 react-native-fs 与 store → 未 mock 崩。
+    // A4 需要观察「回滚失败有没有留日志」，所以 error 写进可读数组而不是空函数。
+    if (id === '@/utils/logger') {
+      return {
+        logger: {
+          info() {}, warn() {}, debug() {}, musicResolve() {}, player() {},
+          error: (...a) => { global.__loggerErrors = global.__loggerErrors || []; global.__loggerErrors.push(a.join(' ')) },
+        },
+        toLogText: (v) => String(v),
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(cache, id)) return cache[id]
     throw new Error('未 mock 的依赖: ' + id + '（在 ' + rel + ' 中）')
   }
@@ -180,6 +192,7 @@ check('A4 回滚自身也失败 → 内存仍必须恢复', async() => {
   const logs = []
   const origErr = console.error
   console.error = (...a) => { logs.push(a.join(' ')) }
+  global.__loggerErrors = []   // R74：源码改用 logger.error，console 与 logger 两路都收
   try {
     let threw = false
     try {
@@ -191,9 +204,11 @@ check('A4 回滚自身也失败 → 内存仍必须恢复', async() => {
     const after = snapshotOf(env)
     assert(after.ids.join(',') === before.ids.join(','), '回滚失败后内存 userLists 仍未恢复')
     assert(after.musicIds.join(',') === before.musicIds.join(','), '回滚失败后内存 allMusicList 仍未恢复')
-    assert(logs.some(l => /K30/.test(l)), '回滚失败未记录日志')
+    const allLogs = logs.concat(global.__loggerErrors)
+    assert(allLogs.some(l => /K30/.test(l)), '回滚失败未记录日志')
   } finally {
     console.error = origErr
+    global.__loggerErrors = undefined
   }
 })
 

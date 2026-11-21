@@ -1,3 +1,4 @@
+import { logger, toLogText } from '@/utils/logger'
 // import mitt from 'mitt'
 // import type { Emitter } from 'mitt'
 
@@ -38,7 +39,7 @@ export default class Event {
           listener(...args)
         } catch (e) {
           // 不引入 log 依赖（Event 在最底层，避免循环依赖），直接走 console 兜底
-          console.error(`[event] 监听器异常 (${eventName}):`, e)
+          logger.error('Event', '监听器异常 (' + String(eventName) + '): ' + toLogText(e))
         }
       }
     })

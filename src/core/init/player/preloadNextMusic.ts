@@ -3,6 +3,7 @@ import { getNextPlayMusicInfo, resetRandomNextMusicInfo } from '@/core/player/pl
 import { checkUrl } from '@/utils/request'
 import playerState from '@/store/player/state'
 import { isCached } from '@/plugins/player/utils'
+import { logger } from '@/utils/logger'
 
 
 const preloadMusicInfo = {
@@ -18,17 +19,17 @@ const resetPreloadInfo = () => {
 const preloadNextMusicUrl = async(curTime: number) => {
   if (preloadMusicInfo.isLoading || curTime - preloadMusicInfo.preProgress < 3) return
   preloadMusicInfo.isLoading = true
-  console.log('preload next music url')
+  logger.info('Player', 'preload next music url')
   const info = await getNextPlayMusicInfo()
   if (info) {
     preloadMusicInfo.info = info
     const url = await getMusicUrl({ musicInfo: info.musicInfo, recordPlay: false }).catch(() => '')
     if (url) {
-      console.log('preload url', url)
+      logger.info('Player', 'preload url: ' + String(url))
       const [cached, available] = await Promise.all([isCached(url), checkUrl(url).then(() => true).catch(() => false)])
       if (!cached && !available) {
         const url = await getMusicUrl({ musicInfo: info.musicInfo, isRefresh: true, recordPlay: false }).catch(() => '')
-        console.log('preload url refresh', url)
+        logger.info('Player', 'preload url refresh: ' + String(url))
       }
     }
   }

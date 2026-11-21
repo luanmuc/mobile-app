@@ -1,5 +1,6 @@
 import { toOldMusicInfo } from '@/utils'
 import music from '@/utils/musicSdk'
+import { logger, toLogText } from '@/utils/logger'
 
 export interface Comment {
   id: string
@@ -28,7 +29,7 @@ export const getNewComment = async(musicInfo: LX.Music.MusicInfoOnline, page: nu
   try {
     resp = await (music[musicInfo.source].comment.getComment(toOldMusicInfo(musicInfo), page, limit) as Promise<CommentInfo>)
   } catch (error: any) {
-    console.log(error.message)
+    logger.warn('Comment', toLogText(error))
     if (error.message == '取消请求' || ++retryNum > 2) throw error
     resp = await getNewComment(musicInfo, page, limit, retryNum)
   }
@@ -40,7 +41,7 @@ export const getHotComment = async(musicInfo: LX.Music.MusicInfoOnline, page: nu
   try {
     resp = await (music[musicInfo.source].comment.getHotComment(toOldMusicInfo(musicInfo), page, limit) as Promise<CommentInfo>)
   } catch (error: any) {
-    console.log(error.message)
+    logger.warn('Comment', toLogText(error))
     if (error.message == '取消请求' || ++retryNum > 2) throw error
     resp = await getHotComment(musicInfo, page, limit, retryNum)
   }

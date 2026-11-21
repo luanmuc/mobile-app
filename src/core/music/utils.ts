@@ -36,6 +36,7 @@ import {
   OTHER_SOURCE_NEGATIVE_TTL_MS,
 } from './otherSourceCache'
 import { classifyUnusableUrl, isPlayableCandidate, sanitizeError } from './playbackGuard'
+import { logger, toLogText } from '@/utils/logger'
 
 // 音源初始化兜底超时：14 处调用共用，避免各写一份 15_000
 const SOURCE_INIT_TIMEOUT_MS = 15_000
@@ -531,7 +532,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   }).catch(async(err: any) => {
     playbackAttempts.push({ source: musicInfo.source, platform: musicInfo.source, owner: primaryOwner, stage: 'primary', ok: false, code: classifyPlaybackErrorCode(err), latencyMs: Date.now() - primaryStartedAt, requestedQuality: targetQuality })
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
-    console.log(sanitizeError(err))
+    logger.warn('PlaySource', 'toggle source failed: ' + toLogText(sanitizeError(err)))
     // P1：显式 source 所有权的源内部已完成换源，App 不再重复搜索；未声明源保持旧行为。
     if (!allowToggleSource || err.message == requestMsg.tooManyRequests || !shouldHostFallback(fallbackOwner)) {
       if (err && typeof err === 'object') err.attempts = playbackAttempts
@@ -566,13 +567,13 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     try {
       toggledResult = await tryCandidates(false)
     } catch (toggleErr) {
-      console.log('toggle source candidates failed:', sanitizeError(toggleErr))
+      logger.warn('PlaySource', 'toggle source candidates failed: ' + toLogText(sanitizeError(toggleErr)))
     }
     if (!toggledResult && isRefresh) {
       try {
         toggledResult = await tryCandidates(true)
       } catch (e) {
-        console.log('force re-search other source failed:', sanitizeError(e))
+        logger.warn('PlaySource', 'force re-search other source failed: ' + toLogText(sanitizeError(e)))
       }
     }
     if (toggledResult) return toggledResult
@@ -598,7 +599,7 @@ export const getOnlineOtherSourcePicUrl = async({ musicInfos, onToggleSource, is
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     // if (!assertApiSupport(musicInfo.source)) continue
-    console.log('try toggle to: ', musicInfo.source, musicInfo.name, musicInfo.singer, musicInfo.interval)
+    logger.info('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
     onToggleSource(musicInfo)
     break
   }
@@ -617,7 +618,7 @@ export const getOnlineOtherSourcePicUrl = async({ musicInfos, onToggleSource, is
     return { musicInfo, url, isFromCache: false }
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    console.log(sanitizeError(err))
+    logger.warn('PlaySource', 'toggle failed: ' + toLogText(sanitizeError(err)))
     return getOnlineOtherSourcePicUrl({ musicInfos, onToggleSource, isRefresh, retryedSource })
   })
 }
@@ -645,7 +646,7 @@ export const handleGetOnlinePicUrl = async({ musicInfo, isRefresh, onToggleSourc
   return reqPromise.then((url: string) => {
     return { musicInfo, url, isFromCache: false }
   }).catch(async(err: any) => {
-    console.log(sanitizeError(err))
+    logger.warn('PlaySource', 'toggle failed: ' + toLogText(sanitizeError(err)))
     if (!allowToggleSource) throw err
     onToggleSource()
     // eslint-disable-next-line @typescript-eslint/promise-function-async
@@ -681,7 +682,7 @@ export const getOnlineOtherSourceLyricInfo = async({ musicInfos, onToggleSource,
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     // if (!assertApiSupport(musicInfo.source)) continue
-    console.log('try toggle to: ', musicInfo.source, musicInfo.name, musicInfo.singer, musicInfo.interval)
+    logger.info('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
     onToggleSource(musicInfo)
     break
   }
@@ -708,7 +709,7 @@ export const getOnlineOtherSourceLyricInfo = async({ musicInfos, onToggleSource,
     } : Promise.reject(new Error('failed'))
     // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch((err: any) => {
-    console.log(sanitizeError(err))
+    logger.warn('PlaySource', 'toggle failed: ' + toLogText(sanitizeError(err)))
     return getOnlineOtherSourceLyricInfo({ musicInfos, onToggleSource, isRefresh, retryedSource })
   })
 }
@@ -741,7 +742,7 @@ export const handleGetOnlineLyricInfo = async({ musicInfo, onToggleSource, isRef
       isFromCache: false,
     } : Promise.reject(new Error('failed'))
   }).catch(async(err: any) => {
-    console.log(sanitizeError(err))
+    logger.warn('PlaySource', 'toggle failed: ' + toLogText(sanitizeError(err)))
     if (!allowToggleSource) throw err
 
     onToggleSource()

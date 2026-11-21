@@ -69,12 +69,10 @@ module.exports = {
     },
     {
       // R72：日志必须进 file logger，裸 console 在 release 下不进诊断包。
-      // 按文件逐步治理，每加一个文件配一次红绿；不要全局开（src/ 还有 60+ 处未治）。
-      files: [
-        'src/core/init/userApi/index.ts',
-        'src/screens/Home/Views/Setting/settings/Health.tsx',
-        'src/screens/Home/Views/Setting/settings/Basic/Source.tsx',
-      ],
+      // R74：60 处活跃裸 console 已全部迁到 logger（35 个文件），覆盖从 3 个文件扩到全 src。
+      // logger.ts 是唯一合法出口（自己写日志失败时只能借 console 留痕，转调自己会无限递归），
+      // 该文件内已就地 eslint-disable-next-line 并注明原因。
+      files: ['src/**/*.ts', 'src/**/*.tsx'],
       rules: { 'no-console': 'error' },
     },
   ],

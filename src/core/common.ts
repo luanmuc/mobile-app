@@ -16,6 +16,7 @@ import { getSelectedManagedFolder, saveFontSize, saveViewPrevState, setSelectedM
 import { showPactModal as handleShowPactModal } from '@/navigation'
 import { hideDesktopLyricView } from '@/utils/nativeModules/lyricDesktop'
 import { getPersistedUriList, selectManagedFolder } from '@/utils/fs'
+import { logger } from '@/utils/logger'
 
 
 const throttleSaveSetting = throttle(() => {
@@ -51,7 +52,7 @@ export const setLanguage = (locale: Parameters<typeof applyLanguage>[0]) => {
 
 let isDestroying = false
 export const exitApp = (reason: string) => {
-  console.log('Handle Exit App, Reason: ' + reason)
+  logger.info('App', 'Handle Exit App, Reason: ' + String(reason))
   if (isDestroying) return
   isDestroying = true
   void Promise.all([

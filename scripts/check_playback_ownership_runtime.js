@@ -31,6 +31,14 @@ const loadTs = (rel, stubs = {}) => {
   const mod = { exports: {} }
   const localRequire = (id) => {
     if (id in stubs) return stubs[id]
+    // R74：源码迁到 file logger 后，加载器统一给 @/utils/logger 兜桩。
+    // 不给桩会 fall through 到真实文件，logger.ts 再拉 react-native-fs 与 store → 未 mock 崩。
+    if (id === '@/utils/logger') {
+      return {
+        logger: { info() {}, warn() {}, error() {}, debug() {}, musicResolve() {}, player() {} },
+        toLogText: (v) => String(v),
+      }
+    }
     if (id.startsWith('./') || id.startsWith('../')) {
       const target = path.resolve(path.dirname(file), id)
       if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)

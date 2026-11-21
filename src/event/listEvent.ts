@@ -20,6 +20,7 @@ import {
 import { LIST_IDS } from '@/config/constant'
 import { setActiveList, setUserList } from '@/core/list'
 import listState from '@/store/list/state'
+import { logger, toLogText } from '@/utils/logger'
 
 const updateUserList = async(userLists: LX.List.UserListInfo[]) => {
   await saveUserList(userLists)
@@ -126,7 +127,7 @@ export class ListEvent extends Event {
         await rollbackListOverwrite(snapshot, attemptedIds)
       } catch (rollbackErr) {
         // 回滚自身失败时只记日志，不掩盖原始错误：内存已在 rollback 开头同步恢复
-        console.error('[K30] list_data_overwrite 回滚失败:', rollbackErr)
+        logger.error('Event', '[K30] list_data_overwrite 回滚失败: ' + toLogText(rollbackErr))
       }
       throw err
     }

@@ -10,6 +10,7 @@ import { dateFormat } from '@/utils/common'
 import { createMsg2call } from 'message2call'
 import { toast } from '@/utils/tools'
 import { SYNC_CLOSE_CODE, SYNC_CODE } from '../constants'
+import { logger } from '@/utils/logger'
 
 let status: LX.Sync.Status = {
   status: false,
@@ -35,7 +36,7 @@ const heartbeatTools = {
   pingTimeout: null as NodeJS.Timeout | null,
   delayRetryTimeout: null as NodeJS.Timeout | null,
   handleOpen() {
-    console.log('open')
+    logger.info('Sync', 'open')
     // this.failedNum = 0
     this.heartbeat()
   },
@@ -74,7 +75,7 @@ const heartbeatTools = {
     this.delayRetryTimeout = setTimeout(() => {
       this.delayRetryTimeout = null
       if (!client) return
-      console.log(dateFormat(new Date()), 'reconnnect...')
+      logger.info('Sync', String(dateFormat(new Date())) + ' reconnnect...')
       sendSyncStatus({
         status: false,
         message: `Try reconnnect... (${this.failedNum})`,
@@ -97,7 +98,7 @@ const heartbeatTools = {
     }
   },
   connect(socket: LX.Sync.Socket) {
-    console.log('heartbeatTools connect')
+    logger.info('Sync', 'heartbeatTools connect')
     this.connectTimeout = setTimeout(() => {
       this.connectTimeout = null
       if (client) {

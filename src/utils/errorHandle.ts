@@ -3,6 +3,7 @@ import { Alert } from 'react-native'
 import { setJSExceptionHandler, setNativeExceptionHandler } from 'react-native-exception-handler'
 import { log } from '@/utils/log'
 import { toast } from './tools'
+import { logger } from '@/utils/logger'
 
 const errorHandler = (e: Error, isFatal: boolean) => {
   const excludedErrors = [
@@ -35,6 +36,6 @@ if (process.env.NODE_ENV !== 'development') {
 
   setNativeExceptionHandler((errorString) => {
     log.error(errorString)
-    console.log('+++++', errorString, '+++++')
+    logger.error('ErrorHandler', String(errorString))
   }, false)
 }

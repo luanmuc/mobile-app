@@ -1,6 +1,7 @@
 import hotSearchState, { type Source } from '@/store/hotSearch/state'
 import hotSearchActions, { type Lists } from '@/store/hotSearch/action'
 import musicSdk from '@/utils/musicSdk'
+import { logger, toLogText } from '@/utils/logger'
 
 export const getList = async(source: Source): Promise<string[]> => {
   if (source == 'all') {
@@ -11,7 +12,7 @@ export const getList = async(source: Source): Promise<string[]> => {
         hotSearchState.sourceList[source]?.length
           ? Promise.resolve({ source, list: hotSearchState.sourceList[source] })
           : ((musicSdk[source]?.hotSearch.getList() as Promise<Lists[number]>) ?? Promise.reject(new Error('source not found: ' + source))).catch((err: any) => {
-              console.log(err)
+              logger.warn('HotSearch', toLogText(err))
               return { source, list: [] }
             }),
       )
@@ -26,7 +27,7 @@ export const getList = async(source: Source): Promise<string[]> => {
       return []
     }
     return musicSdk[source]?.hotSearch.getList().catch((err: any) => {
-      console.log(err)
+      logger.warn('HotSearch', toLogText(err))
       return { source, list: [] }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     }).then(data => hotSearchActions.setList(source, data.list))

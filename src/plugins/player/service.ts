@@ -14,6 +14,7 @@ import { MUSIC_TOGGLE_MODE_LIST, MUSIC_TOGGLE_MODE } from '@/config/constant'
 import { syncNotificationRepeatMode } from '@/core/player/repeatMode'
 import { toast } from '@/utils/tools'
 import playerState from '@/store/player/state'
+import { logger, toLogText } from '@/utils/logger'
 
 let isInitialized = false
 // v8.14：同曲同源同结果只回传一次。Playing 会在缓冲/跳转后重复触发，
@@ -107,7 +108,7 @@ const toggleDesktopLyric = async() => {
 const registerPlaybackService = async() => {
   if (isInitialized) return
 
-  console.log('reg services...')
+  logger.info('Player', 'reg services...')
   TrackPlayer.addEventListener(TPEvent.RemotePlay, () => {
     // console.log('remote-play')
     play()
@@ -173,7 +174,7 @@ const registerPlaybackService = async() => {
       const { sanitizeError } = require('@/core/music/playbackGuard')
       safeErr = sanitizeError(err)
     } catch {}
-    console.log('playback-error', safeErr)
+    logger.error('Player', 'playback-error ' + toLogText(safeErr))
     // v9.1：失败即清缓存（死链不再被无限复用），见 purgeUrlCacheOnPlaybackError 注释
     void purgeUrlCacheOnPlaybackError(playerState.playMusicInfo?.musicInfo)
     // b70 诊断：播放器错误打点（含错误内容——静默失败时可定位）
@@ -325,7 +326,7 @@ const registerPlaybackService = async() => {
 
 export default () => {
   if (global.lx.playerStatus.isRegisteredService) return
-  console.log('handle registerPlaybackService...')
+  logger.info('Player', 'handle registerPlaybackService...')
   TrackPlayer.registerPlaybackService(() => registerPlaybackService)
   global.lx.playerStatus.isRegisteredService = true
 }

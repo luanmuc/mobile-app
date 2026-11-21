@@ -1,4 +1,5 @@
 import { NativeModules } from 'react-native'
+import { logger, toLogText } from '@/utils/logger'
 
 const { CryptoModule } = NativeModules
 
@@ -84,7 +85,7 @@ export const hashSHA1 = async(text: any) => {
   try {
     return await CryptoModule.sha1(text)
   } catch (error) {
-    console.error('生成SHA1出现问题:', error)
+    logger.error('Crypto', '生成SHA1出现问题: ' + toLogText(error))
     throw error
   }
 }

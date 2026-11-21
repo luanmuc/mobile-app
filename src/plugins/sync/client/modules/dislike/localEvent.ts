@@ -1,5 +1,6 @@
 import { SYNC_CLOSE_CODE } from '@/plugins/sync/constants'
 import { registerDislikeActionEvent } from '../../../dislikeEvent'
+import { logger, toLogText } from '@/utils/logger'
 
 let unregisterLocalListAction: (() => void) | null
 
@@ -16,7 +17,7 @@ export const registerEvent = (socket: LX.Sync.Socket) => {
       // TODO send status
       socket.moduleReadys.dislike = false
       socket.close(SYNC_CLOSE_CODE.failed)
-      console.log(err.message)
+      logger.warn('Sync', toLogText(err))
     })
   })
 }

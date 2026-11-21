@@ -12,6 +12,7 @@ import { toOldMusicInfo } from './index'
 import { stringMd5 } from 'react-native-quick-md5'
 import { windowSizeTools } from '@/utils/windowSizeTools'
 import { formatFileNameTemplate } from '@/utils/fileNameTemplate'
+import { logger } from '@/utils/logger'
 
 
 // https://stackoverflow.com/a/47349998
@@ -146,12 +147,12 @@ export const openUrl = async(url: string): Promise<void> => {
     if (!canOpen) {
       // 日志脱敏门禁（check_log_redaction）禁止裸打 url / 错误对象 —— 外链可能带签名或私密参数，
       // 错误对象也可能挂载完整 url。只记录"没有处理器"这件事本身。
-      console.warn('[openUrl] no handler for the url')
+      logger.warn('Tools', '[openUrl] no handler for the url')
       return
     }
     await Linking.openURL(url)
   } catch {
-    console.warn('[openUrl] failed to open')
+    logger.warn('Tools', '[openUrl] failed to open')
   }
 }
 

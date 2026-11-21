@@ -4,6 +4,7 @@ import { compareOfficialVersion, getBaseVersion, getOfficialVersionInfo } from '
 import { getOfficialVersionShown, saveOfficialVersionShown } from '@/utils/data'
 import officialVersionActions from '@/store/version/action'
 import officialVersionState from '@/store/version/state'
+import { logger, toLogText } from '@/utils/logger'
 
 // 官方上游版本检测（定制版专属）
 // 1. 获取官方（lyswhut/lx-music-mobile）最新版本，写入 store（供设置页展示）；
@@ -18,7 +19,7 @@ export const checkOfficialUpdate = async(showModalIfNew = true) => {
   try {
     latest = await getOfficialVersionInfo()
   } catch (err) {
-    console.log('checkOfficialUpdate failed:', err)
+    logger.warn('Update', 'checkOfficialUpdate failed: ' + toLogText(err))
   }
   const isLatest = latest == null || compareOfficialVersion(latest, base) <= 0
   officialVersionActions.setOfficialInfo({

@@ -1,6 +1,7 @@
 // import { generateKeyPair } from 'crypto'
 import { gzipString, unGzipString } from '@/utils/fs'
 import BackgroundTimer from 'react-native-background-timer'
+import { logger, toLogText } from '@/utils/logger'
 
 export const request = async(url: string, { timeout = 10000, ...options }: RequestInit & { timeout?: number } = {}) => {
   const controller = new AbortController()
@@ -101,12 +102,8 @@ export const parseUrl = (href: string): LX.Sync.UrlInfo => {
   // if (href.endsWith('/')) href = href.replace(/\/$/, '')
   const httpProtocol = /^https:/.test(href) ? 'https:' : 'http:'
 
-  console.log({
-    wsProtocol: httpProtocol == 'https:' ? 'wss:' : 'ws:',
-    httpProtocol,
-    hostPath: href.replace(httpProtocol + '//', ''),
-    href,
-  })
+  // R74：原 console.log 打的对象与下面 return 完全同构，纯调试输出，降级为 debug
+  logger.debug('Sync', 'parseUrl: ' + toLogText({ wsProtocol: httpProtocol == 'https:' ? 'wss:' : 'ws:', httpProtocol, hostPath: href.replace(httpProtocol + '//', ''), href }))
 
   return {
     wsProtocol: httpProtocol == 'https:' ? 'wss:' : 'ws:',

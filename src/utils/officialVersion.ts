@@ -1,5 +1,6 @@
 import { httpGet } from '@/utils/request'
 import { version as baseVersion } from '../../package.json'
+import { logger, toLogText } from '@/utils/logger'
 
 // ============================================================
 // 官方上游版本检测（定制版专属）
@@ -64,10 +65,10 @@ export const getOfficialVersionInfo = async(): Promise<string> => {
       const body = await request(url)
       const v = parseOfficialVersion(body)
       if (v == null) throw new Error('parse failed')
-      console.log('official version source ok:', url, v)
+      logger.info('Update', 'official version source ok: ' + String(url))
       return v
     } catch (err) {
-      console.log('official version source failed:', url, (err as Error)?.message || err)
+      logger.warn('Update', 'official version source failed: ' + String(url) + ' ' + toLogText(err))
       return null
     }
   })

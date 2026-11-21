@@ -6,6 +6,7 @@ import BackgroundTimer from 'react-native-background-timer'
 import playerState from '@/store/player/state'
 import { setNowPlayTime } from '@/core/player/progress'
 import { consumePendingPlayback, recordPlaybackStart } from '@/core/healthLog'
+import { logger } from '@/utils/logger'
 
 
 export default () => {
@@ -59,7 +60,7 @@ export default () => {
   }
 
   const handleLoadstart = () => {
-    console.log('handleLoadstart', playerState.isPlay)
+    logger.info('Player', 'handleLoadstart isPlay=' + String(playerState.isPlay))
     if (global.lx.isPlayedStop || !playerState.isPlay) return
     startLoadingTimeout()
     setStatusText(global.i18n.t('player__loading'))
@@ -113,7 +114,7 @@ export default () => {
       setStatusText(global.i18n.t('player__error'))
       setTimeout(addDelayNextTimeout)
     } else {
-      console.warn('error skip to next')
+      logger.warn('Player', 'error skip to next')
       void playNext(true)
     }
   }

@@ -6,6 +6,7 @@ import { showVersionModal } from '@/navigation'
 import { Navigation } from 'react-native-navigation'
 import { toast } from '@/utils/tools'
 import { raceWithTimeout } from '@/core/music/timeout'
+import { logger, toLogText } from '@/utils/logger'
 
 // 检查更新的总超时：30 秒内未完成视为失败，避免网络异常时无限卡在「检查更新中」
 const VERSION_CHECK_TIMEOUT_MS = 30_000
@@ -107,7 +108,7 @@ export const downloadUpdate = () => {
     versionActions.setVersionInfo({ status: 'downloaded' })
   }).catch((err) => {
     versionActions.setVersionInfo({ status: 'error' })
-    console.log('downloadUpdate failed:', err)
+    logger.warn('Update', 'downloadUpdate failed: ' + toLogText(err))
   })
 }
 

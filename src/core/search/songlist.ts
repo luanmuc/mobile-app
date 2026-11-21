@@ -1,6 +1,7 @@
 import searchSonglistState, { type Source, type ListInfoItem } from '@/store/search/songlist/state'
 import searchSonglistActions, { type SearchResult } from '@/store/search/songlist/action'
 import musicSdk from '@/utils/musicSdk'
+import { logger, toLogText } from '@/utils/logger'
 
 export const setSource: typeof searchSonglistActions['setSource'] = (source) => {
   searchSonglistActions.setSource(source)
@@ -28,7 +29,7 @@ export const search = async(text: string, page: number, sourceId: Source): Promi
     for (const source of searchSonglistState.sources) {
       if (source == 'all' || (page > 1 && page > (searchSonglistState.maxPages[source]!))) continue
       task.push(((musicSdk[source]?.songList.search(text, page, searchSonglistState.listInfos.all.limit) as Promise<SearchResult>) ?? Promise.reject(new Error('source not found: ' + source))).catch((error: any) => {
-        console.log(error)
+        logger.warn('Search', toLogText(error))
         return {
           list: [],
           total: 0,

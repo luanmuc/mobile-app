@@ -43,6 +43,7 @@ const writeLog = async(level: LogLevel, tag: string, message: string, force = fa
       // 结果是日志静默不落盘、调用方完全无感知（调试时最容易怀疑「是不是没走到」）。
       // logger 是底层模块（不能 import log.ts，会循环依赖），这里用 console 留一条痕迹。
       const code = (e as { code?: string } | null)?.code
+      // eslint-disable-next-line no-console -- 唯一合法出口：logger 是最底层模块，转调自己会无限递归
       console.warn('logger: 日志目录创建失败，后续写入可能静默失败', code ?? typeof e)
     }
 
@@ -89,4 +90,25 @@ export const logger = {
     void writeLog('INFO', 'Player', `${action}${msg ? ': ' + msg : ''}`)
   },
 
+}
+
+// R74：logger 的四个方法都只收 string，而现有代码里大量 console.log 打的是对象
+// （sanitizeError 返回 unknown、deeplink params、musicInfo 等）。直接 String(obj) 会变
+// [object Object] 丢光信息，所以统一在这里做一次安全序列化：字符串原样、Error 取
+// name+message+code、对象 JSON 化，循环引用或 stringify 抛错时退化成 String()。
+export const toLogText = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (value instanceof Error) {
+    const code = (value as Error & { code?: unknown }).code
+    return `${value.name}: ${value.message}${code != null ? ` (code=${String(code)})` : ''}`
+  }
+  if (value == null) return String(value)
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value) ?? String(value)
+    } catch {
+      return String(value)
+    }
+  }
+  return String(value)
 }

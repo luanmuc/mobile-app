@@ -8,8 +8,9 @@ import { windowSizeTools } from './utils/windowSizeTools'
 import { listenLaunchEvent } from './navigation/regLaunchedEvent'
 import { tipDialog, requestStoragePermission } from './utils/tools'
 import { Platform, PermissionsAndroid, Alert } from 'react-native'
+import { logger } from '@/utils/logger'
 
-console.log('starting app...')
+logger.info('App', 'starting app...')
 listenLaunchEvent()
 
 void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize]) => {
