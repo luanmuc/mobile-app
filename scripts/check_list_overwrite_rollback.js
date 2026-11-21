@@ -42,7 +42,11 @@ const loadTs = (rel, mocks, cache) => {
     if (id === '@/utils/logger') {
       return {
         logger: {
-          info() {}, warn() {}, debug() {}, musicResolve() {}, player() {},
+          info() {},
+          warn() {},
+          debug() {},
+          musicResolve() {},
+          player() {},
           error: (...a) => { global.__loggerErrors = global.__loggerErrors || []; global.__loggerErrors.push(a.join(' ')) },
         },
         toLogText: (v) => String(v),
@@ -192,7 +196,7 @@ check('A4 回滚自身也失败 → 内存仍必须恢复', async() => {
   const logs = []
   const origErr = console.error
   console.error = (...a) => { logs.push(a.join(' ')) }
-  global.__loggerErrors = []   // R74：源码改用 logger.error，console 与 logger 两路都收
+  global.__loggerErrors = [] // R74：源码改用 logger.error，console 与 logger 两路都收
   try {
     let threw = false
     try {
