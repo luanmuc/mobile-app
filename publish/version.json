@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b199",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- e46d16b0 perf(log): R74b PlaySource 常规追踪降 debug，去掉强制写盘",
+  "version": "1.9.2-b200",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 0b97a9bc fix(i18n+audit): 补齐 UNSUPPORTED_ACTION 文案并落地 E14/E15/E22 三套审计脚本",
   "history": [
+    {
+      "version": "1.9.2-b199",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- e46d16b0 perf(log): R74b PlaySource 常规追踪降 debug，去掉强制写盘"
+    },
     {
       "version": "1.9.2-b198",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 1f938d91 style: 修 scripts/check_list_overwrite_rollback.js 格式（CI lint 跑全仓）\n- 5bc5a0ca fix(log): R74 全仓 60 处活跃裸 console 清零，no-console 覆盖全 src"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b194",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- b4fcafb3 ci: 补健康诊断深度/压力两支进 CI，收口 50 个 check 脚本的覆盖差集"
-    },
-    {
-      "version": "1.9.2-b193",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- cf7c180b chore(deps): rntp 升到 141dca5（代次簿记，堵住 500ms 竞态），文档与 changelog 同步\n- dae8d6e6 docs: changelog 补变异测试进 CI 与旧 M1~M3 作废的纠正，实跑结果对齐"
     }
   ]
 }
