@@ -599,7 +599,7 @@ export const getOnlineOtherSourcePicUrl = async({ musicInfos, onToggleSource, is
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     // if (!assertApiSupport(musicInfo.source)) continue
-    logger.info('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
+    logger.debug('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
     onToggleSource(musicInfo)
     break
   }
@@ -682,7 +682,7 @@ export const getOnlineOtherSourceLyricInfo = async({ musicInfos, onToggleSource,
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     // if (!assertApiSupport(musicInfo.source)) continue
-    logger.info('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
+    logger.debug('PlaySource', 'try toggle to: ' + String(musicInfo.source) + ' ' + String(musicInfo.name) + ' - ' + String(musicInfo.singer) + ' (' + String(musicInfo.interval) + ')')
     onToggleSource(musicInfo)
     break
   }
