@@ -110,8 +110,10 @@ function getStagedFiles() {
   try {
     return execSync('git diff --cached --name-only', { encoding: 'utf8' })
       .split('\n').map(s => s.trim()).filter(Boolean)
-  } catch (_) {
-    return []
+  } catch (err) {
+    // R78（对齐音源侧 B03-015）：原来 catch 后返回空列表 —— --check 会把它当成
+    // 「本次无改动」直接放行（假绿）。git 读不出来就必须让调用方失败。
+    throw new Error('git diff --cached 读取失败，无法判定改动集合：' + (err && err.message))
   }
 }
 

@@ -1,3 +1,11 @@
+## [R78 工具链：文档同步闸门落地生效（hook 安装 + 静默放行修复）] `scripts/doc-sync-map.js`、`docs/AGENTS.md`、`docs/KNOWN_ISSUES.md` - 2026-11-23
+
+规则写着「强制、无需提醒」，但本机 `core.hooksPath` 未设置、`.git/hooks` 只有 sample，提交时既不打印清单也不拦截。两仓各执行一次 `sh scripts/install-hooks.sh` 后 `prepare-commit-msg` / `commit-msg` 真正生效。
+
+顺带修本仓 `doc-sync-map.js` 的一处假绿：`getStagedFiles` 在 `git diff --cached` 读失败时 `catch` 返回空数组，`--check` 会把它当成「本次无改动」直接放行；已对齐音源侧 B03-015 改为抛错（读不出改动集合就必须让 `--check` 失败）。登记 `KNOWN_ISSUES` K37。
+
+`src/**` 零改动，不影响构建产物。
+
 ## [R74 日志治理收尾：全仓 60 处活跃裸 console 清零，no-console 覆盖全 src] 35 个源码文件、`logger.ts`、`.eslintrc.cjs`、5 个 runtime 门禁 - 2026-11-21
 
 R72/R72b 只治了 23 处（`userApi`、`Health`、`Source` 三文件）。本段把剩余的全部清完。
