@@ -1019,6 +1019,7 @@
   "player_error_bad_envelope": "Invalid source response format",
   "player_error_contract": "Source data validation failed",
   "player_error_canceled": "Playback canceled",
+  "player_error_unsupported": "This source doesn't support this action",
   "player_error_budget": "Timed out getting the link, please retry",
   "player_error_unknown": "Unknown error",
   "quality_flac24bit": "Hi-Res Lossless",

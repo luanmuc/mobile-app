@@ -812,6 +812,9 @@ const FAIL_CODE_I18N_KEY = {
   CONTRACT_ERROR: 'player_error_contract',
   CANCELED: 'player_error_canceled',
   BUDGET_EXHAUSTED: 'player_error_budget',
+  // R75：R71d 新增的业务否定码。源存在但不支持该 action，语义是「没有这个能力」
+  // 而不是「调用失败」——缺这一条会落 player_error_unknown，把 miss 显示成「未知错误」。
+  UNSUPPORTED_ACTION: 'player_error_unsupported',
   UNKNOWN: 'player_error_unknown',
 } as const
 

@@ -2,13 +2,14 @@
 
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
-> **基线（唯一真值，2026-11-20）**：
-> - App：`luanmuc/mobile-app` @ `dadef6a1`（**已推送 master**），**v1.9.2-b187**；`npm run preflight` **47 通过 / 0 失败**
-> - 源仓：`luanmuc/backend-api`，**v9.1.4**（`297c88e`「巡检链重构：口径单一真相」，CI run 44679475468 全绿）
-> - telemetry：`luanmuc/lx-telemetry` @ `2cdb7f6`（**公开仓**；`ingest` 5/5）
-> - track-player：`141dca5`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
-> - 硬数字：三语各 **1044 键**、TS/TSX **542 文件**、`scripts/check_*.js` **50 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1221 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 662 条**（6c 逐 ID 实算），算式 `1221 − 542 − 17 = 662` 自洽
-> - **2026-11-20 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1221 = 实测 1221；`--gen-ids` 仍报 **44 脚本 / 662 条 ID 全覆盖**
+> **基线（唯一真值，2026-11-22）**：
+> - App：`luanmuc/mobile-app` @ `b3ce7440`（**已推送 master**），**v1.9.2-b199**；`npm run preflight` **48 通过 / 0 失败 · 124.0s**
+> - 源仓：`luanmuc/backend-api`，**v9.1.6**（`c38a2c1`；产物 **379380 bytes / 7375 行**，错误码 **19**，`npm test` **47 脚本** rc0）
+> - telemetry：`luanmuc/lx-telemetry` @ `5cdfe31`（**公开仓**；`ingest` **9/9**）
+> - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
+> - 硬数字：三语各 **1045 键**、TS/TSX **542 文件**、`scripts/check_*.js` **53 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1270 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 711 条**（6c 逐 ID 实算），算式 `1270 − 542 − 17 = 711` 自洽
+> - **2026-11-22 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **49 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1270 = 实测 1270；`--gen-ids` 报 **47 脚本 / 711 条 ID 全覆盖**
+> - **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 未设 `LX_SOURCE_ROOT` 时按 `../lx-music-source` → `../backend-api` 探测（首个含 `src/legacy.js` 的胜出）；修前本地直接跑 ledger 会因缺 C6~C8 报「1 漂移 / 实测 1223」，修后 **1230 = 1230**、46 一致
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
 
@@ -113,7 +114,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1040 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **50 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **47/47 rc0** / 新门禁自带负向自检 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **53 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **51/51 rc0** / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -158,15 +159,15 @@
 ## 6. 执行清单（本轮必跑，不接受「上次绿过」）
 
 ```bash
-npm run preflight          # 47 条：tsc + eslint + release.yml checks 段 + 跨仓往返（≈155s）
+npm run preflight          # 51 条：tsc + eslint + release.yml checks 段 + 跨仓往返（新增 E14/E15/E22 三脚本）
 npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/verify:bundle/npm test（条数以实跑输出为准）
 ```
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（50 个 `check_*.js`）
+### 6b. 全量脚本台账（53 个 `check_*.js`）
 
-> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（34 个脚本 / 502 条，ID 多重集）。
+> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（47 个脚本 / 711 条，ID 多重集）。
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
@@ -177,10 +178,13 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_diagnostics_stress` | 14 | 1 万事件 / 5MB 截尾 / 200 错误码 |
 | `check_log_directory` | 15 | 公共优先/回迁/四类补齐/压力 |
 | `check_health_status_refactor` | 19 | 状态优先级与 `offReason`；288 结构 × 2 极性全枚举；HS15/HS16 补 loading 归属回归，HS17 补业务否定透出、HS18 对照协议错误必抛（R71），HS19 锁业务否定白名单与「包装层/三分流不得吃掉 code」（R71d） |
+| `check_health_state_enum` | 22 | **E14（R75）**：12 个 reason 逐个可达 + 优先级链（USER_OFF > PLAY_DEAD > 无样本 > rateLimit > open/half-open）+ 4 主状态 tone/key 映射 + 288 组合全枚举；换两行 if 的顺序即红 |
 | `check_health_state_v2` | 7 | 4 主状态 + reason |
 | `check_health_ui_mapping` | 12 | 文案/颜色/质量矩阵/趋势数据链 |
 | `check_health_event_pipeline` | 10 | eventId 去重 / traceId / 只写本机 |
 | `check_health_digest` | 12 | 真机摘要：24h 窗口 / probe 不计播放 / 上限截断 / 20h / 队列 / Issue 格式 / 无凭据 / 三语键 / 单飞锁；**已接入 CI（2026-11-19）** |
+| `check_error_code_map` | 10 | **E15（R75）**：源仓 `ERROR_CODES` 19 个 ↔ App `FAIL_CODE_I18N_KEY` 全覆盖 ↔ 三语文案；`UNSUPPORTED_ACTION` 必须有独立文案（R71d 加了码却没加文案，落 unknown） |
+| `check_persistence_roundtrip` | 8 | **E22（R75）**：健康快照多轮 save→restore（1/5/20 轮）+ 指纹缓存不重复写盘 + controls 不混入健康 key + v1/v3 拒收 + TTL 6天/8天 + 超容量 |
 | `check_health_persistence_v2` | 9 | v1 拒绝 / 容量与版本边界 |
 | `check_health_anomaly_v2` | 8 | 异常分级 / 覆盖不足不宣称 |
 | `check_health_real_playback` | 11 | 真播放计数 / 多源失败证据 / 重复 Playing 不膨胀样本（R11） |
@@ -218,7 +222,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
-### 6c. 断言 ID 台账（44 个脚本 / 662 条，ID 多重集）
+### 6c. 断言 ID 台账（47 个脚本 / 711 条，ID 多重集）
 
 > 6b 只比「条数」，抓不到**数量不变但某条断言被换掉**（把 HS3 换成 HS9、把 D5 改名 D5x）。
 > 本节要的是身份：每个脚本输出的 `✓ ID` / `✅ [ID]` 必须与下表**逐个 ID、逐个次数**相同。
@@ -226,7 +230,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 > 口径是**多重集**：同一个 ID 可以挂多条子断言（`H7×6`、`H6×7`、`I05×11` 表示该 ID 被印了这么多次），
 > 只比「ID 出现过」抓不到少一条子断言，所以连**次数**一起钉住。
 >
-> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（44 个 / 662 条）。尚未覆盖的脚本有断言不印 ID，
+> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（47 个 / 711 条）。尚未覆盖的脚本有断言不印 ID，
 > 只受 6b 条数约束。
 >
 > **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 542）、
@@ -252,10 +256,13 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_diagnostics_stress` | 14 | U1×2 U2 U3 U4 U5 U6 U7×2 U8 U9 U10 U11 U12 |
 | `check_log_directory` | 15 | L1 L2 L3 L4 L5 L6 L7 L8 L9 L10 L11 L12 L13 L14 L15 |
 | `check_health_status_refactor` | 19 | HS1 HS2 HS3 HS4 HS5 HS6 HS7 HS8 HS9 HS10 HS11 HS12 HS13 HS14 HS15 HS16 HS17 HS18 HS19 |
+| `check_health_state_enum` | 22 | E14-01 E14-02 E14-03 E14-04 E14-05 E14-06 E14-07 E14-08 E14-09 E14-10 E14-11 E14-12 E14-13 E14-14 E14-15 E14-16 E14-17 E14-18 E14-19 E14-20 E14-21 E14-22 |
 | `check_health_state_v2` | 7 | S1 S2 S3 S4 S5 S7 S8 |
 | `check_health_ui_mapping` | 12 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 |
 | `check_health_event_pipeline` | 10 | E1 E2 E3 E4 E5 E6 E7 E8 E9 E10 |
 | `check_health_digest` | 12 | A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 |
+| `check_error_code_map` | 10 | EC01 EC02 EC03 EC04 EC05 EC06 EC07 EC08 EC09 EC10 |
+| `check_persistence_roundtrip` | 8 | E22-01 E22-02 E22-03 E22-04 E22-05 E22-06 E22-07 E22-08 |
 | `check_health_persistence_v2` | 9 | Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 |
 | `check_health_anomaly_v2` | 8 | A1 A2 A3 A4 A5 A6 A7 A8 |
 | `check_health_real_playback` | 11 | R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 |
@@ -664,6 +671,8 @@ npx tsc --noEmit
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-22 | **R75 补三套并修一条真缺陷**：新增 `check_health_state_enum`（E14，22）、`check_error_code_map`（E15，10）、`check_persistence_roundtrip`（E22，8）→ `check_*.js` **50→53**、台账 **1230→1270**、6c **44/671→47/711**；修 `FAIL_CODE_I18N_KEY` 缺 `UNSUPPORTED_ACTION`（R71d 加了第 19 码却没加文案，落 `player_error_unknown`），补三语 `player_error_unsupported` → 键数 1044→**1045** | `preflight` **51/0 · 41.8s**；`ledger` **49 一致 / 1270 = 1270**；`--gen-ids` **47 脚本 / 711 条**；三新脚本红绿双向（E14 换 if 顺序→1 红、E15 删映射→2 红、E22 放行 v1→1 红）；`truth_gates`/`docs_consistency` 全一致 |
+| 2026-11-22 | 基线推进到 **v1.9.2-b199 / `b3ce7440`**（已推送），源仓 **v9.1.6 / `c38a2c1`**（379380 bytes / 错误码 19），telemetry **`5cdfe31` / ingest 9/9**，RNTP **`669d2ab`**；6b/6c 条数 **1221→1230**、ID 台账 **662→671**，算式改为 `1230 − 542 − 17 = 671`；`preflight` **47→48 条** | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 1230 = 1230**（须带 `LX_SOURCE_ROOT=../backend-api`）；`--gen-ids` **44 脚本 / 671 条全覆盖**；`preflight` **48/0 · 124.0s** |
 | 2026-11-20 | 基线推进到 **v1.9.2-b187 / `dadef6a1`**（已推送），源仓 **v9.1.4 / `297c88e`**，RNTP 锁到 **`45c384d`**（短打断分级 + 通用性补修，断言 67 条）；头部算式改为 `1221 − 542 − 17 = 662` | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**（台账 1221 = 实测 1221）；`--gen-ids` 仍 **44 脚本 / 662 条 ID 全覆盖** |
 | 2026-11-20 | §3b 三处更新：音源健康「趋势」→ **趋势数据链**（趋势弹窗下线，数据仍进诊断包与 `trend_decline` 判定）；通知栏定制 📝→✅（**去平台化**：艺术家行只留「歌手 · 音源 · 音质」）；新增 **底部播放栏 D3 品牌胶囊**维度 | `check_health_ui_mapping` **12/12**（U12 已改写为数据链断言）；`check_source_platform_label` **9/9**（L5 反向锁） |
 | 2026-11-20 | §6 执行清单条数校正：`preflight` **36 → 47 条**（≈155s）；`preflight:all` 不再写死条数（源仓并入后随实跑变） | 本次 CI run `44713838456` 四 job 全 success；本地 ledger 46 脚本全跑通 |

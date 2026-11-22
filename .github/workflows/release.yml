@@ -152,12 +152,15 @@ jobs:
           node scripts/check_health_anomaly_v2.js
           node scripts/check_health_event_pipeline.js
           node scripts/check_health_persistence_v2.js
+          node scripts/check_health_state_enum.js
           node scripts/check_health_state_v2.js
           node scripts/check_health_status_refactor.js
           node scripts/check_health_ui_mapping.js
           node scripts/check_download_persistence.js
           node scripts/check_download_restore_runtime.js
           node scripts/check_health_digest.js
+          node scripts/check_error_code_map.js
+          node scripts/check_persistence_roundtrip.js
           node scripts/check_docs_consistency.js
 
       - name: 热点行为断言（播放器/同步/文件名/错误标点）

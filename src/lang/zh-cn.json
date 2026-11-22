@@ -1019,6 +1019,7 @@
   "player_error_bad_envelope": "音源返回格式异常",
   "player_error_contract": "音源数据校验失败",
   "player_error_canceled": "播放已取消",
+  "player_error_unsupported": "音源不支持该操作",
   "player_error_budget": "取链超时，请重试",
   "player_error_unknown": "未知错误",
   "quality_flac24bit": "Hi-Res 无损",

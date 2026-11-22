@@ -19,9 +19,13 @@ const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
 // A13-P1-03：与门禁族同口径支持路径覆盖 + 强制开关（原 check_source_update_fetch/apply 已随
 // B2 删除：在线更新自动路径下线，验签能力并入手动「更新音源」路径）。
+const SRC_CANDIDATES = ['lx-music-source', 'backend-api']
 const SRC_DIR = process.env.LX_SOURCE_ROOT
   ? path.resolve(process.env.LX_SOURCE_ROOT)
-  : path.resolve(ROOT, '..', 'lx-music-source')
+  : (SRC_CANDIDATES
+      .map(d => path.resolve(ROOT, '..', d))
+      .find(d => fs.existsSync(path.join(d, 'lx-source.js'))) ??
+    path.resolve(ROOT, '..', 'lx-music-source'))
 const SRC_BUNDLE = path.join(SRC_DIR, 'lx-source.js')
 
 // A12-005：原来只按仓库内绝对路径取 typescript —— 依赖未装/被提升走全局时脚本启动即崩，

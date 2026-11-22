@@ -58,10 +58,16 @@ check('C5 attempt 带平台归因，成功源写实际子源', (() => {
     hasCode(u, flexRe('source: cachedSource?.id ?? candidate.source, platform: cachedSource?.platform ?? candidate.source'))
 })(), 'utils.ts')
 
-// A13-P1-03 / A12-004：路径可覆盖，便于 CI 把源仓 clone 到任意位置（默认仍是 ../lx-music-source）。
+// A13-P1-03 / A12-004：路径可覆盖，便于 CI 把源仓 clone 到任意位置。
+// 本地默认按候选目录探测（`lx-music-source` 优先，兼容旧布局；其次 `backend-api`，
+// 即本仓当前约定的同级克隆名）。探测不到再退回单一路径，保持原告警文案。
+const SOURCE_CANDIDATES = ['lx-music-source', 'backend-api']
 const sourceRoot = process.env.LX_SOURCE_ROOT
   ? path.resolve(process.env.LX_SOURCE_ROOT)
-  : path.join(ROOT, '..', 'lx-music-source')
+  : (SOURCE_CANDIDATES
+      .map(d => path.join(ROOT, '..', d))
+      .find(d => fs.existsSync(path.join(d, 'src', 'legacy.js'))) ??
+    path.join(ROOT, '..', 'lx-music-source'))
 // v9.3-b：源仓 v9.0 已把逻辑拆到 src/core/*.js，只扫 legacy.js 会把"已迁走"误判成"消失"。
 // 口径改为拼接源：legacy.js + 全部 core 模块（与源仓门禁 STATIC_SRC 同一口径）。
 const readSourceAll = () => {
