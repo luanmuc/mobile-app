@@ -1,3 +1,13 @@
+## [R82 au 搜索/歌词契约修复 + 更新音源去缓存欺骗（音源 v9.3.2 同步）] `src/utils/musicSdk/au`、`Source.tsx`、`scripts/check_au_source_contract.js`、文档 - 2026-11-23
+
+前后端一起检查（R82）抓到的真实缺陷，逐条修完：
+
+- **P0 au 搜索结果全塌**：`src/utils/musicSdk/au/musicSearch.js:44-60` 的 `filterData` 返回 `{ id, meta }` 新结构，但搜索落库统一走 `toNewMusicInfo`（`src/utils/index.ts:28-41`）只认旧字段（`songmid`/`img`/`types`/`_types`）→ 迁移后 `id=au_undefined`、`meta` 全丢，`deduplicationList` 按 id 去重把整页塌成一首；点播把 `au_undefined` 传给音源必 404。改为与 kw 对齐的旧结构（`songmid=t.id` / `img=artwork` / `types`+`_types` 128k·320k）。
+- **P1 au 歌词链 TypeError**：`src/utils/musicSdk/au/index.js` 的 `getLyric()` 返回裸 `Promise`，调用方 `src/core/music/utils.ts:699/734` 取 `.promise` → `undefined.then` 抛 TypeError。改 `{ promise, cancelHttp }`，空歌词语义不变（调用方 `existTimeExp` 判失败后仍会换源找歌词）。
+- **P1 更新音源被旧缓存骗**：`Source.tsx:185-197` 对 4 个镜像顺序 `for` + 首个成功即 `break`，jsdelivr `@master` 缓存旧脚本时直接误判「已是最新」。改并发拉全部镜像、收集合法脚本后 `compareSourceVersions` 取最高（最坏耗时也从「4×15s 顺序超时」降到「15s 并发窗口」）。
+- **新增门禁**：`scripts/check_au_source_contract.js`（A1~A6，执行级抽真实 `filterData` 跑样本 + 歌词/镜像文本契约），已进 `release.yml` checks 段；红绿双向 **6/0 vs 0/6**（`AU_CHECK_ROOT` 指向旧文件复现）。
+- **文档**：`MUSIC_SOURCE_GUIDE` 内置平台数 8→**6**（`bd` 已注释、`xm` 不在 `sources`）且版本升 **v9.3.2**；`KNOWN_ISSUES` 新增 **K40**；`AUDIT_PLAN` 门禁 53→**54** + 台账行 + 6c 重生成；`STRESS_PLAN` 补 R82 面。
+
 ## [R81 真机 `proxy: inconsistent get` 根除（音源 v9.3.1 同步）] `docs/MUSIC_SOURCE_GUIDE.md`、`docs/AUDIT_PLAN.md`、`docs/STRESS_PLAN.md` - 2026-11-23
 
 音源仓 v9.3.1 修掉真机初始化必挂的 `proxy: inconsistent get`：

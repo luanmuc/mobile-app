@@ -180,9 +180,12 @@ export default memo(() => {
     setUpdating(true)
     toast(t('source_update_checking'))
     try {
-      let remoteScript = ''
       const failures: string[] = []
-      for (const url of SOURCE_UPDATE_URLS) {
+      // R82 P1：原来是「顺序 for + 首个成功即 break」，jsdelivr 的 @master 回源缓存旧脚本时
+      // 会直接命中旧版本被判「已是最新」。改成并发拉全部镜像、收集所有合法脚本后按版本取最高：
+      // 单次点击最坏耗时从「4 × 15s 顺序超时」降到「15s 并发窗口」，且不会被任一副本拖回旧版。
+      const candidateScripts: string[] = []
+      await Promise.all(SOURCE_UPDATE_URLS.map(async(url) => {
         try {
           const response = await fetchWithTimeout(url, {}, t('source_update_timeout')) as { body?: unknown, statusCode?: unknown }
           if (typeof response.statusCode === 'number' && response.statusCode !== 200) throw new Error('SOURCE_UPDATE_HTTP_' + response.statusCode)
@@ -190,10 +193,19 @@ export default memo(() => {
           if (typeof response.body !== 'string') throw new Error('SOURCE_UPDATE_NOT_MANIFEST')
           if (response.body.length > SOURCE_UPDATE_MAX_SIZE) throw new Error(t('source_update_too_large'))
           if (response.body.length < 50_000 || !parseSourceVersion(response.body)) throw new Error(t('source_update_bad_script'))
-          remoteScript = response.body
-          break
+          candidateScripts.push(response.body)
         } catch (err) {
           failures.push(err instanceof Error ? err.message : '')
+        }
+      }))
+      let remoteScript = ''
+      let bestVersion = ''
+      for (const script of candidateScripts) {
+        const version = parseSourceVersion(script)
+        if (!version) continue
+        if (!remoteScript || (compareSourceVersions(version, bestVersion) ?? 0) > 0) {
+          remoteScript = script
+          bestVersion = version
         }
       }
       if (!remoteScript) {

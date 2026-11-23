@@ -112,6 +112,8 @@ jobs:
           node scripts/check_cross_repo_health_roundtrip.js
           node scripts/check_release_state_contract.js
           node scripts/check_media_body.js
+          # R82：au（Audius）内置 SDK 契约（搜索落库旧结构 / getLyric 返回 {promise} / 更新音源取最高版本）
+          node scripts/check_au_source_contract.js
 
       - name: 音高门禁（39 条断言）
         # 只读契约：内核 setPitch 保留 speed / setRate 保留 pitch / App 侧 normalizePitch 夹取 /

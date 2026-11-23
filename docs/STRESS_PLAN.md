@@ -5,6 +5,8 @@
 > **基线（唯一真值，2026-11-22；R81 回填 2026-11-23）**：App **v1.9.2-b199**（`b3ce7440`，已推送）；源仓 **v9.3.1**（`4895cd9`，产物 **396999 bytes / 7654 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条为本轮未重跑的历史口径）；telemetry `5cdfe31`（公开仓，`ingest` **9/9**）。
 >
 > **R81 新增压测面（2026-11-23）**：真机引擎 invariant 面 —— 产物可执行代码（去注释）`Date.parse` 与 `new Proxy` 均须为 0、必须含纯算术 `parseYmdToMs`；`parseYmdToMs` 对闰年（2024-02-29）/跨纪元（1969-12-31，负毫秒）/非法输入（2026-13-01、2026-11-32）与 `Date.parse` 逐例等价。守卫脚本 `test/audit/r81-proxy-compat.js`（源仓，6 条），已并入源仓 `npm test`；App 侧以 `MUSIC_SOURCE_GUIDE` v9.3.1 与构建闸门（`SRC_VER` == `豆包定制 vX`）覆盖。
+
+> **R82 新增压测面（2026-11-23）**：①**au 内置 SDK 契约执行级**——`scripts/check_au_source_contract.js` A1~A6 用 `vm.runInNewContext` 抽真实 `filterData` 跑样本（执行级，不是文本猜测），必须 6/0；红向 `AU_CHECK_ROOT=<旧三文件根>` 必须 0/6；A6 专锁「两条 au 结果去重后仍为 2 条」——塌一即整页只显示一首（R82 P0 原症状）。②**多镜像并发取版本最高**——`Source.tsx` 必须 `Promise.all(SOURCE_UPDATE_URLS)` 收集全部合法脚本后用 `compareSourceVersions` 取最高，禁「顺序 for + 首个成功即 break」：jsdelivr `@master` 的旧缓存会把 4 个镜像里最高版本骗成旧版本，误判「已是最新」；最坏耗时应为「并发 15s 窗口」，而非「4×15s 顺序超时」。③**基线回填**：源仓 v9.3.2（产物 **397273 bytes / 7654 行**，R82 仅订正 `35-source-switch` 注释归因 K41/K42 + 登记 K43 治理提醒，**无行为变更**，故错误码仍 **19** 个；manifest 待 CI `sign-release` 重签）。
 >
 > **R71~R74b 新增压测面（本轮并入）**：①**全仓裸 console 归零**（60 处 / 36 文件 → `logger`，`no-console` 覆盖 `src/**/*.ts(x)`，S24）；②**`logger` 写盘 IO 成本**（`logger.info/error` 对 `tag==='PlaySource'` 强制写盘、每处 4~6 次 RNFS 调用，切源常规路径已把两条降 `debug`，S25）；③**错误码由 18 增至 19**（`UNSUPPORTED_ACTION`，音源未知源 action 归一，S12/S20 须同步）。
 >

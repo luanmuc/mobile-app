@@ -8,7 +8,7 @@
 > - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
 > - telemetry：`luanmuc/lx-telemetry` @ `5cdfe31`（**公开仓**；`ingest` **9/9**）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
-> - 硬数字：三语各 **1047 键**、TS/TSX **542 文件**、`scripts/check_*.js` **53 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1270 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 711 条**（6c 逐 ID 实算），算式 `1270 − 542 − 17 = 711` 自洽
+> - 硬数字：三语各 **1047 键**、TS/TSX **542 文件**、`scripts/check_*.js` **54 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1276 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 717 条**（6c 逐 ID 实算），算式 `1276 − 542 − 17 = 717` 自洽
 > - **2026-11-22 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **49 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1270 = 实测 1270；`--gen-ids` 报 **47 脚本 / 711 条 ID 全覆盖**
 > - **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 未设 `LX_SOURCE_ROOT` 时按 `../lx-music-source` → `../backend-api` 探测（首个含 `src/legacy.js` 的胜出）；修前本地直接跑 ledger 会因缺 C6~C8 报「1 漂移 / 实测 1223」，修后 **1230 = 1230**、46 一致
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
@@ -115,7 +115,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1047 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **53 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **51/51 rc0** / 新门禁自带负向自检 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **54 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **52/52 rc0**（2026-11-23 R82 新增 `check_au_source_contract` 后实测） / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -166,9 +166,9 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
 
-### 6b. 全量脚本台账（53 个 `check_*.js`）
+### 6b. 全量脚本台账（54 个 `check_*.js`）
 
-> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（47 个脚本 / 711 条，ID 多重集）。
+> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（48 个脚本 / 717 条，ID 多重集）。
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
@@ -208,6 +208,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_player_utils_runtime` | 7 | 热点工具 |
 | `check_player_progress_runtime` | 4 | 进度/除零 |
 | `check_media_body` | 6 | 媒体信封 / 能力协商 |
+| `check_au_source_contract` | 6 | au 内置 SDK 契约（搜索旧结构 / 迁移后 id 保真 / getLyric 返回 promise / 多镜像取最高 / 去重不塌页） |
 | `check_sync_client_runtime` | 4 | 同步客户端 |
 | `check_pitch` | 30 | 音频 DSP：音高/变速（静态接线 + 数值边界） |
 | `check_volume_fade` | 40 | 音频 DSP：切歌淡入淡出 / 睡眠渐弱（两层） |
@@ -223,7 +224,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
-### 6c. 断言 ID 台账（47 个脚本 / 711 条，ID 多重集）
+### 6c. 断言 ID 台账（48 个脚本 / 717 条，ID 多重集）
 
 > 6b 只比「条数」，抓不到**数量不变但某条断言被换掉**（把 HS3 换成 HS9、把 D5 改名 D5x）。
 > 本节要的是身份：每个脚本输出的 `✓ ID` / `✅ [ID]` 必须与下表**逐个 ID、逐个次数**相同。
@@ -231,7 +232,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 > 口径是**多重集**：同一个 ID 可以挂多条子断言（`H7×6`、`H6×7`、`I05×11` 表示该 ID 被印了这么多次），
 > 只比「ID 出现过」抓不到少一条子断言，所以连**次数**一起钉住。
 >
-> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（47 个 / 711 条）。尚未覆盖的脚本有断言不印 ID，
+> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（48 个 / 717 条）。尚未覆盖的脚本有断言不印 ID，
 > 只受 6b 条数约束。
 >
 > **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 542）、
@@ -286,6 +287,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_player_utils_runtime` | 7 | N2×7 |
 | `check_player_progress_runtime` | 4 | N3-P1 N3-P2 N3-P3 N3-P4 |
 | `check_media_body` | 6 | P2-A1 P2-A2 P2-A3 P2-A4 P2-A5 P2-A6 |
+| `check_au_source_contract` | 6 | A1 A2 A3 A4 A5 A6 |
 | `check_sync_client_runtime` | 4 | N2×4 |
 | `check_pitch` | 30 | PT01 PT02 PT03 PT04 PT05 PT06 PT07 PT08 PT09 PT10 PT11 PT12 PT13 PT14 PT15 PT16 PT17 PT18 PT19 PT20 PT21 PT22 PT23 PT24 PT25 PT26 PT27 PT28 PT29 PT30 |
 | `check_volume_fade` | 40 | VF01 VF02 VF03 VF04 VF05 VF06 VF07 VF08 VF09 VF10 VF11 VF12 VF13 VF14 VF15 VF16 VF17 VF18 VF19 VF20 VF21 VF22 VF23 VF24 VF25 VF26 VF27 VF28 VF29 VF30 VF31 VF32 VF33 VF34 VF35 VF36 VF37 VF38 VF39 VF40 |

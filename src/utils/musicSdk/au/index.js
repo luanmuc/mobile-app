@@ -23,8 +23,14 @@ const au = {
   getMusicUrl(songInfo, type, traceId) {
     return apis('au').getMusicUrl(songInfo, type, traceId)
   },
+  // R82 P1：调用方 `src/core/music/utils.ts:699/734` 取的是 `.promise`（httpFetch 形态），
+  // 原来直接 return 裸 Promise → `undefined.then` 抛 TypeError（try 只包了赋值，异常外泄）。
+  // 语义保持「Audius 无歌词接口 → 空歌词」：调用方 existTimeExp 判空后走换源找歌词。
   getLyric() {
-    return Promise.resolve({ lyric: '', rawlrc: '' })
+    return {
+      promise: Promise.resolve({ lyric: '', rawlrc: '' }),
+      cancelHttp() {},
+    }
   },
   getPic,
   getMusicDetailPageUrl(songInfo) {

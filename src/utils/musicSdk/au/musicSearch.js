@@ -28,20 +28,24 @@ export default {
       if (t.is_streamable !== true) continue
       ids.add(t.id)
       const picUrl = (t.artwork && (t.artwork['480x480'] || t.artwork['150x150'] || t.artwork['1000x1000'])) || null
+      // R82 P0：搜索落库统一走 `toNewMusicInfo`（src/utils/index.ts:28-41），它读的是**旧结构**字段
+      // （`songmid`/`img`/`types`/`_types`）。此前这里返回 `{ id, meta }` 新结构，迁移后
+      // `id` 变 `au_undefined`、`meta` 全丢，`deduplicationList` 再按 id 去重把整页塌成一，
+      // 点播把 `au_undefined` 丢给音源即 404。字段集与 kw/musicSearch.js 对齐。
       list.push({
-        id: t.id,
+        songmid: t.id,
         name: t.title,
         singer: (t.user && t.user.name) || '',
         source: 'au',
+        albumId: '',
+        albumName: '',
         interval: formatPlayTime(t.duration || 0),
-        meta: {
-          songId: t.id,
-          albumName: '',
-          albumId: '',
-          picUrl,
-          qualitys: [{ type: '128k', size: null }, { type: '320k', size: null }],
-          _qualitys: { '128k': { size: null }, '320k': { size: null } },
-        },
+        lrc: null,
+        img: picUrl,
+        otherSource: null,
+        types: [{ type: '128k', size: null }, { type: '320k', size: null }],
+        _types: { '128k': { size: null }, '320k': { size: null } },
+        typeUrl: {},
       })
     }
     return list
