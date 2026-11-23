@@ -89,6 +89,10 @@ const results = []
 const t0 = Date.now()
 const CONCURRENCY = Number(process.env.PREFLIGHT_JOBS || 8)
 
+// G2 是「100000 条报告生成 ≤3000ms」的性能断言：8 路并发会把独立跑约 300ms
+// 拉成 3000ms+（本轮实测 3099ms 假红）。性能项必须单独串行，不能把 CPU 争抢算成回归。
+const SERIAL_APP_CHECKS = new Set(['check_health_diagnostics_deep'])
+
 // 每个 check 脚本都是「读文件 + 断言」，互不写盘（已核过 scripts/check_*.js 无 writeFileSync），
 // 所以按 App 内部并发、源仓串行（源仓 build-source 会写文件、npm test 本身会开一堆子进程）。
 const runStep = s => new Promise(resolve => {
@@ -127,7 +131,10 @@ const pool = async(items, limit) => {
     console.log(`📄 本次只改文档（${touched.length} 个文件）：跳过 tsc/eslint（云端 paths-ignore 同样不触发）`)
   }
   const srcSteps = steps.filter(s => s.cwd !== ROOT)
-  await pool(appSteps, CONCURRENCY)
+  const parallelAppSteps = appSteps.filter(s => !SERIAL_APP_CHECKS.has(s.name))
+  const serialAppSteps = appSteps.filter(s => SERIAL_APP_CHECKS.has(s.name))
+  await pool(parallelAppSteps, CONCURRENCY)
+  for (const s of serialAppSteps) await runStep(s)
   for (const s of srcSteps) await runStep(s)
 
   const failed = results.filter(r => !r.ok)

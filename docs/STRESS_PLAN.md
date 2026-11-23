@@ -2,7 +2,7 @@
 
 > **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
 >
-> **基线（唯一真值，2026-11-23）**：App **v1.9.2-b207**（`8adc5d46`，已推送）；源仓 **v9.3.3**（`ae13b6d`，已推送，产物 **400561 bytes / 7725 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条为本轮未重跑的历史口径）；telemetry `main`（HEAD `d706359`，代码基线 `5cdfe31`，其余为每日数据提交；公开仓，`ingest` **9/9**）。
+> **基线（唯一真值，2026-11-23）**：App **v1.9.2-b207**（`1f9d62c3`，当前 HEAD；发布点 `8adc5d46`，已推送）；源仓 **v9.3.3**（`ae13b6d`，已推送，产物 **400561 bytes / 7725 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条，R85 已复跑）；telemetry `main`（HEAD `d706359`，代码基线 `5cdfe31`，其余为每日数据提交；公开仓，`ingest` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）。
 >
 > **R81 新增压测面（2026-11-23）**：真机引擎 invariant 面 —— 产物可执行代码（去注释）`Date.parse` 与 `new Proxy` 均须为 0、必须含纯算术 `parseYmdToMs`；`parseYmdToMs` 对闰年（2024-02-29）/跨纪元（1969-12-31，负毫秒）/非法输入（2026-13-01、2026-11-32）与 `Date.parse` 逐例等价。守卫脚本 `test/audit/r81-proxy-compat.js`（源仓，6 条），已并入源仓 `npm test`；App 侧以 `MUSIC_SOURCE_GUIDE` v9.3.1 与构建闸门（`SRC_VER` == `豆包定制 vX`）覆盖。
 
@@ -36,7 +36,7 @@
 | S19 | 跨仓健康态往返 | `check_cross_repo_health_roundtrip.js` | 4 | 旧版本快照按数值比较接受、白名单不放宽结构 | 4/0（需双仓） |
 | S20 | 口径门禁（含计划唯一/SDK/超时清理） | `check_truth_gates.js` | 14 | 版本/脚本数/依赖 sha/**G21**/**G22**/**G23**/**G27** | 14 断言（**12 个 G 编号**，编号不连续）全一致 |
 | S21 | 真机摘要上报 | `check_health_digest.js` | 12 | 5000 事件/24h 窗口、probe 不计播放、失败明细 200 截断、20h 节流、队列 7 条 7 天、Issue 围栏格式、无硬编码凭据、三语键、**单飞锁**、**报告体字段白名单（D1~D3）** | 12/0 |
-| S22 | telemetry 入库契约（跨仓） | `lx-telemetry/test/ingest.test.js` | 9 | 合法入库/重复去重/围栏 JSON/非法计数字段拒收/48KB 上限/分桶与时间窗 | 9/0 |
+| S22 | telemetry 入库契约（跨仓） | `lx-telemetry/test/*.test.js` | 41 | 审计 9 + 压测 29 + T5 2 + 完整性 1：合法入库/去重/围栏/非法字段/48KB 边界/深嵌套/1000·10000 行吞吐 | 41/0 |
 | S24 | **全仓裸 console 归零（R74）** | `check_log_redaction` + `eslint . --ext .js,.jsx,.ts,.tsx`（`no-console` 覆盖 `src/**/*.ts(x)`） | 4 | 唯一合法出口为 `logger.ts:48` 的 `console.warn`（带 `eslint-disable-next-line`）；其余 `src` 下 `console.*` 一律 0；`scripts/` 与 `src` 同一 lint 面，本地只跑 `eslint src` 会漏 | 4/0 + eslint 全仓 rc0 |
 | S25 | **`logger` 写盘 IO 成本（R74b）** | `check_log_redaction` 的 G3 + 人工代码走查 | —（走查项，不产断言） | `tag==='PlaySource'` 时 `info/error` 走 `force=true` 绕过 `enableDebugLog`，每次 4~6 次 RNFS 调用；**切源常规路径的 `try toggle to` 必须是 `debug` 不是 `info`** | 走查结论：`music/utils.ts` 两处已为 `debug`；G3（`logger.ts:48` 唯一 `console.warn`）由 S24 的 `check_log_redaction` 4/0 覆盖 |
 | S26 | **状态分类 12 reason 全枚举（E14 / R75）** | `check_health_state_enum.js` | 22 | 12 个 reason 逐个可达 + 优先级链（USER_OFF > PLAY_DEAD > 无样本 > rateLimit > open/half-open）+ 4 主状态 tone/key + 288 组合 | 22/0 |
@@ -44,7 +44,7 @@
 | S28 | **持久化往返压力（E22 / R75）** | `check_persistence_roundtrip.js` | 8 | 1/5/20 轮 save→restore 等价、指纹缓存不重复写、controls 不混入健康 key、v1/v3 拒收、TTL 6天/8天、超容量 | 8/0 |
 | ~~S23~~ | **在线更新链路压力（已下线）** | 三脚本已随「V9.3 在线更新体系整体下线」删除：`check_source_signing.js` / `check_source_update_fetch.js` / `check_source_update_apply.js` 均不存在 | — | 验签（未知 keyId/假签名/篡改）、传输链（404/size/sha256/开关关闭）、落地（就地覆盖/零写入/回滚四态）全部不再适用；「更新音源」回归单文件拉取 + 多镜像兜底 | 不再执行（保留行以免口径断档） |
 
-**合计：S1~S22 + S24 + S26~S28 有效项 14+51+25+15+19+7+12+10+9+8+29+14+17+12+21+9+10+3+3+4+14+12+9+4+22+10+8 = 371 条（其中纯压测口径 371−14=357 条，S20 为口径门禁不重复计入压测，S22 在 telemetry 仓；S23 已下线、S25 为走查项，均不计入合计）。**
+**合计：S1~S22 + S24 + S26~S28 有效项 **403 条**（含 S22 的 41 条；纯压测口径 **389 条**，S20 为口径门禁不重复计入压测，S22 在 telemetry 仓；S23 已下线、S25 为走查项，均不计入合计）。**
 
 ## 1b. 待补套件（历史归档：承接原 `STRESS_PLAN_v1.9.2-b118.md`，2026-11-15 删除前承接）
 
@@ -82,7 +82,7 @@ node scripts/check_source_health_persistence.js
 node scripts/check_health_digest.js
 node scripts/check_error_code_map.js
 node scripts/check_persistence_roundtrip.js
-node --test ../lx-telemetry/test/ingest.test.js
+node --test ../../repos/lx-telemetry/test/*.test.js
 # 第二梯队：音质改动压力（S16~S18）
 node scripts/check_quality_request_runtime.js
 node scripts/check_playback_budget.js
@@ -124,43 +124,43 @@ node scripts/docs-audit.js --dry-run
 | `definitiveFail/linkExpired` 字段 | 音源快照新增，App `Health.tsx` 不消费 | 结构走查 |
 | 片段语义跨仓 | 音源 `fragment:true`+`unknown` → App 标「试听」、不回报成功 | `check_quality_request_runtime` P1-CACHE |
 
-## 4. 实测结果（2026-11-22 · v1.9.2-b199 / `b3ce7440`）
+## 4. 实测结果（2026-11-23 · v1.9.2-b207 / `1f9d62c3`）
 
-> 本轮口径：用 `check_assertion_ledger` 一次调度跑完 **46 个脚本**（等价于 S1~S22 全量实跑），结果 **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本 / 0 环境跳过**，台账 **1230 = 实测 1230**；下表与之逐项对齐。
->
-> **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 在未设 `LX_SOURCE_ROOT` 时，按 `../lx-music-source` → `../backend-api` 顺序探测（首个含 `src/legacy.js` 的胜出）。此前默认只认 `../lx-music-source`，本地直接跑 ledger 会报「`check_cross_repo_linkage` 少 C6 / 少 C7 / 少 C8」、实测 1223 ≠ 1230，把环境缺失记成回归。修后**不带环境变量**也 **1230 = 1230**、46 一致；CI 仍走 `LX_SOURCE_ROOT` + `LX_REQUIRE_SOURCE=1`，行为不变。
+> 本轮口径：`npm run preflight` **53 通过 / 0 失败 · 45.4s**（G2 性能检查串行）；`preflight:all` **58 通过 / 0 失败 · 287.3s**（含源仓 npm test 241.1s）；压力计划 **23 个脚本**逐条实跑全部 rc0；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 **1285 = 实测 1285**；`node scripts/docs-audit.js --dry-run` **待处理 0 / 报告 20 / 硬失败 0**；`npm run build-test` rc0；`tsc`/`eslint` 均随 preflight 通过。
 
 | 项 | 结果 |
 |---|---|
-| `npm run preflight`（审计全量，CI 同判据） | **48 通过 / 0 失败 · 124.0s**，`RC=0` |
+| `npm run preflight`（审计全量，CI 同判据） | **53 通过 / 0 失败 · 45.4s**，`RC=0`（G2 性能项串行） |
+| `npm run preflight:all`（+源仓全链路） | **58 通过 / 0 失败 · 287.3s**，`RC=0`（源仓 build/self-check/docs-audit/verify:bundle/npm test；G2 串行 1.2s） |
 | S1 诊断压力 | 14/0 |
 | S2 诊断深度 | 51/0 |
 | S3 诊断视图 | 25/0 |
 | S4 日志目录 | 15/0 |
-| S5 状态分类重构 | **19/0**（R71d 新增 HS15~HS19） |
+| S5 状态分类重构 | **19/0** |
 | S6 4 主状态+reason | 7/0 |
 | S7 UI 映射 | 12/0 |
 | S8 事件链路 | 10/0 |
 | S9 持久化 v2 | 9/0 |
 | S10 异常聚合 | 8/0 |
-| S11 配置契约 | 29/0（39 键 + 数字/布尔边界） |
-| S12 音源契约 | 14/0（14 action + envelope + fallbackOwner） |
+| S11 配置契约 | 29/0 |
+| S12 音源契约 | 14/0 |
 | S13 源健康持久化 | 17/0 |
+| E14 状态全枚举 | 22/0 |
+| E15 错误码文案映射 | 10/0 |
+| E22 持久化往返 | 8/0 |
 | S16 请求档矩阵 | 12/0 |
 | S17 播放预算 | 21/0 |
 | S18 片段/标签/播放服务/下载（分项） | 9/0、10/0、3/0、3/0 |
-| S19 跨仓健康态往返 | 4/0（需 `LX_SOURCE_ROOT`） |
-| S20 口径门禁 | 全部一致（**14 断言 / 12 个 G 编号**） |
-| S21 真机摘要上报 | **12/0** |
-| S22 telemetry 入库 | **9/9**（`node test/ingest.test.js` → `# pass 9 / # fail 0`） |
-| S24 裸 console 归零 | eslint 全仓 **rc0**（`eslint . --ext .js,.jsx,.ts,.tsx`，122.1s） |
-| S25 logger IO 成本 | G3 判据通过；`music/utils.ts` 两处 `try toggle to` 已降为 `debug` |
-| `tsc --noEmit` | 0 error（36.4s） |
-| 三语 | 各 **1048 键** |
-| TS/TSX | **543 文件** 语法 0 错误（`check_ts_syntax`） |
-| 文档一致性 | **17 篇**（`check_docs_consistency`） |
+| S19 跨仓健康态往返 | 4/0 |
+| S20 口径门禁 | 全部一致（14 断言 / 12 个 G 编号） |
+| S21 真机摘要上报 | 12/0 |
+| S22 telemetry | **41/41**（审计 9 + 压测 29 + T5 2 + 完整性 1；`node --test`） |
+| S24 裸 console 归零 | eslint 全仓 rc0（随 preflight） |
+| S25 logger IO 成本 | G3 判据通过 |
+| `tsc --noEmit` / `build-test` | 0 error / rc0 |
+| 三语 / TS-TSX / 文档一致性 | 各 1048 键 / 543 文件 / 17 篇 |
 
-> 22 个压力脚本全部 rc=0；本轮 0 红。S3「条数 25 / 通过 24」的历史口径差异已消除，实际 25 通过 / 0 失败，以实跑为准。
+> 23 个压力脚本全部 rc0，本轮 0 红。`check_docs_consistency` 17 篇、`check_assertion_ledger` 1285=1285 已与 preflight 同轮复核。
 
 ## 5. 失败处置与外部阻塞
 
@@ -175,5 +175,7 @@ node scripts/docs-audit.js --dry-run
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-23 | **R85b 缺口收口**：补 `preflight:all`；G2 性能检查单独串行（8 路并发曾 3099ms 假红）；telemetry T5 落成后 S22 39→41，总有效项 401→**403**（纯压测 387→389） | `preflight` **53/0 · 45.4s**；`preflight:all` **58/0 · 287.3s**（源仓 npm test 241.1s；G2 串行 1.2s）；telemetry **41/41**（T5 1000 行 73ms / 10000 行 366ms） |
+| 2026-11-23 | **R85 基线刷新与实跑**：App b207 / `1f9d62c3`，源仓 v9.3.3，telemetry 补 29 压测 + 1 完整性后 39 例；压力项合计 371→**401** | `preflight` **53/0 · 39.3s**；23 个压力脚本 rc0；`ledger` **50 一致 / 1285 = 1285**；telemetry **39/39**；`build-test` rc0；`docs-audit` 0 待处理 |
 | 2026-11-22 | 基线升到 **v1.9.2-b199 / `b3ce7440`**；S5 **14→19**、S21 **9→12**、S22 **5→9**；新增 **S24（全仓裸 console 归零）** 与 **S25（logger 写盘 IO 成本）**；合计 **310→371 条**（纯压测 **296→357**）；E14/E15/E22 三套从「待建」转「已落地」（S26/S27/S28）；§2b 三处分组条数校正（S3 24→25、S5 10→19、S7 11→12、S11 26→29）；E15 错误码 16→19（并补 `player_error_unsupported` 文案）、E16 键数 1030→1045、E20 标记为已被 `preflight` 覆盖 | `preflight` **51/0 · 41.8s**；`ledger` **49 一致 / 1270 = 1270**；S1~S28 逐项 rc0；telemetry `ingest` **9/9**；`tsc` 0 error；`eslint .` 全仓 rc0 |
 | 2026-11-20 | 重构为唯一入口（原 S1~S13 与后补 S16~S19 合并），统一基线 b187 / v9.1.4；合计 310 条；补音质政策联动压测（§3） | `preflight` 47/0；22 个压力脚本 rc=0；ledger 46 一致 / 1221 = 1221 |

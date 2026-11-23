@@ -3,15 +3,15 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-23）**：
-> - App：`luanmuc/mobile-app` @ `8adc5d46`（**已推送 master**），**v1.9.2-b207**；`npm run preflight` **52 通过 / 0 失败**（R82/R83 实测）
+> - App：`luanmuc/mobile-app` @ `1f9d62c3`（当前 HEAD；发布点 `8adc5d46`，**已推送 master**），**v1.9.2-b207**；`npm run preflight` **R85b 实跑 53 通过 / 0 失败 · 45.4s**（R85 为 39.3s；历史 R82/R83 为 52 条，R85 新增 1 条）；`preflight:all` **58 通过 / 0 失败 · 287.3s**（含源仓 build/self-check/docs-audit/verify:bundle/npm test）
 > - 源仓：`luanmuc/backend-api` @ `ae13b6d`（**已推送 master**），**v9.3.3**（产物 **400561 bytes / 7725 行**，错误码 **19**，`npm test` **51 脚本** rc0；manifest 已由 CI `sign-release` 重签）
 > - **R82（2026-11-23，b206）**：au 三处契约修复（`filterData` 旧结构 P0 / `getLyric` `{promise,cancelHttp}` P1 / 更新音源并发取最高 P1）+ 首个执行级 SDK 契约门禁（6 条）；指南平台 8→6。
 > - **R83（2026-11-23，b207 已推送）**：①源仓复核日改按源 `reviewEveryDays` 滚动窗口（7~365 天，上链源也校验），到期日摊到 12-23/01-22/02-21；②源仓启动期 `probeEngineCapabilities()` 只写日志；③App「更新音源」加 manifest `size+sha256` 完整性校验，manifest 缺失 fail-open（K36）；④`check_au_source_contract` 扩为 `check_builtin_sdk_contract`（六平台矩阵 M1~M6 + A1~A8，14 条）并更名进 `release.yml`。
 > - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
-> - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-23 HEAD `d706359`；代码基线仍为 `5cdfe31`，其后 4 条为每日 `digests/` 数据提交；**公开仓**；`ingest` **9/9**）
+> - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-23 HEAD `d706359`；代码基线仍为 `5cdfe31`，其后 4 条为每日 `digests/` 数据提交；**公开仓**；`node --test` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
 > - 硬数字：三语各 **1048 键**、TS/TSX **543 文件**、`scripts/check_*.js` **54 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1285 条 = 计数型 543（文件）+ 17（文档）+ 非计数型断言 725 条**（6c 逐 ID 实算），算式 `1285 − 543 − 17 = 725` 自洽
-> - **2026-11-22 实跑**：`check_ts_syntax` 543/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1285 = 实测 1285；`--gen-ids` 报 **48 脚本 / 725 条 ID 全覆盖**（R83 重生成后）
+> - **2026-11-23 实跑**：`check_ts_syntax` 543/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1285 = 实测 1285；`--gen-ids` 报 **48 脚本 / 725 条 ID 全覆盖**（R83 重生成后）
 > - **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 未设 `LX_SOURCE_ROOT` 时按 `../lx-music-source` → `../backend-api` 探测（首个含 `src/legacy.js` 的胜出）；修前本地直接跑 ledger 会因缺 C6~C8 报「1 漂移 / 实测 1223」，修后 **1230 = 1230**、46 一致
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底）；R83 只恢复 manifest `size+sha256` **可选**完整性校验（`src/utils/sha256.ts`），不恢复 ed25519 验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
@@ -103,7 +103,7 @@
 | 音源健康本地诊断（采样加权/失败归因/窗口覆盖/证据展开/脱敏） | `healthDiagnostics.ts`、`healthLog.ts` | `check_health_diagnostics` 60/0、`check_health_diagnostics_deep` 51/0、`check_health_diagnostics_view` 25/0 | ✅ |
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
-| 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 12/0（**2026-11-19 已接入 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步**，此前只是本地手动）；telemetry `node --test` 9/9；真机 + 并发实测 | ✅ |
+| 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 12/0（**2026-11-19 已接入 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步**，此前只是本地手动）；telemetry `node --test` **41/41**；真机 + 并发实测 | ✅ |
 | 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
@@ -117,7 +117,7 @@
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
 | 三语国际化（1048 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
-| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **54 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **52/52 rc0**（2026-11-23 R83 把 au 专用脚本扩为 `check_builtin_sdk_contract`（M1~M6 + A1~A8，14 条）后实测） / 新门禁自带负向自检 | ✅ |
+| 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **54 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **53/53 rc0**（2026-11-23 R85b 复跑 · 45.4s；G2 性能项单独串行，避免 8 路并发假红） / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
 
@@ -138,7 +138,7 @@
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
 | X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（542 源文件全扫；注入旧写法实测转红） |
 | X-L8 | **计划唯一性** | 每仓只许一份审计计划 + 一份压测计划，归档合并为一份 | `check_truth_gates` **G21**（`AUDIT_PLAN*.md`/`STRESS_PLAN*.md` 各恰 1） |
-| X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 12/0（含 A9 单飞；2026-11-21 新增 A10~A12 覆盖 `by_quality` / `source.version` / `recent_events.q`）；telemetry `node --test` 9/9；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
+| X-L10 | **真机摘要契约（App ↔ lx-telemetry）** | App 产出 `lx-health-digest/1`（24h、probe/play/chain 分列、计数≤2000、不含歌名/URL/账号）；telemetry `schema/digest.schema.json` 同结构校验、`additionalProperties:false`、48KB 上限、`device.id+generated_at` 去重 | `check_health_digest` 12/0（含 A9 单飞；2026-11-21 新增 A10~A12 覆盖 `by_quality` / `source.version` / `recent_events.q`）；telemetry `node --test` **41/41**；**2026-11-19 起该脚本已接入 CI（此前从未接线，故「改任一侧字段即红」在此日期之前并不成立）** |
 
 **联动铁律**：音源新增 action/字段/枚举时，反查 App 的 `sourceContract.ts`、`Health.tsx`、`SYNC_POINTS.md`、`check_source_contract.js` 是否同步。这条正是本次 QP-L1 发现的教训。
 
@@ -162,8 +162,8 @@
 ## 6. 执行清单（本轮必跑，不接受「上次绿过」）
 
 ```bash
-npm run preflight          # 51 条：tsc + eslint + release.yml checks 段 + 跨仓往返（新增 E14/E15/E22 三脚本）
-npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/verify:bundle/npm test（条数以实跑输出为准）
+npm run preflight          # 53 条：tsc + eslint + release.yml checks 段 + 跨仓往返（R85 实测 53/0 · 39.3s）
+npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/verify:bundle/npm test（R85b 实测 58/0 · 287.3s）
 ```
 
 > `preflight` 直接解析 `.github/workflows/release.yml` 的 `lint:`/`checks:` 段取命令，不手抄清单——手抄必然漂移（b142 那轮就是清单少写 1 个脚本，云端才红）。双仓改动必用 `preflight:all`。
@@ -467,6 +467,8 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | G2 | 10 万条报告 | ≤3000ms，findings≤12 |
 | G3 | 2 万条证据包 | ≤4000ms，可 JSON 序列化 |
 
+> G1~G3 是性能断言，必须低争抢运行。R85b 起 `preflight` 把 `check_health_diagnostics_deep` 单独串行跑（其余 checks 仍并发）：8 路并发曾把 G2 从独立约 300ms 拉到 3099ms 假红；串行后 53/0 · 45.4s。
+
 #### 3.1 视图模型审计（20 条）
 
 运行入口：`node scripts/check_health_diagnostics_view.js`。纯函数 `buildHealthDiagnosticsView(report)` 负责折叠态摘要、覆盖状态、24h 四格、1h 空态、未加权样本提示、错误码/其他线索分组。
@@ -676,6 +678,8 @@ npx tsc --noEmit
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-23 | **R85b 缺口收口**：补 `preflight:all` 全链路；G2 性能检查单独串行（8 路并发曾 3099ms 假红）；telemetry T5 落成后 39→41 例 | `preflight` **53/0 · 45.4s**；`preflight:all` **58/0 · 287.3s**（源仓 npm test 241.1s；G2 串行 1.2s）；`ledger` **50 一致 / 1285 = 1285**；telemetry **41/41** |
+| 2026-11-23 | **R85 基线刷新与实跑**：App b207 / `1f9d62c3`，源仓 v9.3.3 / `ae13b6d`，telemetry `d706359` + 39 例，RNTP `669d2ab`；preflight **52→53 条** | `preflight` **53/0 · 39.3s**；`ledger` **50 一致 / 1285 = 1285**；23 个压力脚本 rc0；telemetry **39/39**；错误码/三语/TS 计数保持 19/1048/543 |
 | 2026-11-23 | **R80 新增第 6 个平台 Audius（au）**：`musicSdk/au`（搜索/热搜/取链/封面）、`LX.OnlineSource` 扩 `au`、`source_real_au`/`source_alias_au` 三语文案；无榜单/歌单/评论走 `NO_*` stub；App `versionName` 保持上游底座 1.9.2（仅 b 号随 CI 递增）；指南平台清单 7 → 8 | `npx tsc --noEmit` **0 error**；`npx eslint` 改动文件 0 error；改动 13 文件（含 3 文档） |
 | 2026-11-22 | **R75 补三套并修一条真缺陷**：新增 `check_health_state_enum`（E14，22）、`check_error_code_map`（E15，10）、`check_persistence_roundtrip`（E22，8）→ `check_*.js` **50→53**、台账 **1230→1270**、6c **44/671→47/711**；修 `FAIL_CODE_I18N_KEY` 缺 `UNSUPPORTED_ACTION`（R71d 加了第 19 码却没加文案，落 `player_error_unknown`），补三语 `player_error_unsupported` → 键数 1044→**1045** | `preflight` **51/0 · 41.8s**；`ledger` **49 一致 / 1270 = 1270**；`--gen-ids` **47 脚本 / 711 条**；三新脚本红绿双向（E14 换 if 顺序→1 红、E15 删映射→2 红、E22 放行 v1→1 红）；`truth_gates`/`docs_consistency` 全一致 |
 | 2026-11-22 | 基线推进到 **v1.9.2-b199 / `b3ce7440`**（已推送），源仓 **v9.1.6 / `c38a2c1`**（379380 bytes / 错误码 19），telemetry **`5cdfe31` / ingest 9/9**，RNTP **`669d2ab`**；6b/6c 条数 **1221→1230**、ID 台账 **662→671**，算式改为 `1230 − 542 − 17 = 671`；`preflight` **47→48 条** | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 1230 = 1230**（须带 `LX_SOURCE_ROOT=../backend-api`）；`--gen-ids` **44 脚本 / 671 条全覆盖**；`preflight` **48/0 · 124.0s** |
