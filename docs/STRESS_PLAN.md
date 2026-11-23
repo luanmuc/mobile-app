@@ -49,7 +49,7 @@
 |---|---|---|---:|---|---|
 | E14 | 状态全枚举穷举 `check_health_state_enum.js` | L2 映射 | 22 | **已落地 22/0（R75，见 S26）** | 4 主状态 × reason × 手动/自动 × 播放态全组合（对应 G-A02） |
 | E15 | 错误码 **19** 全映射 `check_error_code_map.js` | L6 契约 | 10 | **已落地 10/0（R75，见 S27）**；并补 `player_error_unsupported` 三语文案 | **19** 个 `ERROR_CODES`（含 R71d 新增 `UNSUPPORTED_ACTION`）全部有中文文案（与 G-A01 同源） |
-| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1045 键 × 三语 × tone 组合渲染 |
+| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1047 键 × 三语 × tone 组合渲染 |
 | E18 | 播放所有权运行时 `check_playback_ownership_runtime.js` | L7 运行时 | 21 | **已落地 21/0**（原「未纳入矩阵」已收回） | `fallbackOwner` 所有权交接 |
 | E19 | 下载器队列压力 `check_download_queue.js` | L7 运行时 | 12 | 待建 | 并发队列、暂停/恢复、失败重排（对应 G-A03） |
 | E20 | 类型与语法全量 | L8 长稳 | 5 | **已被 `preflight` 覆盖**（`tsc --noEmit` + `eslint . --ext .js,.jsx,.ts,.tsx` + `check_ts_syntax`），不再单列 | 三道全绿即达；S24 额外要求 eslint 全仓而非只 `src` |
@@ -151,7 +151,7 @@ node scripts/docs-audit.js --dry-run
 | S24 裸 console 归零 | eslint 全仓 **rc0**（`eslint . --ext .js,.jsx,.ts,.tsx`，122.1s） |
 | S25 logger IO 成本 | G3 判据通过；`music/utils.ts` 两处 `try toggle to` 已降为 `debug` |
 | `tsc --noEmit` | 0 error（36.4s） |
-| 三语 | 各 **1045 键** |
+| 三语 | 各 **1047 键** |
 | TS/TSX | **542 文件** 语法 0 错误（`check_ts_syntax`） |
 | 文档一致性 | **17 篇**（`check_docs_consistency`） |
 

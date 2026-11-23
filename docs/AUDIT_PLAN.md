@@ -7,7 +7,7 @@
 > - 源仓：`luanmuc/backend-api`，**v9.1.6**（`c38a2c1`；产物 **379380 bytes / 7375 行**，错误码 **19**，`npm test` **47 脚本** rc0）
 > - telemetry：`luanmuc/lx-telemetry` @ `5cdfe31`（**公开仓**；`ingest` **9/9**）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
-> - 硬数字：三语各 **1045 键**、TS/TSX **542 文件**、`scripts/check_*.js` **53 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1270 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 711 条**（6c 逐 ID 实算），算式 `1270 − 542 − 17 = 711` 自洽
+> - 硬数字：三语各 **1047 键**、TS/TSX **542 文件**、`scripts/check_*.js` **53 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1270 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 711 条**（6c 逐 ID 实算），算式 `1270 − 542 − 17 = 711` 自洽
 > - **2026-11-22 实跑**：`check_ts_syntax` 542/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **49 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1270 = 实测 1270；`--gen-ids` 报 **47 脚本 / 711 条 ID 全覆盖**
 > - **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 未设 `LX_SOURCE_ROOT` 时按 `../lx-music-source` → `../backend-api` 探测（首个含 `src/legacy.js` 的胜出）；修前本地直接跑 ledger 会因缺 C6~C8 报「1 漂移 / 实测 1223」，修后 **1230 = 1230**、46 一致
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底），不再有 manifest/验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
