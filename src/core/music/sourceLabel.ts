@@ -6,6 +6,7 @@
  */
 export type PlatformNameKey =
   | 'source_real_all'
+  | 'source_real_au'
   | 'source_real_bd'
   | 'source_real_kg'
   | 'source_real_kw'
@@ -15,6 +16,7 @@ export type PlatformNameKey =
 
 const PLATFORM_NAME_KEYS: Record<string, PlatformNameKey> = {
   all: 'source_real_all',
+  au: 'source_real_au',
   bd: 'source_real_bd',
   kg: 'source_real_kg',
   kw: 'source_real_kw',

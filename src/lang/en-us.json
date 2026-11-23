@@ -1043,5 +1043,7 @@
   "source_update_not_manifest": "Fetch returned non-manifest content (possibly blocked or an error page), import refused",
   "source_update_panel_current": "Current source v{version}",
   "source_update_panel_last_check": "Last check {time}",
-  "source_update_panel_never": "Last check: never"
+  "source_update_panel_never": "Last check: never",
+  "source_real_au": "Audius",
+  "source_alias_au": "Audius"
 }

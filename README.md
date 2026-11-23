@@ -66,7 +66,7 @@
 
 - 本软件默认设置以实用为准，建议使用前先浏览一遍设置项
 - 音乐播放列表机制说明见 [FAQ.md](./docs/FAQ.md)
-- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `1.9.2-b23`）
+- 遇到问题先看 [FAQ.md](./docs/FAQ.md)，仍无法解决请在 [Issues](https://github.com/luanmuc/mobile-app/issues) 反馈（注明版本号，如 `X.Y.Z-b23`）
 
 ## 贡献代码
 

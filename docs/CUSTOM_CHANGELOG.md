@@ -1,3 +1,17 @@
+## [R80 新增第 6 个平台 Audius（au）适配] `src/utils/musicSdk/au/**`、`src/types/*.d.ts`、`src/core/music/sourceLabel.ts`、`src/lang/*.json` - 2026-11-23
+
+音源仓 v9.3.0 新增 `audius` 源与 `au` 平台，本仓同步适配：
+
+1. **搜索** `src/utils/musicSdk/au/musicSearch.js`：`/v1/tracks/search?app_name=LxSource` + `offset` 分页（limit ≤ 100），跳过 `is_streamable !== true` 与重复 id；封面取 `artwork['480x480']` 回退 `150x150`/`1000x1000`；`interval` 用 `formatPlayTime(duration)`。
+2. **热搜** `au/hotSearch.js`：Audius 无热词接口，用 `/v1/tracks/trending?limit=20` 的曲名兜底（只展示，点击按曲名搜索）。
+3. **取链** `au/index.js`：`getMusicUrl` 走 `apis('au')` → 源侧 `audius` handler；`getMusicDetailPageUrl` 指向 `audius.co/tracks/{id}`。
+4. **类型与文案**：`LX.OnlineSource` 加 `au`；`MusicInfo_online_common` 扩 `'kw'|'wy'|'au'`；`PlatformNameKey`/`PLATFORM_NAME_KEYS` 加 `source_real_au`；三语各 +2 键（`source_real_au`/`source_alias_au`）。
+5. **无榜单/歌单/评论**：`songList`/`leaderboard`/`comment` 一律 `NO_*` stub，走调用方既有受控失败分支，不新增兜底逻辑。
+
+验证：`npx tsc --noEmit` **0 error**（改动前 au 缺 `hotSearch/leaderboard/getPic/comment` 会让 `musicSdk[source]` 联合类型 12 处访问报错，逐项补齐后归零）；`npx eslint` 改动文件 0 error。App `versionName` 仍跟上游底座 **1.9.2**（只有 CI build 号递增，不自行升 minor）。
+
+`docs/MUSIC_SOURCE_GUIDE.md` 同步：标题与「注」段升 v9.3.0，平台清单 7 → 8（含 au）。
+
 ## [R78 工具链：文档同步闸门落地生效（hook 安装 + 静默放行修复）] `scripts/doc-sync-map.js`、`docs/AGENTS.md`、`docs/KNOWN_ISSUES.md` - 2026-11-23
 
 规则写着「强制、无需提醒」，但本机 `core.hooksPath` 未设置、`.git/hooks` 只有 sample，提交时既不打印清单也不拦截。两仓各执行一次 `sh scripts/install-hooks.sh` 后 `prepare-commit-msg` / `commit-msg` 真正生效。

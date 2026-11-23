@@ -50,7 +50,8 @@ declare namespace LX {
       meta: MusicInfoMeta_local
     }
 
-    interface MusicInfo_online_common extends MusicInfoBase<'kw' | 'wy'> {
+    // R80：au（Audius）只用到通用在线字段（songId/albumName/picUrl/qualitys），无专属 meta
+    interface MusicInfo_online_common extends MusicInfoBase<'kw' | 'wy' | 'au'> {
       meta: MusicInfoMeta_online
     }
 

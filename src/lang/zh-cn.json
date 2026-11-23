@@ -1043,5 +1043,7 @@
   "source_update_not_manifest": "拉取到的内容不是 manifest（可能被网络拦截或返回了错误页），已拒绝导入",
   "source_update_panel_current": "当前音源 v{version}",
   "source_update_panel_last_check": "上次检查 {time}",
-  "source_update_panel_never": "上次检查：从未"
+  "source_update_panel_never": "上次检查：从未",
+  "source_real_au": "Audius",
+  "source_alias_au": "Audius"
 }

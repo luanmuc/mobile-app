@@ -32,7 +32,7 @@ feat(download): 新增断点续传功能
 fix(player): 修复点击歌曲播放错歌的问题
 refactor(setting): 清理冗余迁移代码
 docs: 完善 MERGE_GUIDE
-chore(release): 更新版本信息 v1.9.2-b23
+chore(release): 更新版本信息 `vX.Y.Z-b23`
 ```
 
 规则：

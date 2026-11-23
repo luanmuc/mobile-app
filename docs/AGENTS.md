@@ -61,7 +61,7 @@ node scripts/check_docs_consistency.js
 # L4 文档一致性巡检（低风险自动修复：TS 文件数/底座 bN/track-player commit；--dry-run 只报告）
 node scripts/docs-audit.js
 
-# 提交 + 推送（push 即触发云编译发版 v1.9.2-bN；push 前必须先 fetch 检查远端，见协作规则第 8 条）
+# 提交 + 推送（push 即触发云编译发版 `vX.Y.Z-bN`；push 前必须先 fetch 检查远端，见协作规则第 8 条）
 git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push origin master
 ```
 
@@ -184,7 +184,7 @@ node scripts/docs-audit.js   # 文档一致性检查：过时引用清零才可�
 
 ## 发布
 
-- push master 即触发云编译发版（`v1.9.2-bN`）；`publish/**`、`npm-version-info/**` 不触发。
+- push master 即触发云编译发版（`vX.Y.Z-bN`）；`publish/**`、`npm-version-info/**` 不触发。
 - 构建前先跑源仓 HEAD CI 闸门：源仓最近一次 push CI 非 success、未完成、无 run，或绿提交不是当前 HEAD 祖先时，直接阻断取源。
 - 本地打包：`npm run pack:android` / `pack:android:debug` / `clear` 都按 `process.platform` 选 `gradlew`(Unix) 或 `gradlew.bat`(Windows)，不再是单平台写死；版本号取自 `publish/build-state.json`（可用 `APP_VERSION_CODE` 覆盖）。
 - CI 依赖缓存：`.github/actions/setup` 缓存 `node_modules`（key=package-lock.json+.nvmrc，命中跳过 npm ci）；`setup-java` 缓存 Gradle wrapper/依赖；`android/gradle.properties` 开启 `org.gradle.caching/parallel/workers.max=4`，构建命令 `./gradlew assembleRelease --build-cache --parallel --no-daemon`。改依赖锁定文件后缓存自动失效，无需手动清理。

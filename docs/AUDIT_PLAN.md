@@ -51,7 +51,7 @@
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1040 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1047 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -113,7 +113,7 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1040 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 三语国际化（1047 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
 | 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **53 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **51/51 rc0** / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
@@ -319,7 +319,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | G-A08 | 真机验收 blocked | 无 `adb` / 无 `/dev/kvm` / `ANDROID_HOME` 未设 | blocked |
 | G-A09 | tx 完整曲目 blocked（上游约 60 秒试听，只能判 `PREVIEW_FRAGMENT`） | 上游限制 | blocked |
 
-> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（b118 期全覆盖草稿）§2「实锤缺口总表」。**2026-11-15 已逐条对当前代码复核，无「待复核」项**：G-A01/G-A03/G-A04/G-A06 四条**不成立**（b118 之后已修或本就误判），G-A02/G-A05/G-A07 **仍成立**（待补项），G-A08/G-A09 为**环境 blocked**。即 b118 草稿的高危缺口已全部消失，剩余仅是待补测试与真机限制。
+> G-A01~G-A09 来源：原 `AUDIT_PLAN_v1.9.2-b118.md`（历史归档，b118 期全覆盖草稿）§2「实锤缺口总表」。**2026-11-15 已逐条对当前代码复核，无「待复核」项**：G-A01/G-A03/G-A04/G-A06 四条**不成立**（b118 之后已修或本就误判），G-A02/G-A05/G-A07 **仍成立**（待补项），G-A08/G-A09 为**环境 blocked**。即 b118 草稿的高危缺口已全部消失，剩余仅是待补测试与真机限制。
 
 ---
 
@@ -671,6 +671,7 @@ npx tsc --noEmit
 
 | 日期 | 变更 | 实跑证据 |
 |---|---|---|
+| 2026-11-23 | **R80 新增第 6 个平台 Audius（au）**：`musicSdk/au`（搜索/热搜/取链/封面）、`LX.OnlineSource` 扩 `au`、`source_real_au`/`source_alias_au` 三语文案；无榜单/歌单/评论走 `NO_*` stub；App `versionName` 保持上游底座 1.9.2（仅 b 号随 CI 递增）；指南平台清单 7 → 8 | `npx tsc --noEmit` **0 error**；`npx eslint` 改动文件 0 error；改动 13 文件（含 3 文档） |
 | 2026-11-22 | **R75 补三套并修一条真缺陷**：新增 `check_health_state_enum`（E14，22）、`check_error_code_map`（E15，10）、`check_persistence_roundtrip`（E22，8）→ `check_*.js` **50→53**、台账 **1230→1270**、6c **44/671→47/711**；修 `FAIL_CODE_I18N_KEY` 缺 `UNSUPPORTED_ACTION`（R71d 加了第 19 码却没加文案，落 `player_error_unknown`），补三语 `player_error_unsupported` → 键数 1044→**1045** | `preflight` **51/0 · 41.8s**；`ledger` **49 一致 / 1270 = 1270**；`--gen-ids` **47 脚本 / 711 条**；三新脚本红绿双向（E14 换 if 顺序→1 红、E15 删映射→2 红、E22 放行 v1→1 红）；`truth_gates`/`docs_consistency` 全一致 |
 | 2026-11-22 | 基线推进到 **v1.9.2-b199 / `b3ce7440`**（已推送），源仓 **v9.1.6 / `c38a2c1`**（379380 bytes / 错误码 19），telemetry **`5cdfe31` / ingest 9/9**，RNTP **`669d2ab`**；6b/6c 条数 **1221→1230**、ID 台账 **662→671**，算式改为 `1230 − 542 − 17 = 671`；`preflight` **47→48 条** | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 1230 = 1230**（须带 `LX_SOURCE_ROOT=../backend-api`）；`--gen-ids` **44 脚本 / 671 条全覆盖**；`preflight` **48/0 · 124.0s** |
 | 2026-11-20 | 基线推进到 **v1.9.2-b187 / `dadef6a1`**（已推送），源仓 **v9.1.4 / `297c88e`**，RNTP 锁到 **`45c384d`**（短打断分级 + 通用性补修，断言 67 条）；头部算式改为 `1221 − 542 − 17 = 662` | `check_ts_syntax` **542/0**；`check_docs_consistency` **17 篇**；`check_assertion_ledger` **46 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**（台账 1221 = 实测 1221）；`--gen-ids` 仍 **44 脚本 / 662 条 ID 全覆盖** |
@@ -686,4 +687,4 @@ npx tsc --noEmit
 | 2026-11-19 | 6c 扩充到 **37 脚本 / 595 条**：(a) `RE_ID` 支持中缀形态（`P1B-A1` / `P1F-A1` / `R-01-W1`），3 个**本就有 ID** 的脚本直接纳管、无需改脚本；(b) `check_source_config_contract` 的 `✓` 行加 `SC01~SC29`、(c) `check_volume_fade` 此前**通过时不逐条打印**，加 `VF01~VF40` 后才可纳管。`--gen-ids` 同时补「未列入告警」，避免再像上次那样静默漏脚本。变异 VF→VE / SC→SD 条数不变、报 `少 VF01…/少 SC01…` 双向验证通过 |
 | 2026-11-19 | 6c 补齐到 **44 脚本 / 662 条**——**所有非计数型断言全部有了身份**（`1220 − 541 − 17 = 662` 自洽）。两个坑：(a) `RE_ID` 把 `P0-10` 截成 `P0`（模式里 `-\d` 只能做中缀不能做末段）；(b) `readIdLedger` 读不回自己写出的中缀 ID（生成/解析不对称）。改成**同一个 `ID_PATTERN` 常量**两处共用后消失。另修 `--gen-ids` 的循环依赖：原先只收 `state==='ok'`，6c 旧登记导致的 `id-drift` 脚本永远补不进来 |
 | 2026-11-19 | 6c 表可自动维护：`--gen-ids --write` 直接写回 6c 段（只动表体 + 两处数字，幂等，基线未全绿/`--only`/`--quick` 一律拒绝写）。实测破坏 6c 标题与一行后跑 `--write`，与完好版 diff 为空 |
-| 2026-11-18 | 基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |
+| 2026-11-18 | 历史：基线 **v1.9.2-b154 / vc313**（源仓 v9.0.0）；新增 sourceUpdate 四件套 + 三脚本台账；断言合计 597 条；文档 16 篇 | `preflight --fast` 39/0（34.2s）；22 个压力脚本 rc=0；`tsc`/`eslint` 0 error；三语各 1021 键 |
