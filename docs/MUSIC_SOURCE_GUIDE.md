@@ -2,6 +2,8 @@
 
 本仓库的音源体系 = **内置平台 SDK（搜索 tab 实际可见 6 个：`kw/kg/tx/wy/mg/au`；`bd`/`xm` 代码保留但未进 `sources` 列表，`bd` 已注释；au 为 Audius 第三方平台，接口为 `api.audius.co`）+ 自定义源（QuickJS 脚本）**。定制版的核心差异在于内置了「豆包定制」聚合音源。
 
+`au` 的目录层按官网真实结构补齐（R86）：排行榜 18 条 = Tracks 本周/本月/历史总榜 + Underground + Winners 单曲/地下（各 10 首）+ 12 个常用风格本周榜；歌单走 `/v1/playlists/trending` 与 `/v1/playlists/search`，详情整份缓存后本地 30 首分页；评论仍无接口。
+
 ## 一、音源架构
 
 ```
