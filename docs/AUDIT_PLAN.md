@@ -4,7 +4,8 @@
 >
 > **基线（唯一真值，2026-11-22）**：
 > - App：`luanmuc/mobile-app` @ `b3ce7440`（**已推送 master**），**v1.9.2-b199**；`npm run preflight` **48 通过 / 0 失败 · 124.0s**
-> - 源仓：`luanmuc/backend-api`，**v9.1.6**（`c38a2c1`；产物 **379380 bytes / 7375 行**，错误码 **19**，`npm test` **47 脚本** rc0）
+> - 源仓：`luanmuc/backend-api`，**v9.3.1**（`4895cd9`；产物 **396999 bytes / 7654 行**，错误码 **19**，`npm test` **50 脚本** rc0）
+> - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
 > - telemetry：`luanmuc/lx-telemetry` @ `5cdfe31`（**公开仓**；`ingest` **9/9**）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
 > - 硬数字：三语各 **1047 键**、TS/TSX **542 文件**、`scripts/check_*.js` **53 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1270 条 = 计数型 542（文件）+ 17（文档）+ 非计数型断言 711 条**（6c 逐 ID 实算），算式 `1270 − 542 − 17 = 711` 自洽

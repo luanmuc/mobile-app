@@ -1,3 +1,12 @@
+## [R81 真机 `proxy: inconsistent get` 根除（音源 v9.3.1 同步）] `docs/MUSIC_SOURCE_GUIDE.md`、`docs/AUDIT_PLAN.md`、`docs/STRESS_PLAN.md` - 2026-11-23
+
+音源仓 v9.3.1 修掉真机初始化必挂的 `proxy: inconsistent get`：
+
+- **根因**：真机引擎是 QuickJS 2024-02-14（`wang.harlon.quickjs:wrapper-android:2.4.0` 的 so 里 `CONFIG_VERSION` 即该版本），它把 `Date` 包成 Proxy；宿主 `android/app/src/main/assets/script/user-api-preload.js:762` 的 `freezeObjectProperty(globalThis)` 又把 `Date.parse` 冻成 non-configurable/non-writable → 读 `Date.parse` 返回值与不可配置描述符不一致 → `JS_ProxyGetProperty` 抛 `proxy: inconsistent get`。V8/Node/旧版 QuickJS 都不校验这条，本地门禁全绿也发现不了；真机栈行号 6066/6111 与 v9.3.0 产物逐行对齐。
+- **音源侧修法**：复核日校验的 `Date.parse` 换纯算术 `parseYmdToMs`（不碰任何 Date 静态方法），新增 `r81-proxy-compat` 6 条守卫（产物去注释后 `Date.parse`/`new Proxy` 必须为 0）。
+- **App 侧零代码改动**，只同步文档：`MUSIC_SOURCE_GUIDE` 标题与「注」段升 **v9.3.1**（构建闸门 `SRC_VER == 豆包定制 vX` 依赖它）；`AUDIT_PLAN`/`STRESS_PLAN` 基线回填 v9.3.1（`4895cd9`，产物 **396999 bytes / 7654 行**）并登记 R81 新增压测面。
+- **行为影响**：装新版后真机「音源管理」应从「[初始化失败]」恢复为 **15 登记 / 13 上链 / 2 观察**；`au` 搜索与播放保持 v9.3.0 能力。
+
 ## [R80 新增第 6 个平台 Audius（au）适配] `src/utils/musicSdk/au/**`、`src/types/*.d.ts`、`src/core/music/sourceLabel.ts`、`src/lang/*.json` - 2026-11-23
 
 音源仓 v9.3.0 新增 `audius` 源与 `au` 平台，本仓同步适配：
