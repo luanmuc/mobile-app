@@ -2,15 +2,17 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 09ce60b2 feat(app): R83 音源更新 sha256 校验与六平台契约门禁
+- 9b66756a fix(preflight): R85b 补 preflight:all 并隔离 G2 性能检查
+- 1f9d62c3 docs: 修正 telemetry 基线（HEAD 随每日 digest 推进，代码基线仍 5cdfe31）
+- 16d073a4 docs: R83 发布后回填 b207 与源仓 v9.3.3 已推送基线
 
 ### File MD5
 ```
-05e05b1d75a7517326ff4c8e7e508cbe  mobile-app-v1.9.2-b207-arm64-v8a.apk
-6ab097b25058426c31c5649a2acdb71f  mobile-app-v1.9.2-b207-armeabi-v7a.apk
-1a6ef89cc1ba420db0a184636c26f24c  mobile-app-v1.9.2-b207-universal.apk
-dd1162b611fded3c2852ffd5d317663f  mobile-app-v1.9.2-b207-x86.apk
-a49e667f3410e0ec952a304bbf106755  mobile-app-v1.9.2-b207-x86_64.apk
+fd2edf51cddac4c31da70d2dbfd78f4c  mobile-app-v1.9.2-b208-arm64-v8a.apk
+740b696cf1bbb5e3b523d5e9c83522fa  mobile-app-v1.9.2-b208-armeabi-v7a.apk
+15278c534f2aa8bc937cb6f46d777507  mobile-app-v1.9.2-b208-universal.apk
+5b46556c99b0c97dce9dcd49217b69b4  mobile-app-v1.9.2-b208-x86.apk
+896a5c5fbe474dabf4628a3b0c8a59c7  mobile-app-v1.9.2-b208-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
