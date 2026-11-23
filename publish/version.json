@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b202",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 72503f46 docs: 修 7 处统计漂移（TS 541→542 / downloadManager 957→961 行 / i18n 1043→1045 键）\n- d9e2b826 chore(doc-sync): 文档同步闸门落地生效 + 修 getStagedFiles 静默放行",
+  "version": "1.9.2-b203",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- d1bb29a5 docs: 音源指南同步到 v9.2.0（落月 tx 第三源 / 星海主备双域 / mg 零源证否 / 14-12-2）",
   "history": [
+    {
+      "version": "1.9.2-b202",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 72503f46 docs: 修 7 处统计漂移（TS 541→542 / downloadManager 957→961 行 / i18n 1043→1045 键）\n- d9e2b826 chore(doc-sync): 文档同步闸门落地生效 + 修 getStagedFiles 静默放行"
+    },
     {
       "version": "1.9.2-b201",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- ecc3b405 docs(source-guide): 音源升 v9.1.7（R77 通读修复 + R78 复核日收口）并同步能力段"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b197",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 64219c4d fix(health): R71 健康页收口 + 契约显式化 + R72 日志治水"
-    },
-    {
-      "version": "1.9.2-b196",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 87638949 fix(docs): MUSIC_SOURCE_GUIDE §四标题音源版本对齐 v9.1.6\n- e5ed6c6f feat(health): K07 档位短路强制探路补 App 侧入口\n- b573235f docs: 内置音源版本跟进 v9.1.5（失效源退役标记）"
     }
   ]
 }
