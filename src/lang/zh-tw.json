@@ -1045,5 +1045,6 @@
   "source_update_panel_last_check": "上次檢查 {time}",
   "source_update_panel_never": "上次檢查：從未",
   "source_real_au": "Audius",
-  "source_alias_au": "Audius"
+  "source_alias_au": "Audius",
+  "source_update_integrity_fail": "音源完整性校驗失敗（size/sha256 與 manifest 不符），已取消更新"
 }

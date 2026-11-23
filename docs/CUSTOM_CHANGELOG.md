@@ -1,3 +1,12 @@
+## [R83 更新音源完整性校验 + 内置 SDK 六平台矩阵（音源 v9.3.3 同步）] `Source.tsx`、`src/utils/sha256.ts`、`scripts/check_builtin_sdk_contract.js`、文档 - 2026-11-23
+
+按架构评审的四条性价比建议落地，三条在 App 侧：
+
+- **更新音源加完整性闸（fail-open）**：`Source.tsx` 的 `SOURCE_UPDATE_MANIFEST_URLS` 由脚本地址同源派生（`lx-source.js.manifest.json`）；仅在「确认要升级」时并发拉 manifest，取到**同版本** manifest 后对远端脚本做 `utf8ByteLength` + `sha256Hex` 逐字节校验，不符即 `throw new Error(t('source_update_integrity_fail'))` 拒绝覆盖；manifest 拿不到 / 版本不匹配则记 `logger.info` 并放行（K36 教训：manifest 不能变回单点硬依赖）。新增 `src/utils/sha256.ts`（`@noble/hashes/sha256` + 手写 UTF-8 编码，兼容无 `TextEncoder` 的旧 Hermes），三语新增 `source_update_integrity_fail` 键。
+- **门禁升级为六平台矩阵**：`check_au_source_contract.js` → `check_builtin_sdk_contract.js`（`git mv` + `release.yml` checks 段同步）。新增 M1~M6 执行级矩阵：从真实源码抽 `handleResult`/`filterData`，用真实接口形状样本跑 kw/kg/tx/wy/mg/au，断言统一落库字段（`name/singer/source/songmid/interval/types/_types`）齐全、`source` 正确、迁移后 id 不出 `*_undefined`；保留 A1~A6；新增 A7（`sha256.ts` 编译后与 Node crypto 逐例对照：空串/`abc`/中文/emoji/孤立代理项/10k 长串）与 A8（静态锁「先校验后覆盖」+ fail-open）。
+- **红绿双向**：正常 **14/0**；`SDK_CHECK_ROOT` 指向注入「mg 缺 `source`」的副本 → **13/1 rc1**（M5 精确报缺字段）。
+- **文档**：`MUSIC_SOURCE_GUIDE` 升 **v9.3.3**（含 R83 四条）；`AUDIT_PLAN` 6b `1284` / 6c `48 脚本 / 725 条`、脚本名与 ID 行同步；`STRESS_PLAN` 补 R83 五条压测面；`KNOWN_ISSUES` K40 补脚本更名与矩阵覆盖。
+
 ## [R82 au 搜索/歌词契约修复 + 更新音源去缓存欺骗（音源 v9.3.2 同步）] `src/utils/musicSdk/au`、`Source.tsx`、`scripts/check_au_source_contract.js`、文档 - 2026-11-23
 
 前后端一起检查（R82）抓到的真实缺陷，逐条修完：

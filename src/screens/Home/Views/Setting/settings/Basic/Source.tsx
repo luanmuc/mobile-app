@@ -20,6 +20,7 @@ import { importUserApi, overwriteUserApi, removeUserApi } from '@/core/userApi'
 import { getUserApiScript } from '@/utils/data'
 import { getData, saveData, removeData } from '@/plugins/storage'
 import { BUILTIN_SOURCE_NAME, BUILTIN_SOURCE_STORAGE_KEYS, compareSourceVersions, decidePendingBuiltinSwitch, parseSourceVersion, resolveBuiltinTarget, resolveSourceUpdateBaseline } from '@/core/init/userApi/builtinSource'
+import { sha256Hex, utf8ByteLength } from '@/utils/sha256'
 
 // 当前运行 App 的版本（CI 注入的 1.9.2-bN）：换包与否决定启动时是否以内置音源为准
 const currentAppVersion = (process as unknown as { versions?: { app?: string } }).versions?.app ?? ''
@@ -33,12 +34,61 @@ const SOURCE_UPDATE_MAX_SIZE = 9_000_000
 // V9.3 把它升级成「脚本 + manifest 双文件强一致 + 验签」，多出一个失败点，
 // 而 manifest 在境内网络下拿不到可解析内容（限流/劫持/包装），导致按钮彻底不可用。
 // 多镜像只是降低单点概率，不引入任何额外文件与校验链。
+// R83：重新加回「完整性」而不是「验签」——manifest 仍按需拉取、拿不到就放行（fail-open），
+// 但一旦拿到同一版本的 manifest（size + sha256），就必须逐字节对得上才允许覆盖。
+// 这样既恢复供应链完整性，又不再让 manifest 变成按钮的单点故障。
 const SOURCE_UPDATE_URLS = [
   'https://cdn.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
   'https://fastly.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
   'https://gcore.jsdelivr.net/gh/luanmuc/backend-api@master/lx-source.js',
   'https://raw.githubusercontent.com/luanmuc/backend-api/master/lx-source.js',
 ]
+// 与脚本同源同目录，避免再引入一套 CDN 域名（manifest 拿不到时按 fail-open 处理）
+const SOURCE_UPDATE_MANIFEST_URLS = SOURCE_UPDATE_URLS.map(url => url + '.manifest.json')
+
+interface SourceManifest { version: string, size: number, sha256: string }
+
+const parseSourceManifest = (body: unknown): SourceManifest | null => {
+  let value = body
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value)
+    } catch { return null }
+  }
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  const version = typeof record.version === 'string' ? record.version.trim() : ''
+  const size = typeof record.size === 'number' ? record.size : Number(record.size)
+  const sha256 = typeof record.sha256 === 'string' ? record.sha256.trim().toLowerCase() : ''
+  if (!version || !Number.isFinite(size) || !/^[0-9a-f]{64}$/.test(sha256)) return null
+  return { version, size, sha256 }
+}
+
+// 返回 true = 校验通过；manifest 缺失/版本对不上 = 放行（fail-open，不阻断更新）；
+// 拿到同版本 manifest 但 size/sha256 不符 = 抛错（fail-closed，不允许覆盖）。
+const verifySourceIntegrity = async(script: string, version: string, failMessage: string, timeoutMessage: string) => {
+  const manifests: SourceManifest[] = []
+  await Promise.all(SOURCE_UPDATE_MANIFEST_URLS.map(async(url) => {
+    try {
+      const response = await fetchWithTimeout(url, {}, timeoutMessage) as { body?: unknown, statusCode?: unknown }
+      if (typeof response.statusCode === 'number' && response.statusCode !== 200) return
+      const manifest = parseSourceManifest(response.body)
+      if (manifest) manifests.push(manifest)
+    } catch { /* manifest 单点失败不影响更新：K36 的教训就是不能让第二个文件变成硬依赖 */ }
+  }))
+  const matched = manifests.find(m => m.version === version)
+  if (!matched) {
+    logger.info('Source', `音源完整性校验跳过：未取到 v${version} 的 manifest（fail-open）`)
+    return
+  }
+  const actualSize = utf8ByteLength(script)
+  const actualSha256 = sha256Hex(script)
+  if (actualSize !== matched.size || actualSha256 !== matched.sha256) {
+    logger.warn('Source', `音源完整性校验失败：size ${actualSize}/${matched.size}，sha256 ${actualSha256}/${matched.sha256}`)
+    throw new Error(failMessage)
+  }
+  logger.info('Source', `音源完整性校验通过：v${version} ${actualSize}B ${actualSha256.slice(0, 12)}…`)
+}
 
 
 const fetchWithTimeout = async(url: string, options: Record<string, unknown>, timeoutMessage: string): Promise<unknown> => {
@@ -172,7 +222,7 @@ export default memo(() => {
   }
 
   // 更新音源：只拉 lx-source.js 一个文件（多镜像兜底），拉到后比对版本、弹窗确认、才导入。
-  // V9.3 的「脚本+manifest 双文件 + 验签」已整体移除（K36），见文件头部说明。
+  // R83：manifest 只做「拿得到就校验 size+sha256」的可选完整性闸，拿不到不阻断（K36）。
   const [updating, setUpdating] = useState(false)
   const handleUpdateSource = useCallback(async() => {
     markChecked()
@@ -302,6 +352,10 @@ export default memo(() => {
         setUpdating(false)
         return
       }
+
+      // R83：真正覆盖前做一次完整性校验。只有「确认要升级」时才多花这一轮网络，
+      // 「已是最新 / 远端更旧」不会触发；manifest 拿不到就放行（K36），拿到但哈希不符则拒绝。
+      await verifySourceIntegrity(remoteScript, remoteVersion, t('source_update_integrity_fail'), t('source_update_timeout'))
 
       // 弹窗显示版本信息，用户确认后才更新
       Alert.alert(

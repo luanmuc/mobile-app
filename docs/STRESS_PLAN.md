@@ -2,10 +2,11 @@
 
 > **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
 >
-> **基线（唯一真值，2026-11-22；R81 回填 2026-11-23）**：App **v1.9.2-b199**（`b3ce7440`，已推送）；源仓 **v9.3.1**（`4895cd9`，产物 **396999 bytes / 7654 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条为本轮未重跑的历史口径）；telemetry `5cdfe31`（公开仓，`ingest` **9/9**）。
+> **基线（唯一真值，2026-11-22；R82/R83 回填 2026-11-23）**：App **v1.9.2-b206**（`19209b72`，已推送）；源仓 **v9.3.3**（R83 本地未推送，产物 **400561 bytes / 7725 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条为本轮未重跑的历史口径）；telemetry `5cdfe31`（公开仓，`ingest` **9/9**）。
 >
 > **R81 新增压测面（2026-11-23）**：真机引擎 invariant 面 —— 产物可执行代码（去注释）`Date.parse` 与 `new Proxy` 均须为 0、必须含纯算术 `parseYmdToMs`；`parseYmdToMs` 对闰年（2024-02-29）/跨纪元（1969-12-31，负毫秒）/非法输入（2026-13-01、2026-11-32）与 `Date.parse` 逐例等价。守卫脚本 `test/audit/r81-proxy-compat.js`（源仓，6 条），已并入源仓 `npm test`；App 侧以 `MUSIC_SOURCE_GUIDE` v9.3.1 与构建闸门（`SRC_VER` == `豆包定制 vX`）覆盖。
 
+> **R83 新增压测面（2026-11-23）**：①**复核窗口滚动**——`r83-governance` R5 时间注入：`2026-12-08`（旧 14 天集体过期日的次日）必须 `ok:true`，`2027-01-02` 必须报「已超复核窗口 30 天」；R1/R2 断言所有带 `reviewAt` 的项都声明 7~365 整数窗口。②**引擎能力自检**——E2 用「读 `Date["parse"]` 即抛 `proxy: inconsistent get`」的宿主模拟，`probeEngineCapabilities` 必须捕获且不冒泡（真机 wrapper 升级引入新 invariant 的第一道观测）。③**更新完整性**——`check_builtin_sdk_contract` A7 把 `sha256.ts` 编译后与 Node crypto 逐例对照（空串 / `abc` / 中文 / emoji / 孤立代理项 / 10k 长串）；A8 静态锁「先校验后覆盖」与 manifest 缺失 fail-open。④**六平台矩阵**——M1~M6 用真实接口形状样本跑 `handleResult`/`filterData`，缺 `source`/`songmid` 即红（mg 注入缺 `source` 实测 13/1）。⑤**基线回填**：源仓 v9.3.3（产物 **400561 bytes / 7725 行**，错误码仍 **19**；manifest 待 CI `sign-release` 重签）。
 > **R82 新增压测面（2026-11-23）**：①**au 内置 SDK 契约执行级**——`scripts/check_au_source_contract.js` A1~A6 用 `vm.runInNewContext` 抽真实 `filterData` 跑样本（执行级，不是文本猜测），必须 6/0；红向 `AU_CHECK_ROOT=<旧三文件根>` 必须 0/6；A6 专锁「两条 au 结果去重后仍为 2 条」——塌一即整页只显示一首（R82 P0 原症状）。②**多镜像并发取版本最高**——`Source.tsx` 必须 `Promise.all(SOURCE_UPDATE_URLS)` 收集全部合法脚本后用 `compareSourceVersions` 取最高，禁「顺序 for + 首个成功即 break」：jsdelivr `@master` 的旧缓存会把 4 个镜像里最高版本骗成旧版本，误判「已是最新」；最坏耗时应为「并发 15s 窗口」，而非「4×15s 顺序超时」。③**基线回填**：源仓 v9.3.2（产物 **397273 bytes / 7654 行**，R82 仅订正 `35-source-switch` 注释归因 K41/K42 + 登记 K43 治理提醒，**无行为变更**，故错误码仍 **19** 个；manifest 待 CI `sign-release` 重签）。
 >
 > **R71~R74b 新增压测面（本轮并入）**：①**全仓裸 console 归零**（60 处 / 36 文件 → `logger`，`no-console` 覆盖 `src/**/*.ts(x)`，S24）；②**`logger` 写盘 IO 成本**（`logger.info/error` 对 `tag==='PlaySource'` 强制写盘、每处 4~6 次 RNFS 调用，切源常规路径已把两条降 `debug`，S25）；③**错误码由 18 增至 19**（`UNSUPPORTED_ACTION`，音源未知源 action 归一，S12/S20 须同步）。
@@ -53,7 +54,7 @@
 |---|---|---|---:|---|---|
 | E14 | 状态全枚举穷举 `check_health_state_enum.js` | L2 映射 | 22 | **已落地 22/0（R75，见 S26）** | 4 主状态 × reason × 手动/自动 × 播放态全组合（对应 G-A02） |
 | E15 | 错误码 **19** 全映射 `check_error_code_map.js` | L6 契约 | 10 | **已落地 10/0（R75，见 S27）**；并补 `player_error_unsupported` 三语文案 | **19** 个 `ERROR_CODES`（含 R71d 新增 `UNSUPPORTED_ACTION`）全部有中文文案（与 G-A01 同源） |
-| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1047 键 × 三语 × tone 组合渲染 |
+| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1048 键 × 三语 × tone 组合渲染 |
 | E18 | 播放所有权运行时 `check_playback_ownership_runtime.js` | L7 运行时 | 21 | **已落地 21/0**（原「未纳入矩阵」已收回） | `fallbackOwner` 所有权交接 |
 | E19 | 下载器队列压力 `check_download_queue.js` | L7 运行时 | 12 | 待建 | 并发队列、暂停/恢复、失败重排（对应 G-A03） |
 | E20 | 类型与语法全量 | L8 长稳 | 5 | **已被 `preflight` 覆盖**（`tsc --noEmit` + `eslint . --ext .js,.jsx,.ts,.tsx` + `check_ts_syntax`），不再单列 | 三道全绿即达；S24 额外要求 eslint 全仓而非只 `src` |
@@ -155,8 +156,8 @@ node scripts/docs-audit.js --dry-run
 | S24 裸 console 归零 | eslint 全仓 **rc0**（`eslint . --ext .js,.jsx,.ts,.tsx`，122.1s） |
 | S25 logger IO 成本 | G3 判据通过；`music/utils.ts` 两处 `try toggle to` 已降为 `debug` |
 | `tsc --noEmit` | 0 error（36.4s） |
-| 三语 | 各 **1047 键** |
-| TS/TSX | **542 文件** 语法 0 错误（`check_ts_syntax`） |
+| 三语 | 各 **1048 键** |
+| TS/TSX | **543 文件** 语法 0 错误（`check_ts_syntax`） |
 | 文档一致性 | **17 篇**（`check_docs_consistency`） |
 
 > 22 个压力脚本全部 rc=0；本轮 0 红。S3「条数 25 / 通过 24」的历史口径差异已消除，实际 25 通过 / 0 失败，以实跑为准。

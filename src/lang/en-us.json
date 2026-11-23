@@ -1045,5 +1045,6 @@
   "source_update_panel_last_check": "Last check {time}",
   "source_update_panel_never": "Last check: never",
   "source_real_au": "Audius",
-  "source_alias_au": "Audius"
+  "source_alias_au": "Audius",
+  "source_update_integrity_fail": "Source integrity check failed (size/sha256 mismatch with manifest); update canceled"
 }
