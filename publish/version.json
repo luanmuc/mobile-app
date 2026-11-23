@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b208",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9b66756a fix(preflight): R85b 补 preflight:all 并隔离 G2 性能检查\n- 1f9d62c3 docs: 修正 telemetry 基线（HEAD 随每日 digest 推进，代码基线仍 5cdfe31）\n- 16d073a4 docs: R83 发布后回填 b207 与源仓 v9.3.3 已推送基线",
+  "version": "1.9.2-b209",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 02eae12f feat(au): R86 补齐 Audius 18 榜单与推荐歌单",
   "history": [
+    {
+      "version": "1.9.2-b208",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9b66756a fix(preflight): R85b 补 preflight:all 并隔离 G2 性能检查\n- 1f9d62c3 docs: 修正 telemetry 基线（HEAD 随每日 digest 推进，代码基线仍 5cdfe31）\n- 16d073a4 docs: R83 发布后回填 b207 与源仓 v9.3.3 已推送基线"
+    },
     {
       "version": "1.9.2-b207",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 09ce60b2 feat(app): R83 音源更新 sha256 校验与六平台契约门禁"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b203",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- d1bb29a5 docs: 音源指南同步到 v9.2.0（落月 tx 第三源 / 星海主备双域 / mg 零源证否 / 14-12-2）"
-    },
-    {
-      "version": "1.9.2-b202",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 72503f46 docs: 修 7 处统计漂移（TS 541→542 / downloadManager 957→961 行 / i18n 1043→1045 键）\n- d9e2b826 chore(doc-sync): 文档同步闸门落地生效 + 修 getStagedFiles 静默放行"
     }
   ]
 }
