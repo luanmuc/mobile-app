@@ -8,7 +8,7 @@
 > - **R82（2026-11-23，b206）**：au 三处契约修复（`filterData` 旧结构 P0 / `getLyric` `{promise,cancelHttp}` P1 / 更新音源并发取最高 P1）+ 首个执行级 SDK 契约门禁（6 条）；指南平台 8→6。
 > - **R83（2026-11-23，b207 已推送）**：①源仓复核日改按源 `reviewEveryDays` 滚动窗口（7~365 天，上链源也校验），到期日摊到 12-23/01-22/02-21；②源仓启动期 `probeEngineCapabilities()` 只写日志；③App「更新音源」加 manifest `size+sha256` 完整性校验，manifest 缺失 fail-open（K36）；④`check_au_source_contract` 扩为 `check_builtin_sdk_contract`（六平台矩阵 M1~M6 + A1~A8，14 条）并更名进 `release.yml`。
 > - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
-> - telemetry：`luanmuc/lx-telemetry` @ `5cdfe31`（**公开仓**；`ingest` **9/9**）
+> - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-23 HEAD `d706359`；代码基线仍为 `5cdfe31`，其后 4 条为每日 `digests/` 数据提交；**公开仓**；`ingest` **9/9**）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
 > - 硬数字：三语各 **1048 键**、TS/TSX **543 文件**、`scripts/check_*.js` **54 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1285 条 = 计数型 543（文件）+ 17（文档）+ 非计数型断言 725 条**（6c 逐 ID 实算），算式 `1285 − 543 − 17 = 725` 自洽
 > - **2026-11-22 实跑**：`check_ts_syntax` 543/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1285 = 实测 1285；`--gen-ids` 报 **48 脚本 / 725 条 ID 全覆盖**（R83 重生成后）
