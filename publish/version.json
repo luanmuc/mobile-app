@@ -1,7 +1,11 @@
 {
-  "version": "1.9.2-b209",
-  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 02eae12f feat(au): R86 补齐 Audius 18 榜单与推荐歌单",
+  "version": "1.9.2-b210",
+  "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 27402e35 feat(app): R87 撤回 Audius 18 榜并下线首页平台切换",
   "history": [
+    {
+      "version": "1.9.2-b209",
+      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 02eae12f feat(au): R86 补齐 Audius 18 榜单与推荐歌单"
+    },
     {
       "version": "1.9.2-b208",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- 9b66756a fix(preflight): R85b 补 preflight:all 并隔离 G2 性能检查\n- 1f9d62c3 docs: 修正 telemetry 基线（HEAD 随每日 digest 推进，代码基线仍 5cdfe31）\n- 16d073a4 docs: R83 发布后回填 b207 与源仓 v9.3.3 已推送基线"
@@ -21,10 +25,6 @@
     {
       "version": "1.9.2-b204",
       "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- ae4afe00 fix(docs): 回填 i18n 三语键数硬数字 1045→1047（G10 门禁红）\n- c5bfcdaa feat(app): 支持 Audius（au）平台 + 同步音源 v9.3.0 文档"
-    },
-    {
-      "version": "1.9.2-b203",
-      "desc": "基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：\n- d1bb29a5 docs: 音源指南同步到 v9.2.0（落月 tx 第三源 / 星海主备双域 / mg 零源证否 / 14-12-2）"
     }
   ]
 }

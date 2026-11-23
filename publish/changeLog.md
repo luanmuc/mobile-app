@@ -2,15 +2,15 @@
 
 基于洛雪音乐原版 v1.9.2 的定制版构建。本次更新：
 
-- 02eae12f feat(au): R86 补齐 Audius 18 榜单与推荐歌单
+- 27402e35 feat(app): R87 撤回 Audius 18 榜并下线首页平台切换
 
 ### File MD5
 ```
-7aea258743b7d8f4902228542eb4a14f  mobile-app-v1.9.2-b209-arm64-v8a.apk
-448429bf7904d17035bd77801bd27c9b  mobile-app-v1.9.2-b209-armeabi-v7a.apk
-a39dead0184f7255eae926bd16776a29  mobile-app-v1.9.2-b209-universal.apk
-4f666480531c525dd6aad2630db7de3b  mobile-app-v1.9.2-b209-x86.apk
-6864c9581ba7e8b7fb2bb911b2b0ffa8  mobile-app-v1.9.2-b209-x86_64.apk
+52122b44196619bfc3e29a9ca266f00e  mobile-app-v1.9.2-b210-arm64-v8a.apk
+03f130a100f9d4a0906334c2b7b44b95  mobile-app-v1.9.2-b210-armeabi-v7a.apk
+2e5d71923fbc66dcdfe7e82958f9aa0a  mobile-app-v1.9.2-b210-universal.apk
+fbdfb0511778b2ff2640ecffb56c2b06  mobile-app-v1.9.2-b210-x86.apk
+57c8725e7de549dbef951c6fcc6585eb  mobile-app-v1.9.2-b210-x86_64.apk
 ```
 
 [软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)
