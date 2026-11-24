@@ -1,12 +1,29 @@
-## [R87 撤回 R86（Audius 18 榜/歌单废弃）+ 首页平台切换入口下线] `src/utils/musicSdk/au/**`、`src/screens/Home/Views/Search/**` - 2026-11-23
+## [R88 纠偏：恢复 R86 与首页平台切换，仅从六大平台移除 Audius 入口] `src/components/SourceSelector.tsx`、文档 - 2026-11-24
 
-按用户真机试用的定案执行：b209 的 Audius 扩展整体废弃，首页搜索不再显示平台切换。
+上一版 R87 把整版撤回并删掉了首页平台切换，导致五大平台的排行榜/歌单被 `au` stub 拖坏；本提交按用户口径纠偏：
 
-- **整体撤回 R86**：`git revert 02eae12f`，删除 `au/leaderboard.js`、`au/songList.js`、`au/utils.js`，`au/index.js` 恢复 `NO_SONGLIST` / `NO_LEADERBOARD` stub；`au` 只保留搜索、热搜、取链、空歌词与无评论。R86 的 18 榜与推荐歌单不再提供，b209 标记为废弃版本。
-- **首页平台切换入口下线**：`Search/HeaderBar` 移除 `SourceSelector` 及 `setSourceList` / `onSourceChange` 接口，搜索栏只保留输入框。搜索固定走 `all` 聚合（与 `DEFAULT_SETTING.search.source` 一致），热搜、搜索历史、歌曲/歌单切换、播放与音源取链不变。
-- **未动其他入口**：歌单页、榜单页、播放页与「音源」自定义源页不改；本次只下线搜索首页顶部的平台切换位置。
+- **恢复 R86**：`git revert 27402e35`，恢复 `au/leaderboard.js`、`au/songList.js`、`au/utils.js` 与 18 条榜单/推荐歌单；恢复 `Search/HeaderBar` 的平台切换。
+- **只移除一个源**：`SourceSelector` 统一过滤 `au`，平台切换回到 kw / kg / tx / wy / mg 五大平台；搜索仍保留「全部」。
+- **保存源兼容**：若上次停在 `au`，搜索回落到 `all`，歌单/榜单回落到第一个可见平台（kw），不会再显示 Audius，也不会把榜单请求打到 `NO_LEADERBOARD`。
+- **Audius 仍可听**：搜索、热搜、取链与播放保留；`useSourceListI18n` 不过滤，播放页换源仍能选到 au。
 
-验证：`npm run preflight` **53/0 · 59.0s**（含 `tsc --noEmit`、全量 ESLint、内置 SDK 契约与文档一致性）。
+验证：`npm run preflight` **53/0 · 62.6s**（含 `tsc --noEmit`、全量 ESLint 与内置 SDK 契约）。
+
+补齐 R80 遗留的 au 目录层，Audius 不再只有搜索/热搜：
+
+- **排行榜**：新增 `au/leaderboard.js`，按 audius.co 真实三层收口为 **18 条中文榜单**：
+  - Tracks：本周热歌榜 / 本月热歌榜 / 历史热歌榜（`/v1/tracks/trending` 的 `week|month|allTime`，各 100 首）
+  - Underground：地下榜（`/v1/tracks/trending/underground`，100 首）
+  - Winners：优胜单曲榜 / 地下优胜榜（`/v1/tracks/trending/winners`、`/v1/tracks/trending/underground/winners`，各 10 首，不翻页）
+  - 12 个常用风格本周榜：电子 / 嘻哈 / 流行 / 摇滚 / 另类 / R&B·灵魂 / Lo-Fi / House / Techno / Drum & Bass / Dubstep / Trap（`time=week&genre=`，各 100 首）
+  - 其余 39 个官网风格不铺，避免把榜单侧栏撑到 159 条；`bangid` 用 `au__{code}`，不破坏 core 的 `source__bangId` 解析。
+- **歌单**：新增 `au/songList.js`。Audius 官网 Explore 不是歌单榜单，推荐流走真实 `/v1/playlists/trending?time=week`，不伪造「本周/本月」；风格标签走 `/v1/playlists/search?genre=`；详情 `/v1/playlists/{id}/tracks` 返回整份后本地按 30 首分页。`trending`/`search` 无 total 字段，用「本页满载 + 1」估算，下一页为空自然收口。
+- **共享映射**：新增 `au/utils.js`。track 统一输出旧结构（`songmid/name/singer/img/types/_types`）并过滤 `is_streamable !== true`；playlist 统一输出卡片字段与 `info`，封面取 `artwork.480x480` 回退 150/1000，作者取 `user.name`。
+- **移除 stub**：`au/index.js` 的 `NO_SONGLIST` / `NO_LEADERBOARD` 占位改为真实 `songList` / `leaderboard`；Audius 会自动进入现有歌单/排行榜源选择器，不需要 UI 特判。评论仍 `NO_COMMENT`。
+- **实测**：18 条榜全部有数据（6 条总榜 100/100/100/100/10/10 首，12 个风格榜各 100 首，winners 两榜各 10 首）；歌单第 1 页 30 个、详情 21 首、第 2 页 0 首；风格歌单 28 个；歌单搜索 20 个。`tsc --noEmit` **0 error**；改动 4 个 JS 文件 `eslint` **0 error**；core 分页烟测第 1~4 页 **30/30/30/10**、`getListDetailAll` **100**；`npm run preflight` **53 通过 / 0 失败**。
+- **后续**：R86 已推送并生成 b209；榜单/歌单代码保留，R88 仅把 `au` 从平台切换隐藏，Audius 搜索/播放继续可用。
+
+## [R83 更新音源完整性校验 + 内置 SDK 六平台矩阵（音源 v9.3.3 同步）] `Source.tsx`、`src/utils/sha256.ts`、`scripts/check_builtin_sdk_contract.js`、文档 - 2026-11-23
 
 按架构评审的四条性价比建议落地，三条在 App 侧：
 

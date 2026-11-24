@@ -4,11 +4,22 @@ import { View } from 'react-native'
 // import music from '@/utils/musicSdk'
 import { BorderWidths } from '@/theme'
 // import InsetShadow from 'react-native-inset-shadow'
+import SourceSelector, {
+  type SourceSelectorType as _SourceSelectorType,
+  type SourceSelectorProps as _SourceSelectorProps,
+} from '@/components/SourceSelector'
 import SearchInput, { type SearchInputType, type SearchInputProps } from './SearchInput'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
+import { type Source as MusicSource } from '@/store/search/music/state'
+import { type Source as SonglistSource } from '@/store/search/songlist/state'
+
+type Sources = Readonly<Array<MusicSource | SonglistSource>>
+type SourceSelectorProps = _SourceSelectorProps<Sources>
+type SourceSelectorType = _SourceSelectorType<Sources>
 
 export interface HeaderBarProps {
+  onSourceChange: SourceSelectorProps['onSourceChange']
   onTipSearch: SearchInputProps['onChangeText']
   onSearch: SearchInputProps['onSubmit']
   onHideTipList: SearchInputProps['onBlur']
@@ -16,16 +27,21 @@ export interface HeaderBarProps {
 }
 
 export interface HeaderBarType {
+  setSourceList: SourceSelectorType['setSourceList']
   setText: SearchInputType['setText']
   blur: SearchInputType['blur']
 }
 
 
-export default forwardRef<HeaderBarType, HeaderBarProps>(({ onTipSearch, onSearch, onHideTipList, onShowTipList }, ref) => {
+export default forwardRef<HeaderBarType, HeaderBarProps>(({ onSourceChange, onTipSearch, onSearch, onHideTipList, onShowTipList }, ref) => {
+  const sourceSelectorRef = useRef<SourceSelectorType>(null)
   const searchInputRef = useRef<SearchInputType>(null)
   const theme = useTheme()
 
   useImperativeHandle(ref, () => ({
+    setSourceList(list, source) {
+      sourceSelectorRef.current?.setSourceList(list, source)
+    },
     setText(text) {
       searchInputRef.current?.setText(text)
     },
@@ -37,6 +53,9 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ onTipSearch, onSearc
 
   return (
     <View style={{ ...styles.searchBar, borderBottomColor: theme['c-border-background'] }}>
+      <View style={styles.selector}>
+        <SourceSelector ref={sourceSelectorRef} onSourceChange={onSourceChange} center />
+      </View>
       <SearchInput
         ref={searchInputRef}
         onChangeText={onTipSearch}
@@ -55,5 +74,8 @@ const styles = createStyle({
     zIndex: 2,
     paddingRight: 10,
     borderBottomWidth: BorderWidths.normal,
+  },
+  selector: {
+    // width: 86,
   },
 })

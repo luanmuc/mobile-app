@@ -37,10 +37,17 @@ const Component = <S extends Sources>({ fontSize = 15, center, onSourceChange }:
 
   useImperativeHandle(ref, () => ({
     setSourceList(list, activeSource) {
-      setList(list)
-      setSource(activeSource)
+      // R88：Audius 只保留搜索与播放，不再进入平台切换；若上次停在 au，回落到「全部」或第一个可见平台。
+      const visibleList = list.filter(source => source != 'au') as unknown as S
+      setList(visibleList)
+      if (!visibleList.length) return
+      const fallbackSource = visibleList.includes(activeSource)
+        ? activeSource
+        : visibleList.find(source => source == 'all') ?? visibleList[0]
+      setSource(fallbackSource)
+      if (fallbackSource != activeSource) onSourceChange(fallbackSource)
     },
-  }), [])
+  }), [onSourceChange])
 
   const sourceList_t = useSourceListI18n(list)
 
