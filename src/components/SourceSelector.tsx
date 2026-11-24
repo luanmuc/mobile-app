@@ -6,6 +6,7 @@ import Text from '@/components/common/Text'
 import { useI18n } from '@/lang'
 
 import { useSettingValue } from '@/store/setting/hook'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 import { createStyle } from '@/utils/tools'
 
 type Sources = Readonly<Array<LX.OnlineSource | 'all'>>
@@ -24,7 +25,9 @@ export const useSourceListI18n = (list: Sources) => {
   const sourceNameType = useSettingValue('common.sourceNameType')
   const t = useI18n()
   return useMemo(() => {
-    return list.map(s => ({ label: t(`source_${sourceNameType}_${s}`), action: s }))
+    return list
+      .filter(source => isPlaybackSourceEnabled(source))
+      .map(s => ({ label: t(`source_${sourceNameType}_${s}`), action: s }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, sourceNameType, t])
 }
@@ -37,8 +40,8 @@ const Component = <S extends Sources>({ fontSize = 15, center, onSourceChange }:
 
   useImperativeHandle(ref, () => ({
     setSourceList(list, activeSource) {
-      // R88：Audius 只保留搜索与播放，不再进入平台切换；若上次停在 au，回落到「全部」或第一个可见平台。
-      const visibleList = list.filter(source => source != 'au') as unknown as S
+      // R89：平台切换只展示可播放源；au 默认关闭，后续即使搜索开关打开也不进入平台切换。
+      const visibleList = list.filter(source => isPlaybackSourceEnabled(source)) as unknown as S
       setList(visibleList)
       if (!visibleList.length) return
       const fallbackSource = visibleList.includes(activeSource)

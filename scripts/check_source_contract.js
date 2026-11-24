@@ -129,6 +129,21 @@ run('P0-A5 8 个错误码且 retryable 默认稳定', () => {
   }
 })
 
+SECTION('availability')
+run('P1-A5 au 默认 search/playback 双关，播放链路有显式拒绝', () => {
+  const { AUDIUS_SEARCH_ENABLED, AUDIUS_PLAYBACK_ENABLED, isPlaybackSourceEnabled, isSearchSourceEnabled } = loadTs('src/config/sourceAvailability.ts')
+  assert.strictEqual(AUDIUS_SEARCH_ENABLED, false, 'R89 默认必须关闭 au 搜索；单独打开会产生不可播死链')
+  assert.strictEqual(AUDIUS_PLAYBACK_ENABLED, false, 'R89 默认必须关闭 au 播放')
+  assert.strictEqual(isSearchSourceEnabled('au'), false, 'au 不得进入搜索源')
+  assert.strictEqual(isPlaybackSourceEnabled('au'), false, 'au 不得进入播放源')
+  assert.strictEqual(isSearchSourceEnabled('kw'), true, '非 au 源不应被误伤')
+  const sdk = read('src/utils/musicSdk/index.js')
+  assert.ok(sdk.includes('playbackSources'), 'musicSdk 缺少 playbackSources 注册')
+  assert.ok(sdk.includes('searchSources'), 'musicSdk 缺少 searchSources 注册')
+  const online = read('src/core/music/online.ts')
+  assert.ok(online.includes('createSourceDisabledError'), 'online.ts 缺少 au 主动下线门禁')
+})
+
 SECTION('fallback-owner')
 run('P1-A1 normalizeSourceInfo 透出 owner，缺省/非法回退 host', () => {
   const { normalizeSourceInfo } = CONTRACT()

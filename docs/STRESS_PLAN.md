@@ -2,7 +2,7 @@
 
 > **重构说明**：原版 S1~S13 与后补 S16~S19 割裂、S3 条数 24/23 不一致。本版整合为一张表，统一基线、统一纪律，并补音质政策联动压测。
 >
-> **基线（唯一真值，2026-11-23）**：App **v1.9.2-b207**（`1f9d62c3`，当前 HEAD；发布点 `8adc5d46`，已推送）；源仓 **v9.3.3**（`ae13b6d`，已推送，产物 **400561 bytes / 7725 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条，R85 已复跑）；telemetry `main`（HEAD `d706359`，代码基线 `5cdfe31`，其余为每日数据提交；公开仓，`ingest` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）。
+> **基线（唯一真值，2026-11-24）**：App **v1.9.2-b211**（R88 `8a84dc43` 发布点，已推送；R89 本地待推送，基于 `3ce4f07e`）；源仓 **v9.3.3**（`ae13b6d`，已推送，产物 **400561 bytes / 7725 行**，错误码 **19** 个）；RNTP **`669d2ab`**（v2 分支；焦点 **67** 条 + 代次簿记 **24** 条，R85 已复跑）；telemetry `main`（HEAD `d4b9864`，代码基线 `5cdfe31`，其余为每日数据提交；公开仓，`ingest` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）。
 >
 > **R81 新增压测面（2026-11-23）**：真机引擎 invariant 面 —— 产物可执行代码（去注释）`Date.parse` 与 `new Proxy` 均须为 0、必须含纯算术 `parseYmdToMs`；`parseYmdToMs` 对闰年（2024-02-29）/跨纪元（1969-12-31，负毫秒）/非法输入（2026-13-01、2026-11-32）与 `Date.parse` 逐例等价。守卫脚本 `test/audit/r81-proxy-compat.js`（源仓，6 条），已并入源仓 `npm test`；App 侧以 `MUSIC_SOURCE_GUIDE` v9.3.1 与构建闸门（`SRC_VER` == `豆包定制 vX`）覆盖。
 
@@ -28,7 +28,7 @@
 | S9 | 持久化 v2 | `check_health_persistence_v2.js` | 9 | v1 拒绝、容量/版本边界 | 9/0 |
 | S10 | 异常聚合 | `check_health_anomaly_v2.js` | 8 | 异常分级、错误码分组 | 8/0 |
 | S11 | 配置契约 | `check_source_config_contract.js` | 29 | 39 键、数字/布尔边界 | 29/0 |
-| S12 | 音源契约 | `check_source_contract.js` | 14 | **14 action**、v2 envelope、fallbackOwner | 14/0 |
+| S12 | 音源契约 | `check_source_contract.js` | 15 | **14 action + au 默认下线**、v2 envelope、fallbackOwner | 15/0 |
 | S13 | 源健康持久化 | `check_source_health_persistence.js` | 17 | v2 导出/恢复、拒绝敏感字段 | 17/0 |
 | S16 | 请求档矩阵 | `check_quality_request_runtime.js` | 12 | 自定义源/内置源双裁剪、片段缓存回读 | 12/0 |
 | S17 | 播放预算失败段 | `check_playback_budget.js` | 21 | 24s 预算、attempts 落盘、失败段不丢档 | 21/0 |
@@ -54,7 +54,7 @@
 |---|---|---|---:|---|---|
 | E14 | 状态全枚举穷举 `check_health_state_enum.js` | L2 映射 | 22 | **已落地 22/0（R75，见 S26）** | 4 主状态 × reason × 手动/自动 × 播放态全组合（对应 G-A02） |
 | E15 | 错误码 **19** 全映射 `check_error_code_map.js` | L6 契约 | 10 | **已落地 10/0（R75，见 S27）**；并补 `player_error_unsupported` 三语文案 | **19** 个 `ERROR_CODES`（含 R71d 新增 `UNSUPPORTED_ACTION`）全部有中文文案（与 G-A01 同源） |
-| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1048 键 × 三语 × tone 组合渲染 |
+| E16 | 三语 × 状态 × tone 渲染矩阵 `check_i18n_matrix.js` | L2 映射 | 12 | 待建 | 1049 键 × 三语 × tone 组合渲染 |
 | E18 | 播放所有权运行时 `check_playback_ownership_runtime.js` | L7 运行时 | 21 | **已落地 21/0**（原「未纳入矩阵」已收回） | `fallbackOwner` 所有权交接 |
 | E19 | 下载器队列压力 `check_download_queue.js` | L7 运行时 | 12 | 待建 | 并发队列、暂停/恢复、失败重排（对应 G-A03） |
 | E20 | 类型与语法全量 | L8 长稳 | 5 | **已被 `preflight` 覆盖**（`tsc --noEmit` + `eslint . --ext .js,.jsx,.ts,.tsx` + `check_ts_syntax`），不再单列 | 三道全绿即达；S24 额外要求 eslint 全仓而非只 `src` |
@@ -106,7 +106,7 @@ node scripts/docs-audit.js --dry-run
 |---|---|---:|---|
 | 音源健康·诊断 | `check_health_diagnostics_stress` + `check_health_diagnostics_deep` + `check_health_diagnostics_view` | **14+51+25=90** | 1 万事件/5MB 截尾/200 错误码/10 万聚合/1 万构建 |
 | 音源健康·状态/UI/事件/持久化 | `check_health_status_refactor` + `check_health_state_v2` + `check_health_ui_mapping` + `check_health_event_pipeline` + `check_health_persistence_v2` + `check_health_anomaly_v2` + `check_source_health_persistence` | **19+7+12+10+9+8+17=92** | 状态机/去重/v1 拒绝/容量版本边界/业务否定分流 |
-| 音源管理 | `check_source_config_contract` + `check_source_contract` | **29+14=43** | 39 键/数字布尔边界/14 action/envelope |
+| 音源管理 | `check_source_config_contract` + `check_source_contract` | **29+15=44** | 39 键/数字布尔边界/14 action + au 默认下线/envelope |
 | 下载管理器 | `check_download_persistence` + `check_download_restore_runtime` | 3+3 | 恢复不丢任务/路径/覆盖 |
 | 播放器核心 | `check_player_service_runtime` + `check_media_body` | 10+… | 服务运行时/媒体信封 |
 | 播放失败与预算 | `check_playback_budget` | 21 | 24s 预算/attempts 落盘/失败段不丢档 |
@@ -119,14 +119,14 @@ node scripts/docs-audit.js --dry-run
 
 | 联动点 | 判据 | 守的脚本 |
 |---|---|---|
-| 第 14 action | **已闭合**：App `SOURCE_ACTIONS` 14，`check_source_contract` 14/0 对齐 | `check_source_contract` 14/0 |
+| 第 14 action | **已闭合**：App `SOURCE_ACTIONS` 14，`check_source_contract` 15/0 对齐 | `check_source_contract` 15/0 |
 | 能力备档压制起跑档 | 音源 `getQualityCeiling` 使请求 flac 得 128k；App `onQuality` 回填 128k，UI 无解释 | `check_quality_request_runtime` + 真机观察 |
 | `definitiveFail/linkExpired` 字段 | 音源快照新增，App `Health.tsx` 不消费 | 结构走查 |
 | 片段语义跨仓 | 音源 `fragment:true`+`unknown` → App 标「试听」、不回报成功 | `check_quality_request_runtime` P1-CACHE |
 
 ## 4. 实测结果（2026-11-23 · v1.9.2-b207 / `1f9d62c3`）
 
-> 本轮口径：`npm run preflight` **53 通过 / 0 失败 · 45.4s**（G2 性能检查串行）；`preflight:all` **58 通过 / 0 失败 · 287.3s**（含源仓 npm test 241.1s）；压力计划 **23 个脚本**逐条实跑全部 rc0；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 **1285 = 实测 1285**；`node scripts/docs-audit.js --dry-run` **待处理 0 / 报告 20 / 硬失败 0**；`npm run build-test` rc0；`tsc`/`eslint` 均随 preflight 通过。
+> 本轮口径：`npm run preflight` **R89 实跑 53 通过 / 0 失败 · 98.4s（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）**（G2 性能检查串行）；`preflight:all` 仍为 R85b **58 通过 / 0 失败 · 287.3s**（本轮未跑双仓全链路）；压力计划 **23 个脚本**逐条实跑全部 rc0；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 **1287 = 实测 1287**；`node scripts/docs-audit.js --dry-run` **待处理 0 / 报告 20 / 硬失败 0**；`npm run build-test` rc0；`tsc`/`eslint` 均随 preflight 通过。
 
 | 项 | 结果 |
 |---|---|
@@ -143,7 +143,7 @@ node scripts/docs-audit.js --dry-run
 | S9 持久化 v2 | 9/0 |
 | S10 异常聚合 | 8/0 |
 | S11 配置契约 | 29/0 |
-| S12 音源契约 | 14/0 |
+| S12 音源契约 | 15/0 |
 | S13 源健康持久化 | 17/0 |
 | E14 状态全枚举 | 22/0 |
 | E15 错误码文案映射 | 10/0 |
@@ -158,9 +158,9 @@ node scripts/docs-audit.js --dry-run
 | S24 裸 console 归零 | eslint 全仓 rc0（随 preflight） |
 | S25 logger IO 成本 | G3 判据通过 |
 | `tsc --noEmit` / `build-test` | 0 error / rc0 |
-| 三语 / TS-TSX / 文档一致性 | 各 1048 键 / 543 文件 / 17 篇 |
+| 三语 / TS-TSX / 文档一致性 | 各 1049 键 / 544 文件 / 17 篇 |
 
-> 23 个压力脚本全部 rc0，本轮 0 红。`check_docs_consistency` 17 篇、`check_assertion_ledger` 1285=1285 已与 preflight 同轮复核。
+> 23 个压力脚本全部 rc0，本轮 0 红。`check_docs_consistency` 17 篇、`check_assertion_ledger` 1287=1287 已与 preflight 同轮复核。
 
 ## 5. 失败处置与外部阻塞
 

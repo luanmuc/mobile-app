@@ -1,5 +1,6 @@
 import { clearPlayedList } from './playedList'
 import { SPLIT_CHAR } from '@/config/constant'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 import { state } from '@/store/dislikeList'
 
 /**
@@ -51,6 +52,9 @@ export const filterMusicList = ({ playedList, listId, list, playerMusicInfo, dis
     // if (!assertApiSupport(s.source)) return false
     if ('progress' in s) {
       if (!s.isComplate) return false
+    } else if (!isPlaybackSourceEnabled(s.source)) {
+      // R89：自动下一曲/上一曲不把已下线的 au 曲目排进候选，避免每次都先失败再跳过。
+      return false
     } else if (hasDislike(s)) {
       if (s.id != playerMusicInfo?.id) return false
       isDislike = true

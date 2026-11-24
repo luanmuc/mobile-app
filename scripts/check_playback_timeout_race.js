@@ -51,6 +51,9 @@ const loadTs = rel => {
       case './playbackGuard':
         // 纯函数模块（无 import），直接转译真实实现，避免手抄正则导致语义漂移。
         return loadTs('src/core/music/playbackGuard.ts')
+      case '@/config/sourceAvailability':
+        // R89：online.ts 新增源可用性门禁；真实开关为 au 关闭、其余放行，本用例走 kw。
+        return loadTs('src/config/sourceAvailability.ts')
       default:
         throw new Error(`未模拟依赖：${name}`)
     }

@@ -1,6 +1,8 @@
 # 内置音源指南（MUSIC SOURCE GUIDE）
 
-本仓库的音源体系 = **内置平台 SDK（搜索 tab 实际可见 6 个：`kw/kg/tx/wy/mg/au`；`bd`/`xm` 代码保留但未进 `sources` 列表，`bd` 已注释；au 为 Audius 第三方平台，接口为 `api.audius.co`）+ 自定义源（QuickJS 脚本）**。定制版的核心差异在于内置了「豆包定制」聚合音源。
+本仓库的音源体系 = **内置平台 SDK（搜索 tab 实际可见 5 个：`kw/kg/tx/wy/mg`；`au` 适配器、榜单与歌单代码保留，但 R89 起默认 `search/playback` 双关；`bd`/`xm` 代码保留但未进 `sources` 列表，`bd` 已注释）+ 自定义源（QuickJS 脚本）**。定制版的核心差异在于内置了「豆包定制」聚合音源。
+
+`au`（Audius）默认下线的口径：上游对 UA / 请求形态 / 节点分层，固定探针曲 + Range 1KB 能过、真实整段播放会撞 502（K41）；保留搜索/热搜/播放页换源就会继续复现，所以先整体退出用户可见链路，不做兜底。适配器仍可用于后续受控接回。
 
 `au` 的目录层按官网真实结构补齐（R86）：排行榜 18 条 = Tracks 本周/本月/历史总榜 + Underground + Winners 单曲/地下（各 10 首）+ 12 个常用风格本周榜；歌单走 `/v1/playlists/trending` 与 `/v1/playlists/search`，详情整份缓存后本地 30 首分页；评论仍无接口。
 
@@ -8,14 +10,15 @@
 
 ```
 musicSdk（内置官方源）  ──┐
-  kw/kg/tx/wy/mg/au        │  统一接口：getMusicUrl / getLyric / getPic
+  kw/kg/tx/wy/mg          │  统一接口：getMusicUrl / getLyric / getPic
+  （au 适配器保留，默认关） │
                          ├─→  apis 对象（global.lx.apis）
 自定义源（QuickJS 脚本）──┘   qualitys（global.lx.qualityList）
   assets/builtin_source.js   ↑   （构建时自动生成，见下）
   （豆包定制聚合源）        core/music/* 通过 apis 调用，不区分来源
 ```
 
-- **官方源**：`src/utils/musicSdk/{kw,kg,mg,tx,wy,bd,xm}/`，直接请求平台公开接口，随上游更新（**目录 8 个，但搜索 tab 实际注册 6 个：`bd` 在 `src/utils/musicSdk/index.js` 已注释、`xm` 未列入 `src/utils/musicSdk/api-source-info.ts` 的 `sources`（该文件 `sources` 为空数组），用户可见 6 个**）
+- **官方源**：`src/utils/musicSdk/{kw,kg,mg,tx,wy,bd,xm}/`，直接请求平台公开接口，随上游更新（**目录 8 个，但搜索 tab 实际注册 5 个：`au` 在 R89 起默认关闭、`bd` 在 `src/utils/musicSdk/index.js` 已注释、`xm` 未列入 `src/utils/musicSdk/api-source-info.ts` 的 `sources`（该文件 `sources` 为空数组）**）
 - **自定义源**：JS 脚本在 QuickJS 线程执行（`android/.../userApi/`），与 RN 通过 `onScriptAction/sendAction` 双向通信
 - **聚合源**：内置 `assets/builtin_source.js`（**由每次构建从 `luanmuc/backend-api` 拉取最新生成，本仓库不内置副本**）= 「豆包定制[聚合音源]」，由**独立仓库** `luanmuc/backend-api` 维护
 

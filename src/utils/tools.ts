@@ -2,6 +2,7 @@ import { Platform, ToastAndroid, BackHandler, Linking, Dimensions, Alert, Appear
 // import ExtraDimensions from 'react-native-extra-dimensions-android'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { storageDataPrefix } from '@/config/constant'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 import { gzipFile, readFile, temporaryDirectoryPath, unGzipFile, unlink, writeFile } from '@/utils/fs'
 import { getSystemLocales, isIgnoringBatteryOptimization, isNotificationsEnabled, requestNotificationPermission, requestIgnoreBatteryOptimization, shareText } from '@/utils/nativeModules/utils'
 import musicSdk from '@/utils/musicSdk'
@@ -157,7 +158,7 @@ export const openUrl = async(url: string): Promise<void> => {
 }
 
 export const assertApiSupport = (source: LX.Source): boolean => {
-  return source == 'local' || global.lx.qualityList[source] != null
+  return source == 'local' || (isPlaybackSourceEnabled(source) && global.lx.qualityList[source] != null)
 }
 
 // const handleRemoveDataMultiple = async keys => {

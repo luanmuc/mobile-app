@@ -36,6 +36,7 @@ import { LIST_IDS } from '@/config/constant'
 import { addListMusics, removeListMusics } from '@/core/list'
 import { addDislikeInfo } from '@/core/dislikeList'
 import { formatPlayError } from '@/core/music/utils'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 
 // import { checkMusicFileAvailable } from '@renderer/utils/music'
 
@@ -322,6 +323,15 @@ const handlePlay = async() => {
   const musicInfo = playMusicInfo.musicInfo
 
   if (!musicInfo) return
+
+  // R89：历史/收藏里已有的 au 曲目不再进入取链；给明确提示，而不是加载几秒后报 PLAY_FAIL。
+  if (!isPlaybackSourceEnabled((musicInfo as LX.Music.MusicInfoOnline).source)) {
+    // 先把可能还在响的上一首停掉，避免 UI 已选中 au 歌但旧音频继续播放。
+    await setStop()
+    setStatusText(global.i18n.t('player_error_source_disabled'))
+    global.app_event.error()
+    return
+  }
 
   logger.player('开始播放', `${(musicInfo as LX.Music.MusicInfo).name} - ${(musicInfo as LX.Music.MusicInfo).singer}`, `来源:${(musicInfo as LX.Music.MusicInfoOnline).source}, id:${musicInfo.id}`)
 

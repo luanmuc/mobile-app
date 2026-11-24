@@ -2,16 +2,17 @@
 
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
-> **基线（唯一真值，2026-11-23）**：
-> - App：`luanmuc/mobile-app` @ `1f9d62c3`（当前 HEAD；发布点 `8adc5d46`，**已推送 master**），**v1.9.2-b207**；`npm run preflight` **R85b 实跑 53 通过 / 0 失败 · 45.4s**（R85 为 39.3s；历史 R82/R83 为 52 条，R85 新增 1 条）；`preflight:all` **58 通过 / 0 失败 · 287.3s**（含源仓 build/self-check/docs-audit/verify:bundle/npm test）
+> **基线（唯一真值，2026-11-24）**：
+> - App：`luanmuc/mobile-app` @ R88 `8a84dc43`（b211 发布点，**已推送 master**）；R89 本地待推送（基于 `3ce4f07e`），**v1.9.2-b211**；`npm run preflight` **R89 实跑 53 通过 / 0 失败 · 98.4s（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）**；`preflight:all` 仍为 R85b **58 通过 / 0 失败 · 287.3s**（本轮未跑双仓全链路）
 > - 源仓：`luanmuc/backend-api` @ `ae13b6d`（**已推送 master**），**v9.3.3**（产物 **400561 bytes / 7725 行**，错误码 **19**，`npm test` **51 脚本** rc0；manifest 已由 CI `sign-release` 重签）
 > - **R82（2026-11-23，b206）**：au 三处契约修复（`filterData` 旧结构 P0 / `getLyric` `{promise,cancelHttp}` P1 / 更新音源并发取最高 P1）+ 首个执行级 SDK 契约门禁（6 条）；指南平台 8→6。
 > - **R83（2026-11-23，b207 已推送）**：①源仓复核日改按源 `reviewEveryDays` 滚动窗口（7~365 天，上链源也校验），到期日摊到 12-23/01-22/02-21；②源仓启动期 `probeEngineCapabilities()` 只写日志；③App「更新音源」加 manifest `size+sha256` 完整性校验，manifest 缺失 fail-open（K36）；④`check_au_source_contract` 扩为 `check_builtin_sdk_contract`（六平台矩阵 M1~M6 + A1~A8，14 条）并更名进 `release.yml`。
+> - **R89（2026-11-24，本地待推送）**：au 默认 search/playback 双关，不做兜底；`sourceAvailability` 拆出 `searchSources`/`playbackSources`，搜索、热搜、榜单、歌单、换源、历史/收藏播放全部走可播放源；`getMusicUrl`/在线取链入口抛 `SOURCE_DISABLED`，不读 URL 缓存；新增 `P1-A5` 回归，`check_source_contract` 14→15。
 > - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
-> - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-23 HEAD `d706359`；代码基线仍为 `5cdfe31`，其后 4 条为每日 `digests/` 数据提交；**公开仓**；`node --test` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）
+> - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-24 HEAD `d4b9864`；代码基线仍为 `5cdfe31`，其后为每日 `digests/` 数据提交，最新 #18 为 b211/11-24；**公开仓**；`node --test` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）
-> - 硬数字：三语各 **1048 键**、TS/TSX **543 文件**、`scripts/check_*.js` **54 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1285 条 = 计数型 543（文件）+ 17（文档）+ 非计数型断言 725 条**（6c 逐 ID 实算），算式 `1285 − 543 − 17 = 725` 自洽
-> - **2026-11-23 实跑**：`check_ts_syntax` 543/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1285 = 实测 1285；`--gen-ids` 报 **48 脚本 / 725 条 ID 全覆盖**（R83 重生成后）
+> - 硬数字：三语各 **1049 键**、TS/TSX **544 文件**、`scripts/check_*.js` **54 个**（其中 `check_assertion_ledger` 是校验工具、`check_upstream_divergence` 是比对工具，均不计入断言）、**6b 台账合计 1287 条 = 计数型 544（文件）+ 17（文档）+ 非计数型断言 726 条**（6c 逐 ID 实算），算式 `1287 − 544 − 17 = 726` 自洽
+> - **2026-11-24 实跑**：`check_ts_syntax` 544/0；`check_docs_consistency` 17 篇；`check_assertion_ledger` **50 一致 / 0 漂移 / 0 失败 / 0 未解析 / 0 缺脚本**，台账 1287 = 实测 1287；`--gen-ids` 报 **48 脚本 / 726 条 ID 全覆盖**（R89 重生成后）
 > - **源仓路径自动探测（R75）**：`check_cross_repo_linkage` / `check_cross_repo_health_roundtrip` 未设 `LX_SOURCE_ROOT` 时按 `../lx-music-source` → `../backend-api` 探测（首个含 `src/legacy.js` 的胜出）；修前本地直接跑 ledger 会因缺 C6~C8 报「1 漂移 / 实测 1223」，修后 **1230 = 1230**、46 一致
 > - **v9 审计面（K36 后收敛）**：`src/core/sourceUpdate/` 整目录（含 `verify.ts`）与 `check_source_signing` 已随「V9.3 在线更新体系整体下线」删除——「更新音源」回归单文件拉取（多镜像兜底）；R83 只恢复 manifest `size+sha256` **可选**完整性校验（`src/utils/sha256.ts`），不恢复 ed25519 验签链；`scripts/lib/source-static.js` 统一拼接「legacy + 全部 core 模块」静态源
 > - 本文件对应变更：V9「音源模块化拆包 + ed25519 验签 + 版本区间语义」；**B2（2026-11-19）**：启动期在线自动更新下线（冷启动白屏 20~30 秒的根因，且与手动「更新音源」按钮重复），验签改挂手动更新路径
@@ -47,14 +48,14 @@
 
 | ID | 检查面 | 关键位置 | 验收 |
 |---|---|---|---|
-| A-A01 | 13 action 权威表 | `sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 14/0；每个 action 有 case |
+| A-A01 | 13 action 权威表 | `sourceContract.ts`、`index.ts`、`user-api-preload.js` | `check_source_contract` 15/0；每个 action 有 case |
 | A-A02 | 健康 4 主状态 | `healthStatus.ts`、`Health.tsx` | `check_health_state_v2` 7/0 |
 | A-A03 | 诊断窗口/覆盖 | `healthDiagnostics.ts`、`Health.tsx` | `check_health_diagnostics` 60/0 |
 | A-A04 | 诊断视图 | `healthDiagnosticsView.ts` | `check_health_diagnostics_view` 25/0 |
 | A-A05 | 事件链路/去重 | `healthLog.ts` | `check_health_event_pipeline` 10/0 |
 | A-A06 | 持久化 v2 | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 |
 | A-A07 | 配置契约 | `sourceConfig.ts` | `check_source_config_contract` 29/0；39 键三语 |
-| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1048 键、无重复、无缺占位符 |
+| A-A08 | 三语闭合 | `src/lang/*.json` | 各 1049 键、无重复、无缺占位符 |
 | A-A09 | 播放/媒体/预算 | `playback*`、`media*` | 20/0、20/0、6/0 |
 | A-A10 | 日志目录/隐私 | `check_log_directory` | 15/0；无 URL/歌名/歌手 |
 | A-A11 | 仓库完成度 | 全仓 TODO/占位/半成品 | 逐条定性 |
@@ -104,7 +105,7 @@
 | 音源健康事件链路（eventId 去重/traceId/脱敏） | `healthLog.ts` | `check_health_event_pipeline` 10/0 | ✅ |
 | 音源健康持久化 v2（v1 拒绝/容量版本边界/可回滚） | `sourceHealthPersistence.ts` | `check_health_persistence_v2` 9/0、`check_source_health_persistence` 17/0 | ✅ |
 | 真机摘要回传（PAT 只存本机 / 24h 聚合 / 20h 节流 / 单飞 / 队列补发 / Issue 格式 / 不含歌名账号） | `healthDigest.ts`、`healthDigestUpload.ts`、`Health.tsx` | `check_health_digest` 12/0（**2026-11-19 已接入 `release.yml` checks 段「健康状态/文案/文档一致性门禁」步**，此前只是本地手动）；telemetry `node --test` **41/41**；真机 + 并发实测 | ✅ |
-| 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 14/0 | ✅ |
+| 音源管理（配置契约 39 键/自定义源导入/更新音源按钮/版本号/action 表） | `sourceConfig.ts`、`sourceContract.ts`、`init/userApi/*` | `check_source_config_contract` 29/0、`check_source_contract` 15/0 | ✅ |
 | 下载管理器（下载档一致/文件名模板/失败原因 i18n/目录迁移/长文件名/批量下载） | `downloadManager.ts`、`utils/download*` | `check_download_persistence` 3/0、`check_download_restore_runtime` 3/0、`check_download_error_i18n`、`check_file_name_template_runtime` | ✅ |
 | 播放器核心（进度条/批量队列/音频焦点三开关/后台播放/线控） | `player*`、`media*` | `check_player_core_runtime`、`check_player_service_runtime` 10/0、`check_media_body` | ✅ |
 | 通知栏定制（播放模式按钮/显示格式/音源名音质不被歌词覆盖/**2026-11-20 去平台化**：艺术家行只留「歌手 · 音源 · 音质」三段） | `android/app/src/main`、`plugins/player/playList.ts`、RNTP `TrackMetadata.java:92-98` | `check_source_platform_label` **L5 反向锁**（禁 `resolvePlayPlatform(source`，要求 `buildSourceLabel('',`）；真机待验 | ✅ / 🧪 |
@@ -116,7 +117,7 @@
 | 官方上游版本显示 + 更新提醒 + 一键更新顺序 | `apiSource.ts`、`Source.tsx` | 结构走查 | ✅ |
 | 听歌统计口径（playCount） | `player/playCount.ts` | 结构走查 | ✅ |
 | 内置音源自动升级（构建时统一拉取） | 构建脚本 | `check_release_state_contract`、`check_source_ci_gate` | ✅ |
-| 三语国际化（1048 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
+| 三语国际化（1049 键/失败标点/占位符/原生文案） | `src/lang/*.json` | `check_docs_consistency`、`check_ts_syntax` | ✅ |
 | 工程门禁（eslint/tsc/docs-audit/L4 巡检） | `scripts/check_*.js` **54 个**（`npm run preflight` 一键跑完 CI 同判据；`check_source_ci_gate` / `check_source_ci_gate_offline` 两个 API/离线专用脚本由 preflight 跳过并做等价校验。2026-11-21 补齐：`check_health_diagnostics_deep` / `_stress` 已进 `release.yml`；`check_source_ci_gate_offline` 与 `check_upstream_divergence` 按性质保留本地，前者因 CI 有 token、后者自述非阻塞） | preflight 实跑 **53/53 rc0**（2026-11-23 R85b 复跑 · 45.4s；G2 性能项单独串行，避免 8 路并发假红） / 新门禁自带负向自检 | ✅ |
 
 **状态说明**：✅ 有脚本断言且已审；📝 静态走查/待真机；车机版相关项已移出本计划。
@@ -129,11 +130,11 @@
 
 | ID | 联动点 | 现状 | 性质 |
 |---|---|---|---|
-| X-L1 | **第 14 个 action `forceQualityProbe`** | **已闭合并定性为「保留」**：App `SOURCE_ACTIONS` 14 个、`check_source_contract` 14 对齐；源侧 `forceQualityProbe()` 实现完整、`quality-policy-v2` 直接覆盖。App 无 UI 调用方——这是**源能力声明而非死桥接**（删除会造成跨仓契约漂移，且 K07 探路旁路是未来单源复测入口的能力基础，成本为负）。健康页已有 `probe`（全局探测）/`probeSource`（单源复测）覆盖用户可见的复测需求，不再为此新增强制高质入口 | 已闭合（2026-11-16 复核） |
+| X-L1 | **第 14 个 action `forceQualityProbe`** | **已闭合并定性为「保留」**：App `SOURCE_ACTIONS` 14 个、`check_source_contract` 15 对齐（14 action + 1 条 au 可用性）；源侧 `forceQualityProbe()` 实现完整、`quality-policy-v2` 直接覆盖。App 无 UI 调用方——这是**源能力声明而非死桥接**（删除会造成跨仓契约漂移，且 K07 探路旁路是未来单源复测入口的能力基础，成本为负）。健康页已有 `probe`（全局探测）/`probeSource`（单源复测）覆盖用户可见的复测需求，不再为此新增强制高质入口 | 已闭合（2026-11-16 复核） |
 | X-L2 | **能力备档压制起跑档无 App 可见解释** | 音源 `getQualityCeiling` 压制起跑档，App 请求 flac 得 128k，UI 无「因源能力备档跳过」提示 | 体验缺口。**2026-11-19 评估**：修复需新增播放页/音质选择处文案，会新增 i18n 键（三语 1040 键硬数字随之变动并触发多文档连锁），且无真机可验视觉效果 → 暂不动，等产品定文案与位置 | 待产品决策 |
 | ~~X-L3~~ **定性为「功能未建」** | 原记「`definitiveFail`/`linkExpired` App 不消费，`Health.tsx` 类型未含」 | **2026-11-19 复核**：类型已含 —— `src/core/healthStatus.ts:105-106` 声明 `definitiveFail`/`linkExpired` 并纳入 `hasSample` 判定（`:139`），`Health.tsx:59-60` 亦在 `byQuality` 类型中声明；但**整个 `byQuality` 质量矩阵从未渲染**（全文件仅类型定义，无 UI）。故不是「类型未含」的数据缺口，而是「质量矩阵 UI 未建」的产品功能缺口 → 不按缺陷修，待产品决策 | 定性完成，不做改动 |
 | X-L4 | `qualityConfidence` 三值 | 音源 `exact/estimated/unknown`；App 消费 `default='exact'` 仅旧源兼容 | 已对齐，继续守 |
-| X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 14/0 |
+| X-L5 | 13 action ↔ 音源声明 | 除 `forceQualityProbe` 外 13 个已对齐 | `check_source_contract` 15/0 |
 | X-L6 | 音质档位命名 | `SOURCE_QUALITIES` ↔ 音源 `QUALITY_PRIORITY` | 4 档固定 |
 | X-L7 | **健康快照版本兼容（源仓 v8.16.1）** | 源侧 `compareSourceVersion` 改数值比较、白名单 `[8.14.1,8.15.1,8.16.0,8.16.1]`；App 侧 `parseSourceVersion`/`sanitizeSourceHealthState` 必须同口径 | `check_cross_repo_health_roundtrip` X1~X3 4/0（回退任一仓即红） |
 | X-L9 | **超时定时器不空转**（原称「不泄漏」，2026-11-16 按实测收敛） | `Promise.race` 的超时必须 `clearTimeout` 且延时用具名常量（App N-1168 统一到 `src/core/music/timeout.ts`）。**实测反证**：race 对两路都挂了 `then`，后到的 reject 被吞，**不产生 unhandledRejection**；真实代价是定时器空转占句柄（Node 3s 档 3002ms vs 清理后 24ms）+ 超时副作用对已完成任务再跑一次 | `check_truth_gates` **G27**（542 源文件全扫；注入旧写法实测转红） |
@@ -170,11 +171,11 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 
 ### 6b. 全量脚本台账（54 个 `check_*.js`）
 
-> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（48 个脚本 / 725 条，ID 多重集）。
+> 本节管**条数**（每条脚本声明多少条断言）；**断言身份**见下方 **6c**（48 个脚本 / 726 条，ID 多重集）。
 
 | 脚本 | 条数 | 守什么 |
 |---|---:|---|
-| `check_ts_syntax` | 543 文件 | TS/TSX 语法 0 错误 |
+| `check_ts_syntax` | 544 文件 | TS/TSX 语法 0 错误 |
 | `check_health_diagnostics` | 60 | 健康诊断契约（窗口/归因/证据/脱敏） |
 | `check_health_diagnostics_deep` | 51 | 逐分支断言 + 10 万条压力 |
 | `check_health_diagnostics_view` | 25 | 视图模型（折叠/分组/格式化） |
@@ -193,7 +194,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_real_playback` | 11 | 真播放计数 / 多源失败证据 / 重复 Playing 不膨胀样本（R11） |
 | `check_source_health_persistence` | 17 | v2 导出恢复 / 五平台并发 |
 | `check_source_config_contract` | 29 | 39 键 / 单位 / 三语 |
-| `check_source_contract` | 14 | 14 action / envelope / fallbackOwner |
+| `check_source_contract` | 15 | 14 action + au 默认下线（P1-A5） / envelope / fallbackOwner |
 | `check_source_update_logic` | 44 | 更新逻辑 / 无指纹机制 |
 | `check_list_overwrite_rollback` | 4 | 歌单全量覆盖：正常路径基线 / saveListMusics 失败回滚 / saveUserList 失败回滚 / 回滚自身失败时内存仍恢复 |
 | `check_flipper_stub` | 4 | release 空桩：import 全限定名 / 桩目录与 package 对齐 / 旧位置无重复类 / flipper 仅 debug 引入 |
@@ -226,7 +227,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_truth_gates` | 14 条断言（G 编号不连续） | 含 **G21 计划唯一** / **G22 compileSdk↔AGP** / **G23 SDK 三件套** / **G27 race 超时清理** |
 | `check_source_ci_gate` / `_offline` | 网络 / 离线 | 源仓 CI 闸门（CI 用自带 token） |
 
-### 6c. 断言 ID 台账（48 个脚本 / 725 条，ID 多重集）
+### 6c. 断言 ID 台账（48 个脚本 / 726 条，ID 多重集）
 
 > 6b 只比「条数」，抓不到**数量不变但某条断言被换掉**（把 HS3 换成 HS9、把 D5 改名 D5x）。
 > 本节要的是身份：每个脚本输出的 `✓ ID` / `✅ [ID]` 必须与下表**逐个 ID、逐个次数**相同。
@@ -234,10 +235,10 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 > 口径是**多重集**：同一个 ID 可以挂多条子断言（`H7×6`、`H6×7`、`I05×11` 表示该 ID 被印了这么多次），
 > 只比「ID 出现过」抓不到少一条子断言，所以连**次数**一起钉住。
 >
-> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（48 个 / 725 条）。尚未覆盖的脚本有断言不印 ID，
+> 收录「ID 出现总次数 == 6b 声明数」且**输出稳定**的脚本（48 个 / 726 条）。尚未覆盖的脚本有断言不印 ID，
 > 只受 6b 条数约束。
 >
-> **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 543）、
+> **唯一不入 6c 的两项**（都是计数型，不是断言身份）：`check_ts_syntax`（数文件数 544）、
 > `check_docs_consistency`（数文档数 17）。它们只受 6b 条数约束。
 >
 > 此前一度把 `check_download_restore_runtime` / `check_media_body` / `check_player_progress_runtime` /
@@ -272,7 +273,7 @@ npm run preflight:all      # 再追加源仓 build-source/self-check/docs-audit/
 | `check_health_real_playback` | 11 | R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 |
 | `check_source_health_persistence` | 17 | A7×2 A7b A8 A9×3 A9b A10 A11 A12 A13 B1 B2 B3 B4 G5-A1 |
 | `check_source_config_contract` | 29 | SC01 SC02 SC03 SC04 SC05 SC06 SC07 SC08 SC09 SC10 SC11 SC12 SC13 SC14 SC15 SC16 SC17 SC18 SC19 SC20 SC21 SC22 SC23 SC24 SC25 SC26 SC27 SC28 SC29 |
-| `check_source_contract` | 14 | P0-A1 P0-A2 P0-A3 P0-A4×4 P0-A5 P0-A6 P0-A7 P1-A1 P1-A2 P1-A3 P1-A4 |
+| `check_source_contract` | 15 | P0-A1 P0-A2 P0-A3 P0-A4×4 P0-A5 P0-A6 P0-A7 P1-A1 P1-A2 P1-A3 P1-A4 P1-A5 |
 | `check_source_update_logic` | 44 | U1 U2 U3 U4 U5 U6 U7 U8 U9 U10 U11 U12 U13 U14 U15 U16 U17 U18 U19 U20 U22 U23 U24 U25 U26 U27 U28 U29 U30 U31 U32 U33 U34 U35 U36 U37 U38 U39 U40 U41 U42 U43 U44 U45 |
 | `check_list_overwrite_rollback` | 4 | A1 A2 A3 A4 |
 | `check_flipper_stub` | 4 | F1 F2 F3 F4 |
@@ -560,7 +561,7 @@ node scripts/check_health_diagnostics_view.js     # 25/0
 node scripts/check_log_directory.js               # 15/0
 
 # 仓库门禁
-node scripts/check_ts_syntax.js                   # 543 文件 0 错误
+node scripts/check_ts_syntax.js                   # 544 文件 0 错误
 node scripts/check_source_config_contract.js      # 29/0
 node scripts/check_source_platform_label.js       # 9/9
 node node_modules/typescript/bin/tsc --noEmit     # rc=0
@@ -569,7 +570,7 @@ node scripts/check_docs_consistency.js            # 17 文档
 node scripts/docs-audit.js --dry-run              # 待处理 0
 ```
 
-退出标准：上述命令全部 rc=0；健康契约 60/0；深度审计 51/0；诊断压力 14/0；视图 25/0；日志目录 15/0；配置契约 29/0；音源契约 14/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
+退出标准：上述命令全部 rc=0；健康契约 60/0；深度审计 51/0；诊断压力 14/0；视图 25/0；日志目录 15/0；配置契约 29/0；音源契约 15/0；无新增隐私字段、无新增网络出口、无未解释的文档计数漂移。
 
 ## 附录 B：类型逃逸建档（G-A07，2026-11-19）
 

@@ -35,7 +35,8 @@ import {
   OTHER_SOURCE_CACHE_TTL_MS,
   OTHER_SOURCE_NEGATIVE_TTL_MS,
 } from './otherSourceCache'
-import { classifyUnusableUrl, isPlayableCandidate, sanitizeError } from './playbackGuard'
+import { classifyUnusableUrl, createSourceDisabledError, isPlayableCandidate, sanitizeError } from './playbackGuard'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 import { logger, toLogText } from '@/utils/logger'
 
 // 音源初始化兜底超时：14 处调用共用，避免各写一份 15_000
@@ -91,7 +92,9 @@ export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.
       reject(new Error('find music timeout'))
     }, 12_000)
     findMusic(searchMusicInfo).then((otherSource) => {
-      const source = otherSource.map(toNewMusicInfo) as LX.Music.MusicInfoOnline[]
+      // 双保险：findMusic 已只查 playbackSources；旧缓存/旧调用若带 au 也不让它进候选池。
+      const enabledSource = otherSource.filter(item => isPlaybackSourceEnabled(String(item.source ?? '')))
+      const source = enabledSource.map(toNewMusicInfo) as LX.Music.MusicInfoOnline[]
       writeOtherSourceCache(
         otherSourceCache,
         cacheKey,
@@ -388,6 +391,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
   // eslint-disable-next-line no-cond-assign
   while (musicInfo = (musicInfos.shift()!)) {
     if (isBudgetExhausted(playbackBudget)) throw createBudgetExhaustedError(playbackAttempts)
+    if (!isPlaybackSourceEnabled(musicInfo.source)) continue
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     if (!assertApiSupport(musicInfo.source)) continue
@@ -492,6 +496,8 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   requestedQuality?: LX.Quality
   attempts?: PlaybackAttempt[]
 }> => {
+  // R89：主动下线的源连 URL 缓存都不能读，避免历史缓存把 au 重新带回播放链路。
+  if (!isPlaybackSourceEnabled(musicInfo.source)) throw createSourceDisabledError(musicInfo.source)
   const playbackBudget = budget ?? createPlaybackBudget()
   const playbackAttempts = attempts ?? []
   // b70 诊断：音源初始化检查打点（若卡在此步说明 apiInitPromise 未 resolve；15s 兜底超时）
@@ -812,6 +818,8 @@ const FAIL_CODE_I18N_KEY = {
   CONTRACT_ERROR: 'player_error_contract',
   CANCELED: 'player_error_canceled',
   BUDGET_EXHAUSTED: 'player_error_budget',
+  // R89：产品侧主动下线的源（当前为 au）。与上游失败分开，避免健康账把“我们关了”算成“源坏了”。
+  SOURCE_DISABLED: 'player_error_source_disabled',
   // R75：R71d 新增的业务否定码。源存在但不支持该 action，语义是「没有这个能力」
   // 而不是「调用失败」——缺这一条会落 player_error_unknown，把 miss 显示成「未知错误」。
   UNSUPPORTED_ACTION: 'player_error_unsupported',

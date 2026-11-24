@@ -48,8 +48,8 @@ push master（paths-ignore: publish/**、npm-version-info/**、README.md、docs/
 > 与 AGENTS.md「实证开发流程」配套：先过 L0-L4 验证链，push 前逐项自查。
 
 0. **压力测试计划**：先读 `docs/STRESS_PLAN.md`；四组命令全部 rc=0 后，才进入发布预检。
-0. **一条命令跑完（推荐）**：`npm run preflight`（App 侧，等价 release.yml 的 `lint:`+`checks:` 段，共 44 条）；双仓联调改 `npm run preflight:all`（追加源仓 `build-source` / `self-check` / `docs-audit` / `verify:bundle` / `npm test`）。**不要**只挑「相关的几条」跑——2026-11-16 那次 50 分钟推送，两个 CI 红点（脚本数 39≠40、横幅字面量）都跑在这条命令里，本地 4.6 分钟就能拦住。下面 1~N 条是逐项细则，preflight 已覆盖的部分不必重跑。
-1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（543 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
+0. **一条命令跑完（推荐）**：`npm run preflight`（App 侧，等价 release.yml 的 `lint:`+`checks:` 段，共 53 条）；双仓联调改 `npm run preflight:all`（追加源仓 `build-source` / `self-check` / `docs-audit` / `verify:bundle` / `npm test`）。**不要**只挑「相关的几条」跑——2026-11-16 那次 50 分钟推送，两个 CI 红点（脚本数 39≠40、横幅字面量）都跑在这条命令里，本地 4.6 分钟就能拦住。下面 1~N 条是逐项细则，preflight 已覆盖的部分不必重跑。
+1. **类型/语法/lint**：`node node_modules/typescript/bin/tsc --noEmit` 0 error；`node scripts/check_ts_syntax.js` 0 错误（544 个 TS/TSX）；`node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.ts,.tsx` 0 error / 0 warning
 2. **源仓 CI 闸门**：`node scripts/check_source_ci_gate.js` 必须 exit 0；源仓最近一次 push CI 非 success、尚未完成、无 run，或绿提交不是当前 HEAD 祖先时，构建会硬阻断。本地匿名 API 被 403 限流时，可用 `node scripts/check_source_ci_gate_offline.js` 做发布预检旁路证据（不得替代 runner 内的正式闸门）。
 3. **设置迁移**：若改默认值，确认已走迁移机制（见 MERGE_GUIDE），本地清 App 数据模拟老用户验证迁移生效
 4. **播放**：URL 刷新不卡死、切换音源、下载列表播放、通知栏歌词/按钮

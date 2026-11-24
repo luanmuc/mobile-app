@@ -1,3 +1,15 @@
+## [R89 默认下线 Audius（au）搜索与播放，保留适配器与开关] `src/config/sourceAvailability.ts`、`src/utils/musicSdk/index.js`、`src/core/music/*`、文档 - 2026-11-24
+
+按 2026-11-24 决策：au 上游对 UA / 请求形态 / 节点分层，固定探针曲 + Range 1KB 能过，真实整段播放会撞 502；b211 11:14 仍有 1 个 au 失败簇。**不再在 App 内修 au 播放，也不做“其他源失败后自动试 au”的兜底**，先把 au 从用户可见的搜索与播放链路整体下线。
+
+- **双开关**：新增 `src/config/sourceAvailability.ts`，`AUDIUS_SEARCH_ENABLED=false`、`AUDIUS_PLAYBACK_ENABLED=false`；适配器、榜单/歌单代码与 `au` SDK 全部保留，后续可受控接回。注释明确：不要单独打开 search，否则会产生“能搜到但点不了”的死链。
+- **源注册拆分**：`musicSdk` 由单一 `sources` 拆为 `allSources` / `searchSources` / `playbackSources`；搜索、热搜、榜单、歌单、歌单搜索、播放页换源统一只取可播放源；`searchMusic` 跨源候选只从 `playbackSources` 生成。
+- **播放入口双门禁**：`online.ts` 与 `utils.handleGetOnlineMusicUrl` 先于 URL 缓存/音质降级抛 `SOURCE_DISABLED`；`handleGetOnlineMusicUrl` 候选循环跳过已下线源，`assertApiSupport` 同步拒绝；历史/收藏里已有的 au 曲目点击显示“该音源已暂时下线”，自动下一曲/上一曲过滤 au，不静默失败。
+- **三语**：新增 `player_error_source_disabled`（简/繁/英）；`FAIL_CODE_I18N_KEY` 增加 `SOURCE_DISABLED`，避免把“我们主动关了”记成上游失败。
+- **测试夹具**：`check_quality_request_runtime` / `check_playback_ownership_runtime` / `check_playback_timeout_race` 补 `@/config/sourceAvailability` 真实转译桩，不再手抄开关；`check_source_contract` 新增 `P1-A5`（14→15），锁 au 双关与播放门禁。
+- **验证**：`npm run preflight` **53/0 · 98.4s**（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）；`tsc --noEmit` 0；目标 eslint 0；`check_source_contract` 15/0；`check_error_code_map` 10/0；`check_truth_gates` 全一致；`check_ts_syntax` 544/0；`check_assertion_ledger` 50 一致 / 1287=1287；`check_quality_request_runtime` 12/0、`check_playback_ownership_runtime` 21/0、`check_playback_timeout_race` 1/0。
+- **未验证 / 边界**：本轮为代码与门禁验证，未出 b212 真机包；历史/收藏里已有的 au 曲目不自动改写用户数据，只做点击拦截与自动切歌过滤。推送后由 CI 生成 b212，届时补真机回归。
+
 ## [R88 纠偏：恢复 R86 与首页平台切换，仅从六大平台移除 Audius 入口] `src/components/SourceSelector.tsx`、文档 - 2026-11-24
 
 上一版 R87 把整版撤回并删掉了首页平台切换，导致五大平台的排行榜/歌单被 `au` stub 拖坏；本提交按用户口径纠偏：

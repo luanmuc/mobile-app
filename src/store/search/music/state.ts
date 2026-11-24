@@ -40,7 +40,7 @@ const state: InitState = {
   maxPages: {},
 }
 
-for (const source of music.sources) {
+for (const source of music.searchSources) {
   if (!music[source.id as LX.OnlineSource]?.musicSearch) continue
   state.sources.push(source.id as LX.OnlineSource)
   state.listInfos[source.id as LX.OnlineSource] = {

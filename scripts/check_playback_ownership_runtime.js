@@ -39,6 +39,10 @@ const loadTs = (rel, stubs = {}) => {
         toLogText: (v) => String(v),
       }
     }
+    // R89：utils 新增源可用性门禁；测试仍跑真实开关，避免手抄 true/false 漂移。
+    if (id === '@/config/sourceAvailability') {
+      return loadTs('src/config/sourceAvailability.ts', stubs)
+    }
     if (id.startsWith('./') || id.startsWith('../')) {
       const target = path.resolve(path.dirname(file), id)
       if (fs.existsSync(target + '.ts')) return loadTs(path.relative(ROOT, target + '.ts'), stubs)

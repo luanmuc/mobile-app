@@ -8,39 +8,51 @@ import au from './au'
 import xm from './xm'
 import { supportQuality } from './api-source'
 import { versionChars } from './versionChars'
+import { isPlaybackSourceEnabled, isSearchSourceEnabled } from '@/config/sourceAvailability'
 
+
+// 平台目录是「代码层全量」，是否进入用户可见链路由 sourceAvailability 决定。
+// R89：au 默认 search/playback 双关，适配器与目录仍保留，后续可单独接回。
+const allSources = [
+  {
+    name: '酷我音乐',
+    id: 'kw',
+  },
+  {
+    name: '酷狗音乐',
+    id: 'kg',
+  },
+  {
+    name: 'QQ音乐',
+    id: 'tx',
+  },
+  {
+    name: '网易音乐',
+    id: 'wy',
+  },
+  {
+    name: '咪咕音乐',
+    id: 'mg',
+  },
+  {
+    name: 'Audius',
+    id: 'au',
+  },
+  // {
+  //   name: '百度音乐',
+  //   id: 'bd',
+  // },
+]
+
+const searchSources = allSources.filter(source => isSearchSourceEnabled(source.id))
+const playbackSources = allSources.filter(source => isPlaybackSourceEnabled(source.id))
 
 const sources = {
-  sources: [
-    {
-      name: '酷我音乐',
-      id: 'kw',
-    },
-    {
-      name: '酷狗音乐',
-      id: 'kg',
-    },
-    {
-      name: 'QQ音乐',
-      id: 'tx',
-    },
-    {
-      name: '网易音乐',
-      id: 'wy',
-    },
-    {
-      name: '咪咕音乐',
-      id: 'mg',
-    },
-    {
-      name: 'Audius',
-      id: 'au',
-    },
-    // {
-    //   name: '百度音乐',
-    //   id: 'bd',
-    // },
-  ],
+  // `sources` 保持旧字段名，但只暴露当前搜索侧可用源；需要完整目录时用 allSources。
+  sources: searchSources,
+  searchSources,
+  playbackSources,
+  allSources,
   kw,
   kg,
   tx,
@@ -57,7 +69,7 @@ export default {
 
 export const init = () => {
   const tasks = []
-  for (let source of sources.sources) {
+  for (let source of sources.searchSources) {
     let sm = sources[source.id]
     sm && sm.init && tasks.push(sm.init())
   }
@@ -70,7 +82,8 @@ export const searchMusic = async({ name, singer, source: s, limit = 25 }) => {
   const musicName = trimStr(name)
   const tasks = []
   const excludeSource = ['xm']
-  for (const source of sources.sources) {
+  // 跨源试听/换源只从 playbackSources 取候选；au 播放关闭时连候选都不生成。
+  for (const source of sources.playbackSources) {
     if (!sources[source.id].musicSearch || source.id == s || excludeSource.includes(source.id)) continue
     tasks.push(sources[source.id].musicSearch.search(`${musicName} ${singer || ''}`.trim(), 1, limit).catch(_ => null))
   }

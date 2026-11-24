@@ -1021,6 +1021,7 @@
   "player_error_canceled": "播放已取消",
   "player_error_unsupported": "音源不支援該操作",
   "player_error_budget": "取鏈逾時，請重試",
+  "player_error_source_disabled": "該音源已暫時下線",
   "player_error_unknown": "未知錯誤",
   "quality_flac24bit": "Hi-Res 無損",
   "quality_flac": "無損",

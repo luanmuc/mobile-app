@@ -46,6 +46,19 @@ const URL_IN_TEXT_RE = /https?:\/\/[^\s"'<>)\]]+/gi
 const URL_HOST_RE = /^https?:\/\/[^\s/?#]+/i
 
 /**
+ * R89：源被产品侧下线时的显式拒绝码。
+ * 用单独码而不是 NOT_FOUND/NETWORK，避免把“我们主动关掉”误记成上游失败，
+ * 也避免历史/收藏里的 au 曲目继续走 URL 缓存或重试链。
+ */
+export const SOURCE_DISABLED_CODE = 'SOURCE_DISABLED' as const
+
+export const createSourceDisabledError = (source: string): Error & { code: typeof SOURCE_DISABLED_CODE } => {
+  const error = new Error(`${SOURCE_DISABLED_CODE}: 音源 ${source} 已暂时下线`) as Error & { code: typeof SOURCE_DISABLED_CODE }
+  error.code = SOURCE_DISABLED_CODE
+  return error
+}
+
+/**
  * 把一条 URL 截成 `scheme://host/…`：保留 host 便于定位是哪个源，丢掉 path/query
  * （源返回体常把带签名的整条地址塞进 error message，整条打印等于把签名写进日志）。
  */

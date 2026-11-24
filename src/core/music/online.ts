@@ -8,7 +8,8 @@ import {
 } from '@/utils/data'
 import { updateListMusics } from '@/core/list'
 import settingState from '@/store/setting/state'
-import { isPlayableCandidate } from './playbackGuard'
+import { createSourceDisabledError, isPlayableCandidate } from './playbackGuard'
+import { isPlaybackSourceEnabled } from '@/config/sourceAvailability'
 
 import {
   buildLyricInfo,
@@ -60,6 +61,8 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   onFragment?: (fragment: boolean) => void
   recordPlay?: boolean
 }): Promise<string> => {
+  // R89：au 默认关闭。这里先于 URL 缓存/音质降级拦掉，历史/收藏里的 au 曲目不会复用旧链。
+  if (!isPlaybackSourceEnabled(musicInfo.source)) throw createSourceDisabledError(musicInfo.source)
   // if (!musicInfo._types[type]) {
   //   // 兼容旧版酷我源搜索列表过滤128k音质的bug
   //   if (!(musicInfo.source == 'kw' && type == '128k')) throw new Error('该歌曲没有可播放的音频')

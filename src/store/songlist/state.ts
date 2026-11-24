@@ -113,7 +113,7 @@ const state: InitState = {
 }
 
 
-for (const source of music.sources) {
+for (const source of music.playbackSources) {
   const songList = music[source.id as Source]?.songList
   if (!songList) continue
   state.sources.push(source.id as Source)

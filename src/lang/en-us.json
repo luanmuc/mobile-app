@@ -1021,6 +1021,7 @@
   "player_error_canceled": "Playback canceled",
   "player_error_unsupported": "This source doesn't support this action",
   "player_error_budget": "Timed out getting the link, please retry",
+  "player_error_source_disabled": "This source is temporarily unavailable",
   "player_error_unknown": "Unknown error",
   "quality_flac24bit": "Hi-Res Lossless",
   "quality_flac": "Lossless",
