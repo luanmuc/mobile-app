@@ -3,11 +3,11 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-24）**：
-> - App：`luanmuc/mobile-app` @ R88 `8a84dc43`（b211 发布点，**已推送 master**）；R89 本地待推送（基于 `3ce4f07e`），**v1.9.2-b211**；`npm run preflight` **R89 实跑 53 通过 / 0 失败 · 98.4s（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）**；`preflight:all` 仍为 R85b **58 通过 / 0 失败 · 287.3s**（本轮未跑双仓全链路）
+> - App：`luanmuc/mobile-app` @ R89 `edb97fbd`（**已推送 master**）；b212 已发布 `v1.9.2-b212`（CI `45332568649` success · 4m6s；b211 为 R88 `8a84dc43` 发布点）；`npm run preflight` **R89 实跑 53 通过 / 0 失败 · 98.4s（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）**；`preflight:all` 仍为 R85b **58 通过 / 0 失败 · 287.3s**（本轮未跑双仓全链路）
 > - 源仓：`luanmuc/backend-api` @ `ae13b6d`（**已推送 master**），**v9.3.3**（产物 **400561 bytes / 7725 行**，错误码 **19**，`npm test` **51 脚本** rc0；manifest 已由 CI `sign-release` 重签）
 > - **R82（2026-11-23，b206）**：au 三处契约修复（`filterData` 旧结构 P0 / `getLyric` `{promise,cancelHttp}` P1 / 更新音源并发取最高 P1）+ 首个执行级 SDK 契约门禁（6 条）；指南平台 8→6。
 > - **R83（2026-11-23，b207 已推送）**：①源仓复核日改按源 `reviewEveryDays` 滚动窗口（7~365 天，上链源也校验），到期日摊到 12-23/01-22/02-21；②源仓启动期 `probeEngineCapabilities()` 只写日志；③App「更新音源」加 manifest `size+sha256` 完整性校验，manifest 缺失 fail-open（K36）；④`check_au_source_contract` 扩为 `check_builtin_sdk_contract`（六平台矩阵 M1~M6 + A1~A8，14 条）并更名进 `release.yml`。
-> - **R89（2026-11-24，本地待推送）**：au 默认 search/playback 双关，不做兜底；`sourceAvailability` 拆出 `searchSources`/`playbackSources`，搜索、热搜、榜单、歌单、换源、历史/收藏播放全部走可播放源；`getMusicUrl`/在线取链入口抛 `SOURCE_DISABLED`，不读 URL 缓存；新增 `P1-A5` 回归，`check_source_contract` 14→15。
+> - **R89（2026-11-24，b212 已发布）**：au 默认 search/playback 双关，不做兜底；`sourceAvailability` 拆出 `searchSources`/`playbackSources`，搜索、热搜、榜单、歌单、换源、历史/收藏播放全部走可播放源；`getMusicUrl`/在线取链入口抛 `SOURCE_DISABLED`，不读 URL 缓存；新增 `P1-A5` 回归，`check_source_contract` 14→15。
 > - **R81（2026-11-23）**：真机 `proxy: inconsistent get` 根除 —— 真机 QuickJS 2024（`wrapper-android 2.4.0`）把 `Date` 包成 Proxy、宿主 preload 冻结 `Date.parse`，读取即撞 invariant；复核日校验改纯算术 `parseYmdToMs`，新增 `r81-proxy-compat` 6 条守卫（产物去注释 `Date.parse`/`new Proxy` 必须为 0）。App 侧同步 `MUSIC_SOURCE_GUIDE` 到 v9.3.1（跨仓闸门）。
 > - telemetry：`luanmuc/lx-telemetry` @ `main`（2026-11-24 HEAD `d4b9864`；代码基线仍为 `5cdfe31`，其后为每日 `digests/` 数据提交，最新 #18 为 b211/11-24；**公开仓**；`node --test` **41/41** = 审计 9 + 压测 29 + T5 2 + 完整性 1）
 > - track-player：`669d2ab`（v2 分支，**短打断分级 + 通用性补修 + 代次簿记**：非通话短打断改压低不暂停 / `FOCUS_RECHECK` 兜底与 `RECHECK_DENIED` 长占用降级暂停 / `BECOMING_NOISY` 按当前路由判定 / 淡入不再冒充用户调音量 / `PendingSlots` 让撤销真的能让到点任务失效；焦点断言 37→58→67 条，代次簿记 24 条）

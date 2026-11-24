@@ -7,8 +7,9 @@
 - **播放入口双门禁**：`online.ts` 与 `utils.handleGetOnlineMusicUrl` 先于 URL 缓存/音质降级抛 `SOURCE_DISABLED`；`handleGetOnlineMusicUrl` 候选循环跳过已下线源，`assertApiSupport` 同步拒绝；历史/收藏里已有的 au 曲目点击显示“该音源已暂时下线”，自动下一曲/上一曲过滤 au，不静默失败。
 - **三语**：新增 `player_error_source_disabled`（简/繁/英）；`FAIL_CODE_I18N_KEY` 增加 `SOURCE_DISABLED`，避免把“我们主动关了”记成上游失败。
 - **测试夹具**：`check_quality_request_runtime` / `check_playback_ownership_runtime` / `check_playback_timeout_race` 补 `@/config/sourceAvailability` 真实转译桩，不再手抄开关；`check_source_contract` 新增 `P1-A5`（14→15），锁 au 双关与播放门禁。
+- **发布**：`edb97fbd` 已推送 master；CI Build `45332568649` **success · 4m6s**；Release `v1.9.2-b212`（tag），5 个 APK 已上传（arm64-v8a / armeabi-v7a / universal / x86 / x86_64）。
 - **验证**：`npm run preflight` **53/0 · 98.4s**（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）；`tsc --noEmit` 0；目标 eslint 0；`check_source_contract` 15/0；`check_error_code_map` 10/0；`check_truth_gates` 全一致；`check_ts_syntax` 544/0；`check_assertion_ledger` 50 一致 / 1287=1287；`check_quality_request_runtime` 12/0、`check_playback_ownership_runtime` 21/0、`check_playback_timeout_race` 1/0。
-- **未验证 / 边界**：本轮为代码与门禁验证，未出 b212 真机包；历史/收藏里已有的 au 曲目不自动改写用户数据，只做点击拦截与自动切歌过滤。推送后由 CI 生成 b212，届时补真机回归。
+- **未验证 / 边界**：b212 已出包，但本轮未做 b212 真机回归；历史/收藏里已有的 au 曲目不自动改写用户数据，只做点击拦截与自动切歌过滤。
 
 ## [R88 纠偏：恢复 R86 与首页平台切换，仅从六大平台移除 Audius 入口] `src/components/SourceSelector.tsx`、文档 - 2026-11-24
 
