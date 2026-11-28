@@ -51,5 +51,5 @@
 
 | 版本 | 上游基线 | 合入内容（上游提交） | 跳过 | 结论 |
 |---|---|---|---|---|
-| v1.9.3-b1（待发布，2026-11-28 本地合入） | v1.9.3（`94a9dd3c`，v1.9.2 之上 8 个实质提交） | `LyricPlayer` 毫秒补位；`lrc-file-parser` 2.5.0（`offset`→`globalOffset`，本仓已适配）；kg 子项去重键；wy 歌单 eapi 改造 + `eapiRequest` cookie 参数；`core/music/utils` 去 `as any`（本仓早已去掉）；RNTP fork `3d5bae3`（同步上游 `755501df` 卸载参数补丁） | 上游设置迁移拆分（本仓 v2.3 已覆盖）、`versionCode`、`publish/*` | 按相邻 tag 增量套用，不整树 merge（merge-base 仍是 v1.9.1，整树会重放 v1.9.2） |
+| v1.9.3-b1（2026-11-28 发布） | v1.9.3（`94a9dd3c`，v1.9.2 之上 8 个实质提交） | `LyricPlayer` 毫秒补位；`lrc-file-parser` 2.5.0（`offset`→`globalOffset`，本仓已适配）；kg 子项去重键；wy 歌单 eapi 改造 + `eapiRequest` cookie 参数；`core/music/utils` 去 `as any`（本仓早已去掉）；RNTP fork `3d5bae3`（同步上游 `755501df` 卸载参数补丁） | 上游设置迁移拆分（本仓 v2.3 已覆盖）、`versionCode`、`publish/*` | 按相邻 tag 增量套用，不整树 merge（merge-base 仍是 v1.9.1，整树会重放 v1.9.2）；CI `46126896696` success · 5m1s |
 | v1.9.2-b1（2026-11-01） | v1.9.2（`0669d1b6`，fork 点之上 6 个新提交） | kg 歌单修复 `e6be258c`；默认禁用音频卸载 `025d7822` + `b3afb18c`（含 v2.3 迁移）；track-player 依赖 `43a3acd8`（fork 升级 `001e2dd`） | `3b1cb20e` / `0669d1b6`（纯版本号+发布记录，定制版有独立 bN 体系） | 用户拍板方案 A：跟随上游 + bN 底座内重置（1.9.2-b1） |

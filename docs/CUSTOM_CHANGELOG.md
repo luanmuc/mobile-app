@@ -8,8 +8,8 @@
 - **其余取舍（重复项跳过，可移植项已移植）**：①上游把设置迁移拆成 `migrateOldSetting` / `migrateSetting`，并在 `2.0→2.1` 再次关闭 `player.isEnableAudioOffload` —— 本仓 `defaultSetting.version = '2.4'`，v2.3 迁移早已完成同一件事，重复实现只会互相覆盖，**整体保留本仓迁移链**；②上游 `react-native-track-player` fork commit（`d76fe8ff`→`755501df`，把 `TrackSelectionParameters` 提出 offload 分支、关时显式 DISABLED、去掉变速/无缝约束）—— **已移植**进本仓 fork：`luanmuc/react-native-track-player` 新提交 `3d5bae3`，App 依赖锁到该 commit（`package.json`/lock 同步）；默认 `isEnableAudioOffload=false` 时行为不变，改善手动开卸载的兼容性；③上游 `versionCode 80`（本仓无此字段，versionCode 由 `publish/build-state.json` 单调递增）、`publish/*`（CI 回写）；④`core/music/utils.ts` 仅去掉两处 `as any`，本仓早已去掉，无需改；⑤上游 `CHANGELOG.md`（本仓已删除，改用本文件）。
 - **版本口径**：底座 `1.9.2 → 1.9.3`；下一次构建 `publish/build-state.json` 的 `baseVersion` 更新、`build` 归零再 +1，即 **`v1.9.3-b1`**（不是 b213），`versionCode` 371 → 372 继续递增。
 - **验证**：`npm ci` 后依赖树与 lock 对齐（`lrc-file-parser` 2.5.0）；`npm run preflight` **53 通过 / 0 失败 · 208.6s**（含 `tsc --noEmit` 36.2s、ESLint 204.7s、`check_docs_consistency`、`check_release_state_contract`、`check_ts_syntax`）；对 `v1.9.3` 逐文件 diff：`LyricPlayer.java` / `kg/musicSearch.js` / `wy/utils/index.js` 零差异，`wy/songList.js` 仅剩三处 A 档修复。
-- **发版**：RNTP fork `3d5bae3` 已推送；App 单提交推送后由 CI 产出 **`v1.9.3-b1`**（versionCode 372），5 个 APK 随 Release 交付。
-- **边界 / 未验证**：wy 歌单 eapi 的真实接口连通性需真机/联网验证；音频卸载开/关两态需真机各跑一轮（本地无 Android SDK，Java 编译由 CI 承担）。
+- **发版**：App `f326d7bd` 推送 master；CI Build `46126896696` **success · 5m1s**（Checks 3m8s ∥ Lint 2m43s ∥ Android 4m35s → Release 21s）；Release **`v1.9.3-b1`**（versionCode **372**，bN 底座内重置生效），5 个 APK：arm64 14.3MB / v7a 13.3MB / universal 29.3MB / x86 14.8MB / x86_64 14.7MB。RNTP fork `3d5bae3` 已同步推送。
+- **边界 / 未验证**：wy 歌单 eapi 的真实接口连通性需真机/联网验证；音频卸载开/关两态仍需真机各跑一轮（Java 编译已由 CI Android job 通过）。
 
 ## [R89 默认下线 Audius（au）搜索与播放，保留适配器与开关] `src/config/sourceAvailability.ts`、`src/utils/musicSdk/index.js`、`src/core/music/*`、文档 - 2026-11-24
 
