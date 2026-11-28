@@ -6,8 +6,8 @@
 
 | 项 | 值 | 说明 |
 |---|---|---|
-| `package.json` 的 `version` | **与底座同步（当前 `1.9.2`）** | 底座（官方原版）升版时随 merge 同步 bump；日常构建由 CI 注入构建号，**禁止手改** |
-| 发布版本名 | `1.9.2-bN` | `N` = **底座版本内构建序号**，由 `publish/build-state.json` 状态文件驱动；底座升版后从 `b1` 重新计数（如 `1.9.1-b79` → `1.9.2-b1`） |
+| `package.json` 的 `version` | **与底座同步（当前 `1.9.3`）** | 底座（官方原版）升版时随 merge 同步 bump；日常构建由 CI 注入构建号，**禁止手改** |
+| 发布版本名 | `1.9.3-bN` | `N` = **底座版本内构建序号**，由 `publish/build-state.json` 状态文件驱动；底座升版后从 `b1` 重新计数（如 `1.9.1-b79` → `1.9.2-b1`） |
 | `versionCode` | `build-state.json` 持续递增 | 每次构建 +1（持续递增，当前值见 publish/build-state.json），`android/app/build.gradle` 优先读环境变量、否则读 `publish/build-state.json`（`package.json` 已不保留 versionCode）；保证老用户可覆盖安装 |
 | Release tag | `vX.Y.Z-bN` | 每次构建唯一，prerelease 标记 |
 | 内置音源 | 每次构建自动拉取 | 来自 `luanmuc/backend-api` 最新版（`?ref=master`），与代码解耦；**仓库不内置音源副本**，由构建生成 `assets/builtin_source.js` |

@@ -169,7 +169,7 @@ function ruleAudioOffload() {
     if (DRY) report.push(`🟡 [${p}] 音频卸载 ${before}→${want}`)
     else {
       write(p, read(p).replace(/^\| 音频卸载 \| (.+) \|/m,
-        `| 音频卸载 | ${want}（同步上游 v1.9.2，设置迁移 2.3） |`))
+        `| 音频卸载 | ${want}（同步上游 v1.9.3，设置迁移 2.3） |`))
       fixed++; report.push(`✅ [${p}] 音频卸载 ${before}→${want}`)
     }
   } catch (e) { report.push(`⚠️ 规则8 异常：${e.message}`) }

@@ -37,9 +37,9 @@ if (!fs.existsSync(UPSTREAM)) {
   console.log(`⚠ 找不到上游源码目录：${UPSTREAM}`)
   console.log('  重新拉取：')
   console.log('    cd /tmp && rm -rf upstream-lx')
-  console.log('    git clone --depth 1 --branch v1.9.2 \\')
+  console.log('    git clone --depth 1 --branch v1.9.3 \\')
   console.log('      https://github.com/lyswhut/lx-music-mobile upstream-lx')
-  console.log('  （应得到 commit 0669d1b「发布 v1.9.2」）')
+  console.log('  （应得到 commit 94a9dd3c「发布 v1.9.3」）')
   process.exit(0)
 }
 
@@ -63,7 +63,7 @@ if (target) {
   console.log(`文件：${rel}`)
   if (!fs.existsSync(me)) { console.log('  本仓不存在'); process.exit(0) }
   if (!fs.existsSync(up)) {
-    console.log('  ① 定制文件：上游 v1.9.2 不存在此文件 → 按项目口径维护')
+    console.log('  ① 定制文件：上游 v1.9.3 不存在此文件 → 按项目口径维护')
     process.exit(0)
   }
   const same = fs.readFileSync(me, 'utf8') === fs.readFileSync(up, 'utf8')
@@ -94,7 +94,7 @@ for (const me of files) {
   ;(marked ? buckets.marked : buckets.unmarked).push(rel)
 }
 
-console.log('===== 上游基座偏离开具（v1.9.2 判据）=====\n')
+console.log('===== 上游基座偏离开具（v1.9.3 判据）=====\n')
 console.log(`上游源码：${UPSTREAM}`)
 console.log(`扫描范围：${path.join(ROOT, 'src')}（${files.length} 个 .ts/.tsx/.js/.jsx）\n`)
 console.log(`① 定制文件（上游不存在）      : ${buckets.custom.length}`)

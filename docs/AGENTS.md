@@ -6,7 +6,7 @@
 
 ## 项目一句话
 
-洛雪音乐（mobile-app）**定制版** App：fork 自上游 lyswhut 原版 v1.9.1（fork 点 `fb848072`），已合并至上游 v1.9.2（`0669d1b6`）的共存包（`com.luanmuc.lxmusic`），内置豆包定制聚合音源（云编译时从 `luanmuc/backend-api` 自动拉取）。
+洛雪音乐（mobile-app）**定制版** App：fork 自上游 lyswhut 原版 v1.9.1（fork 点 `fb848072`），已合并至上游 v1.9.3（`94a9dd3c`）的共存包（`com.luanmuc.lxmusic`），内置豆包定制聚合音源（云编译时从 `luanmuc/backend-api` 自动拉取）。
 
 ## 目录结构
 
@@ -14,7 +14,7 @@
 README.md                   用户视角：定制功能一览/默认设置差异/文档索引
 docs/MERGE_GUIDE.md         开发协作：高冲突区/设置迁移规则/代码地图（合并上游前必读）
 docs/FAQ.md                 定制版常见问题
-docs/CUSTOM_CHANGELOG.md    定制历史（bN 随底座版本重置，v1.9.2 起从 b1 计数）
+docs/CUSTOM_CHANGELOG.md    定制历史（bN 随底座版本重置，底座升版即从 b1 计数）
 docs/RELEASE_SOP.md         发布流程/版本号规则/测试清单（push 即发版）
 docs/DEV_CONVENTIONS.md     多账号开发规范详情（分工/提交/评审裁决）
 docs/DEV_SETUP.md           开发环境搭建
@@ -79,7 +79,7 @@ git add <文件> && git commit -m "<type>(<scope>): <中文描述>" && git push 
 ## 版本推进协议（任一账号说「发布」即按此执行）
 
 1. 确认代码改动已完成 + 语法检查 0 错误 + 文档一致性检查通过；
-2. push master 即触发云编译发版（`v1.9.2-bN`，bN 自动递增）；
+2. push master 即触发云编译发版（`v1.9.3-bN`，bN 自动递增）；
 3. 编译完成后 Release 自动创建 APK 附件；
 4. 一次发布 = 一次 push = 一个 bN；用户说"重新编译"则直接 push 或 workflow_dispatch。
 

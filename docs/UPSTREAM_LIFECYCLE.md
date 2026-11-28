@@ -9,9 +9,9 @@
 
 | 依赖 | 关系 | 当前版本/引用 | 失效风险 |
 |---|---|---|---|
-| `lyswhut/lx-music-mobile`（上游原版） | fork 源头 | fork 点 `fb848072`（v1.9.1）；**已合并至 v1.9.2（`0669d1b6`，v1.9.2-b1）**；当前底座仍为 **1.9.2**，发布序列 `1.9.2-bN`（b153 起；b151/b152 曾误用 1.9.3，已修正） | 中：上游持续开发，新差异从 v1.9.2 起累积 |
+| `lyswhut/lx-music-mobile`（上游原版） | fork 源头 | fork 点 `fb848072`（v1.9.1）；已合并 v1.9.2（`0669d1b6`）与 **v1.9.3（`94a9dd3c`，2026-11-28）**；当前底座 **1.9.3**，发布序列 `1.9.3-bN`（自 b1 起，v1.9.2 序列止于 b212） | 中：上游持续开发，新差异从 v1.9.3 起累积 |
 | `luanmuc/backend-api`（音源） | CI 构建时拉取 | 每次构建取最新 master | 高：依赖第三方接口（K7） |
-| `luanmuc/react-native-track-player`（fork） | 播放器依赖 | commit `12049cd…`（2026-11-18：新增音高桥 `setPitch`/`getPitch`（b160）+ 音频会话桥 `getAudioSessionId`（b161，供系统均衡器挂载）；同日前值 `b9ecdab2`：音频焦点恢复改显式状态机 `AudioFocusPolicy` + 28 条断言门禁，修 6 条交叉态缺陷，b158 起生效；前值 `82e4e218` 为 2026-11-16 审计包 B3：queueId 自增 / manager 复用 / 续播条件 / 链路开关恢复 / AGP 对齐；b138 起真正进包，b136/b137 因 lockfile 未同步仍编旧代码；b70：6 项通知栏定制 + 音频焦点幂等/暂停修复 + 音频焦点三开关（主开关 / 自动续播 / 降音量）+ 通知栏状态同步判空（b68 启动崩溃修复）+ 原生空指针全链路加固 + 艺术家行音源/音质拼接 + 播放模式按钮 + PendingIntent 加固 + 模式图标重绘；b75 升到 `eceacb5` 仅追加 `quality`/`subSource` 类型字段；b78 升到 `a0b2a87` 取 2026-11-07 全覆盖审计的修复（焦点续播不覆盖用户暂停、contentIntent 补 `FLAG_IMMUTABLE`、服务加 signature 权限、归口注释补齐） | 中：上游升级需重新应用定制补丁（K5）。焦点定制现集中在 `service/focus/AudioFocusPolicy.java`（纯逻辑、零 Android 依赖），上游升级时优先复用该类 |
+| `luanmuc/react-native-track-player`（fork） | 播放器依赖 | commit `3d5bae3`（2026-11-28：同步上游 `755501df` 音频卸载参数补丁——不再只在开启时设置，关时显式 `AUDIO_OFFLOAD_MODE_DISABLED`，并去掉「必须支持变速/无缝」约束，改善手动开卸载的兼容性；v1.9.3-b1 起生效）；此前 `141dca5`（2026-11-21 代次簿记）；再前 `12049cd…`（2026-11-18：新增音高桥 `setPitch`/`getPitch`（b160）+ 音频会话桥 `getAudioSessionId`（b161，供系统均衡器挂载）；同日前值 `b9ecdab2`：音频焦点恢复改显式状态机 `AudioFocusPolicy` + 28 条断言门禁，修 6 条交叉态缺陷，b158 起生效；前值 `82e4e218` 为 2026-11-16 审计包 B3：queueId 自增 / manager 复用 / 续播条件 / 链路开关恢复 / AGP 对齐；b138 起真正进包，b136/b137 因 lockfile 未同步仍编旧代码；b70：6 项通知栏定制 + 音频焦点幂等/暂停修复 + 音频焦点三开关（主开关 / 自动续播 / 降音量）+ 通知栏状态同步判空（b68 启动崩溃修复）+ 原生空指针全链路加固 + 艺术家行音源/音质拼接 + 播放模式按钮 + PendingIntent 加固 + 模式图标重绘；b75 升到 `eceacb5` 仅追加 `quality`/`subSource` 类型字段；b78 升到 `a0b2a87` 取 2026-11-07 全覆盖审计的修复（焦点续播不覆盖用户暂停、contentIntent 补 `FLAG_IMMUTABLE`、服务加 signature 权限、归口注释补齐） | 中：上游升级需重新应用定制补丁（K5）。焦点定制现集中在 `service/focus/AudioFocusPolicy.java`（纯逻辑、零 Android 依赖），上游升级时优先复用该类 |
 | npm 包 `luanmuc-lx-music-version-info` | 更新检查数据源 | CI 自动发布 | 低：NPM_TOKEN 失效时发布失败 |
 
 ## 二、四阶段框架
@@ -51,4 +51,5 @@
 
 | 版本 | 上游基线 | 合入内容（上游提交） | 跳过 | 结论 |
 |---|---|---|---|---|
+| v1.9.3-b1（待发布，2026-11-28 本地合入） | v1.9.3（`94a9dd3c`，v1.9.2 之上 8 个实质提交） | `LyricPlayer` 毫秒补位；`lrc-file-parser` 2.5.0（`offset`→`globalOffset`，本仓已适配）；kg 子项去重键；wy 歌单 eapi 改造 + `eapiRequest` cookie 参数；`core/music/utils` 去 `as any`（本仓早已去掉）；RNTP fork `3d5bae3`（同步上游 `755501df` 卸载参数补丁） | 上游设置迁移拆分（本仓 v2.3 已覆盖）、`versionCode`、`publish/*` | 按相邻 tag 增量套用，不整树 merge（merge-base 仍是 v1.9.1，整树会重放 v1.9.2） |
 | v1.9.2-b1（2026-11-01） | v1.9.2（`0669d1b6`，fork 点之上 6 个新提交） | kg 歌单修复 `e6be258c`；默认禁用音频卸载 `025d7822` + `b3afb18c`（含 v2.3 迁移）；track-player 依赖 `43a3acd8`（fork 升级 `001e2dd`） | `3b1cb20e` / `0669d1b6`（纯版本号+发布记录，定制版有独立 bN 体系） | 用户拍板方案 A：跟随上游 + bN 底座内重置（1.9.2-b1） |

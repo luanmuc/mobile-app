@@ -1,3 +1,16 @@
+## [R90 底座升级至上游 v1.9.3] `package.json`、`src/utils/musicSdk/{kg,wy}`、`src/plugins/lyric.ts`、`android/.../LyricPlayer.java`、文档 - 2026-11-28
+
+上游 `lyswhut/lx-music-mobile` 2026-11-28 发布 **v1.9.3**（`94a9dd3c`），相对 v1.9.2（`0669d1b6`）8 个实质提交、12 个文件（+67/−52）。本仓按「相邻 tag 的单文件增量」合入，**不做整树 merge**：本仓 merge-base 仍停在 v1.9.1（`fb848072`），`git merge v1.9.3` 实测会把 v1.9.2 的变更再回放一遍，制造 6 处假冲突（`package-lock.json` / `package.json` / `publish/*` / `defaultSetting.ts` / `migrateSetting.ts`），已回滚。
+
+- **原样套用（3 个文件与上游 v1.9.3 零差异）**：`LyricPlayer.java` 时间标签毫秒补位（1 位先补前导 0 再追加 0，修 `.1` 类标签解析错误）；`kg/musicSearch.js` 子项去重键改用 `childItem.Audioid`（修子项重复/漏项）；`wy/utils/index.js` 的 `eapiRequest(url, data, cookie)` 增加 cookie 参数，headers 补 `credentials:'omit'` / `cache:'default'`。
+- **wy 歌单改走 eapi（保留本仓 3 处修复）**：`wy/songList.js` 歌单详情由 `linuxapi` forward 改为 `eapiRequest('/api/v3/playlist/detail', {id,n,s}, cookie)`，修「wy 歌单无法加载」；A08-020 cookie 泄漏、A08-003/004 `privilege` 判空、A08-007 重试错调 `getTag` 三处本地修复原样保留。对上游 v1.9.3 复核后，本文件差异**只剩这三处**。
+- **`lrc-file-parser` 2.4.2 → 2.5.0（破坏性 API）**：构造参数 `offset` 移除、改为 `globalOffset`（默认 0），`offset` 改由歌词 `[offset:]` 标签内部解析；`onSetLyric` 回调变为 `(lines, offset, globalOffset)`。`src/plugins/lyric.ts` 的 `offset: 100` 已改 `globalOffset: 100`（不改则 TS 报错且旧键被静默忽略）。运行时实测：同一句 `[00:05.00]` 在 `play(6900)` 下，`globalOffset:100` 命中下一行（7000ms），无 offset 停在上一行，旧 `offset:100` 被忽略 —— 证明偏移生效且语义与旧版一致（旧实现把补偿加进 `_performanceTime`，新实现加进 `currentTime`，数值等价）。
+- **其余取舍（重复项跳过，可移植项已移植）**：①上游把设置迁移拆成 `migrateOldSetting` / `migrateSetting`，并在 `2.0→2.1` 再次关闭 `player.isEnableAudioOffload` —— 本仓 `defaultSetting.version = '2.4'`，v2.3 迁移早已完成同一件事，重复实现只会互相覆盖，**整体保留本仓迁移链**；②上游 `react-native-track-player` fork commit（`d76fe8ff`→`755501df`，把 `TrackSelectionParameters` 提出 offload 分支、关时显式 DISABLED、去掉变速/无缝约束）—— **已移植**进本仓 fork：`luanmuc/react-native-track-player` 新提交 `3d5bae3`，App 依赖锁到该 commit（`package.json`/lock 同步）；默认 `isEnableAudioOffload=false` 时行为不变，改善手动开卸载的兼容性；③上游 `versionCode 80`（本仓无此字段，versionCode 由 `publish/build-state.json` 单调递增）、`publish/*`（CI 回写）；④`core/music/utils.ts` 仅去掉两处 `as any`，本仓早已去掉，无需改；⑤上游 `CHANGELOG.md`（本仓已删除，改用本文件）。
+- **版本口径**：底座 `1.9.2 → 1.9.3`；下一次构建 `publish/build-state.json` 的 `baseVersion` 更新、`build` 归零再 +1，即 **`v1.9.3-b1`**（不是 b213），`versionCode` 371 → 372 继续递增。
+- **验证**：`npm ci` 后依赖树与 lock 对齐（`lrc-file-parser` 2.5.0）；`npm run preflight` **53 通过 / 0 失败 · 208.6s**（含 `tsc --noEmit` 36.2s、ESLint 204.7s、`check_docs_consistency`、`check_release_state_contract`、`check_ts_syntax`）；对 `v1.9.3` 逐文件 diff：`LyricPlayer.java` / `kg/musicSearch.js` / `wy/utils/index.js` 零差异，`wy/songList.js` 仅剩三处 A 档修复。
+- **发版**：RNTP fork `3d5bae3` 已推送；App 单提交推送后由 CI 产出 **`v1.9.3-b1`**（versionCode 372），5 个 APK 随 Release 交付。
+- **边界 / 未验证**：wy 歌单 eapi 的真实接口连通性需真机/联网验证；音频卸载开/关两态需真机各跑一轮（本地无 Android SDK，Java 编译由 CI 承担）。
+
 ## [R89 默认下线 Audius（au）搜索与播放，保留适配器与开关] `src/config/sourceAvailability.ts`、`src/utils/musicSdk/index.js`、`src/core/music/*`、文档 - 2026-11-24
 
 按 2026-11-24 决策：au 上游对 UA / 请求形态 / 节点分层，固定探针曲 + Range 1KB 能过，真实整段播放会撞 502；b211 11:14 仍有 1 个 au 失败簇。**不再在 App 内修 au 播放，也不做“其他源失败后自动试 au”的兜底**，先把 au 从用户可见的搜索与播放链路整体下线。

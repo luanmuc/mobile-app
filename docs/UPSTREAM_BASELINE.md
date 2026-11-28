@@ -8,20 +8,24 @@
 | 项 | 值 |
 |---|---|
 | 上游仓库 | `https://github.com/lyswhut/lx-music-mobile` |
-| Tag | `v1.9.2` |
-| Commit | `0669d1b`（提交信息「发布 v1.9.2」） |
-| 本仓底座升级提交 | `2459ccd7 feat: 底座升级至 v1.9.2` |
+| Tag | `v1.9.3` |
+| Commit | `94a9dd3c`（提交信息「发布 v1.9.3」，2026-11-28） |
+| 本仓底座升级提交 | `R90 feat: 底座升级至 v1.9.3`（2026-11-28）；上一次 `2459ccd7 feat: 底座升级至 v1.9.2` |
 | 本仓最后一条上游作者提交 | `fb848072 发布 v1.9.1`（2026-09-19） |
 
 > ⚠️ 本仓的底座升级是**一次性合并、不保留上游提交历史**，所以 `git log` 里查不到上游演进，
 > 必须按下面的命令单独拉一份上游源码做对照。
+>
+> ⚠️ 由此带来的副作用：git 的 merge-base 永远停在分叉点（v1.9.1 `fb848072`），
+> **整树 `git merge v1.9.3` 会把 v1.9.2 的变更再回放一遍**（2026-11-28 实测 6 处假冲突）。
+> 正确做法是只套用相邻上游 tag 之间的增量，见 [MERGE_GUIDE.md](MERGE_GUIDE.md#合并流程)。
 
 ## 二、拉取基线
 
 ```bash
 cd /tmp && rm -rf upstream-lx
-git clone --depth 1 --branch v1.9.2 https://github.com/lyswhut/lx-music-mobile upstream-lx
-git -C /tmp/upstream-lx log -1        # 应为 0669d1b 发布 v1.9.2
+git clone --depth 1 --branch v1.9.3 https://github.com/lyswhut/lx-music-mobile upstream-lx
+git -C /tmp/upstream-lx log -1        # 应为 94a9dd3c 发布 v1.9.3
 export LX_UPSTREAM_ROOT=/tmp/upstream-lx
 ```
 
@@ -52,7 +56,7 @@ node scripts/check_upstream_divergence.js --list
 | A06-008 | `src/screens/Comment/components/CommentImage.tsx` | `getSize(url, cb)` 只有成功回调 | 坏图时 `wh` 保持 `{0,0}` → 组件渲染 `null`（不显示），属可接受的体验取舍。与上游零差异 |
 | A11-017 | `android/.../user-api-preload.js` + `AES.java` | `ECB_128_NoPadding: 'AES'`（常量名与实现不一致） | 第三方可观察行为：改成 `NoPadding` 会让第三方音源拿到的密文从 32 字节变 16 字节，而我方音源根本不调用 → 零收益、有破坏。**已完整还原** |
 | A02-012 | `src/core/sourceUpdate/plan.ts` | 版本正则只取三段数字 | 比较对象是音源 `@version`（统一 `x.y.z`），不带 `-bN` |
-| A08-017 | `src/utils/officialVersion.ts` | `compareOfficialVersion` 不识别 `-bN` | 函数注释明确「官方版本无 b 构建序号」，官方 tag 就是 `v1.9.2` |
+| A08-017 | `src/utils/officialVersion.ts` | `compareOfficialVersion` 不识别 `-bN` | 函数注释明确「官方版本无 b 构建序号」，官方 tag 就是 `v1.9.3` |
 | A09-017 | `src/components/common/Image.tsx` | `clearMemoryCache` 空实现 | 全仓零调用方（死代码） |
 | A08-009 | `src/utils/request.js` | `formData` 分支误遍历 `options.form` | `src` 内零调用方传 `formData`，属潜伏；修它等于开发 multipart 构造 |
 | A10-008 | `src/navigation/components/VersionModal.tsx` | 可空 `newVersion` 用非空断言 | 当前分支组合下不可达（`ignoreBtn.show=false` 或被占位对象填充） |

@@ -9,28 +9,34 @@
 
 - 上游：`https://github.com/lyswhut/lx-music-mobile.git`（remote 名 `upstream`）
 - 分叉点：`fb848072`（原版 v1.9.1）
-- 上游进度：已合并至 **v1.9.2**（`0669d1b6`，2026-11-01 合入；实质变更见 [CUSTOM_CHANGELOG.md](./CUSTOM_CHANGELOG.md) v1.9.2-b1 条目），此后新差异从 v1.9.2 起累积
-- 定制基线：分叉点之上持续增长，**不写死数字**——用 `git rev-list --count fb848072..HEAD` 实时查询（写死的数下次提交就过期），内容包括下载管理器重写、内置音源、共存包、权限适配、默认设置预设、底座升级 v1.9.2 等，详见 README 定制功能一览
+- 上游进度：已合并至 **v1.9.3**（`94a9dd3c`，2026-11-28 合入；实质变更见 [CUSTOM_CHANGELOG.md](./CUSTOM_CHANGELOG.md) 对应条目），此后新差异从 v1.9.3 起累积
+- 定制基线：分叉点之上持续增长，**不写死数字**——用 `git rev-list --count fb848072..HEAD` 实时查询（写死的数下次提交就过期），内容包括下载管理器重写、内置音源、共存包、权限适配、默认设置预设、底座升级 v1.9.2 / v1.9.3 等，详见 README 定制功能一览
 
 ## 合并流程
 
 ```bash
-# 1. 拉取上游最新代码
-git fetch upstream master
+# 1. 拉取上游 tag —— 不要整树 merge（原因见下）
+git fetch upstream --tags
 
-# 2. 合并到本地 master
-git merge upstream/master
+# 2. 只看两个相邻上游 tag 之间的增量（例：v1.9.2 → v1.9.3）
+git diff --stat v1.9.2 v1.9.3
+git diff v1.9.2 v1.9.3 -- src/utils/musicSdk/wy/songList.js
 
-# 3. 解决冲突（见下方策略），提交
-git add .
-git commit -m "merge: 合并上游更新"
+# 3. 逐文件把增量套到本仓，冲突处按下方策略人工裁决
+#    改完立刻对上游目标 tag 复核，确认只剩“有意保留的定制差异”
+git diff v1.9.3 -- <file>
 
-# 4. 全量语法检查
-# 544 个 TS/TSX 文件语法检查（无 node_modules 时用 typescript transpileModule 逐文件检查）
+# 4. 全量语法检查 + npm run preflight
 
 # 5. 推送触发云编译
 git push origin master
 ```
+
+> **为什么不用 `git merge upstream/master`（2026-11-28 实证）**：本仓的底座升级是一次性压缩提交（`2459ccd7`），
+> git 的 merge-base 仍停在分叉点 `fb848072`（v1.9.1）。实测 `git merge v1.9.3` 会把 v1.9.2 的变更再回放一遍，
+> 制造 6 处**假冲突**（`package-lock.json` / `package.json` / `publish/*` / `defaultSetting.ts` / `migrateSetting.ts`）。
+> 按「相邻上游 tag 的增量文件」套用，冲突面等于真实的定制文件数，且不会把已合并过的旧改动重放。
+> 上游 v1.9.2→v1.9.3 只有 8 个实质文件，逐文件处理比解 6 处假冲突更快。
 
 ## 高冲突区（本仓库深度定制的文件）
 
@@ -60,7 +66,7 @@ git push origin master
 
 ## 常见冲突点速查（快速定位版）
 
-> 从 v1.9.2 合并经验提炼，每条含：冲突原因 + 标准解法。
+> 从 v1.9.2 / v1.9.3 合并经验提炼，每条含：冲突原因 + 标准解法。
 
 | 文件 | 为什么容易冲突 | 标准解法 |
 |---|---|---|
@@ -76,7 +82,7 @@ git push origin master
 
 - **UI/主题类**（screens 样式、components）：保持原版风格（用户明确要求 UI 与原版一致），只保留本仓库的功能性改动
 - **播放器核心**（`src/core/player/*`）：功能逻辑以原版为准，冲突时逐个人工判断；本仓库仅在 `playInfo.ts` 有下载列表播放适配
-- **音乐 SDK**（`src/utils/musicSdk/*`）：原版更新直接合入（未定制；v1.9.2 已合入 `kg/songList.js` 歌单修复 `e6be258c`）
+- **音乐 SDK**（`src/utils/musicSdk/*`）：原版更新直接合入（未定制；v1.9.2 已合入 `kg/songList.js` 歌单修复 `e6be258c`；v1.9.3 已合入 kg 子项去重键修正、wy 歌单 eapi 改造与 `eapiRequest` cookie 参数）
 - **语言文件**：合入原版新增键，保留本仓库的 `nav_download` 等定制键
 
 ## 合并后必查清单
@@ -124,7 +130,7 @@ git push origin master
 **已发生的迁移**（历史记录）：
 - `2.1`：按截图预设默认设置（音质 flac24bit、歌词翻译/罗马音默认开启、进度条不可拖、歌词居中、桌面歌词定位等）
 - `2.2`：桌面歌词默认关闭；默认优先音质 flac24bit（用户指定）
-- `2.3`：音频卸载默认关闭（`isEnableAudioOffload true→false`，同步上游 v1.9.2；老用户升级自动关闭，可在设置中手动重开）
+- `2.3`：音频卸载默认关闭（`isEnableAudioOffload true→false`，同步上游 v1.9.2；老用户升级自动关闭，可在设置中手动重开）。**v1.9.3 上游把同一迁移重做进 `2.0→2.1`（`migrateSetting` 拆分），本仓不采纳**——我们的 2.3 已覆盖且版本号更高，重复实现只会互相覆盖
 
 **注意**：
 - 新增的设置项（之前不存在的）不需要迁移，`mergeSetting` 会自动用默认值填充

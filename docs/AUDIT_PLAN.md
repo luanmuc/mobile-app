@@ -3,6 +3,7 @@
 > **重构说明**：本文件由 v2 重构而来。v1（39 维）→ v2（89 维）→ 后续 O/M/T/Q 组多次叠加，导致同一字母（O、M）出现两次定义、历史修复记录（R1~R15）与当前维度混在一起。本版去掉历史叠加与已销项记录（归档至各轮 `AUDIT_REPORT-*.md`），只保留「当前要审什么、状态如何、缺口在哪」。
 >
 > **基线（唯一真值，2026-11-24）**：
+> - **R90（2026-11-28，本地未推送）**：上游 v1.9.3（`94a9dd3c`）已合入，`package.json` 升到 **1.9.3**；内容为歌词毫秒补位、`lrc-file-parser` 2.5.0（`offset`→`globalOffset`）、kg 子项去重键、wy 歌单 eapi、wy `eapiRequest` cookie；RNTP fork 同步上游 `755501df`（`3d5bae3`，卸载参数始终显式设置）；下次构建从 **`v1.9.3-b1`** 起（bN 重置，versionCode 继续递增）。下列基线仍指最近一次**已发布**版本 `v1.9.2-b212`，R90 未出包。
 > - App：`luanmuc/mobile-app` @ R89 `edb97fbd`（**已推送 master**）；b212 已发布 `v1.9.2-b212`（CI `45332568649` success · 4m6s；b211 为 R88 `8a84dc43` 发布点）；`npm run preflight` **R89 实跑 53 通过 / 0 失败 · 98.4s（同轮三次 70.1 / 98.4 / 114.6s，差异在 eslint）**；`preflight:all` 仍为 R85b **58 通过 / 0 失败 · 287.3s**（本轮未跑双仓全链路）
 > - 源仓：`luanmuc/backend-api` @ `ae13b6d`（**已推送 master**），**v9.3.3**（产物 **400561 bytes / 7725 行**，错误码 **19**，`npm test` **51 脚本** rc0；manifest 已由 CI `sign-release` 重签）
 > - **R82（2026-11-23，b206）**：au 三处契约修复（`filterData` 旧结构 P0 / `getLyric` `{promise,cancelHttp}` P1 / 更新音源并发取最高 P1）+ 首个执行级 SDK 契约门禁（6 条）；指南平台 8→6。

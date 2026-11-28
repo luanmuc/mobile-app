@@ -4,7 +4,7 @@
 
 ## 说明
 
-本仓库是 [lyswhut/lx-music-mobile](https://github.com/lyswhut/lx-music-mobile) 的**定制版**，fork 自上游 v1.9.1（`fb848072`），已合并至上游 **v1.9.2**（`0669d1b6`），由多个豆包账号共同开发维护。
+本仓库是 [lyswhut/lx-music-mobile](https://github.com/lyswhut/lx-music-mobile) 的**定制版**，fork 自上游 v1.9.1（`fb848072`），已合并至上游 **v1.9.3**（`94a9dd3c`，2026-11-28），由多个豆包账号共同开发维护。
 
 所用技术栈：
 
@@ -54,7 +54,7 @@
 | 点击列表歌曲 | 播放整个列表（`list.isClickPlayList`） | 播放单曲 |
 | 进度条拖动 | 关闭（设置里可开） | 开启 |
 | 缓存大小 | 1024MB | 原版默认 |
-| 音频卸载 | 关闭（同步上游 v1.9.2，设置迁移 2.3） | 开启 |
+| 音频卸载 | 关闭（同步上游 v1.9.3，设置迁移 2.3） | 开启 |
 | 通知栏歌词 | 开启（显示当前歌词） | 开启 |
 | 通知栏封面 | 开启 | 开启 |
 | 主题 | green（新年皮肤自动切换） | 原版默认 |
@@ -83,7 +83,7 @@
 |---|---|
 | [AGENTS.md](./docs/AGENTS.md) | AI/多账号协作入口：常用命令、实证验证链 L0-L4（Copilot/豆包自动读取） |
 | [MERGE_GUIDE.md](./docs/MERGE_GUIDE.md) | 上游合并指南、高冲突区、设置迁移规则、代码地图、多账号协作 |
-| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置，当前底座 v1.9.2 至 b212） |
+| [CUSTOM_CHANGELOG.md](./docs/CUSTOM_CHANGELOG.md) | 定制版更新日志（v1.9.1-b1 起，bN 随底座重置；当前底座 v1.9.3，v1.9.2 至 b212） |
 | [docs/DEV_SETUP.md](./docs/DEV_SETUP.md) | 开发环境搭建（新账号上手） |
 | [docs/DEV_CONVENTIONS.md](./docs/DEV_CONVENTIONS.md) | 多账号分工、提交规范、评审流程 |
 | [docs/RELEASE_SOP.md](./docs/RELEASE_SOP.md) | 版本号规则、发布流程、测试清单、验证与回滚 |

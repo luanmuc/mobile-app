@@ -3,7 +3,7 @@
 // https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/module/top_playlist.js
 // https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/module/playlist_detail.js
 
-import { weapi, linuxapi } from './utils/crypto'
+import { weapi } from './utils/crypto'
 import { httpFetch } from '../../request'
 import { formatPlayTime, sizeFormate, dateFormat, formatPlayCount } from '../../index'
 import musicDetailApi from './musicDetail'
@@ -74,24 +74,13 @@ export default {
     // cookie 泄漏到后面所有不带 token 的请求里。没有 token 时回落到默认值。
     this.cookie = cookie ?? 'MUSIC_U='
 
-    const requestObj_listDetail = httpFetch('https://music.163.com/api/linux/forward', {
-      method: 'post',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
-        Cookie: this.cookie,
-      },
-      credentials: 'omit',
-      cache: 'default',
-      form: linuxapi({
-        method: 'POST',
-        url: 'https://music.163.com/api/v3/playlist/detail',
-        params: {
-          id,
-          n: this.limit_song,
-          s: 8,
-        },
-      }),
-    })
+    // R90：同步上游 v1.9.3 —— 歌单详情改走 eapi（linuxapi forward 已被上游判定失效，
+    // 表现为 wy 歌单无法加载）。eapiRequest 第三个参数是 cookie，空值时不下发 Cookie 头。
+    const requestObj_listDetail = eapiRequest('/api/v3/playlist/detail', {
+      id,
+      n: this.limit_song,
+      s: 8,
+    }, this.cookie)
     const { statusCode, body } = await requestObj_listDetail.promise
     if (statusCode !== 200 || body.code !== this.successCode) return this.getListDetail(id, page, ++tryNum)
     let limit = 1000
